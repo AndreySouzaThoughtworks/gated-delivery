@@ -65,4 +65,30 @@ expect_exit "a revision argument scans that commit, so a leak removed later is s
 expect_exit "a revision argument passes a clean commit" 0 env GATED_DELIVERY_DENYLIST="$work/denylist" "$guard" "$history_repo" HEAD
 expect_exit "an unknown revision fails closed" 2 env GATED_DELIVERY_DENYLIST="$work/denylist" "$guard" "$history_repo" no-such-rev
 
+expect_report() {
+  local name="$1" expected="$2" reported="$3" unreported="$4"; shift 4
+  local report actual
+  report="$("$@" 2>&1 >/dev/null)"
+  actual=$?
+  if [ "$actual" -ne "$expected" ]; then echo "FAIL $name (exit $actual, want $expected)"; failures=$((failures + 1)); return; fi
+  if [ -n "$reported" ] && [[ "$report" != *"$reported"* ]]; then echo "FAIL $name (report lacks $reported)"; failures=$((failures + 1)); return; fi
+  if [ -n "$unreported" ] && [[ "$report" == *"$unreported"* ]]; then echo "FAIL $name (report names $unreported)"; failures=$((failures + 1)); return; fi
+  echo "ok   $name"
+}
+
+hashed_term='"integrity": "sha512-q0AcMe9+/Zx=="'
+
+mkdir -p "$work/lock-hash"
+printf '{\n  "packages": {\n    "node_modules/x": {\n      %s\n    }\n  }\n}\n' "$hashed_term" > "$work/lock-hash/package-lock.json"
+expect_report "a client term inside a package-lock integrity hash is skipped" 0 "" "" env GATED_DELIVERY_DENYLIST="$work/denylist" "$guard" "$work/lock-hash"
+
+mkdir -p "$work/lock-elsewhere"
+printf '{\n  "packages": {\n    "node_modules/acme": {\n      %s\n    }\n  }\n}\n' "$hashed_term" > "$work/lock-elsewhere/package-lock.json"
+expect_report "a client term elsewhere in package-lock.json is still caught" 1 '"node_modules/acme"' "sha512-" env GATED_DELIVERY_DENYLIST="$work/denylist" "$guard" "$work/lock-elsewhere"
+
+mkdir -p "$work/not-lock"
+printf '{\n  %s\n}\n' "$hashed_term" > "$work/not-lock/notes.json"
+cp "$work/lock-hash/package-lock.json" "$work/not-lock/package-lock.json"
+expect_report "an integrity key outside package-lock.json is still scanned" 1 "notes.json" "package-lock.json" env GATED_DELIVERY_DENYLIST="$work/denylist" "$guard" "$work/not-lock"
+
 exit "$failures"

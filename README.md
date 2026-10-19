@@ -44,6 +44,7 @@ The core must never name a client. `scripts/leak-guard.sh` greps the staged, tra
 | `node --test scripts/audit/*.test.mjs scripts/eval/*.test.mjs` | No | The consistency guard and the eval runner report each defect on a broken fixture and stay quiet on a valid one |
 | `node scripts/eval/run-checks.mjs --lint` | No | Every skill's `## Deterministic Checks` command runs, and every `# expect:` line is well formed and names a scenario in that skill's table |
 | `node scripts/eval/judge.mjs <skill> <id> <run-dir>` | Yes | A saved run meets its scenario's Pass Criteria, clause by clause, with quoted evidence; exits 0 PASS, 1 FAIL, 3 UNCLEAR |
+| `node scripts/eval/run-scenarios.mjs <skill> [--scenario <id>…]` | Yes | Runs a skill's eval scenarios as real `claude -p` sessions, flags harness failures and writes each run's grades to `summary.tsv` |
 | `bash tests/pre-push.test.sh` | No | The pre-push hook rejects a push carrying a leak in any pushed commit, leaves the remote unchanged, and lets clean pushes and branch deletions through; skips with exit 3 without `gitleaks` |
 | `bash tests/profile-isolation.test.sh [project-dir]` | No | A fresh profile installs the core, loads no client plugin or MCP server, has its own login, and no CLAUDE.md above `project-dir` carries client terms |
 | `bash tests/commit-convention.test.sh` | Yes | `/gated-delivery:commit` falls back to Conventional Commits, applies a matching convention, and refuses a missing ticket key |

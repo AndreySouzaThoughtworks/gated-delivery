@@ -1,23 +1,44 @@
 #!/usr/bin/env bash
 # Create, or reuse, a slice, batch or spec writing worktree.
 #
-# Usage: slice-tree.sh <slice-tree> <branch> [<base>]    run from inside the repository
+# Usage: slice-tree.sh [--claim] <slice-tree> <branch> [<base>]    run from inside the repository
 #
 # Reuses a local branch, resumes a branch that exists only on origin at its
 # pushed tip, or creates the branch from <base> (default origin/main). Prints
 # the tree's path on success. Exits non-zero with the reason on stderr, which
 # the caller treats as a STOP.
+#
+# --claim only creates: it refuses when the branch exists locally or on origin,
+# or the tree path is already a worktree, so a claim never reuses another
+# actor's tree or branch.
 set -euo pipefail
 . "$(dirname "$0")/tree-common.sh"
 
-SLICE_TREE="$(physical_path "${1:?usage: slice-tree.sh <slice-tree> <branch> [<base>]}")"
-BRANCH="${2:?usage: slice-tree.sh <slice-tree> <branch> [<base>]}"
+USAGE="usage: slice-tree.sh [--claim] <slice-tree> <branch> [<base>]"
+CLAIM=false
+if [ "${1:-}" = --claim ]; then CLAIM=true; shift; fi
+SLICE_TREE="$(physical_path "${1:?$USAGE}")"
+BRANCH="${2:?$USAGE}"
 BASE="${3:-origin/main}"
 REPO="$(main_checkout)"
 
 assert_outside_repo "$SLICE_TREE" "$REPO"
 
-if is_registered_worktree "$SLICE_TREE"; then
+if $CLAIM; then
+  if is_registered_worktree "$SLICE_TREE"; then
+    echo "claim refused: $SLICE_TREE is already a worktree" >&2
+    exit 1
+  fi
+  # ls-remote exits 2 only when the ref is absent; any other failure refuses.
+  remote_status=0
+  git ls-remote --exit-code origin "refs/heads/$BRANCH" >/dev/null || remote_status=$?
+  if [ "$remote_status" -ne 2 ]; then
+    echo "claim refused: $BRANCH is on origin, or origin could not be checked" >&2
+    exit 1
+  fi
+  # -b, never -B: it refuses a branch that already exists locally.
+  git worktree add --no-track -b "$BRANCH" "$SLICE_TREE" "$BASE" >&2
+elif is_registered_worktree "$SLICE_TREE"; then
   CURRENT="$(git -C "$SLICE_TREE" branch --show-current)"
   if [ "$CURRENT" != "$BRANCH" ]; then
     echo "$SLICE_TREE holds $CURRENT, not $BRANCH" >&2
@@ -29,7 +50,7 @@ elif git show-ref --verify --quiet "refs/heads/$BRANCH"; then
   # side when the two diverged.
   if git show-ref --verify --quiet "refs/remotes/origin/$BRANCH"; then
     if git merge-base --is-ancestor "$BRANCH" "origin/$BRANCH"; then
-      git branch -f "$BRANCH" "origin/$BRANCH"
+      git branch -f "$BRANCH" "origin/$BRANCH" >&2
     elif ! git merge-base --is-ancestor "origin/$BRANCH" "$BRANCH"; then
       echo "$BRANCH and origin/$BRANCH diverged; reconcile them before resuming" >&2
       exit 1

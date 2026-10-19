@@ -57,7 +57,7 @@ With `push.default = upstream`, a branch whose upstream is `origin/<default-bran
 
 Commit as the repo's configured identity — never pass `-c user.email`. GitHub rejects pushes authored with a private address (`GH007`).
 
-**6. Open the PR.** Write the body with the Write tool to `<local-notes>/pr-body-<branch-with-slashes-as-dashes>.md`, where `<local-notes>` is the Local notes home from `## Delivery notes` in the client's CLAUDE.md, default `~/.local/state/gated-delivery/`. Then pass the file:
+**6. Open the PR.** Write the body with the Write tool to `<local-notes>/pr-body-<branch-with-slashes-as-dashes>.md` — replace every `/` in the branch name with `-`, or the file lands in a new directory — where `<local-notes>` is the Local notes home from `## Delivery notes` in the client's CLAUDE.md, default `~/.local/state/gated-delivery/`. Then pass the file:
 
 ```
 gh pr create --title "<title>" --body-file <path>

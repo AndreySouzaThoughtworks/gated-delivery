@@ -86,6 +86,8 @@ Report:
 
 An expected convention source missing from the `Conventions` line means source resolution failed.
 
+**Clean up merged slices before routing.** The user merges PRs, so no `/slice` step runs after a merge. For every slice tree (`$LOCAL_NOTES/slice-trees/{ticket-id}-*-{actor}`) and local slice branch of this actor, run `gh pr view <branch> --json state`; on `MERGED`, run `git worktree remove --force <tree> && git worktree prune`, then `git branch -D <branch>` for the slice branch and its batch branches. Never touch another actor's tree or branch.
+
 Surface tracker blockers before routing. A missing `## Rollout` selects Route R.
 
 ### 3. CHECKPOINT — route by state
@@ -100,7 +102,7 @@ Read the rows top to bottom and take the **first** that matches; confirm it befo
 | A new finding changes architecture, scope, ACs, exposure, or PR shape | **Route B′ — Spec update first.** Pause implementation, update decisions and Rollout with the user, publish the spec, mark the finding `ROUTED`, then return to the route this table gives. |
 | Decisions resolved but Rollout missing | **Route R — Rollout first.** Propose the merge sequence and waves by applying `/spec` step 5's method and the template's boundary bar here; do not invoke `Skill(spec)`, which refuses a ticket that already has a spec. Publish the updated spec and STOP. `/slice` does not invent merge boundaries while executing. |
 | Every Rollout slice merged | **Route F — Close the ticket.** Run step 9, harvest the handoff, and complete per-ticket Done-when. |
-| This actor holds one or more unmerged slices whose PRs are not yet ready | **Route D — Resume.** Resume all of them. Batch branches or slice trees present, or a slice of a multi-slice wave? Read `references/parallel.md` § Resume first. Only a one-slice wave resumes in the main checkout. Read each slice's Rollout entry, agent notes when present, the handoff, PR base, and commits; surface completed and remaining ACs, then re-plan only those slices' batches. |
+| This actor holds one or more unmerged slices whose PRs are not yet ready, or are ready but a sibling merged after their gates ran | **Route D — Resume.** Resume all of them. A slice whose sibling merged after its gates ran goes through `references/parallel.md` § Wave step 6 first: merge `main` in, re-record `<slice-base-sha>`, rerun 7.1–7.5. Batch branches or slice trees present, or a slice of a multi-slice wave? Read `references/parallel.md` § Resume first. Only a one-slice wave resumes in the main checkout. Read each slice's Rollout entry, agent notes when present, the handoff, PR base, and commits; surface completed and remaining ACs, then re-plan only those slices' batches. |
 | Every unmerged slice of the earliest unmerged wave is held, and none is this actor's in progress | **Route E — Wait for merge.** Report each held slice with its holder and PR, and the next wave. STOP. Never start a later wave while an earlier one has an unmerged slice. |
 | The earliest unmerged wave has two or more slices, and one or more nobody holds | **Route W — Run the wave.** Confirm which slices this actor takes, up to the parallel cap. Each runs in its own slice tree, even when this actor takes only one, so the shared main checkout stays on `main`. Read `references/parallel.md`, then follow it. |
 | The earliest unmerged wave is one slice, and nobody holds it | **Route C — Start the slice.** Continue to step 4. A repo-hosted spec still uncommitted from `/spec` is committed there as the branch's first commit. |
@@ -119,15 +121,14 @@ git checkout -b feat/{ticket-id}-{slug}-s{n}
 
 Every slice normally branches from updated `main`. A genuinely dependent slice may stack on the previous slice branch only with explicit user confirmation; first check whether that dependency means the Rollout boundary is invalid.
 
-Claim it at once with its own commit — a bare branch push is no claim, since pushing a SHA `origin` already has exits 0:
+Claim it at once with its own commit and a create-only push:
 
 ```bash
 git commit --allow-empty -m "chore({ticket-id}): claim s{n} for <actor>"
-git push -u origin HEAD:refs/heads/feat/{ticket-id}-{slug}-s{n}
-git fetch origin feat/{ticket-id}-{slug}-s{n}
+git push -u --force-with-lease=refs/heads/<branch>: origin HEAD:refs/heads/<branch>
 ```
 
-The claim holds only when `origin/<branch>` equals `HEAD`; otherwise, a rejected push included, another actor holds it: check out `main`, delete the local branch, and route again. The claim commit is empty, so later ranges include it harmlessly.
+The empty lease (`<branch>:`) lets the push only create the branch: git rejects it whenever `origin` already has one, even a fast-forward. Exit 0 is the claim. Any rejection, from `git checkout -b` or the push, means another actor holds the slice: check out `main`, delete the local branch this attempt created, and route again. Never adopt, reset or remove a tree or branch this attempt did not create. The claim commit is empty, so later ranges include it harmlessly.
 
 If the repository hosts the spec and `/spec` left it uncommitted, commit it next — `docs(specs): add spec for {ticket-id}`.
 
@@ -211,10 +212,10 @@ Skip with one sentence for purely internal logic.
 After the first batch commits, open a draft PR against `<slice-base>`:
 
 ```bash
-gh pr create --draft --base <slice-base> --title "{type}({ticket-id}): {slice title}" --body-file "$LOCAL_NOTES/pr-body-<branch>.md"
+gh pr create --draft --base <slice-base> --title "{type}({ticket-id}): {slice title}" --body-file "$LOCAL_NOTES/pr-body-<branch-with-slashes-as-dashes>.md"
 ```
 
-Write the body with the Write tool to `$LOCAL_NOTES/pr-body-<branch>.md` and pass it by `--body-file`, also to `gh pr edit` for every later update — never an inline `--body`, a heredoc or stdin, which trip the shell-safety checks.
+Write the body with the Write tool to `$LOCAL_NOTES/pr-body-<branch-with-slashes-as-dashes>.md` — replace every `/` in the branch name with `-`, or the file lands in a new directory — and pass it by `--body-file`, also to `gh pr edit` for every later update — never an inline `--body`, a heredoc or stdin, which trip the shell-safety checks.
 
 The initial body links the ticket and the spec and quotes this slice's Rollout entry. Push every later batch to the same PR. Do not request reviewers before the slice-end gates pass.
 
@@ -272,6 +273,8 @@ Invoke `Agent(subagent_type: code-reviewer)` with:
 
 **Name the review tree in the prompt as the only place it may work**: the agent takes no working-directory input.
 
+When the slice belongs to a wave of two or more slices, pass `memory: read-only`, whoever runs the other slices: two sessions writing one memory index lose entries. Record the lessons it reports under `Memory` as one Carry-forward entry; Route F writes them.
+
 This gate runs last for its slice; nothing may move the tip while it reads.
 
 STOP if `code-reviewer` is not found. Resolve every `BLOCK` before proceeding. Treat `UNVERIFIED` as not yet green. The reviewer receives only this slice's requirements because later slices are intentionally absent.
@@ -317,6 +320,7 @@ Promote a finding into `## Carry forward` only when losing the conversation woul
 | A deferral, and whether a tracker ticket was raised for it | The tracker owns it once raised; until then this is the only record |
 | An assumption the executor made | otherwise the next reader re-derives it |
 | A dead end — tried X, failed because Y | expensive to rediscover, recorded nowhere |
+| A lesson a read-only reviewer reported | reviewer memory stays frozen while a wave runs; Route F writes it |
 
 Never write status, AC lists, exposure declarations, line numbers or counts. A measurement goes inline in the finding it supports, with the SHA it ran against, never as a standalone probe file.
 
@@ -352,11 +356,11 @@ Skip the sweep on a single-slice ticket and say so. Its 7.3 pass already covered
 
 Route any finding into a follow-up PR.
 
-Then complete Route F:
+Then complete Route F. **Every tracker write waits for approval:** each edit and comment, on this ticket or any other, goes through `Skill(issue-writing)` § Publishing to the tracker — show its full text and write only after the user approves it.
 
 1. Merge Domain model deltas into the canonical domain document named by the repository instructions, when the repository maintains one.
 2. Walk `## Done-when` → Per ticket, including removal tickets for surviving flags. Raising one is ticket authoring, the same as a refactor-note ticket at 7.6 — hand it to `Skill(issue-writing)`.
-3. Harvest every `OPEN` handoff entry into the spec, an ADR, a tracker ticket, a named PR, or repository documentation, or close it with evidence. An entry bound for the tracker goes through `Skill(issue-writing)`.
+3. Harvest every `OPEN` handoff entry into the spec, an ADR, a tracker ticket, a named PR, or repository documentation, or close it with evidence. An entry bound for the tracker goes through `Skill(issue-writing)`. Reviewer lessons go to one `code-reviewer` dispatch with `lessons` as its only input, the single memory write of the ticket.
 4. Record the outcome in the spec and other canonical destinations.
 5. **Fold per-slice handoffs.** Where a wave wrote `{ticket-id}/handoff-s<n>.md` files, move each one's Resume block and Carry-forward entries into `handoff.md` unchanged, then delete the per-slice files in the close-out commit.
 6. **Lead the handoff with its outcome.** Write `## Outcome` as the file's **first** section — what shipped, where each harvested item landed, and the dead ends and assumptions a later reader would otherwise re-derive — then stamp each `## Resume — <actor>` block `Closed: <UTC timestamp, from `date -u +%Y-%m-%dT%H:%MZ`>` so no spent position reads as live. Nothing is deleted, moved or archived. Stamping other actors' blocks is the one exception to the Actor rule.

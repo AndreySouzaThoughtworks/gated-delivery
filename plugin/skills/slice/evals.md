@@ -42,12 +42,13 @@ mode: response
 | 26 | "Run the slice-end gates on wave 1." | Two slices in flight, each with a review tree. | Runs each 7.2 verify and each reviewer's `verify-cmd` through `verify-lock.sh`, and dispatches both code-reviewers in one message, each bound to its own review tree. Fails if a verify runs outside the lock or one reviewer grades both trees. |
 | 27 | "Start wave 1 of PROJ-153." | Wave 1 holds s1 and s2; `/spec` left the repo-hosted spec uncommitted in the main checkout. | Lands the spec first through its own docs PR and STOPs for its merge, leaving the main checkout clean; creates no slice branch yet. Fails if any slice branch commits the spec, or if a slice starts before the spec is on `main`. |
 | 28 | "Finish slice 3 of PROJ-154." | Slice 3's Done-when requires moving a shared test helper and adding a linear-time guard test; no AC covers either. | Plans them as a batch of `slice-tasks` and dispatches the executor for it. Fails if the orchestrator writes that code itself in its own checkout. |
-| 29 | "Run both reviewers on wave 1." | Two slices end together. | Dispatches both code-reviewers in one message, all but one with `memory: read-only`. Fails if two reviewers may write memory in the same message. |
+| 29 | "Run both reviewers on wave 1." | Two slices end together. | Dispatches both code-reviewers in one message, each with `memory: read-only`, and records their lessons in Carry forward for Route F. Fails if any reviewer in the wave may write memory. |
 | 30 | "Plan and run slice 1 of PROJ-160." | Three batches: a mask helper in `src/mask.ts`, a redact helper in `src/redact.ts`, and an adapter in `src/adapter.ts` that calls both. | Puts the two helpers in round 1 and the adapter in round 2; creates one batch tree per round-1 batch, dispatches both executors in one message, then runs `batch-pick.sh` for each in plan order and the 6.4 lens on each printed range. Fails if the adapter runs in round 1 or any executor writes in the slice's own tree. |
 | 31 | "Continue the round." | Round 1's second batch conflicts with the first on a shared test fixture; `batch-pick.sh` exits 3. | Leaves the slice as `batch-pick.sh` restored it, records the missed overlap, and runs that batch again alone on the new tip before round 2. Fails if it hand-merges the conflict or skips the batch. |
 | 32 | "Plan the batches for slice 2." | Every batch crosses the seam of the one before it. | Keeps them sequential, one round each, and says the chain allows no parallel round. Fails if it creates batch trees. |
 | 33 | "Run round 2 of slice 1." | Two batches picked; `batch-pick.sh` printed `a1..b2` and `b2..c3`. | Invokes `Skill(senior-review-lens)` once per printed range, two calls, before 6.3. Fails if one call covers both ranges, or if a note records a lens verdict with no call behind it. |
 | 34 | "Pick round 1." | One of the round's two executors wrote `## BLOCKED`. | Reads both notes before any pick, picks nothing, and surfaces the block, keeping both batch trees. Fails if any batch is picked first. |
+| 35 | "Claim s1 of PROJ-170." | This actor is `bob`. Wave 1 holds s1 and s2. On the same machine, `alice` claimed s1 4 ms earlier: her tree `slice-trees/PROJ-170-s1-alice` exists and her create-only push landed, so bob's create-only push is rejected. | Creates `slice-trees/PROJ-170-s1-bob` with `slice-tree.sh --claim`, pushes the claim with an empty lease, and on the rejection removes only its own `-s1-bob` tree and branch, names `alice` as holder of s1, and routes again. Fails if it reuses, resets or removes alice's tree, pushes without the lease, or treats the slice as its own. |
 
 ## Agent Prompt Templates
 
@@ -85,6 +86,7 @@ CONTEXT: {{PERSONA}}
 | Merge of two writers | Drops one side's evidence, or force-pushes | Both entries kept, block resolved by `Updated` | **Manual**, scenario 19 |
 | Close-out record | A reader months later meets the route before the result, or the route is deleted to spare them | `## Outcome` leads the file; the blocks stay, stamped `Closed` | Close-out checks below, scenario 20 |
 | Parallel wave | Starts dependent slices together, shares a tree, or skips the claim | Route W over independent slices only; each branch pushed as its claim; one slice tree and one executor per slice | Checks below plus **Manual**, scenarios 23–24 |
+| Claim race | Two actors both hold one slice, or the loser deletes the winner's tree | One create-only push lands; the loser removes only its own `-{actor}` tree | Claim checks below, scenario 35 |
 | Wave merges | Ships a sibling on evidence from before the other merged | Merges `main` in and reruns 7.1–7.5 | **Manual**, scenario 25 |
 | Verify isolation | Parallel verify runs collide on ports or containers | Every suite and verify through the verify lock | Lock check below, scenario 26 |
 | Batch rounds | Runs dependent batches together, or writes two batches in one tree | Rounds only from independent batches; one batch tree each; notes read before picking; picked in plan order; a conflict re-runs that batch alone | Pick check below plus **Manual**, scenarios 30–32 and 34 |
@@ -126,10 +128,20 @@ grep -Ec "slice-trees/[^ \"]*-s1\b" output.md   # scenario 24: s1
 grep -Ec "slice-trees/[^ \"]*-s2\b" output.md   # scenario 24: s2
 # Verify through the lock — expect >=2 on 26. A run that verifies in place scores 0.
 grep -Ec "verify-lock\.sh" output.md          # scenario 26 only
-# Only one reviewer writes memory — expect >=1 on 29. A run that lets both write scores 0.
-grep -Ec "memory: ?.?read-only" output.md      # scenario 29 only
+# No reviewer in a wave writes memory — expect >=2 on 29, one per reviewer. A run that lets one
+# reviewer write scores 1. Counts occurrences, not lines: two dispatches often share one line.
+grep -Eo "memory: ?.?read-only" output.md | grep -c .      # scenario 29 only
 # A parallel round picks its batches back — expect >=2 on 30, 0 on 32, which has no round to pick.
 grep -Ec "batch-pick\.sh" output.md          # scenarios 30 and 32
+# Claim race. The push is create-only — expect >=1 on 35: an empty lease, the `:` followed by a
+# space or line end. A plain push, a bare --force-with-lease, or a lease naming a SHA scores 0.
+grep -Ec -e "--force-with-lease=refs/heads/[^ :]+:( |$)" output.md   # scenario 35
+# The tree is made in claim mode — expect >=1 on 35. A reused or hand-made tree scores 0.
+grep -Ec "slice-tree\.sh\"? --claim" output.md      # scenario 35
+# The loser removes its own tree — expect >=1 on 35 — and never alice's — expect 0. One command
+# per match: `&`, `;` and `|` end it, so a removal chained after another tree's never counts.
+grep -Ec "worktree remove[^&;|]*-s1-bob" output.md                 # scenario 35: own tree
+grep -Ec "(worktree remove|rm -rf)[^&;|]*-s1-alice" output.md      # scenario 35: alice's tree
 ```
 
 ## Saturation Signals

@@ -220,4 +220,79 @@ check "review-tree.sh prints only the tree path when it creates the tree" '[ "$o
 out="$(cd "$out_tree" && "$scripts/review-tree.sh" "$out_review" "$(git -C "$out_tree" rev-parse HEAD~1)" 2>/dev/null)"
 check "review-tree.sh prints only the tree path when it re-points the tree" '[ "$out" = "$out_review" ]'
 
+# Claim race: two actors claim one slice; exactly one holds it
+race="$work/race"
+new_repo "$race"
+race_remote="$work/race.git"
+git init -q --bare "$race_remote"
+git -C "$race" remote add origin "$race_remote"
+git -C "$race" push -q origin main 2>/dev/null
+git -C "$race" fetch -q origin
+race_branch=feat/T-4-a-s1
+stale_clone="$work/race-stale"
+git clone -q "$race_remote" "$stale_clone" 2>/dev/null
+claim_push() { git -C "$1" push -q --force-with-lease="refs/heads/$race_branch:" origin "HEAD:refs/heads/$race_branch" >/dev/null 2>&1; }
+remote_tip() { git -C "$race_remote" rev-parse --verify -q "refs/heads/$race_branch"; }
+
+alice_tree="$work/trees/T-4-s1-alice"
+out="$(cd "$race" && "$scripts/slice-tree.sh" --claim "$alice_tree" "$race_branch" origin/main 2>/dev/null)"
+check "a claim creates a new tree and prints only its path" '[ "$out" = "$alice_tree" ] && [ "$(git -C "$alice_tree" branch --show-current 2>/dev/null)" = "$race_branch" ]'
+bob_tree="$work/trees/T-4-s1-bob"
+(cd "$race" && "$scripts/slice-tree.sh" --claim "$bob_tree" "$race_branch" origin/main) >/dev/null 2>&1
+check "a claim is refused when the branch exists locally, before any push" '[ $? -ne 0 ] && [ ! -e "$bob_tree" ] && [ "$(git -C "$alice_tree" branch --show-current)" = "$race_branch" ]'
+g "$alice_tree" commit -q --allow-empty -m "chore(T-4): claim s1 for alice" 2>/dev/null
+alice_claim="$(git -C "$alice_tree" rev-parse HEAD 2>/dev/null)"
+claim_push "$alice_tree"
+check "the first create-only claim push lands" '[ $? -eq 0 ] && [ "$(remote_tip)" = "$alice_claim" ]'
+
+
+bob_push_tree="$work/trees/T-4-s1-bob-push"
+git -C "$race" worktree add -q --detach "$bob_push_tree" origin/main 2>/dev/null
+g "$bob_push_tree" commit -q --allow-empty -m "chore(T-4): claim s1 for bob"
+claim_push "$bob_push_tree"
+check "a second claim push from another tree of the same clone is rejected" '[ $? -ne 0 ] && [ "$(remote_tip)" = "$alice_claim" ]'
+
+(cd "$stale_clone" && "$scripts/slice-tree.sh" --claim "$work/trees/T-4-s1-carol" "$race_branch" origin/main) >/dev/null 2>&1
+check "a claim is refused when only ls-remote sees the branch on origin" '[ $? -ne 0 ] && [ ! -e "$work/trees/T-4-s1-carol" ]'
+
+git -C "$stale_clone" checkout -q -b "$race_branch" origin/main
+g "$stale_clone" commit -q --allow-empty -m "chore(T-4): claim s1 for carol"
+claim_push "$stale_clone"
+check "a second claim push from another clone is rejected" '[ $? -ne 0 ] && [ "$(remote_tip)" = "$alice_claim" ]'
+
+fetched_clone="$work/race-fetched"
+git clone -q "$race_remote" "$fetched_clone" 2>/dev/null
+git -C "$fetched_clone" checkout -q --detach origin/main
+git -C "$fetched_clone" -c user.email=t@t -c user.name=t commit -q --allow-empty -m "on top of nothing"
+git -C "$fetched_clone" checkout -q -b on-top "origin/$race_branch"
+g "$fetched_clone" commit -q --allow-empty -m "fast-forward on alice's claim"
+claim_push "$fetched_clone"
+check "a create-only claim push is rejected even when it fast-forwards" '[ $? -ne 0 ] && [ "$(remote_tip)" = "$alice_claim" ]'
+git -C "$fetched_clone" checkout -q --detach origin/main
+git -C "$fetched_clone" branch -q -D on-top
+(cd "$fetched_clone" && "$scripts/slice-tree.sh" --claim "$work/trees/T-4-s1-dave" "$race_branch" origin/main) >/dev/null 2>&1
+check "a claim is refused when the branch is on origin" '[ $? -ne 0 ] && [ ! -e "$work/trees/T-4-s1-dave" ]'
+
+(cd "$race" && "$scripts/slice-tree.sh" --claim "$alice_tree" feat/T-4-b-s2 origin/main) >/dev/null 2>&1
+check "a claim is refused when the tree path is already registered, and that tree is kept" '[ $? -ne 0 ] && [ "$(git -C "$alice_tree" branch --show-current)" = "$race_branch" ] && [ -z "$(git -C "$race" rev-parse --verify -q refs/heads/feat/T-4-b-s2)" ]'
+
+g "$race" branch -q feat/T-4-c-s3 main
+g "$race" commit -q --allow-empty -m "main moves on"
+idle_tip="$(git -C "$race" rev-parse feat/T-4-c-s3)"
+(cd "$race" && "$scripts/slice-tree.sh" --claim "$work/trees/T-4-s3-erin" feat/T-4-c-s3 main) >/dev/null 2>&1
+check "a claim is refused when the branch exists locally in no tree, and the branch is not moved" '[ $? -ne 0 ] && [ ! -e "$work/trees/T-4-s3-erin" ] && [ "$(git -C "$race" rev-parse feat/T-4-c-s3)" = "$idle_tip" ]'
+
+out="$(cd "$race" && "$scripts/slice-tree.sh" "$alice_tree" "$race_branch" origin/main 2>/dev/null)"
+check "without --claim the holder's own tree still resumes" '[ $? -eq 0 ] && [ "$out" = "$alice_tree" ]'
+
+# The resume path that fast-forwards a stale local branch prints only the path
+git -C "$race" worktree remove --force "$alice_tree"
+git -C "$fetched_clone" checkout -q -b more "origin/$race_branch"
+g "$fetched_clone" commit -q --allow-empty -m "more s1 work"
+git -C "$fetched_clone" push -q origin "HEAD:refs/heads/$race_branch" >/dev/null 2>&1
+git -C "$race" fetch -q origin
+ff_tree="$work/trees/T-4-s1-alice-resume"
+out="$(cd "$race" && "$scripts/slice-tree.sh" "$ff_tree" "$race_branch" origin/main 2>/dev/null)"
+check "slice-tree.sh prints only the tree path when it fast-forwards a stale local branch" '[ "$out" = "$ff_tree" ] && [ "$(git -C "$ff_tree" rev-parse HEAD)" = "$(git -C "$race" rev-parse "origin/$race_branch")" ]'
+
 [ "$failures" -eq 0 ] && echo "all slice script tests passed" || { echo "$failures failed"; exit 1; }

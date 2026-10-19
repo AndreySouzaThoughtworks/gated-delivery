@@ -38,7 +38,7 @@ term no source defines. Judge it against the kind's template in `gated-delivery:
 ## What is not a finding
 
 - **Wording, style and template shape** that leave what gets built unchanged. That is
-  `gated-delivery:issue-writing` Review mode; say so in one line if the ticket reads badly overall.
+  `gated-delivery:issue-writing` Review mode (step 5 says what a clean report may say about it).
 - **Implementation detail.** How it gets built is the implementer's call and the spec's content.
 - **A claim with no source.** An inference stays out unless it would change a criterion, and then it
   goes to the user as a question, never as a proposed edit.
@@ -136,6 +136,10 @@ Then filter:
 **Clean.** Open the report with the line `No drift found`, those three words verbatim, so a reader
 and a check both find the verdict without parsing a paraphrase. Then list each kind of source read with its count, plus anything that
 could not be read and why, and any follow-ups on other sources as step 6 describes them, then stop.
+
+A clean report proposes no text at all: no rewording, no "for example" criterion, no tightened
+version of an awkward line. Wording is not drift. At most one line may say the wording is out of
+scope and that `gated-delivery:issue-writing` Review mode covers it, with no suggested text.
 
 **Findings.** One line first: how many, and of which kind. Then one finding at a time, in this
 order — contradicted by a decision, dependency changed, superseded, resolved elsewhere, unclear.

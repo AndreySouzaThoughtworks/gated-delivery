@@ -52,4 +52,6 @@ The core must never name a client. `scripts/leak-guard.sh` greps the staged, tra
 
 Login-bound tests skip with exit 3 when the profile is not logged in. Point them at another profile with `GATED_DELIVERY_TEST_PROFILE=~/.claude-<name>`. Each run starts real `claude -p` sessions on that account.
 
+Skill evals run each skill's `evals.md` scenarios as real `claude -p` sessions and grade them against its Pass Criteria and Deterministic Checks. How to run them reliably: [docs/evals.md](docs/evals.md).
+
 The verification gate (`verify-on-stop` hook) runs the repo's own lint at turn-end. Knobs: [docs/onboarding.md](docs/onboarding.md#knobs-environment-variables).

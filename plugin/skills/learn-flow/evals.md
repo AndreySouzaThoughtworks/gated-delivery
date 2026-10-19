@@ -53,7 +53,7 @@ CONTEXT: {{PERSONA}}
 | Quality Signal                   | Without Skill                                   | With Skill                                                                        | How to Measure                                          |
 | -------------------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------- |
 | Scope routing                    | Dumps everything into one note (usually local)  | Names destination per lesson (flow/client/repo/personal/eslint rule)                 | `grep -c "No learnings cleared the bar this session." output` — **1** for scenarios 4/6, **0** for 1/2/3/5 — **plus Manual** for 1/2/3/5: does named destination match lesson's scope? Grep only rules out wrong *null*; empty response also scores 0, so not on its own evidence anything routed. No greppable positive exists: every destination marker is output-template text, matches padded run. |
-| Flow lessons reach the team      | Edits local file (drifts, dies on re-install) | Proposes a PR or issue against gated-delivery repo | `grep -iE -e issue -e "pull request" -e branch output` |
+| Flow lessons reach the team      | Edits local file (drifts, dies on re-install) | Proposes a PR or issue against gated-delivery repo | Flow-routing count in Deterministic Checks — ≥1 on 1, 0 on 4/6 |
 | Propose-don't-write              | May start editing files immediately             | Drafts first, asks approval                                                       | Presence of approval ask before any write            |
 | Restraint on clean sessions      | Invents learning to seem useful               | Reports nothing to capture (scenario 4)                                           | Manual: no filler items                                 |
 | Drops the plausible-but-marginal | Keeps tidy-sounding one-off                   | Drops it for failing mechanism/evidence gate, names gate (scenarios 4, 6) | Manual: no kept item lacks evidence + named mechanism |
@@ -69,8 +69,10 @@ CONTEXT: {{PERSONA}}
 grep -c "No learnings cleared the bar this session." output.md  # 1 for scenarios 4/6, 0 for 1/2/3/5
 # The drop names its gate — expect >=1 on scenarios 4/6. A bare null line scores 0.
 grep -ciE "dropped.*(evidence|mechanism|incidental|evals test)" output.md   # scenarios 4/6 only
-# Flow-level lessons route to the repo, not a local edit
-grep -iEc "issue|pull request|branch|gated-delivery repo" output.md
+# Flow-level lessons route to the repo, not a local edit — expect >=1 on 1, 0 on 4/6. Keyed on the
+# routing output form (the flow-level section, a "proposed as:" issue/PR, a `gh` create), because a
+# bare "branch" or "issue" also matches a null run that echoes the persona ("teammate's WIP branch").
+grep -iEc "^#+ *flow-level|proposed as:[^.]*(issue|PR\b|pull request)|gh (issue|pr) create" output.md
 # The technology constraint reached the reference route rather than being downgraded — expect >=1
 # on 7. A run that files it as a repo note or drops it scores 0.
 grep -Ec "plugin/references" output.md        # scenario 7 only

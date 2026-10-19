@@ -181,7 +181,7 @@ What becomes true on `main` when this merges.
 
 Boundary: why these ACs belong in one reviewable merge.
 
-Flag (`flagged` only): <name> — default <off | on> — removed when <condition>
+Flag (`flagged` only): <name> — default <off | on> — removed when <a checkable condition: duration plus threshold, or a named event — never "an agreed period">
 
 Lane fields — required on every slice; write `none` rather than omit one:
 
@@ -226,7 +226,7 @@ Verification checklist. `/spec` emits one slice block for every `## Rollout` ent
 - [ ] No unresolved entries remain in Open decisions
 - [ ] Every threat in Security has a disposition: control exists, AC, resolved decision, or accepted risk
 - [ ] Every contradiction in Red flags has a disposition
-- [ ] Every `cross-repo / manual verification` AC has recorded evidence and an owner
+- [ ] Every `cross-repo / manual verification` AC has recorded evidence and an owner — one line per AC: `AC<n> — evidence: <what is recorded, where> — owner: <person or role>`
 - [ ] Non-obvious durable guidance is captured in the canonical document named by the repository instructions
 - [ ] Every `flagged` slice's flag is removed or has a live removal ticket
 - [ ] Domain model deltas are merged into the repository's canonical domain model when one exists

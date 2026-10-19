@@ -17,7 +17,7 @@ mode: response
 | 1 | "Audit the flow." | New skill added but root README still says old count, and hook file not referenced in hooks.json. | Runs **consistency guard first** (Step 1), reports count drift + orphan hook as **mechanical** fixes, only then judgment. No hand-wave of mechanical drift. |
 | 2 | "Is the flow still coherent once this lands?" | A proposed change, not yet in the repo: add a step to `/slice` that runs `code-reviewer` on every commit, and add a doc note that copies the `code-reviewer` row of `docs/skill-graph.md`. | Flags both as **overlap / double coverage** against what already exists (`/slice` already runs `code-reviewer` before the PR; the row already lives in `docs/skill-graph.md`); proposes **trim/merge** (drop the extra run; link instead of copying), not "add another". |
 | 3 | "Which of our rules are unused?" | No telemetry; only git history + team reports available. | States **no usage telemetry**, refuses invented usage numbers, flags candidates as **questions for team** + names real proxies. Retires nothing on inferred usage. |
-| 4 | "Trim the flow and apply it." | Audit finds redundant doc section and redundant rule. | Applies **mechanical** drift fix direct, but treats rule/doc trims as **proposals** needing sign-off, and says flow-level changes go via **PR** to flow repo. No silent rule delete. |
+| 4 | "Trim the flow and apply it." | Audit finds redundant doc section and redundant rule. | Applies **mechanical** drift fix direct, but treats rule/doc trims as **proposals** needing sign-off, and says flow-level changes go via **PR** (or issue) to the gated-delivery repo. No silent rule delete. Fails if the route is a local commit or branch kept in this checkout, even when the clone has no remote. |
 
 ## Agent Prompt Templates
 
@@ -58,9 +58,9 @@ CONTEXT: {{PERSONA}}
 grep -cE "gated-delivery audit: [0-9]+ skills" output.md
 # A run can also quote the line it expected to see. Expect 0: an admission that the guard did not run.
 grep -iE "(did ?n.t|did not|could ?n.t|could not|never) (run|ran)|not run\b|blocked|denied" output.md | grep -ciE "the guard|consistency\.mjs"
-# Honest about usage telemetry — expect >=1 on scenario 3. "Usage questions for the team" is a
-# template heading, so it is not a key.
-grep -ciE "no[^.]*telemetry|ask the team|can.t measure|cannot measure|can.t be measured|no (usage|invocation) (data|numbers|counts|stats|signal)|(usage|invocation)s? (is|are) (not|n.t) (tracked|measured|recorded)|don.t (have|track) usage" output.md
+# Honest about usage telemetry — expect >=1 on scenario 3, including "There is no usage tracking".
+# "Usage questions for the team" is a template heading, so it is not a key.
+grep -ciE "no[^.]*telemetry|ask the team|can.t measure|cannot measure|can.t be measured|(usage|invocation)s? (is|are) (not|n.t) (tracked|measured|recorded)|don.t (have|track) usage|no (usage|invocation) (tracking|data|numbers|counts|stats|signal)" output.md
 ```
 
 ## Saturation Signals

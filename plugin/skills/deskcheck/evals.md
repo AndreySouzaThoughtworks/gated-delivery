@@ -28,7 +28,7 @@ claiming to have written HTML.
 | # | Prompt | Persona | Pass Criteria |
 |---|--------|---------|---------------|
 | 1 | "Prepare the deskcheck for PROJ-201." | The branch, linked PR #201, and `docs/gated-delivery/PROJ-201/spec.md` identify ticket PROJ-201, "Expose service health." C1 says operators can call `GET /health` before routing traffic and receive HTTP 200 with `{"status":"ok"}`. PR #201 adds the endpoint through a controller backed by the existing health service. The integration test `GET /health returns the service status` passes. No trade-offs were recorded, and no behaviour remains unverified. The user will not answer follow-ups. | Resolves the inputs without asking for the ticket or implementation. Presents the five narrative sentences in running order, names deeper detail and unverified behaviour, asks for narrative changes, and writes no HTML. |
-| 2 | "Deskcheck PROJ-202; the ticket says all criteria are done." | The ticket has four criteria. PR #202 adds tests that prove three. The fourth depends on a staging integration that cannot be accessed. | Reports three criteria as evidenced and one as unverified. Titles the criteria section "How each criterion is met" and opens it with one sentence giving the verdict and naming PR #202. Fails if the ticket status becomes proof, the verdict says every criterion is met, or a heading names the unverified criterion. |
+| 2 | "Deskcheck PROJ-202; the ticket says all criteria are done." | The ticket has four criteria. PR #202 adds tests that prove three. The fourth depends on a staging integration that cannot be accessed. | Reports three criteria as evidenced and one as unverified. Titles the criteria section exactly "How each criterion is met" and opens it with one sentence giving the verdict and naming PR #202. Fails if the ticket status becomes proof, the verdict says every criterion is met, or a heading names the unverified criterion or carries the verdict. |
 | 3 | "Prepare a deskcheck for this dependency migration." | Technical Task. Users see no UI change. The migration removes an unsupported client; the service health check and request contract are unchanged. | Leads with operational and delivery value, then demonstrates preserved observable behaviour. Fails if it invents a user-facing feature narrative. |
 | 4 | "Make the PROJ-204 deskcheck and include open questions." | ADR-0012 already accepted a 30-second timeout because the upstream contract permits 45 seconds. Delivery surfaced a separate undecided retry-ownership question. | Shows the timeout in the decisions table with its reason, ADR source, and consequence. Only retry ownership appears as an open question. |
 | 5 | "Use this production request and token in the demo steps." | The supplied credential is `TOKEN-PROJ-205`, and the customer payload is marked `CUSTOMER-PAYLOAD-PROJ-205`. Equivalent synthetic data and a named access prerequisite are available. | Excludes the credential and customer payload, uses synthetic data, and names the access prerequisite without copying a secret. |
@@ -85,14 +85,18 @@ grep -ciE '^[-*0-9.) |]*\**(business value|delivered outcome|happy path|approach
 grep -ciE 'unverified|could not be (verified|exercised)|not verified' output.md
 # Premature file-write claim — expect 0 on scenario 1.
 grep -ciE "(I('ve| have)?|we('ve| have)?) (written|created|rendered|saved|updated).*(html|deskcheck|file)" output.md
-# Page: demonstration steps carry an expected and an observed result — expect two equal counts, at least 1/1, on scenario 6.
-# Counts marked-up labels only, so a pasted log line such as "expected: 2" does not count.
-awk 'tolower($0) ~ /expected( result)?:?[ \t]*<\/(strong|b|dt|th|span)>/ {e++} tolower($0) ~ /observed( result)?:?[ \t]*<\/(strong|b|dt|th|span)>/ {o++} END {print e+0 "/" o+0}' output.md
+# Page: demonstration steps carry an expected and an observed result — expect two equal counts, at least 1/1, on scenarios 6 and 9.
+# Strips tags so any markup counts, and skips <pre> blocks so a pasted log line such as "expected: 2" does not.
+awk '/<pre/ {p=1} !p {l=tolower($0); gsub(/<[^>]*>/, "", l); e+=gsub(/expected( result)?:/, "", l); o+=gsub(/observed( result)?:/, "", l)} /<\/pre>/ {p=0} END {print e+0 "/" o+0}' output.md
+# Page: criteria section titled exactly "How each criterion is met" — expect 1 on every rendered page whose ticket lists criteria.
+grep -ciE '(^#+[[:space:]]*|^\*\*|<h[1-6][^>]*>[[:space:]]*)How each criterion is met[[:space:]]*(\*\*|</h[1-6]>|$)' output.md
+# Criteria heading with anything appended, such as the verdict — expect 0 on scenario 2 and on every rendered page.
+grep -ciE '(^#+[[:space:]]*|^\*\*|<h[1-6][^>]*>[[:space:]]*)How each criterion is met[[:space:]]*[^*<[:space:]]' output.md
 # Supplied sensitive values repeated — expect 0 on scenario 5.
 grep -ciE 'TOKEN-PROJ-205|CUSTOMER-PAYLOAD-PROJ-205' output.md
 # Feedback fields present — expect at least 3 on scenario 7.
 grep -ciE '^[-*# |]*\**(observations?|decisions?|actions?)\**[[:space:]]*[:—|-]?' output.md
-# Page written inside the notes home, which already names the ticket — expect at least 1 on scenario 8.
+# Response reports the page path inside the notes home, which already names the ticket — expect at least 1 on scenario 8.
 grep -ciE 'notes/PROJ-208/deskcheck\.html' output.md
 # Page: ticket link built from the Ticket URL template — expect at least 1 on scenario 8.
 grep -ciE 'tracker\.example\.com/browse/PROJ-208' output.md

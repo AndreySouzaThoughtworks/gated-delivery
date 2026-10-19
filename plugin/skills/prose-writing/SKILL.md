@@ -78,7 +78,7 @@ Apply the Verified / Inferred / checkable-but-unchecked rubric in `writing.md` t
 
 ## Reporting the pass
 
-Say which files got the read, and keep the two steps apart: _"sweep: 5 hits, 5 fixed; read: 3 files, 4 findings."_ A count from the pre-filter reported as the pass is how "reviewed" comes to mean "grepped".
+Say which files got the read, and keep the two steps apart: _"pre-filter: 5 hits, 5 fixed; read: 3 files, 4 findings."_ A count from the pre-filter reported as the pass is how "reviewed" comes to mean "grepped".
 
 Where a file was not read, name it. A reader takes "reviewed" to cover everything in the diff.
 

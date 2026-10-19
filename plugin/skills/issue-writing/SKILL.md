@@ -245,13 +245,15 @@ says so honestly rather than stretching the evidence to a verdict.
 observed samples, compared options, a decision record, documented limitations.
 
 **An artifact is evidence, not delivery.** A prototype, benchmark or configuration is in scope where
-it answers the question. Adopting it in production, and fixing what the Spike found, are follow-up
-tickets. A Spike never reports production behaviour delivered because an artifact exists.
+it answers the question. Wherever the ticket puts one in scope, in the draft and in the closeout, it
+names two pieces of follow-up work, each its own ticket: **adopting the artifact**, and **fixing what
+the Spike found**. Name the second even before anything is found ("fixes for what the research
+finds, ticketed from the closeout"): naming adoption alone reads as though the findings will need no
+work. A Spike never reports production behaviour delivered because an artifact exists.
 
 **Closeout is a refine-mode act**, filled during or at the end of the research. It keeps evidence and
-recommendation apart and names the limitations of what was measured. Follow-up work — adopting an
-artifact, fixing what the research found — is listed under Recommendation as named follow-up
-tickets, never folded into Answer / Decision as work the Spike did.
+recommendation apart and names the limitations of what was measured. The follow-up tickets above
+are listed under Recommendation, never folded into Answer / Decision as work the Spike did.
 
 **A new Spike follows the board's spike convention** — the **Spike convention** key of
 `## Issue tracking`; absent one, a Task with a `Spike:` summary prefix and the `spike` label. Say so
@@ -291,9 +293,12 @@ ticket.
 Where the two already disagree on design, the ticket keeps what the rule above already exempts — the
 interface shape this ticket proposes or another team agreed — and the rest relocates to the spec,
 leaving a note that points there and a References entry that reaches it. Show the proposed spec text
-beside the ticket text: a relocation is two writes, and each needs approval. Relocated, never deleted,
-and never overwritten with the spec's wording: syncing gives one decision two homes, and the
-consistency pass below then has nothing to prefer.
+in the same response as the ticket text — the exact text the spec gains, under the heading it lands
+in — never "I'll show it before writing": a relocation is two writes, and each needs approval of text
+the user has seen. Where the spec cannot be read, draft that text anyway from the detail being moved,
+and say what you could not check. Relocated, never deleted, and never overwritten with the spec's
+wording: syncing gives one decision two homes, and the consistency pass below then has nothing to
+prefer.
 
 **Guardrail scan before any write.** The tracker may be customer-visible, and org policy forbids PII, secrets, internal hostnames or infra names in it. Redact, or relocate to repo:
 
@@ -318,7 +323,7 @@ The grep is a floor, not the list. The list below is the plugin's one secrets an
 
 **Internal detail that is not secret** — a hostname, an internal service name — may reach the tracker only in a verified restricted comment, and only when detail cannot leave the tracker. Never description, summary, labels, custom fields, or unrestricted comment. Repo first. Exception deliberate, not loophole: visibility restriction is only thing standing between that detail and a customer.
 
-A comment is as visible as a description unless it carries a visibility restriction — a "private note" is not private by intent. A Bug is where this bites hardest: the reproduction that actually reproduces it is the one carrying the real identifier.
+Whenever a proposal sends anything to a comment, say in that response that an unrestricted comment is as visible as the description, and name the restriction the comment needs — a "private note" is not private by intent. A Bug is where this bites hardest: the reproduction that actually reproduces it is the one carrying the real identifier.
 
 **Mutate safely.** Discovery before mutation — get transitions before transitioning, get link types before linking, discover fields before setting. Verify after — re-fetch and confirm change landed *as intended*. Link direction especially: re-fetch the dependent ticket and confirm it reads *is blocked by* the blocker, not reverse — the tracker adapter gives the call shape.
 

@@ -61,9 +61,14 @@ Emit:
 
 ### Dropped (considered, keeping)
 - <thing> — why it stays
+
+### Route
+- PR (or issue) against the gated-delivery repo: <title> — <which proposals it carries>
 ```
 
-**Propose, never silently write.** Mechanical drift fixes can apply directly (not judgment). Every trim/merge/retire of rule or doc is proposal: get sign-off, then PR. Never retire or trim a rule in the same session you flag it, even when told to apply it — apply only mechanical drift fixes. Route flow-level changes to the gated-delivery repo as a PR or an issue — same repo→release path `learn-flow` use, so change reach every install.
+The Route line names the gated-delivery repo even when this checkout has no remote or is not that repo. A local commit, a branch kept here, or "apply once approved" is not a route: it reaches no other install.
+
+**Propose, never silently write.** Mechanical drift fixes can apply directly (not judgment). Every trim/merge/retire of rule or doc is proposal: get sign-off, then PR. Never retire or trim a rule in the same session you flag it, even when told to apply it — apply only mechanical drift fixes. Route flow-level changes to the gated-delivery repo as a PR or an issue — same repo→release path `learn-flow` use, so change reach every install. A local commit kept in this checkout is not a route.
 
 ## Anti-patterns
 

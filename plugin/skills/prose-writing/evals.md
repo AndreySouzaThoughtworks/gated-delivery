@@ -4,7 +4,7 @@
 
 `prose-writing` is a **construction, relevance and placement pass** (encoded_preference): given
 prose that outlives the conversation, it cuts the tics `writing.md` names, removes conversation
-residue and restatement, marks inference, and reports the grep sweep apart from the read.
+residue and restatement, marks inference, and reports the pre-filter apart from the read.
 
 Success means the pass holds four invariants that a helpful-by-default assistant breaks:
 
@@ -34,7 +34,7 @@ mode: response
 | 5 | "Make this doc section concise." | Draft is already note form: "Cache warm on boot. Fallback DB if miss. TTL 60s, config." | Restores complete sentences with subjects, verbs and articles. Fails if it clips the draft further. |
 | 6 | "Polish the PR body." | Body says "This fixes the timeout seen in production." The author reproduced and fixed it locally; nobody has checked production. | Limits the claim to the local reproduction or marks the production fix as inferred. Fails if the unverified claim stays as fact. |
 | 7 | "Fix the tone of the 0.3.0 changelog entry." | Entry from a released version: "Moved config parsing to startup rather than first request." | Leaves the dated record as written and says why. Fails if it edits the entry. |
-| 8 | "Run the pass on my staged diff." | Staged diff touches `README.md`, `src/importer.ts` (two new comments) and `docs/replay.md`. Two pre-filter hits, one real finding in the read. | Report keeps the sweep count apart from the read count and names every file read. Fails if a grep count is reported as the whole pass. |
+| 8 | "Run the pass on my staged diff." | Staged diff touches `README.md`, `src/importer.ts` (two new comments) and `docs/replay.md`. Two pre-filter hits, one real finding in the read. | Report keeps the pre-filter count apart from the read count and names every file read. Fails if a grep count is reported as the whole pass. |
 
 ## Agent Prompt Templates
 
@@ -67,7 +67,7 @@ CONTEXT: {{PERSONA}}
 | No over-correction | Clips further | Complete sentences (scenario 5) | Article count in the revised text — expect **≥3**; a proxy, so confirm by reading |
 | Inference marked | Keeps the claim as fact | Limits or marks it (scenario 6) | Inference-marker count in the revised text — expect **≥1** |
 | Dated record left alone | Edits the entry | Leaves it and says why (scenario 7) | `startup rather than first request` survives — expect **1** |
-| Sweep reported apart from read | One undifferentiated "reviewed" | `sweep: …; read: …` with files named (scenario 8) | Report-shape count below — expect **1** |
+| Pre-filter reported apart from read | One undifferentiated "reviewed" | `pre-filter: …; read: …` with files named (scenario 8) | Report-shape count below — expect **1** |
 
 **Pass threshold:** the skill wins at least 6 of 8 scenarios, and scenarios 3, 4 and 7 must not
 regress. Those three catch over-triggering: a pass that rewrites correct prose is worse than no
@@ -94,9 +94,10 @@ awk '/^--- REVISED ---$/{r=1;next} r' output.md | grep -cF "startup rather than 
 awk '/^--- REVISED ---$/{r=1;next} r' output.md | grep -oiwE -e "the" -e "a" -e "an" | wc -l
 # Inference marked — expect at least 1 on scenario 6.
 awk '/^--- REVISED ---$/{r=1;next} r' output.md | grep -ciE -e "inferred" -e "not (yet )?(been )?(verified|checked)" -e "locally" -e "local reproduction"
-# Sweep reported apart from read — expect 1 on scenario 8. Joined into one line first, because the
-# report usually puts the sweep and the read on separate lines.
-tr '\n' ' ' < output.md | grep -ciE "sweep:.*read:"
+# Pre-filter reported apart from read — expect 1 on scenario 8. Joined into one line first, because the
+# report usually puts the two steps on separate lines. Accepts the step's name, "pre-filter", and the
+# older "sweep" label.
+tr '\n' ' ' < output.md | grep -ciE "(sweep|pre-filter):.*read:"
 ```
 
 ## Saturation Signals
@@ -105,5 +106,5 @@ tr '\n' ' ' < output.md | grep -ciE "sweep:.*read:"
 |--------|-----------------|
 | Baseline deletes a comment that restates its `it()` title unprompted | Partial — monitor |
 | Baseline leaves clean prose and dated records unchanged | Partial — monitor |
-| Baseline separates the grep sweep from the read in its report | Full — retire/convert |
+| Baseline separates the pre-filter from the read in its report | Full — retire/convert |
 | Baseline keeps complete sentences while cutting padding | Partial — monitor |

@@ -122,7 +122,7 @@ When the ticket lists acceptance or completion criteria, show them in a table st
 | What the ticket asks | How it is met |
 |---|---|
 
-Write each criterion in words, keeping its label only as a prefix. State how it is met as evidence a reviewer can check: a test, a document, an observed result. A criterion that is unmet, partly met, or met in a way the ticket's wording does not anticipate says so in its row. Title the section "How each criterion is met". Open it with one sentence that gives the verdict, such as "Every criterion is met" or "Five of seven criteria are met", and names the pull requests that met them. A gap belongs in its row and in that sentence; a heading built around it turns one unverified criterion into the page's headline.
+Write each criterion in words, keeping its label only as a prefix. State how it is met as evidence a reviewer can check: a test, a document, an observed result. A criterion that is unmet, partly met, or met in a way the ticket's wording does not anticipate says so in its row. Title the section exactly "How each criterion is met", with nothing appended, on the page and in any preview in the conversation. Open it with one sentence that gives the verdict, such as "Every criterion is met" or "Five of seven criteria are met", and names the pull requests that met them. The verdict goes in that sentence, never in a heading, and is stated once. A gap belongs in its row and in that sentence; a heading built around it turns one unverified criterion into the page's headline.
 
 ### 7. Paste the evidence
 
@@ -130,7 +130,7 @@ Paste the evidence you collected into the page itself. A link alone is not evide
 
 - the command that was run and the trimmed output showing the result, in `<pre><code>`;
 - for an API, the request and the response showing the expected behaviour;
-- a screenshot of the product surface, embedded as `<img src="data:image/png;base64,…" alt="…">`, with alt text saying what it shows. Produce the base64 with `base64 -i shot.png | tr -d '\n'` (macOS) or `base64 -w0 shot.png` (Linux), and match the MIME type to the file. A screenshot you cannot embed — no file, or no way to encode it — is a gap stated in its criterion's row, never an `<img>` with a relative or remote `src`;
+- a screenshot of the product surface, embedded as `<img src="data:image/png;base64,…" alt="…">`, with alt text saying what it shows. Produce the base64 with one command for your platform — `base64 -i shot.png | tr -d '\n'` on macOS, `base64 -w0 shot.png` on Linux — and match the MIME type to the file. If that command is blocked or fails, record the screenshot as a gap in its criterion's row and move on; never retry it or cycle through other encoders. A screenshot you cannot embed — no file, or no way to encode it — is a gap stated in its criterion's row, never an `<img>` with a relative or remote `src`;
 - the passing test's name and result line, linked to the run.
 
 Paste each demonstration step's observed result beside its expected result the same way.

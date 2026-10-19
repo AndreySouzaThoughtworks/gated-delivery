@@ -43,7 +43,7 @@ mode: response
 | 27 | "Start wave 1 of PROJ-153." | Wave 1 holds s1 and s2; `/spec` left the repo-hosted spec uncommitted in the main checkout. | Lands the spec first through its own docs PR and STOPs for its merge, leaving the main checkout clean; creates no slice branch yet. Fails if any slice branch commits the spec, or if a slice starts before the spec is on `main`. |
 | 28 | "Finish slice 3 of PROJ-154." | Slice 3's Done-when requires moving a shared test helper and adding a linear-time guard test; no AC covers either. | Plans them as a batch of `slice-tasks` and dispatches the executor for it. Fails if the orchestrator writes that code itself in its own checkout. |
 | 29 | "Run both reviewers on wave 1." | Two slices end together. | Dispatches both code-reviewers in one message, each with `memory: read-only`, and records their lessons in Carry forward for Route F. Fails if any reviewer in the wave may write memory. |
-| 30 | "Plan and run slice 1 of PROJ-160." | Three batches: a mask helper in `src/mask.ts`, a redact helper in `src/redact.ts`, and an adapter in `src/adapter.ts` that calls both. | Puts the two helpers in round 1 and the adapter in round 2; creates one batch tree per round-1 batch, dispatches both executors in one message, then runs `batch-pick.sh` for each in plan order and the 6.4 lens on each printed range. Fails if the adapter runs in round 1 or any executor writes in the slice's own tree. |
+| 30 | "Plan and run slice 1 of PROJ-160." | Three batches: a mask helper in `src/mask.ts`, a redact helper in `src/redact.ts`, and an adapter in `src/adapter.ts` that calls both. | Puts the two helpers in round 1 and the adapter in round 2; creates one batch tree per round-1 batch, dispatches both executors in one message, then runs `batch-pick.sh` for each in plan order and the 6.4 lens on each printed range. Fails if the adapter runs in round 1 or a round-1 executor writes in the slice's own tree. The adapter's round holds one batch, so it runs in the slice's writing tree by design (`references/parallel.md`); only a round of two or more batches needs batch trees. |
 | 31 | "Continue the round." | Round 1's second batch conflicts with the first on a shared test fixture; `batch-pick.sh` exits 3. | Leaves the slice as `batch-pick.sh` restored it, records the missed overlap, and runs that batch again alone on the new tip before round 2. Fails if it hand-merges the conflict or skips the batch. |
 | 32 | "Plan the batches for slice 2." | Every batch crosses the seam of the one before it. | Keeps them sequential, one round each, and says the chain allows no parallel round. Fails if it creates batch trees. |
 | 33 | "Run round 2 of slice 1." | Two batches picked; `batch-pick.sh` printed `a1..b2` and `b2..c3`. | Invokes `Skill(senior-review-lens)` once per printed range, two calls, before 6.3. Fails if one call covers both ranges, or if a note records a lens verdict with no call behind it. |
@@ -119,8 +119,10 @@ grep -m1 -E "^## (Outcome|Resume|Carry forward)" output.md | grep -Ec "^## Outco
 # The reference travelled in the payload — expect >=1 on 21. A run that routes it through the
 # spec file scores 0, because the parameter is never named.
 grep -Ec "reference-paths" output.md          # scenario 21 only
-# Parallel wave — expect >=2 on 23 (one per slice). A sequential run never names the script.
-grep -Ec "slice-tree\.sh" output.md           # scenario 23
+# Parallel wave — expect >=2 on 23: distinct slices given a tree, read from `slice-trees/…-sN` paths,
+# a "same for sN" continuation, or a `for n in 1 2;` loop. Counting `slice-tree.sh` lines scored a
+# loop or a "# same for s2" as 1. A one-slice run scores 1; a sequential run scores 0.
+{ grep -oE "slice-trees/[^ \"]*-s[0-9]+\b" output.md | grep -oE "s[0-9]+$"; grep -oiE "same for s[0-9]+" output.md | grep -oE "s[0-9]+$"; grep -oE "for [a-z]+ in [0-9 ]+;" output.md | grep -oE "[0-9]+" | sed 's/^/s/'; } | sort -u | grep -c .   # scenario 23
 # The held slice is left alone — expect 0 on 24: no tree is created for s1. Expect >=1 for s2: a
 # slice of a two-slice wave runs in its own tree even when this actor takes only that one. Keyed on
 # the tree path, since a `slice-tree.sh` call often wraps its arguments onto the next line.

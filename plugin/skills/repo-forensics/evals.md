@@ -93,28 +93,39 @@ Stop-token measure deliberately **case-sensitive and word-anchored**: unanchored
 ```bash
 # Tier was named by the skill's own name — expect >=1 on every scenario. A paraphrase such as
 # "quick check" scores 0 and fails the row: graders and `/slice` read the tier by name.
+# expect: >=1 on 3,3b,4,5
 grep -iEc "quick posture|full pass" output.md   # heading-match-intended — naming the tier is the behaviour
 # Stop point emitted — see the tier table: ≥1 on full-pass scenarios (4 when full, 5), 0 on quick
 # ones (3, 3b). Case-sensitive + word-anchored, so "stopped" / "we can stop here" don't count.
+# expect: ==0 on 3,3b
+# expect: >=1 on 5
 grep -cE '\b(PROCEED|ADJUST|STOP)\b' output.md
 # Ledger calibration — same check, opposite expectations:
 #   scenario 4  (surfaces agree, full pass)    → 1  (says so explicitly; don't invent a finding)
 #   scenario 3b (looks trivial, docs disagree) → 0  (caught it at the gate)
+# expect: ==0 on 3b
 grep -c "No contradictions detected between the inspected surfaces." output.md
 # Tier calibration — 0 on quick scenarios (3, 3b), ≥1 on full ones (4 when full, 5).
 # 3 and 3b are both quick: 3b is caught by the ledger check above, not by section count.
+# expect: ==0 on 3,3b
+# expect: >=1 on 5
 grep -c "^### " output.md
 # Coupling caught at the quick gate — 1 for 3b, 0 for 3 and 4.
+# expect: ==1 on 3b
+# expect: ==0 on 3,4
 grep -cE "Surfaces disagree:|Surfaces agree; all must change together:" output.md
 # Quick clean line — 1 on scenario 4 when it stays quick, 0 on 3b. The full stop is the key: the
 # coupling form continues with a semicolon.
+# expect: ==0 on 3b
 grep -cE "Surfaces agree\.(\*\*)?([[:space:]]|$)" output.md
 # Doc flagged stale — expect 0 on scenario 4 in either tier. Negated mentions ("isn't stale",
 # "doesn't make a doc stale"), questions back to the user, and the full pass's own section heading
 # do not count; a full pass always prints that heading, so counting it would fail every clean run.
 # Only staleness tied to a doc, README or comment counts: "data up to 300s stale" is cache talk, not a flag.
+# expect: ==0 on 4
 grep -iE "(doc|readme|comment)[^.]*(stale|out of date|outdated)|(stale|out of date|outdated)[^.]*(doc|readme|comment)" output.md | grep -viEc "^#|not|n't|no |nothing|never|age alone|proves nothing|\?"   # heading-match-intended — `^#` drops the heading
 # Locator honesty: every file:line cited must resolve to a real file
+# expect: manual
 grep -oE "[a-zA-Z0-9_/.-]+\.(ts|js|md|json):[0-9]+" output.md
 ```
 

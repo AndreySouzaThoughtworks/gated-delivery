@@ -77,15 +77,20 @@ CONTEXT: {{PERSONA}}
 ```bash
 # Field names fetched, not guessed — expect >=1 on scenarios 1 and 6. The persona hands both arms the
 # unnamed custom fields, so reading them proves nothing; re-fetching with the field names does.
+# expect: >=1 on 1,6
 grep -iEc -e "expand=names" -e "fetch[^.]* with [^.]*field names" -e "field names expanded" output.md
 # Correct environment tag from client context — expect >=1 on scenario 1.
+# expect: >=1 on 1
 grep -iEc "prod-eu1" output.md
 # Findings routed to the default corpus outside the repo — expect >=1 on scenarios 1 and 5.
+# expect: >=1 on 1,5
 grep -c "gated-delivery/prod-support/" output.md
 # Never reached for the Jira comment tool — expect 0 on every scenario. Both corpus checks are
 # required: the routing check alone passes for a run that posts to the ticket AND files locally.
+# expect: ==0 on 1,3,5,6
 grep -c addCommentToJiraIssue output.md
 # Independent pre-PR review named as the plugin agent — expect >=1 on scenario 5.
+# expect: >=1 on 5
 grep -c "gated-delivery:code-reviewer" output.md
 ```
 

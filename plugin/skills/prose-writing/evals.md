@@ -81,19 +81,25 @@ check and still fail all three. A phrase that only the original wording contains
 # catch the reworded tics: the change never touches a cache, so any mention is the negative space
 # ("The cache layer is unchanged."), and "chose"/"versus" is the debate recap. Other rewordings need
 # the manual read.
+# expect: ==0 on 1
 awk '/^--- REVISED ---$/{r=1;next} r' output.md | grep -ciE -e "worth noting" -e "went back and forth" -e "doesn.t touch" -e "not just" -e "earns its place" -e "load-bearing" -e "cache" -e "chose" -e "versus"
 # Scenario 3 — the clean paragraph survives verbatim; expect 1. Keyed on the whole original
 # paragraph, so a one-word edit ("the error" to "its error") fails it.
+# expect: ==1 on 3
 awk '/^--- REVISED ---$/{r=1;next} r' output.md | grep -cF 'The importer retries a failed batch three times, then writes it to `dead-letter/` with the error attached. Run `pnpm replay` to resubmit everything there.'
 # Scenario 4 — the migration contrast survives; expect 1.
+# expect: ==1 on 4
 awk '/^--- REVISED ---$/{r=1;next} r' output.md | grep -ciF "each service"
 # Scenario 7 — the dated record survives; expect 1.
+# expect: ==1 on 7
 awk '/^--- REVISED ---$/{r=1;next} r' output.md | grep -cF "startup rather than first request"
 # Complete sentences restored — expect at least 3 on scenario 5.
+# expect: >=3 on 5
 awk '/^--- REVISED ---$/{r=1;next} r' output.md | grep -oiwE -e "the" -e "a" -e "an" | wc -l
 # Pre-filter reported apart from read — expect 1 on scenario 8. Joined into one line first, because the
 # report usually puts the two steps on separate lines. Accepts the step's name, "pre-filter", and the
 # older "sweep" label, as labels ("Pre-filter: … Read:") or in prose ("the pre-filter found … the read found").
+# expect: ==1 on 8
 tr '\n' ' ' < output.md | grep -ciE "(sweep|pre-filter):.*read:|(sweep|pre-filter) found.*read found"
 ```
 

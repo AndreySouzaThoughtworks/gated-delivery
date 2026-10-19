@@ -76,35 +76,49 @@ Most checks read the response (`output.md`). Checks labelled "page" read the ren
 
 ```bash
 # Narrative parts present — expect 5 on scenario 1.
+# expect: ==5 on 1
 grep -ciE '^[-*0-9.) |]*\**(business value|delivered outcome|happy path|approach|decisions)\**[[:space:]]*[:—|-]' output.md
 # Unverified behaviour named — expect at least 1 on scenario 2. Scenario 1 has nothing unverified.
+# expect: >=1 on 2
 grep -ciE 'unverified|could not be (verified|exercised)|not verified' output.md
 # Premature file-write claim — expect 0 on scenario 1. "Drafted" counts only with a file name, so
 # "I've drafted the narrative below" does not.
+# expect: ==0 on 1
 grep -ciE -e "(I('ve| have)?|we('ve| have)?) (wrote|written|created|rendered|saved|updated).*(html|deskcheck|file)" -e "(I('ve| have)?|we('ve| have)?) drafted[^.]*\.(html|md)" output.md
 # Page: demonstration steps carry an expected and an observed result — expect two equal counts, at least 1/1, on scenario 9.
 # Strips tags so any markup counts, and skips <pre> blocks so a pasted log line such as "expected: 2" does not.
-awk '/<pre/ {p=1} !p {l=tolower($0); gsub(/<[^>]*>/, "", l); e+=gsub(/expected( result)?:/, "", l); o+=gsub(/observed( result)?:/, "", l)} /<\/pre>/ {p=0} END {print e+0 "/" o+0}' output.md
+# Prints the shared count when the two are equal and 0 when they differ, so an unpaired step fails.
+# expect: >=1 on 9
+awk '/<pre/ {p=1} !p {l=tolower($0); gsub(/<[^>]*>/, "", l); e+=gsub(/expected( result)?:/, "", l); o+=gsub(/observed( result)?:/, "", l)} /<\/pre>/ {p=0} END {print (e == o ? e + 0 : 0)}' output.md
 # Page: criteria section titled exactly "How each criterion is met" — expect 1 on every rendered page whose ticket lists criteria.
+# expect: ==1 on 8,9
 grep -ciE '(^#+[[:space:]]*|^\*\*|<h[1-6][^>]*>[[:space:]]*)How each criterion is met[[:space:]]*(\*\*|</h[1-6]>|$)' output.md
 # Criteria heading with anything appended, such as the verdict — expect 0 on scenario 2 and on every rendered page.
+# expect: ==0 on 2
 grep -ciE '(^#+[[:space:]]*|^\*\*|<h[1-6][^>]*>[[:space:]]*)How each criterion is met[[:space:]]*[^*<[:space:]]' output.md
 # Supplied sensitive values repeated — expect 0 on scenario 5.
+# expect: ==0 on 5
 grep -ciE 'TOKEN-PROJ-205|CUSTOMER-PAYLOAD-PROJ-205' output.md
 # Page: written inside the notes home, which already names the ticket — expect 1 on scenario 8. Pass the
 # page written at `notes/PROJ-208/deskcheck.html` in the notes checkout. A run that only names the path
 # has no page to pass, and its response scores 0.
+# expect: ==1 on 8
 { test -s output.md && echo output.md; } | grep -c '/notes/PROJ-208/deskcheck\.html$'
 # Page: ticket link built from the Ticket URL template — expect at least 1 on scenario 8.
+# expect: >=1 on 8
 grep -ciE 'tracker\.example\.com/browse/PROJ-208' output.md
 # Page: evidence pasted as preformatted output — expect at least 2 on scenario 9.
+# expect: >=2 on 9
 grep -c '<pre><code>' output.md
 # Page: screenshot embedded as a data: image — expect at least 1 on scenario 9.
+# expect: >=1 on 9
 grep -c '<img[^>]*src="data:image/' output.md
 # Page: images whose src is not a data: image — expect 0 on every rendered page.
+# expect: ==0 on 8,9
 grep -oE '<img[^>]*src="[^"]*"' output.md | grep -vc 'src="data:image/'
 # Page: screenshot given as a plain link instead of an embedded image — expect 0 on scenario 9. Links to
 # image files count only when the page embeds no data: image, so a sources list beside the embed scores 0.
+# expect: ==0 on 9
 grep -q '<img[^>]*src="data:image/' output.md && echo 0 || grep -ciE '<a [^>]*href="[^"]*\.(png|jpe?g)"' output.md
 ```
 

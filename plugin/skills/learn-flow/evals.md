@@ -63,17 +63,23 @@ CONTEXT: {{PERSONA}}
 # Null-outcome check — 1 means NOTHING was routed (scenarios 4/6), 0 means something was
 # (1/7/8). Reads backwards from the old destination grep it replaced; routing correctness
 # itself is the Manual half of the A/B row.
+# expect: ==1 on 4,6
+# expect: ==0 on 1,7,8
 grep -c "No learnings cleared the bar this session." output.md  # 1 for scenarios 4/6, 0 for 1/7/8
 # The drop names its gate — expect >=1 on scenarios 4/6. A bare null line scores 0.
+# expect: >=1 on 4,6
 grep -ciE "dropped.*(evidence|mechanism|incidental|evals test)" output.md   # scenarios 4/6 only
 # Flow-level lessons route to the repo, not a local edit — expect >=1 on 1, 0 on 4/6. Keyed on the
 # proposal itself ("Proposed as an issue", "Proposed as: **issue/PR", "Proposed as a small draft PR",
 # a `gh` create), because a bare "branch" or "issue" also matches a null run that echoes the persona
 # ("teammate's WIP branch"), and the template's "### Flow-level" heading prints even when the lesson
 # under it is a local edit.
+# expect: >=1 on 1
+# expect: ==0 on 4,6
 grep -iEc "proposed as:?[^.]{0,40}\b(issue|PR|pull request)\b|gh (issue|pr) create" output.md
 # The technology constraint reached the reference route rather than being downgraded — expect >=1
 # on 7. A run that files it as a repo note or drops it scores 0.
+# expect: >=1 on 7
 grep -Ec "plugin/references" output.md        # scenario 7 only
 ```
 

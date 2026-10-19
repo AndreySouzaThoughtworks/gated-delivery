@@ -60,8 +60,10 @@ CONTEXT: {{PERSONA}}
 # Invented finding on the clean diff — a lens named with a finding, either "Lens A" in prose or a
 # lens-table row such as "| A. Cohesion | 1 finding |". A row reporting CLEAN or N/A does not count,
 # and neither does a line saying a lens does not apply ("Lens H doesn't apply"). Expect 0 on 4.
+# expect: ==0 on 4
 grep -iE '\blens [a-h]\b|^\| *\**[a-h]\. [^|]+\| *\**[0-9]+ findings?' output.md | grep -viEc "n.t apply|not apply|N/A"
 # A verdict was emitted — expect 1 on 4, where the token is READY-TO-COMMIT
+# expect: ==1 on 4
 grep -cE -e '^READY-TO-COMMIT$' -e '^REVISE-FIRST$' output.md   # verdict token, alone on its line
 ```
 

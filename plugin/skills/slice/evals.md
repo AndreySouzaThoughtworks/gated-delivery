@@ -99,57 +99,85 @@ CONTEXT: {{PERSONA}}
 ## Deterministic Checks
 
 ```bash
+# A route is named — expect >=1 on the routing scenarios: 1 (A), 3 (R), 9 (C) and 23 (W).
+# expect: >=1 on 1,3,9,23
 grep -iEc "route (a|b|r|c|d|e|w|f)" output.md
+# The draft PR is opened — expect >=1 on 6.
+# expect: >=1 on 6
 grep -Ec "gh pr create --draft" output.md    # scenario 6
-grep -iEq "evidence" output.md && grep -iEq "impact" output.md && grep -iEq "next" output.md   # scenario 12
+# The OPEN item carries evidence, impact and next action — expect 1 on 12, printed only when all three appear.
+# expect: ==1 on 12
+grep -iEq "evidence" output.md && grep -iEq "impact" output.md && grep -iEq "next" output.md && echo 1   # scenario 12
 # The delta is written into the declared file — expect >=1 on 16: a line that stages it, an Edit or Write call on it, or one that
 # merges, copies or folds a change into it. A run that only names the path, or says it does not apply, scores 0.
+# expect: >=1 on 16
 grep -iEc "(git add|Edit\(|Write\()[^&;|]*\.ai-context/domain-types\.md|(merge|copy|fold|append)[^.]* into [^.]*\.ai-context/domain-types\.md" output.md   # scenario 16
 # Blocks are actor-scoped — expect >=1 on 17 and 19, and 2 on 20, whose input held two. The em-dash is
 # the discriminating part: the shared `## Resume` this replaced scores 0, and a close-out that
 # tidies the blocks away scores 0 where the retention rule requires 2.
+# expect: >=1 on 17,19
+# expect: ==2 on 20
 grep -Ec "^## Resume — .+" output.md          # scenarios 17, 19, 20
 # The holder was read rather than ignored — expect >=1 on 24. Does not prove the planned slice is free.
+# expect: >=1 on 24
 grep -Ec "actor-b" output.md                  # scenario 24
 # Every surviving block is stamped, so no spent position reads as live — expect 2 on 20.
+# expect: ==2 on 20
 grep -Ec "^- Closed:" output.md               # scenario 20 only
 # The outcome leads the printed handoff — expect 1: of the handoff's own headings, `## Outcome` comes
 # first. A handoff that keeps a Resume block or Carry forward above it scores 0.
+# expect: ==1 on 20
 grep -m1 -E "^## (Outcome|Resume|Carry forward)" output.md | grep -Ec "^## Outcome"   # scenario 20 only
 # The per-slice file stays, marked folded — expect 1 on 20. A run that deletes it prints no such line.
+# expect: ==1 on 20
 grep -Ec "^Folded into handoff\.md:" output.md      # scenario 20 only
 # Nothing removes a per-slice file — expect 0 on 20. A run that deletes it in the close-out commit scores 1.
+# expect: ==0 on 20
 grep -Ec "(^|[^a-z])rm [^&;|]*handoff-s[0-9]" output.md        # scenario 20 only
 # The reference travelled in the payload — expect >=1 on 21. A run that routes it through the
 # spec file scores 0, because the parameter is never named.
+# expect: >=1 on 21
 grep -Ec "reference-paths" output.md          # scenario 21 only
 # Parallel wave — expect >=2 on 23: distinct slice ids on lines naming `slice-tree.sh` or a
 # `slice-trees/` path, on a "same … for s2" line within three lines after one, or in a loop
 # (`for n in 1 2;`, "for each `n` in 1, 2"). Keying on "same for sN" alone scored "# same three
 # commands for s2" and the prose loop as 1. A one-slice run scores 1; a sequential run scores 0.
+# expect: >=2 on 23
 { awk '/slice-tree\.sh|slice-trees\// {print; w=3; next} w-- > 0 && tolower($0) ~ /same[^.]*for/' output.md | grep -oE "\bs[0-9]+\b"; grep -oiE "for (each )?\`?[a-z]+\`? in [0-9][0-9, ]*" output.md | grep -oE "[0-9]+" | sed 's/^/s/'; } | sort -u | grep -c .   # scenario 23
 # The held slice is left alone — expect 0 on 24: no tree is created for s1. Expect >=1 for s2: a
 # slice of a two-slice wave runs in its own tree even when this actor takes only that one. Keyed on
 # the tree path, since a `slice-tree.sh` call often wraps its arguments onto the next line.
+# expect: ==0 on 24
 grep -Ec "slice-trees/[^ \"]*-s1\b" output.md   # scenario 24: s1
+# Tree made for s2.
+# expect: >=1 on 24
 grep -Ec "slice-trees/[^ \"]*-s2\b" output.md   # scenario 24: s2
 # Verify through the lock — expect >=2 on 26. A run that verifies in place scores 0.
+# expect: >=2 on 26
 grep -Ec "verify-lock\.sh" output.md          # scenario 26 only
 # No reviewer in a wave writes memory — expect >=2 on 29, one per reviewer. A run that lets one
 # reviewer write scores 1. Counts occurrences, not lines: two dispatches often share one line.
+# expect: >=2 on 29
 grep -Eo "memory: ?.?read-only" output.md | grep -c .      # scenario 29 only
 # A parallel round picks its batches back — expect >=2 on 30, 0 on 32, which has no round to pick.
 # Counts distinct batch ids on lines naming `batch-pick.sh` or on a "same … for -b2" line within
 # three lines after one: counting script lines scored "then the same for `-b2`" as 1.
+# expect: >=2 on 30
+# expect: ==0 on 32
 awk '/batch-pick\.sh/ {print; w=3; next} w-- > 0 && tolower($0) ~ /same[^.]*for/' output.md | grep -oE "\bb[0-9]+\b" | sort -u | grep -c .   # scenarios 30 and 32
 # Claim race. The push is create-only — expect >=1 on 35: an empty lease, the `:` followed by a
 # space or line end. A plain push, a bare --force-with-lease, or a lease naming a SHA scores 0.
+# expect: >=1 on 35
 grep -Ec -e "--force-with-lease=refs/heads/[^ :]+:( |$)" output.md   # scenario 35
 # The tree is made in claim mode — expect >=1 on 35. A reused or hand-made tree scores 0.
+# expect: >=1 on 35
 grep -Ec "slice-tree\.sh\"? --claim" output.md      # scenario 35
 # The loser removes its own tree — expect >=1 on 35 — and never alice's — expect 0. One command
 # per match: `&`, `;` and `|` end it, so a removal chained after another tree's never counts.
+# expect: >=1 on 35
 grep -Ec "worktree remove[^&;|]*-s1-bob" output.md                 # scenario 35: own tree
+# Alice's tree never removed.
+# expect: ==0 on 35
 grep -Ec "(worktree remove|rm -rf)[^&;|]*-s1-alice" output.md      # scenario 35: alice's tree
 ```
 

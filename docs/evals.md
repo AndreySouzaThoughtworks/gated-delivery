@@ -69,8 +69,10 @@ Runs vary. In one confirmation sweep, 7 of 44 scenarios passed once and failed o
 
 1. Confirm the skill was invoked: `grep -c '"name":"Skill"' transcript.jsonl`. No invocation is a harness failure.
 2. Grade against the scenario's Pass Criteria, including every "Fails if" clause. For anything the skill should have written or run, check the run directory and the transcript, not the prose in `output.md`.
-3. Run the Deterministic Checks from the repository root: `node scripts/eval/run-checks.mjs <skill> <file>`. Pass the file each check reads: `output.md` for checks on the response, and the rendered artifact, such as `deskcheck.html`, for checks labelled `Page:`. A check run on the wrong file returns a 0 that reads as a result.
-4. Compare each count with the expectation in its label. A count that disagrees with your reading of the output is a misfire: fix the check, not the grade.
+3. Grade the Deterministic Checks from the repository root: `node scripts/eval/run-checks.mjs <skill> <file> --scenario <id>`. It runs each check whose `# expect:` line names the scenario and prints `PASS|FAIL <count> <expect> <label>`. It exits 0 when all pass, 1 on any FAIL and 2 on a usage error. Run it once on `output.md` for checks on the response, and once on the rendered artifact, such as `deskcheck.html`, for checks labelled `Page:`. In a skill that has `Page:` checks, the file name picks the set: `output.md` gets the response checks, any other file gets the `Page:` checks. Checks marked `# expect: manual` are skipped; read those counts with `node scripts/eval/run-checks.mjs <skill> <file>`.
+4. A FAIL that disagrees with your reading of the output is a misfire: fix the check or its expect line, not the grade.
+
+An expect line sits in the fence, directly above its command: `# expect: <op><n> on <id>[,<id>…]`, where op is `>=`, `==` or `<=`. A check may carry several, one per expectation, and names each scenario at most once. A check that prints lines instead of a number is counted by its non-empty lines, so `==0` means no output. `--lint` rejects a malformed expect line and an id that is not in the skill's `## Test Scenarios` table. The consistency guard warns on a check with no expect line.
 
 ## 7. Prove every check
 

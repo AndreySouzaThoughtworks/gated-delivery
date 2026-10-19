@@ -78,23 +78,38 @@ CONTEXT: {{PERSONA}}
 # slice line carrying a backticked value (Slice 1 with `unwired` in backticks), a table cell that is the
 # value, or a table row with the backticked value anywhere ("| 1 | S0: add both dependencies (`unwired`) |").
 # A Rollout that never declares one scores 0.
+# expect: >=1 on 9
 grep -iEc "exposure:?[[:space:]]*\`?(complete|unwired|flagged)|slice[^|]*\`(complete|unwired|flagged)\`|^\|.*\|[[:space:]]*\`?(complete|unwired|flagged)\`?[[:space:]]*\||^\|.*\`(complete|unwired|flagged)\`" output.md
+# PR dependency graph drawn — expect >=1 on 10, 0 on 11, where it only redraws two entries.
+# expect: >=1 on 10
+# expect: ==0 on 11
 grep -iEc "must merge before|flowchart" output.md   # scenario 10 only
+# No spec written to the repo before sign-off — prints one line while docs/specs is clean. It reads the
+# checkout the runner runs in, not the run's own, so a saved output cannot move it: judge it in the run.
+# expect: manual
 test -z "$(git -C "$WORKTREE" status --porcelain docs/specs 2>/dev/null)" && echo "held draft: ok"
 # The sixth read named the client reference the persona lists — expect >=1 on 14. Naming the index alone scores 0.
+# expect: >=1 on 14
 grep -Ec "ui-page-schema\.md" output.md   # scenario 14 only
 # The skip is stated — expect >=1 on 15, where no entry matches; 0 on 14, where one does.
+# expect: >=1 on 15
+# expect: ==0 on 14
 grep -iE "domain reference|reference-graph|Domain references" output.md | grep -iE "skip" | grep -viEc "(not|n't|never)[^.]*skip"   # scenarios 14-15
 # Material NFRs surface where they change the design. Scenario 16 needs both volume and abuse (each >=1);
 # scenario 17 must add none of the four generic categories (0).
+# expect: >=1 on 16
 grep -iEc "stream|pagina|page size|batch" output.md   # scenario 16: volume
+# expect: >=1 on 16
 grep -iEc "rate.?limit|throttl|429|quota" output.md   # scenario 16: abuse
+# expect: ==0 on 17
 grep -iEc "observab|metric|alert|rate.?limit|throttl|concurren|locali|i18n|stream|pagina" output.md   # scenario 17
 # Every slice carries its lane fields — expect one of each per slice (3 on 19), as a bullet at any
 # indent (optionally after a bold slice label), a table row, joined with `·`, or in prose
 # ("- **S0:** depends on none. Write surface is …"), any case — plus one per body row of a column table
 # whose header has a `Depends on` / `Write surface` column. A Rollout without lane fields scores 0.
+# expect: >=3 on 19
 echo $(( $(grep -iEc "(^[[:space:]]*([-*]|\|)[[:space:]]*(\*\*[^*]+\*\*[[:space:]]*)?|·[[:space:]]*)(\*\*)?depends on(\*\*)?[[:space:]]*([:|]|none|s[0-9]|slice)" output.md) + $(awk '!/^[[:space:]]*\|/ {t=0; next} tolower($0) ~ /\|[[:space:]]*depends on[[:space:]]*\|/ {t=1; next} t && !/^[[:space:]]*\|[-:| ]+\|[[:space:]]*$/ {n++} END {print n+0}' output.md) ))   # scenario 19
+# expect: >=3 on 19
 echo $(( $(grep -iEc "(^[[:space:]]*([-*]|\|)[[:space:]]*(\*\*[^*]+\*\*[[:space:]]*)?|·[[:space:]]*|[.;][[:space:]]+)(\*\*)?write surface(\*\*)?[[:space:]]*([:|]|is |are )" output.md) + $(awk '!/^[[:space:]]*\|/ {t=0; next} tolower($0) ~ /\|[[:space:]]*write surface[[:space:]]*\|/ {t=1; next} t && !/^[[:space:]]*\|[-:| ]+\|[[:space:]]*$/ {n++} END {print n+0}' output.md) ))   # scenario 19
 ```
 

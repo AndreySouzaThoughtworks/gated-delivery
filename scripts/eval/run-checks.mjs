@@ -5,18 +5,14 @@
 // shipped (a `\|` that matches a literal pipe, a key that also names a heading) was invisible
 // precisely because no command was ever executed.
 //
-//   node scripts/eval/run-checks.mjs --lint            every skill: prove each command RUNS
-//   node scripts/eval/run-checks.mjs <skill> <file>    one skill: report each command's result
-//
-// Scope, stated plainly: the fences express their expectations in prose ("≥1 on full-pass
-// scenarios"), not machine-readably, so this reports counts rather than pass/fail. `--lint` is the
-// part that belongs in CI — it catches a command that cannot run at all, which is the defect class
-// that actually recurred. Grading the numbers is still a human's job.
+//   node scripts/eval/run-checks.mjs --lint                           every skill: prove each command RUNS
+//   node scripts/eval/run-checks.mjs <skill> <file>                   one skill: report each command's result
+//   node scripts/eval/run-checks.mjs <skill> <file> --scenario <id>   grade the checks whose `# expect:` names <id>
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync, existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const SKILLS_DIR = join(process.cwd(), "plugin", "skills");
@@ -136,6 +132,43 @@ const FENCE = /```bash\n([\s\S]*?)```/;
 
 const ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/;
 
+const EXPECT_PREFIX = /^expect:/;
+const EXPECT_MANUAL = /^expect: manual$/;
+const EXPECT_SHAPE = /^expect: (>=|==|<=)(\d+) on ([^,\s]+(?:,[^,\s]+)*)$/;
+const COMPARE = {
+  ">=": (count, n) => count >= n,
+  "==": (count, n) => count === n,
+  "<=": (count, n) => count <= n,
+};
+
+export function parseExpect(text) {
+  if (EXPECT_MANUAL.test(text)) return { raw: text, manual: true };
+  const shape = text.match(EXPECT_SHAPE);
+  if (!shape) return { raw: text, error: `malformed expect "${text}"` };
+  const ids = shape[3].split(",");
+  if (new Set(ids).size !== ids.length) return { raw: text, error: `malformed expect "${text}": repeated id` };
+  return { raw: text, op: shape[1], n: Number(shape[2]), ids };
+}
+
+const SCENARIOS_HEADING = "## Test Scenarios";
+const TABLE_ROW_ID = /^\|\s*([^|]*?)\s*\|/;
+const NOT_AN_ID = /^(#|:?-+:?)?$/;
+
+export function scenarioIds(evalsMarkdown) {
+  const ids = new Set();
+  let inSection = false;
+  for (const line of evalsMarkdown.replace(/\r/g, "").split("\n")) {
+    if (line.startsWith("## ")) {
+      if (inSection) break;
+      inSection = line.startsWith(SCENARIOS_HEADING);
+      continue;
+    }
+    const id = inSection && line.match(TABLE_ROW_ID)?.[1];
+    if (id && !NOT_AN_ID.test(id)) ids.add(id);
+  }
+  return ids;
+}
+
 /**
  * Commands in the fence, each labelled by the comment lines directly above it.
  *
@@ -149,19 +182,23 @@ export function parseChecks(evalsMarkdown) {
   const checks = [];
   const prelude = [];
   let label = [];
+  let expects = [];
   for (const line of fence[1].split("\n")) {
     const trimmed = line.trim();
     if (!trimmed) continue;
     if (trimmed.startsWith("#")) {
-      label.push(trimmed.replace(/^#\s?/, ""));
+      const comment = trimmed.replace(/^#\s?/, "");
+      if (EXPECT_PREFIX.test(comment)) expects.push(parseExpect(comment));
+      else label.push(comment);
       continue;
     }
     if (ASSIGNMENT.test(trimmed)) {
       prelude.push(trimmed);
       continue;
     }
-    checks.push({ label: label.join(" ") || "(unlabelled)", command: trimmed });
+    checks.push({ label: label.join(" ") || "(unlabelled)", command: trimmed, expects });
     label = [];
+    expects = [];
   }
   return { prelude, checks };
 }
@@ -225,6 +262,64 @@ function report(skill, outputFile) {
   return broken;
 }
 
+function expectProblems({ expects }, ids) {
+  const seen = new Set();
+  const problems = [];
+  for (const expect of expects) {
+    if (expect.error) problems.push(expect.error);
+    for (const id of expect.ids ?? []) {
+      if (!ids.has(id)) problems.push(`unknown scenario "${id}" in "${expect.raw}"`);
+      if (seen.has(id)) problems.push(`scenario "${id}" named by two expect lines`);
+      seen.add(id);
+    }
+  }
+  return problems;
+}
+
+const RESPONSE_FILE = "output.md";
+const PAGE_LABEL = /^Page:/i;
+const INTEGER = /^-?\d+$/;
+const LABEL_WIDTH = 100;
+
+const countOf = (result) =>
+  INTEGER.test(result) ? Number(result) : result.split("\n").filter((l) => l.trim()).length;
+
+const readsFile = (check, file, skillHasPages) =>
+  !skillHasPages || PAGE_LABEL.test(check.label) === (basename(file) !== RESPONSE_FILE);
+
+function gradeScenario(skill, file, id) {
+  const evalsPath = join(SKILLS_DIR, skill, "evals.md");
+  if (!existsSync(evalsPath)) return usage(`No such skill: ${skill}`);
+  if (!existsSync(file)) return usage(`No such output file: ${file}`);
+  const evals = readFileSync(evalsPath, "utf8");
+  if (!scenarioIds(evals).has(id)) return usage(`No scenario "${id}" in ${skill}/evals.md`);
+  const { prelude, checks } = parseChecks(evals);
+  const skillHasPages = checks.some((c) => PAGE_LABEL.test(c.label));
+  let failed = 0;
+  for (const check of checks) {
+    const expect = check.expects.find((e) => e.ids?.includes(id));
+    if (!expect || !readsFile(check, file, skillHasPages)) continue;
+    const { ok, result } = runCheck(check, file, prelude);
+    const count = ok ? countOf(result) : "broken";
+    const pass = ok && COMPARE[expect.op](count, expect.n);
+    if (!pass) failed++;
+    if (!ok) console.error(`  ${check.command}\n  ${result}`);
+    const label = check.label.length > LABEL_WIDTH ? `${check.label.slice(0, LABEL_WIDTH - 3)}...` : check.label;
+    console.log(`${pass ? "PASS" : "FAIL"} ${count} ${expect.op}${expect.n} ${label}`);
+  }
+  return failed ? EXIT_FAIL : EXIT_PASS;
+}
+
+const EXIT_PASS = 0;
+const EXIT_FAIL = 1;
+const EXIT_USAGE = 2;
+const USAGE = "usage:\n  run-checks.mjs --lint\n  run-checks.mjs <skill> <output-file>\n  run-checks.mjs <skill> <output-file> --scenario <id>";
+
+function usage(message) {
+  console.error(message);
+  return EXIT_USAGE;
+}
+
 /** Every command in every skill must at least RUN. No fixtures, no expectations — just executable. */
 function lint() {
   const scratch = join(mkdtempSync(join(tmpdir(), "gated-delivery-evalcheck-")), "output.md");
@@ -234,10 +329,16 @@ function lint() {
   let measured = 0;
   let total = 0;
   for (const skill of skills) {
-    const { prelude, checks } = parseChecks(readFileSync(join(SKILLS_DIR, skill, "evals.md"), "utf8"));
+    const evals = readFileSync(join(SKILLS_DIR, skill, "evals.md"), "utf8");
+    const { prelude, checks } = parseChecks(evals);
+    const ids = scenarioIds(evals);
     if (checks.length) measured++;
     total += checks.length;
     for (const check of checks) {
+      for (const problem of expectProblems(check, ids)) {
+        broken++;
+        console.log(`  BROKEN ${skill}: ${check.command}\n         ${problem}`);
+      }
       const outcome = runCheck(check, scratch, prelude);
       if (outcome.ok) continue;
       broken++;
@@ -261,8 +362,15 @@ function lint() {
 // Only act as a CLI when run directly. Without this guard, importing parseChecks/runCheck from a
 // test executes the usage branch and exits the test process.
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const [arg, outputFile] = process.argv.slice(2);
-  if (arg === "--lint") {
+  const args = process.argv.slice(2);
+  const scenarioAt = args.indexOf("--scenario");
+  const [arg, outputFile] = args;
+  if (scenarioAt !== -1) {
+    const id = args[scenarioAt + 1];
+    const positional = args.filter((_, i) => i !== scenarioAt && i !== scenarioAt + 1);
+    const [skill, file] = positional;
+    process.exit(id && positional.length === 2 ? gradeScenario(skill, file, id) : usage(USAGE));
+  } else if (arg === "--lint") {
     process.exit(lint() ? 1 : 0);
   } else if (arg && outputFile) {
     if (!existsSync(outputFile)) {
@@ -271,7 +379,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     }
     process.exit(report(arg, outputFile) ? 1 : 0);
   } else {
-    console.error("usage:\n  run-checks.mjs --lint\n  run-checks.mjs <skill> <output-file>");
-    process.exit(2);
+    process.exit(usage(USAGE));
   }
 }

@@ -250,6 +250,14 @@ for (const skill of skills) {
   }
 }
 
+for (const skill of skills) {
+  const evalsPath = join(skillsDir, skill, "evals.md");
+  if (!existsSync(evalsPath)) continue;
+  for (const check of parseChecks(read(evalsPath)).checks.filter((c) => !c.expects.length)) {
+    warn(`${skill}/evals.md: check "${check.label}" has no "# expect:" line — --scenario cannot grade it`);
+  }
+}
+
 // --- 6e. Skill and agent prose avoids the phrases the writing rules ban ---
 // shortcut: writing.md bans these in prose, not in a machine-readable list; extend this constant when
 // writing.md's "the phrases ..." line changes, or move that list into a parseable block.

@@ -28,7 +28,7 @@ const validRepo = () => {
   write(
     dir,
     "plugin/skills/alpha/evals.md",
-    "| Signal | How to Measure |\n|---|---|\n| x | `grep -c foo out` |\n\n## Deterministic Checks\n\n```bash\ngrep -c foo output.md\n```\n",
+    "| Signal | How to Measure |\n|---|---|\n| x | `grep -c foo out` |\n\n## Deterministic Checks\n\n```bash\n# expect: manual\ngrep -c foo output.md\n```\n",
   );
   write(dir, "plugin/agents/bot.md", "---\nname: bot\n---\n");
   write(dir, "plugin/hooks/h.mjs", "process.exit(0);\n");
@@ -211,6 +211,19 @@ test("warns on a skill whose evals carry no runnable fence", () => {
   assert.match(out, /skill "alpha" has no runnable "## Deterministic Checks" fence/);
 });
 
+test("warns, without failing, on a check that carries no expect line", () => {
+  const dir = validRepo();
+  write(
+    dir,
+    "plugin/skills/alpha/evals.md",
+    "## Deterministic Checks\n\n```bash\n# Counts foo.\ngrep -c foo output.md\n# Graded.\n# expect: >=1 on 1\ngrep -c bar output.md\n```\n",
+  );
+  const { code, out } = runGuard(dir);
+  assert.equal(code, 0, "a missing expectation is a WARN, never an ERROR");
+  assert.match(out, /alpha\/evals\.md: check "Counts foo\." has no "# expect:" line/);
+  assert.doesNotMatch(out, /check "Graded\."/);
+});
+
 test("a heading with no fence under it does not count as coverage", () => {
   // Grepping for the heading called this skill covered while the runner parsed zero checks from it.
   const dir = validRepo();
@@ -289,7 +302,7 @@ test("does not warn on a measure that avoids the skill's headings", () => {
   write(
     dir,
     "plugin/skills/alpha/evals.md",
-    '| x | `grep -c -e "unrelated token" out` |\n\n## Deterministic Checks\n\n```bash\ngrep -c foo output.md\n```\n',
+    '| x | `grep -c -e "unrelated token" out` |\n\n## Deterministic Checks\n\n```bash\n# expect: manual\ngrep -c foo output.md\n```\n',
   );
   const { code, out } = runGuard(dir);
   assert.doesNotMatch(out, /WARN/, "a clean measure must not warn");

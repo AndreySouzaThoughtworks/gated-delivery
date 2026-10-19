@@ -11,7 +11,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseChecks, runCheck } from "./run-checks.mjs";
+import { parseChecks, parseExpect, runCheck, scenarioIds } from "./run-checks.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, "..", "..");
@@ -264,4 +264,123 @@ test("--lint passes over the real skills and goes red when a check is broken", (
   const red = run(broken);
   assert.equal(red.code, 1);
   assert.match(red.out, /BROKEN busted/);
+});
+
+const SCENARIO_TABLE = "## Test Scenarios\n\n| # | Prompt | Persona | Pass Criteria |\n|---|---|---|---|\n| 1 | p | q | r |\n| 2b | p | q | r |\n\n";
+
+const repoWith = (skill, evalsBody) => {
+  const dir = mkdtempSync(join(tmpdir(), "gated-delivery-runner-scenario-"));
+  const skillDir = join(dir, "plugin", "skills", skill);
+  mkdirSync(skillDir, { recursive: true });
+  writeFileSync(join(skillDir, "evals.md"), evalsBody);
+  return dir;
+};
+
+const cli = (cwd, ...args) => {
+  try {
+    return { code: 0, out: execFileSync("node", [join(HERE, "run-checks.mjs"), ...args], { cwd, encoding: "utf8" }) };
+  } catch (e) {
+    return { code: e.status ?? 1, out: (e.stdout ?? "") + (e.stderr ?? "") };
+  }
+};
+
+test("expect lines are parsed apart from the label", () => {
+  const { checks } = parseChecks(
+    fence("# Clean result reported.\n# expect: >=1 on 1,2b\n# expect: ==0 on 3\ngrep -c a output.md"),
+  );
+  assert.equal(checks[0].label, "Clean result reported.");
+  assert.deepEqual(
+    checks[0].expects.map(({ op, n, ids }) => ({ op, n, ids })),
+    [
+      { op: ">=", n: 1, ids: ["1", "2b"] },
+      { op: "==", n: 0, ids: ["3"] },
+    ],
+  );
+});
+
+test("parseExpect accepts the three operators and manual, and rejects anything else", () => {
+  assert.deepEqual(
+    (({ op, n, ids }) => ({ op, n, ids }))(parseExpect("expect: <=2 on R1")),
+    { op: "<=", n: 2, ids: ["R1"] },
+  );
+  assert.equal(parseExpect("expect: manual").manual, true);
+  for (const bad of ["expect: >1 on 1", "expect: >= 1 on 1", "expect: >=1", "expect: >=1 on", "expect: about 3 on 1", "expect: >=1 on 1,1"]) {
+    assert.ok(parseExpect(bad).error, `must reject: ${bad}`);
+  }
+});
+
+test("scenarioIds reads every table row under Test Scenarios, across sub-tables", () => {
+  const md = `${SCENARIO_TABLE}### More\n\n| # | Prompt |\n|---|---|\n|  R7  | x |\n\n## Other\n\n| 99 | not a scenario |\n`;
+  assert.deepEqual([...scenarioIds(md)], ["1", "2b", "R7"]);
+});
+
+test("--scenario prints PASS and exits 0 when every applicable check holds", () => {
+  const dir = repoWith("alpha", SCENARIO_TABLE + fence("# Has a.\n# expect: >=1 on 1\ngrep -c a output.md\n# Other scenario.\n# expect: ==5 on 2b\ngrep -c zzz output.md"));
+  const { code, out } = cli(dir, "alpha", outputFile("a\n"), "--scenario", "1");
+  assert.equal(code, 0, out);
+  assert.equal(out.trim(), "PASS 1 >=1 Has a.");
+});
+
+test("--scenario prints FAIL and exits 1 when a check misses its expectation", () => {
+  const dir = repoWith("alpha", SCENARIO_TABLE + fence("# Has a.\n# expect: >=1 on 1\ngrep -c a output.md\n# No b.\n# expect: ==0 on 1\ngrep -c b output.md"));
+  const { code, out } = cli(dir, "alpha", outputFile("b\n"), "--scenario", "1");
+  assert.equal(code, 1, out);
+  assert.match(out, /^FAIL 0 >=1 Has a\.$/m);
+  assert.match(out, /^FAIL 1 ==0 No b\.$/m);
+});
+
+test("--scenario counts the lines of a check that prints matches rather than a number", () => {
+  const dir = repoWith("alpha", SCENARIO_TABLE + fence("# No pure black.\n# expect: ==0 on 1\ngrep -i '#000' output.md"));
+  assert.equal(cli(dir, "alpha", outputFile("ok\n"), "--scenario", "1").code, 0);
+  const red = cli(dir, "alpha", outputFile("color: #000\nfill: #000\n"), "--scenario", "1");
+  assert.equal(red.code, 1);
+  assert.match(red.out, /^FAIL 2 ==0 No pure black\.$/m);
+});
+
+test("--scenario skips manual checks and checks for other scenarios", () => {
+  const dir = repoWith("alpha", SCENARIO_TABLE + fence("# Judged by hand.\n# expect: manual\ngrep -c a output.md\n# Elsewhere.\n# expect: ==9 on 2b\ngrep -c a output.md"));
+  const { code, out } = cli(dir, "alpha", outputFile("a\n"), "--scenario", "1");
+  assert.equal(code, 0, out);
+  assert.equal(out.trim(), "");
+});
+
+test("--scenario runs Page checks on a page and response checks on output.md", () => {
+  const body = SCENARIO_TABLE + fence("# Response says hi.\n# expect: >=1 on 1\ngrep -c hi output.md\n# Page: has a pre block.\n# expect: >=1 on 1\ngrep -c '<pre>' output.md");
+  const dir = repoWith("alpha", body);
+  const response = outputFile("hi\n");
+  const pageDir = mkdtempSync(join(tmpdir(), "gated-delivery-runner-page-"));
+  const page = join(pageDir, "deskcheck.html");
+  writeFileSync(page, "<pre>x</pre>\n");
+
+  const onResponse = cli(dir, "alpha", response, "--scenario", "1");
+  assert.equal(onResponse.code, 0, onResponse.out);
+  assert.equal(onResponse.out.trim(), "PASS 1 >=1 Response says hi.");
+  const onPage = cli(dir, "alpha", page, "--scenario", "1");
+  assert.equal(onPage.code, 0, onPage.out);
+  assert.equal(onPage.out.trim(), "PASS 1 >=1 Page: has a pre block.");
+});
+
+test("--scenario exits 2 on a usage error", () => {
+  const dir = repoWith("alpha", SCENARIO_TABLE + fence("# x\n# expect: >=1 on 1\ngrep -c a output.md"));
+  const file = outputFile("a\n");
+  assert.equal(cli(dir, "alpha", file, "--scenario").code, 2, "missing id");
+  assert.equal(cli(dir, "alpha", file, "--scenario", "404").code, 2, "id not in the scenario table");
+  assert.equal(cli(dir, "nope", file, "--scenario", "1").code, 2, "unknown skill");
+  assert.equal(cli(dir, "alpha", join(dir, "absent.md"), "--scenario", "1").code, 2, "missing file");
+});
+
+test("--lint rejects a malformed expect line and an unknown scenario id, and accepts manual", () => {
+  const good = repoWith("alpha", SCENARIO_TABLE + fence("# a\n# expect: >=1 on 1,2b\ngrep -c a output.md\n# b\n# expect: manual\ngrep -c b output.md"));
+  const ok = cli(good, "--lint");
+  assert.equal(ok.code, 0, ok.out);
+
+  const malformed = repoWith("alpha", SCENARIO_TABLE + fence("# a\n# expect: at least 1 on 1\ngrep -c a output.md"));
+  const red1 = cli(malformed, "--lint");
+  assert.equal(red1.code, 1);
+  assert.match(red1.out, /malformed expect/);
+
+  const unknown = repoWith("alpha", SCENARIO_TABLE + fence("# a\n# expect: >=1 on 1,7\ngrep -c a output.md"));
+  const red2 = cli(unknown, "--lint");
+  assert.equal(red2.code, 1);
+  assert.match(red2.out, /unknown scenario "7"/);
 });

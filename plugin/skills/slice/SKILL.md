@@ -13,6 +13,7 @@ description: Implement a tracker ticket as independently merging slices, running
 - **Ticket** — the complete work item in the tracker named under `## Issue tracking`.
 - **AC** — one testable input-to-output acceptance criterion. The executor gives every distinct behavioral fork its own RED/GREEN cycle and commit.
 - **Slice** — the ACs that merge together: one branch, one PR, one merge to `main`. The spec's `## Rollout` names slices.
+- **Round** — the batches of one slice that run at the same time, each in its own batch tree.
 - **Functional batch** — one executor dispatch inside a slice. Its ACs share one test subject and one production seam; crossing helper → caller, port → adapter, or domain → controller starts another batch.
 - **Wave** — the slices the spec's `## Rollout` allows to run at the same time: no dependency between them, no overlapping write surface, every shared interface already fixed.
 - **Slice tree** — the writing worktree one slice of a parallel wave owns, outside the repository, on that slice's branch.
@@ -35,7 +36,7 @@ Resolve these at the start:
 - **Shared handoff** — `{ticket-id}/handoff.md` under the Shared notes home (`## Delivery notes`, default `docs/gated-delivery/{ticket-id}/` in the repository being changed). `/slice` reads it when present and writes only context that must survive a session, agent, machine, or compaction boundary.
 - **Actor** — who this session writes as: a handle, plus a machine name where one person runs two (`<handle>`, `<handle>@<machine>`). An actor owns one `## Resume` block per slice it holds and writes no other.
 - **Verify lock** — `scripts/verify-lock.sh` beside this file runs one command while holding a machine-wide lock (`~/.local/state/gated-delivery/verify.lock`; `GATED_DELIVERY_VERIFY_LOCK` overrides it), so the suites and verify runs of parallel slices, sessions or people on this machine never share ports, containers or a booted application at once. Run every 6.3 suite, 7.2 verify and 7.5 `verify-cmd` through it: `"<skill base directory>/scripts/verify-lock.sh" '<command>'`. It exits with the command's status, or 75 when another holder keeps the lock past its timeout (`GATED_DELIVERY_VERIFY_LOCK_TIMEOUT_S`, default 1800 seconds). A queued run can wait longer than a foreground Bash call lives — 2 minutes by default, 10 at most — so this session runs locked commands with `run_in_background: true` and acts on their completion notice. An agent runs them in the foreground with the Bash timeout at 600000 ms and `GATED_DELIVERY_VERIFY_LOCK_TIMEOUT_S=300` in front, so a long queue ends in 75 inside the call; on 75 it retries once, then reports the wait. STOP on a 75 here and say which slice's run held the lock. Anything a locked command leaves running keeps the lock until it exits — a shell `&` daemon started by a verify script wedges every later run into 75 — so a verify command must not leave background processes behind. A repository whose verify takes longer than five minutes lowers the agent timeout so wait plus run still fit the 10-minute call.
-- **Parallel cap** — at most three slices write at once. The user may raise or lower it at the step 3 checkpoint.
+- **Parallel cap** — at most three writers at once, counting every slice of a wave and every batch of a round. The user may raise or lower it at the step 3 checkpoint.
 - **Domain references** — indexed in the client context's `## Domain references` section. Where a ticket touches a technology the client context carries a reference for, read it before dispatching the executor and pass it in the step 6.1 payload. Skip when nothing in the index matches.
 
 When the Shared notes home is a separate repository — the **notes repository** — working-document writes use `GATED_DELIVERY_NOTES_REPO` when set, a local checkout of it. Otherwise clone the repository the Shared notes home names with `gh` into a temporary directory. The installed plugin cache is read-only. When the Shared notes home sits inside the repository being changed, there is no separate notes repository: working documents are committed on the slice branch and travel with it, and the notes-repository preconditions and direct pushes to its `main` below do not apply.
@@ -168,13 +169,30 @@ Batch 2 — subject: outbound adapter (helper → caller seam)
 
 The common case is one batch. Every rationale names the subject and any seam crossed. The batch plan stays in conversation; Rollout is the durable merge plan.
 
+**Group batches into rounds.** With two or more batches, give each its write surface (the files it creates or changes) and the batches it builds on — a caller batch builds on the helper batch whose seam it crosses. Batches share a round only when neither builds on the other, their write surfaces do not overlap (a shared test fixture, index or registry counts), and neither needs a decision the other makes. Name, for each pair in a round, the cheapest way they could still collide; a collision you can name moves one batch to the next round. A strict chain stays sequential, which is the common case.
+
+```text
+Round 1 — Batch 1 (src/mask.ts, test/mask.test.ts) · Batch 2 (src/redact.ts, test/redact.test.ts)
+Round 2 — Batch 3 (src/adapter.ts, test/adapter.test.ts) builds on 1 and 2
+```
+
 A slice that no longer meets its documented safety boundary requires Route B′ and a revised Rollout.
 
 ### 6. Batch loop — dispatch, test, and inspect
 
 Run 6.1–6.6 for every batch in the current slice. `## BLOCKED` still stops immediately; there is no human checkpoint between healthy batches.
 
-**Batches run one after another, never in parallel.** Each batch builds on the commits of the one before it, and the orchestrator is the only writer in the slice branch's tree (see Concurrency preconditions). Writing batches in parallel would need a worktree per batch and separate ports and containers per tree; worktrees isolate files only, and no step here provides the rest.
+**Run a round of two or more batches in parallel.** Every batch writes in its own **batch tree**, never in the slice's writing tree, so no two writers share a tree:
+
+1. Record the slice tip as `<round-base>`. For each batch, create its tree from the slice's writing tree: `"<skill base directory>/scripts/slice-tree.sh" "$LOCAL_NOTES/slice-trees/{ticket-id}-s{n}-b{k}" "feat/{ticket-id}-{slug}-s{n}-b{k}" <round-base>`. Batch branches stay local and are never pushed.
+2. Dispatch the round's executors in **one message** (6.1), each with its batch tree as `worktree` and its own notes file, `{ticket-id}-s{n}-b{k}.md`.
+3. When all return, pick each batch onto the slice **in batch-plan order**, from the slice's writing tree: `"<skill base directory>/scripts/batch-pick.sh" "feat/{ticket-id}-{slug}-s{n}-b{k}" <round-base>`. It keeps one commit per AC and prints the batch's range on the slice — `<before>..<after>` — which is that batch's 6.4 range. Exit 3 is a conflict: the slice is left exactly as it was; record the overlap the round check missed and run that batch again, alone, on the new tip, before the next round.
+4. Run 6.2, 6.4 and 6.5 for each picked batch on its printed range; 6.3's suite runs once per round, after the last pick, through the verify lock. 6.6 follows.
+5. Remove each batch tree with `git worktree remove --force <batch-tree>`, then delete its local branch with `git branch -D <batch-branch>`: its commits now live on the slice.
+
+**Resuming an interrupted round.** Route D lists local batch branches `feat/{ticket-id}-*-s{n}-b*`. A batch branch with commits the slice lacks is picked as in step 3 before anything is re-planned; one with no commits is removed and its batch re-run.
+
+A round of one batch runs in the slice's writing tree as below. Batches in later rounds build on the picked commits of earlier ones. Writers across a wave's slices and a slice's batches together stay within the parallel cap.
 
 #### 6.1. Dispatch `slice-executor`
 
@@ -226,7 +244,7 @@ gh pr create --draft --base <slice-base> --title "{type}({ticket-id}): {slice ti
 
 The initial body links the ticket and the spec and quotes this slice's Rollout entry. Push every later batch to the same PR. Do not request reviewers before the slice-end gates pass.
 
-Before starting the next batch, record this batch's tip — `git rev-parse HEAD` — in machine-local notes and in this actor's `## Resume` block. It is the `<previous-batch-tip>` the next batch's 6.4 range needs, and nothing else can recover it once the conversation is compacted.
+Before starting the next batch or round, record this batch's tip — `git rev-parse HEAD` — in machine-local notes and in this actor's `## Resume` block. It is the `<previous-batch-tip>` the next batch's 6.4 range needs, and nothing else can recover it once the conversation is compacted.
 
 ### 7. Slice end — validate, review, and mark ready
 
@@ -418,5 +436,6 @@ Then complete Route F:
 - `Agent(slice-executor)` — mechanical TDD worker for each functional batch.
 - Stack validators — once per slice; the `## Review routing` security reviewer additionally handles batch code scans and dependency-scoped slice scans.
 - [`scripts/review-tree.sh`](scripts/review-tree.sh) — creates or re-points the slice's review worktree and makes it runnable; step 7 and 7.5 both call it.
-- [`scripts/slice-tree.sh`](scripts/slice-tree.sh) — creates or reuses a parallel slice's writing worktree; step 4W calls it.
+- [`scripts/slice-tree.sh`](scripts/slice-tree.sh) — creates or reuses a parallel slice's or batch's writing worktree; steps 4W and 6 call it.
+- [`scripts/batch-pick.sh`](scripts/batch-pick.sh) — picks a parallel batch's commits onto the slice and prints its range, or exits 3 on a conflict with the slice untouched; step 6 uses it.
 - [`scripts/verify-lock.sh`](scripts/verify-lock.sh) — runs a suite or verify command under the machine-wide verify lock; 6.3, 7.2 and 7.5 use it.

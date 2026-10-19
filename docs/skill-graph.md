@@ -67,7 +67,8 @@ Named per client in its CLAUDE.md (`## Stack recipes`, `## Review routing`, `## 
   ├── step 0  Skill(repo-forensics) quick posture
   ├── /spec                                               (Route A)
   ├── scripts/slice-tree.sh, one tree per wave slice      (4W, Route W)
-  ├── Agent(slice-executor)                               (6.1, per functional batch)
+  ├── Agent(slice-executor)                               (6.1, per functional batch; a round's batches in parallel batch trees)
+  ├── scripts/batch-pick.sh                               (6, a parallel round's batches back onto the slice)
   ├── repository test command, under verify-lock.sh       (6.3, per batch)
   ├── Skill(senior-review-lens)                           (6.4, multi-batch slices)
   ├── security reviewer from Review routing, code scope   (6.5, conditional per batch)

@@ -38,7 +38,7 @@ The core must never name a client. `scripts/leak-guard.sh` greps the staged, tra
 | Command | Needs a login | Proves |
 |---------|---------------|--------|
 | `bash tests/leak-guard.test.sh` | No | The guard rejects client terms and fails closed without a denylist |
-| `bash tests/slice-scripts.test.sh` | No | Parallel slice worktrees are created on their own branches outside the repository, review trees still detach at the tip, and the verify lock never lets two runs overlap, returns the command's status, reclaims a dead holder's lock and times out on a live one |
+| `bash tests/slice-scripts.test.sh` | No | Parallel slice and batch worktrees are created on their own branches outside the repository, a parallel batch is picked back onto the slice in order or exits 3 on a conflict with the slice untouched, review trees still detach at the tip, and the verify lock never lets two runs overlap, returns the command's status, reclaims a dead holder's lock and times out on a live one |
 | `node --test plugin/hooks/*.test.mjs` | No | Hook behaviour |
 | `node scripts/audit/consistency.mjs` | No | Inventory, references and docs agree with the files |
 | `bash tests/profile-isolation.test.sh [project-dir]` | No | A fresh profile installs the core, loads no client plugin or MCP server, has its own login, and no CLAUDE.md above `project-dir` carries client terms |

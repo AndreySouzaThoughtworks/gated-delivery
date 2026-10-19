@@ -111,6 +111,37 @@ diverged_tree="$work/trees/diverged"
 (cd "$plain" && "$scripts/slice-tree.sh" "$diverged_tree" feat/T-2-b-s2 origin/main) >/dev/null 2>&1
 check "a local branch diverged from origin is refused" '[ $? -ne 0 ] && [ ! -d "$diverged_tree/.git" ] && [ ! -f "$diverged_tree/.git" ]'
 
+# batch-pick.sh, run from the slice's writing tree
+g() { git -C "$1" -c user.email=t@t -c user.name=t "${@:2}"; }
+pick_repo="$work/pick"
+new_repo "$pick_repo"
+printf 'a\nb\nc\n' > "$pick_repo/shared.txt"; g "$pick_repo" add shared.txt; g "$pick_repo" commit -q -m shared
+g "$pick_repo" checkout -q -b slice
+slice_base="$(git -C "$pick_repo" rev-parse HEAD)"
+for b in b1 b2 b3; do g "$pick_repo" branch -q "$b" "$slice_base"; done
+g "$pick_repo" checkout -q b1; echo one > "$pick_repo/one.txt"; g "$pick_repo" add one.txt; g "$pick_repo" commit -q -m "feat: AC1"; echo uno >> "$pick_repo/one.txt"; g "$pick_repo" commit -qam "feat: AC2"
+g "$pick_repo" checkout -q b2; echo two > "$pick_repo/two.txt"; g "$pick_repo" add two.txt; g "$pick_repo" commit -q -m "feat: AC3"
+g "$pick_repo" checkout -q b3; printf 'a\nB3\nc\n' > "$pick_repo/shared.txt"; g "$pick_repo" commit -qam "feat: AC4"
+g "$pick_repo" checkout -q slice
+printf 'a\nSLICE\nc\n' > "$pick_repo/shared.txt"; g "$pick_repo" commit -qam "feat: earlier batch"
+
+range="$(cd "$pick_repo" && GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t "$scripts/batch-pick.sh" b1 "$slice_base" 2>/dev/null)"
+check "a batch is picked onto the slice with one commit per AC" '[ "$(git -C "$pick_repo" log --format=%s -2 | tr "\n" "|")" = "feat: AC2|feat: AC1|" ]'
+check "the printed range covers exactly the picked batch" '[ "$(git -C "$pick_repo" log --format=%s $range | tr "\n" "|")" = "feat: AC2|feat: AC1|" ]'
+
+(cd "$pick_repo" && GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t "$scripts/batch-pick.sh" b2 "$slice_base") >/dev/null 2>&1
+check "a second independent batch picks cleanly after the first" '[ $? -eq 0 ] && [ -f "$pick_repo/two.txt" ] && [ -f "$pick_repo/one.txt" ]'
+
+before="$(git -C "$pick_repo" rev-parse HEAD)"
+(cd "$pick_repo" && GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t "$scripts/batch-pick.sh" b3 "$slice_base") >/dev/null 2>&1
+status=$?
+check "a conflicting batch exits 3 and leaves the slice as it was" '[ $status -eq 3 ] && [ "$(git -C "$pick_repo" rev-parse HEAD)" = "$before" ] && [ -z "$(git -C "$pick_repo" status --porcelain)" ]'
+
+echo dirt > "$pick_repo/dirt.txt"
+(cd "$pick_repo" && "$scripts/batch-pick.sh" b2 "$slice_base") >/dev/null 2>&1
+check "a dirty writing tree is refused" '[ $? -eq 1 ] && [ "$(git -C "$pick_repo" rev-parse HEAD)" = "$before" ]'
+rm "$pick_repo/dirt.txt"
+
 # verify-lock.sh
 lock="$work/verify.lock"
 log="$work/lock.log"

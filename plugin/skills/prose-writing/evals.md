@@ -81,8 +81,11 @@ check and still fail all three. A phrase that only the original wording contains
 
 ```bash
 # Tics left in the artifact — expect 0 on scenario 1. Artifact checks read only the text after the
-# marker, because the report above it may quote the tics it removed.
-awk '/^--- REVISED ---$/{r=1;next} r' output.md | grep -ciE -e "worth noting" -e "went back and forth" -e "doesn.t touch" -e "not just" -e "earns its place" -e "load-bearing"
+# marker, because the report above it may quote the tics it removed. "cache", "chose" and "versus"
+# catch the reworded tics: the change never touches a cache, so any mention is the negative space
+# ("The cache layer is unchanged."), and "chose"/"versus" is the debate recap. Other rewordings need
+# the manual read.
+awk '/^--- REVISED ---$/{r=1;next} r' output.md | grep -ciE -e "worth noting" -e "went back and forth" -e "doesn.t touch" -e "not just" -e "earns its place" -e "load-bearing" -e "cache" -e "chose" -e "versus"
 # Scenario 3 — the clean paragraph survives verbatim; expect 1. Keyed on the whole original
 # paragraph, so a one-word edit ("the error" to "its error") fails it.
 awk '/^--- REVISED ---$/{r=1;next} r' output.md | grep -cF 'The importer retries a failed batch three times, then writes it to `dead-letter/` with the error attached. Run `pnpm replay` to resubmit everything there.'

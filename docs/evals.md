@@ -74,3 +74,9 @@ Runs vary. In one confirmation sweep, 7 of 44 scenarios passed once and failed o
 ## 7. Prove every check
 
 Before a check lands, run it on a passing output and on a failing one, and see the result differ. Use real run output for the pass; for the fail, use a failing run or a copy with the defect edited in. A check that returns the same value on both proves nothing. `node scripts/eval/run-checks.mjs --lint` only proves each command runs.
+
+## 8. Keep the skill's text away from the baseline
+
+A baseline run must not be able to read the skill it is compared against. The audit-flow baselines ran in a clone of this repository, read `plugin/skills/audit-flow/SKILL.md` from it, and copied its headings. Their passes said nothing about the skill.
+
+When the fixture is a clone of this repository, delete the skill's directory from the baseline's clone before the run: `rm -r plugin/skills/<skill>`, then commit, so the tree is clean. Give the baseline no `--plugin-dir` and no `--add-dir` that reaches a plugin copy. After the run, `grep -c 'skills/<skill>/' transcript.jsonl` must be 0; a read of the skill's files makes the baseline a harness failure.

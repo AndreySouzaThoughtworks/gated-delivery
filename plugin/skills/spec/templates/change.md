@@ -190,8 +190,8 @@ Verification checklist. `/spec` emits one slice block for every `## Rollout` ent
 ### Slice <n>
 
 - [ ] Every AC assigned to this slice is implemented and verified by at least one test
-- [ ] Production code follows the production-code recipe `## Stack recipes` names (validated by its production-code validator)
-- [ ] Test code follows the test-code recipe `## Stack recipes` names (validated by its test-code validator)
+- [ ] Production code follows the production-code recipe `## Stack recipes` names, apart from the deviations the repository documents (validated by its production-code validator)
+- [ ] Test code follows the test-code recipe `## Stack recipes` names, apart from the deviations the repository documents (validated by its test-code validator)
 - [ ] Architecture layer boundaries are respected (validated by the architecture reviewer `## Review routing` names)
 - [ ] Security review completed for every security-relevant batch
 - [ ] Repository verification command passes

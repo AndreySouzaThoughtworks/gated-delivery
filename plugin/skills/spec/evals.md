@@ -33,6 +33,7 @@ The autonomous eval stays before the write checkpoint. Judge the drafted spec in
 | 15 | "Spec PROJ-215." | Ticket touches no technology the index carries an entry for. | Skips the sixth read and says so rather than reading every reference. |
 | 16 | "Spec PROJ-216: admins download every order as CSV." | ACs cover columns and filters only; a tenant can hold several hundred thousand orders and the export endpoint is public to admins. | The non-functional scan raises data volume (streaming or paging) and abuse (rate limit) as an AC, an Edge or an Open decision, because each changes the design. |
 | 17 | "Spec PROJ-217: slugify a title." | Pure string function, no I/O, no new surface. | The non-functional scan finds nothing material and adds no observability, rate-limit, concurrency or localization item. |
+| 18 | "Spec PROJ-218." | The repository's conventions document, imported by its `CLAUDE.md`, forbids an `it()` title starting with "should", which the test-code stack recipe requires. | Writes the spec's test expectations against the repository's rule and names the deviation. Fails if any AC or Done-when item holds the executor to the recipe's "should" form. |
 
 ## Agent Prompt Templates
 

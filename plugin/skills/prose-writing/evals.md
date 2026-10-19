@@ -14,7 +14,7 @@ Success means the pass holds four invariants that a helpful-by-default assistant
    record survive the pass unchanged.
 3. **Stays complete.** Cutting padding never produces note-form fragments.
 4. **Marks inference.** A claim the persona cannot back is verified or marked inferred in the
-   artifact.
+   artifact. No scenario measures this: the baseline does it unprompted (see Saturation Signals).
 
 > No integration dependency: each persona carries the draft and the surrounding facts, so the pass
 > is judged from the response alone.
@@ -28,11 +28,9 @@ mode: response
 | # | Prompt | Persona | Pass Criteria |
 |---|--------|---------|---------------|
 | 1 | "Write up the commit body from my draft." | Draft: "Worth noting this follows the retry change — we went back and forth on per-call versus per-batch limits and landed on per-batch. Doesn't touch the cache layer." The change caps retries per batch at three. | Revised body states the cap and why it is per batch. The announcing frame, the debate recap and the negative-space sentence are gone. |
-| 2 | "Review the comment I added in this test." | `// rejects an empty name` sits on the line directly above `it("rejects an empty name", ...)`. | Recommends **deleting** the comment, because the title below already states it. Fails if it rewords the comment. |
 | 3 | "Tighten this README paragraph." | "The importer retries a failed batch three times, then writes it to `dead-letter/` with the error attached. Run `pnpm replay` to resubmit everything there." | Reports no findings and returns the paragraph unchanged. Fails if it invents a finding to show work. |
 | 4 | "Clean up this migration note." | "Token validation moves into the gateway rather than each service, so a revoked token is refused before it reaches any handler." Each service validated tokens until this release. | Keeps the contrast, because the reader is migrating from per-service validation. Fails if it drops "each service". |
 | 5 | "Make this doc section concise." | Draft is already note form: "Cache warm on boot. Fallback DB if miss. TTL 60s, config." | Restores complete sentences with subjects, verbs and articles. Fails if it clips the draft further. |
-| 6 | "Polish the PR body." | Body says "This fixes the timeout seen in production." The author reproduced and fixed it locally; nobody has checked production. | Limits the claim to the local reproduction or marks the production fix as inferred. Fails if the unverified claim stays as fact. |
 | 7 | "Fix the tone of the 0.3.0 changelog entry." | Entry from a released version: "Moved config parsing to startup rather than first request." | Leaves the dated record as written and says why. Fails if it edits the entry. |
 | 8 | "Run the pass on my staged diff." | Staged diff touches `README.md`, `src/importer.ts` (two new comments) and `docs/replay.md`. Two pre-filter hits, one real finding in the read. | Report keeps the pre-filter count apart from the read count and names every file read. Fails if a grep count is reported as the whole pass. |
 
@@ -61,15 +59,13 @@ CONTEXT: {{PERSONA}}
 | Quality Signal | Without Skill | With Skill | How to Measure |
 |----------------|---------------|------------|----------------|
 | Tics cut from the artifact | Rewords around the frame | Frame, debate and absence gone (scenario 1) | Revised-text tic count below — expect **0** |
-| Restatement removed | Rewords the comment | Deletes it (scenario 2) | Manual: does the revised file still carry the comment? |
 | Clean prose untouched | Rewrites to show effort | Unchanged, no findings (scenario 3) | The original paragraph survives verbatim in the revised text — expect **1** |
 | Informative contrast kept | Strips every "rather than" | Keeps the migration contrast (scenario 4) | `each service` survives in the revised text — expect **1** |
 | No over-correction | Clips further | Complete sentences (scenario 5) | Article count in the revised text — expect **≥3**; a proxy, so confirm by reading |
-| Inference marked | Keeps the claim as fact | Limits or marks it (scenario 6) | Inference-marker count in the revised text — expect **≥1** |
 | Dated record left alone | Edits the entry | Leaves it and says why (scenario 7) | `startup rather than first request` survives — expect **1** |
 | Pre-filter reported apart from read | One undifferentiated "reviewed" | `pre-filter: …; read: …` with files named (scenario 8) | Report-shape count below — expect **1** |
 
-**Pass threshold:** the skill wins at least 6 of 8 scenarios, and scenarios 3, 4 and 7 must not
+**Pass threshold:** the skill wins at least 5 of the 6 scenarios, and scenarios 3, 4 and 7 must not
 regress. Those three catch over-triggering: a pass that rewrites correct prose is worse than no
 pass, because the reader loses text that was right.
 
@@ -95,8 +91,6 @@ awk '/^--- REVISED ---$/{r=1;next} r' output.md | grep -ciF "each service"
 awk '/^--- REVISED ---$/{r=1;next} r' output.md | grep -cF "startup rather than first request"
 # Complete sentences restored — expect at least 3 on scenario 5.
 awk '/^--- REVISED ---$/{r=1;next} r' output.md | grep -oiwE -e "the" -e "a" -e "an" | wc -l
-# Inference marked — expect at least 1 on scenario 6.
-awk '/^--- REVISED ---$/{r=1;next} r' output.md | grep -ciE -e "inferred" -e "not (yet )?(been )?(verified|checked)" -e "locally" -e "local reproduction"
 # Pre-filter reported apart from read — expect 1 on scenario 8. Joined into one line first, because the
 # report usually puts the two steps on separate lines. Accepts the step's name, "pre-filter", and the
 # older "sweep" label, as labels ("Pre-filter: … Read:") or in prose ("the pre-filter found … the read found").
@@ -107,7 +101,8 @@ tr '\n' ' ' < output.md | grep -ciE "(sweep|pre-filter):.*read:|(sweep|pre-filte
 
 | Signal | Saturation Level |
 |--------|-----------------|
-| Baseline deletes a comment that restates its `it()` title unprompted | Partial — monitor |
+| Baseline deletes a comment that restates its `it()` title unprompted | Full — scenario 2 retired 2026-10-19: no-skill baseline passed n=2 ("I'd delete the comment. It says exactly what the test name … already says") |
+| Baseline limits an unverified production claim to the local reproduction unprompted | Full — scenario 6 retired 2026-10-19: no-skill baseline passed n=2 ("It hasn't been verified in production yet") |
 | Baseline leaves clean prose and dated records unchanged | Partial — monitor |
 | Baseline separates the pre-filter from the read in its report | Full — retire/convert |
 | Baseline keeps complete sentences while cutting padding | Partial — monitor |

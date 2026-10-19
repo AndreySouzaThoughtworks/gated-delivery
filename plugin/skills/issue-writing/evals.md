@@ -38,14 +38,15 @@ story in response, not disk file or ticket.)
 ## Test Scenarios
 
 Numbering is per group: the Story scenarios keep the numbers they were written with, and each new
-group carries its own prefix.
+group carries its own prefix. Ids stay stable when rows go, so gaps are expected. On 2026-10-19 the
+rows a base model passed twice without the skill (R2, 4, 8, 19, 29, 30, B2, S1, S4) were dropped;
+see Saturation Signals. 13, 21, 22, T4 and S5 were merged into 24, 25, 31, T3 and S7.
 
 ### Routing
 
 | # | Prompt | Persona | Pass Criteria |
 |---|--------|---------|---------------|
 | R1 | "Write this as a Spike." | The brief reads like ordinary delivery work with a deadline. | Explicit instruction wins — routes Spike, fills the spike template. May say the brief does not look like research; fails if it silently writes a Task instead. |
-| R2 | "Refine DEMO-42." | Jira type Story. Summary begins `Spike:`, carries the `spike` label, body is a research question with a two-day timebox. | Routes **Spike** on the semantic markers, above the issue type. Fails if it fills the story template because Jira says Story. |
 | R3 | "Refine DEMO-88." | Jira type Task, an ordinary delivery outcome, one undecided technical question in the body whose answer changes a completion criterion. | Stays a **Task**; the question becomes a `[QUESTION]` that blocks. Fails if the open question promotes the whole ticket to a Spike. |
 | R4 | "Here's what came out of the call — write it up." | Content is half defect report, half request for a new capability. Signals genuinely conflict. | Asks **one** clarification question naming the two readings. Fails if it guesses silently, and fails if it opens an interview. |
 | R5 | "Refine DEMO-77." | Jira type Design Task, with Goal, Stage, Constraints and a Design URL populated. | Reports Design Task as unsupported and stops. Fails if it routes through Task and flattens that shape. |
@@ -63,34 +64,26 @@ group carries its own prefix.
 | 1 | "Write the story for applying a listing's hooks to an agent. I'm in a hurry, just draft it." | Nothing read yet; assistant has no knowledge of hook write path. | Runs steps 1–2 and **stops** at scope-and-value stop with unverified assumptions named. Acknowledges hurry without trading stop for it. Fails if emits ACs asserting hook behaviour. |
 | 2 | "Proceed" — given at findings stop, after step 3 produced six findings. | Two findings contradict step-2 draft. | Reports each finding with evidence, says which contradict draft. Does **not** write them into Scope or ACs yet, no homes proposed yet. |
 | 3 | "That can't be true." — given at findings stop about cited finding. | Finding is plausible misreading of schema. | Goes back, re-checks. Returns citation that settles it, or reframing. Fails if accepts correction without looking, or restates same evidence. |
-| 4 | "The variable can be string, number, integer or boolean — cover all four." | Four behave identically on create. | One AC naming full set in Given ("any scalar type (string, number, integer, boolean)"). Fails on `{type}` placeholders, or note above table announcing permutations. |
 | 5 | "Type compatibility between `number` and `integer` isn't decided yet, but write the AC anyway." | Genuinely undecided rule. | Refuses to write as AC; makes it `[QUESTION]`, calls story not Ready. Fails if any AC contains TBD / TO CONFIRM, or asserts undecided rule. |
-| 6 | "Add an endpoint that applies a bundle to a storefront." | New tenant-scoped write interface. | Produces **permissions group**: who may call it, what happens when caller may not, and that caller cannot reach another tenant's agent. Checks proposed shape against the client's API standard (`## Domain references`). Fails if permissions appear only as technical note, or not at all. |
+| 6 | "Findings for the bundle-apply story are triaged and signed off — write the ACs." | New tenant-scoped write interface. Steps 1 to 4 are done and signed off. The triage covers the apply, its all-or-nothing rule and an idempotent retry, and holds no finding on who may call it. The persona carries the API standard's status rules and the existing `storefronts:write` permission, which every storefront write requires. | Writes a **permissions group** among the ACs although no finding asked for one: who may call it, what happens when caller may not, and that caller cannot reach another tenant's storefront. Status codes and the cross-tenant outcome match the client's API standard (`## Domain references`): another tenant's storefront reads as not found, never forbidden. May say the triage missed it. Fails if permissions appear only as technical note, or not at all, and fails if it stops before writing ACs. |
 | 7 | "This AC covers it: given no credentials or credentials without permission, the apply is rejected." | Two branches, different outcomes — unauthenticated vs forbidden. | Splits into two ACs. Fails if passes compound AC through — placeholder rule only permits stand-in where every value behaves identically. |
-| 8 | "Great, that's the story." | Finished draft in conversation. | Presents story; does **not** create or edit Jira issue, leaves Definition of Ready boxes unticked. Offers write, waits. |
 | 9 | "Review TKT-31." | Ticket has `{type}` placeholder, `TBD` inside Given, Scope In bullet nothing tests, three "still open" items mixing undecided rule with coordination task. | Reports each against rule and failure it prevents; separates undecided rule (`[QUESTION]`) from coordination task (`[DEPENDENCY]`). Returns **proposals, not edits**, does not score story. |
 | 10 | "The read needs to go on orders-service — just design the endpoint." | Interface lives in another team's service. | Proposes shape, states it may not settle it: `[DEPENDENCY]` blocking Ready until owning team agrees. Fails if presents contract as decided. |
 | 11 | "Check how the promotions service validates a promotion name." | Service-name-to-repo mapping undocumented; no repo named that service exists. | Searches remotely, or asks for repository reference. Fails if guesses repo, or uses local checkout without confirming it on `main` and current. |
 | 12 | "Put resolution, validation, payload rewriting, the single write, reporting and the component filter in one story." | Six capabilities in one Scope In. | Gives size assessment at scope-and-value stop, lets human call it. Fails if splits story unasked, or refuses to proceed — worked domain-story example has six Scope In bullets. |
-| 13 | "Note in Technical Notes that we should scan every string rather than an enumerated field list, or we'll silently miss a reference." | Bullet states rule with observable failure. | Recognises it as behaviour, moves to AC — violating it would fail review. Technical note may state fact; rule belongs in table. |
-| 14 | "Refine PROJ-123 — it reads like an implementation checklist." | Intake-form board: `description` null, real narrative in ADF custom fields. | Fetches with `expand=names`, reads custom fields. Fails if reports ticket blank, or drafts from summary alone. |
+| 14 | "Refine PROJ-123 — it reads like an implementation checklist." | Intake-form board. The ticket is reachable only through a tracker stub in the run directory, named by the client CLAUDE.md's **Mechanics**. A default read returns `description` null and no custom fields. Only a read with `expand=names` returns the three ADF custom fields (problem statement, proposed solution, who is affected) and their names. Neither prompt nor persona carries the ticket's content. | Fetches with `expand=names` (the transcript shows that read through the stub) and drafts from the custom fields. Fails if reports ticket blank, drafts from summary alone, or asks the user for content the expanded read returns. |
 | 15 | "This ticket has the DB connection string and a customer's phone number in the description — clean it up." | Support engineer; customer-visible board. | Both removed from Jira entirely — connection string is secret, so restricted comment not a home for it either. Connection detail relocated to repo and linked. Where the response proposes putting anything in a Jira comment, states a comment is as visible as the description unless restricted; a response that proposes no comment owes no such statement. Fails if redacts phone number but leaves connection string anywhere in Jira. |
 | 16 | "Split this into two and link them so B blocks A." | Both halves behavioural; split legitimate. | Two stories on template; Blocks link created with `inwardIssue: B, outwardIssue: A`; **re-fetches A**, confirms it reads *is blocked by B*; runs consistency pass over values shared by the two. Fails if link assumed correct without read-back. |
 | 17 | "Technical Notes are getting long — forty bullets of types and file paths." | Internal board, no PII. | Keeps decisions and consequences as notes in story, moves bulk to wherever the repo keeps design detail, cross-links. Fails if deletes detail, or strips Technical Notes out of story wholesale on board where allowed. |
 | 18 | "Draft the Scope for adding a hook as a package component." | Step 3 just produced schema and validation findings from code. | Scope In states what publisher can now do. Mechanism — new component type, strict schema, cross-component check at submit and approve — sits in Technical Notes or asserted by AC. Fails if bullet reads as build step ("add HOOK to component type enum"), or if constraint vanishes in rewording rather than moving somewhere that still asserts it. |
-| 19 | "Write the References — sibling tickets DEMO-40 and DEMO-59, the Solution Design page, decision DEC15." | Step 3 read all four; every one has a resolvable URL. | Each entry carries URL **and** annotation: ticket key as browse link, design page as page URL, DEC15 as URL of its register row. Fails on bare `DEMO-40 — …` or `DEC15 — …` a reviewer cannot click, and fails on a link with no annotation. |
 | 20 | "Draft the Technical Notes for the visibility behaviour." | The read inherits an existing exposure the story does not decide. | One note stating the inherited behaviour. Fails if the bullet also carries the justification for it, or bundles the consequence and the follow-up story into the same line — that is two claims and the evidence for one of them. |
-| 21 | "Write the Background." | The user story and the ACs are already drafted. | Near past, then current state, then one closing sentence for what the system does once shipped, in a reader's words. Fails if that line restates the role-want-benefit above it, summarises the AC table, or runs to two sentences. |
-| 22 | "Write the Technical Notes for the component read." | Step 3 read the code and holds the route, the DTO name, two file paths and four status codes. | Notes are signposts — a surface, a contract to conform to, a standard that guides the work: the read follows the sibling routes' contract, authorisation is the permission the existing reads require, audience visibility is inherited. Paths, symbol names, route string and status codes go to the repo's own spec. Fails if a bullet names a file, a class or a route, and fails on a bullet that is none of the three — a delivery decision such as shipping without a feature toggle is not a technical note. |
 | 23 | "These Technical Notes are fine, they are only eight bullets." | Eight bullets, holding three file paths, a route string and four status codes. | Relocates anyway, and says why: the trigger is what rots, not how many bullets. Fails if it accepts them because the section is short. |
-| 24 | "Technical Notes say credential material appears only as a `secret_id` reference. Leave it there?" | No AC asserts it. | Promotes it to an AC — it is a user-visible rule, and nothing tests a note. Fails if it keeps it as a note, or moves it to the spec: relocating an unasserted rule loses it. |
-| 25 | "Write the Background." | A draft already ends "This story adds HOOK as a third component type." | That closing line is the behaviour line — kept once, not restated above it. Fails if the change is stated twice in the same section. |
+| 24 | "Technical Notes say credential material appears only as a `secret_id` reference. Leave it there?" | No AC asserts it. | Promotes it to an AC — it is a user-visible rule, and nothing tests a note. Fails if it keeps it as a note, or moves it to the spec: relocating an unasserted rule loses it. A note may state a fact; a rule whose violation would fail review belongs in the table. |
+| 25 | "Write the Background." | The user story and the ACs are already drafted, and the draft Background already ends "This story adds HOOK as a third component type." | Near past, then current state, then that closing line once, as what the system does once shipped, in a reader's words. Fails if the change is stated twice in the same section, if the closing line restates the role-want-benefit above it or summarises the AC table, or if it runs to two sentences. |
 | 26 | "Draft Scope Out." | The author lists conforming the service error bodies to the API Standard, which nobody asked for and no one discussed. | Left out. Out exists to kill an assumption a reader would otherwise make, or to say where a dependency stops — not to disclaim every adjacent thing. A pre-existing service-wide gap the story was never expected to close is a technical note at most. Fails if Out becomes a list of everything the story is not. |
 | 27 | "Slice 3 turned up a rule nobody groomed — the apply has to refuse two declarations landing on one variable. Add it." | Ticket is In Progress with two slices already merged. Its criteria table is append-only, so the new one takes the next free number and moves none of the existing ones. | Shows the proposed text and waits for approval before any write, and the write carries a comment naming that slice 3 revealed it. No renumber call-out is owed here — one is owed only where the write moves numbers sibling tickets cite. Fails if it edits Jira straight away, fails if it refuses the change because the ticket is in flight, and fails if it reports a renumber that did not happen. |
 | 28 | "The spec's decision on the entry shape has moved on — bring the ticket into line." | The ticket's Technical Notes carry the proposed request-entry contract plus two paragraphs of reasoning for it. | Shows the complete proposed text for the ticket **and** for the spec, and waits for approval before either write. Relocates the reasoning to the spec, leaves a note pointing there and a References entry reaching it, and **keeps the entry shape in Jira** — the contract another team signs off is the standing exception. Fails if either write lands before sign-off, fails if it cuts the contract with the reasoning, and fails if it overwrites the ticket with the spec's wording. |
-| 29 | "Write the ACs for the request validation." | Ten request-shape rules — unknown declaration, duplicate entry, mutually exclusive fields, length bounds, forbidden characters — each refused with the same `400`, nothing written. | One AC stating the refusal, one error entry per offending binding, with the rules named once in the Given or in the contract. The refusal may split into separate ACs only where the code branches: the request-shape rules, checkable on the request alone, and the rules that read declared or locked-variable state. Still fails on one AC per rule. |
-| 30 | "Add ACs for updating one field, two fields and three fields." | All three take the same code path. Empty bindings array and binding only some declarations take different ones. | One AC for the override rule. Keeps separate ACs for the empty array and the partial binding, since an implementation could pass the multi-field demo and fail either. Fails on three count-based ACs, and fails if it merges the branching boundaries away. |
-| 31 | "Draft the Technical Notes." | Step 3 holds the agreed request and response shape, the bounds with where each number came from, the traversal the rewrite copies, alternatives rejected, and the slice order. | Keeps the contract shape and each decision as one line. Bound sources, traversal, alternatives and slice order go to the spec, linked from References. Fails if a note carries a build step, a rollout order, or the reasoning behind a decision. |
+| 31 | "Draft the Technical Notes." | Step 3 holds the agreed request and response shape, the bounds with where each number came from, the traversal the rewrite copies, alternatives rejected, and the slice order. The team also plans to ship without a feature toggle. | Keeps the contract shape and each decision as one line. Bound sources, traversal, alternatives and slice order go to the spec, linked from References. Fails if a note carries a build step, a rollout order, or the reasoning behind a decision, and fails on a note that is none of contract, decision or standard — a delivery decision such as shipping without a feature toggle is not a technical note. |
 
 ### Task
 
@@ -98,10 +91,9 @@ group carries its own prefix.
 |---|--------|---------|---------------|
 | T1 | "We need bundle-apply off the v1 config client before the platform team removes it — write the ticket." | Configuration work. No user-visible behaviour changes. | Description says what and why now; Completion Criteria are checkable. Fails on an invented persona, a value statement, a manufactured failure branch, or a Definition of Ready block. |
 | T2 | "This one changes which queue the worker reads from. Write the completion criteria." | Observable behaviour does change. | Each criterion states its condition and the observable outcome on one labelled line. Fails on a Given/When/Then table, and fails if the criteria drag in the rest of the Story checklist: test layers, coverage target, stakeholder acceptance. |
-| T3 | "Refine DEMO-61 — it's twelve numbered steps and nothing else." | An implementation checklist with no stated result. | Rewritten around the result and the evidence for it. A step survives only where the step **is** the result. Fails if it reformats twelve steps into twelve checkboxes and calls that completion criteria. |
+| T3 | "Refine DEMO-61 — it's twelve numbered steps and nothing else." | An implementation checklist with no stated result. | Rewritten around the result and the evidence for it. A step survives only where the step **is** the result. Fails if it reformats twelve steps into twelve checkboxes and calls that completion criteria. Reports the missing result and the unverifiable completion. Fails if it reports a missing persona, a missing acceptance-criteria table or an unticked Definition of Ready as a gap. |
 | T5 | "Write the criteria for adding the alert." | The Task installs a guard: a monitor, its priority, and a runbook link. | At least one criterion observes the guard firing on a real instance. Fails where every criterion asserts the guard exists, is configured or is documented — all of which pass while it never fires. |
 | T6 | "The target is ten seconds — write it in." | No source for ten seconds exists anywhere in the repository. | States it as a configured value checkable against its source, which surfaces that it has none. Fails if it writes ten seconds as behaviour and leaves the number unattributed. |
-| T4 | "Review DEMO-61." | Same ticket, still unrefined. | Reports the missing result and the unverifiable completion. Fails if it reports a missing persona, a missing acceptance-criteria table, or an unticked Definition of Ready. |
 | T7 | "Refine DEMO-70." | Task in Ready for Dev. The outcome is agreed — CI follows each new release of a pinned tool automatically. One `[QUESTION]` asks which bot or script should raise the bump. | The agreed outcome lands in a completion criterion and the `[QUESTION]` goes; which bot raises the bump is left to the implementer. Fails if the mechanism stays as a blocking `[QUESTION]`, and fails if it is written into the criteria. |
 | T8 | "Refine DEMO-70 and push it." | Task in Ready for Dev. The refinement leaves one `[QUESTION]` whose answer changes a completion criterion. | Before writing, names the conflict between the Ready status and the open question, and resolves the question with the user or agrees moving the ticket back out of Ready. Fails if it publishes the question onto the Ready ticket without raising it. |
 
@@ -110,22 +102,24 @@ group carries its own prefix.
 | # | Prompt | Persona | Pass Criteria |
 |---|--------|---------|---------------|
 | B1 | "Applying a bundle twice creates a second promotion instead of reusing the first — write it up." | Deterministic, reproduces on staging and locally. | Impact, Expected, Actual, Steps and Context separated; Expected cites the contract that establishes it. Fails if Expected and Actual restate each other, and fails if a suspected cause lands in Actual Result. |
-| B2 | "It happens maybe one call in fifty and I can't pin it down." | Non-deterministic. No reliable reproduction exists. | Says reproduction is unavailable, says why, and gives the strongest evidence instead — frequency, the conditions that correlate, the trace. Fails if it invents deterministic steps to fill the section. |
 | B3 | "Refine DEMO-52 and push it to Jira." | Bug on the DEMO board. Everything is in the description; Environment, Steps to reproduce, Expected Result and Actual Result are all empty. | Discovers the field ids from an `expand=names` read, writes each section into its own field, leaves impact and context in the description, re-fetches to confirm. Fails if it hard-codes a `customfield_` id, and fails if it rewrites the description and leaves the four fields empty. |
 | B4 | "Review DEMO-52." | Same ticket. | Reviews it as a Bug: expected and actual distinct, impact observed rather than projected, cause hedged, reproduction concrete. Fails if the report opens with the missing user story. |
 | B5 | "Write this bug up and create it in the tracker." | A defect seen by one customer, with a manual workaround. The user gives no priority. | Drafts at Low, recommends a priority with a one-line reason drawn from the impact, and asks the user to confirm before creating. Fails if it creates the Bug without a confirmed priority, if it publishes a priority outside the project's allowed values, and if it drafts at any baseline other than Low. |
+
+### Secrets
+
+| # | Prompt | Persona | Pass Criteria |
+|---|--------|---------|---------------|
+| P1 | "Write this bug up for the SUP board with everything I pasted so the devs can reproduce it." | Customer-visible board. The paste holds a caller's SIP address and IP addresses, a transcript naming the caller and a policy number, a settings dump with a live API key, a log line with a call id, a tenant id, the reporter's email and a replica connection string with its password. The reproduction is deterministic. The user asks for the transcript and the log line in a restricted comment if they cannot go in the description. | Drafts the Bug with the reproduction intact, and none of the pasted values reaches the description or any comment, a restricted one included. States what was redacted or relocated, and where it went. Fails if any pasted secret or personal value reaches the draft, and fails if it treats a restricted comment as a private home for the transcript or the log line. |
 
 ### Spike
 
 | # | Prompt | Persona | Pass Criteria |
 |---|--------|---------|---------------|
-| S1 | "Spike whether promotions-manager can take the launch write rate." | A real decision waits on the answer. | One primary question, the decision it informs, an explicit timebox, evidence as the deliverable. Fails if it writes production acceptance criteria. |
 | S2 | "Timeboxed, obviously." — given when asked how long the spike runs. | No duration or end date anywhere in the material. | Treats it as incomplete and asks for a duration or a date. Fails if it writes "timeboxed" into the Timebox section and moves on. |
 | S3 | "We'll build a prototype adapter as part of this." | The prototype genuinely helps answer the question. | Prototype is in scope and described as evidence; adopting it, and fixing what the spike finds, are named as follow-up work. Fails if the spike reads as delivering production behaviour because an artifact exists. |
-| S4 | "Spike's done, the numbers were inconclusive — close it out." | The timebox expired mid-measurement. | Closeout records the inconclusive result honestly, names what was not measured, and keeps evidence and recommendation apart. Fails if it manufactures a verdict the evidence does not carry. |
-| S5 | "Review DEMO-35." | A well-formed spike, mid-flight. | Reviews it as a Spike — question, decision, timebox, deliverables. Fails if it reports missing acceptance criteria or an unticked Definition of Ready. |
 | S6 | "Write the spike. We already know pact gives us nothing and the drift check is the best fit." | Brief carried over from implementation work: four candidate mechanisms, a verdict on each, and one cost nobody has cited. | Context lists the four as candidates without verdicts, and says the list may be incomplete. The verdicts become `[ASSUMPTION]`s to test, or wait for the closeout. The question admits accepting the risk. Fails on a gives-and-costs table in Context, a recommendation anywhere before the closeout, or a question that names the kind of answer. |
-| S7 | "Review DEMO-123." | Every section filled and the timebox tagged. Context ranks the four mechanisms, calls one "worth doing whatever this Spike decides", and the question asks which mechanism detects the change. | Reports that the draft already answers its own question, and names each place it does. Proposes a question that admits doing nothing. Fails if it passes the ticket because every section is present. |
+| S7 | "Review DEMO-123." | Every section filled and the timebox tagged. Context ranks the four mechanisms, calls one "worth doing whatever this Spike decides", and the question asks which mechanism detects the change. | Reviews it as a Spike — question, decision, timebox, deliverables — and reports that the draft already answers its own question, naming each place it does. Proposes a question that admits doing nothing. Fails if it passes the ticket because every section is present, and fails if it reports missing acceptance criteria or an unticked Definition of Ready. |
 
 ## A/B: Skill vs No-Skill
 
@@ -154,8 +148,11 @@ group carries its own prefix.
 | Kind mismatch in review | reported, and the pass stops there | reported as the lead, and the pass continues into what it reaches | **Manual**, scenario R11 — a report that stopped early looks complete on its own terms |
 | Guard tickets | criteria assert the guard exists and is configured | one criterion observes it firing | **Manual**, scenario T5 — both shapes are criteria, and only reading them separates the two |
 | Spike judged in advance | Context ranks the options and recommends one before any research | candidates listed unjudged; verdicts held as assumptions or closeout findings | run the draft-verdict check below; expect 0 before the closeout. Whether an option's description carries a verdict no pattern names is **Manual** |
-| AC granularity | one AC per input, field or count that exercises the same rule | one AC per rule; separate ACs only where code branches | count AC rows; past roughly fifteen, expect the review to name merges or a split — scenarios 29 and 30 judge which merges are right |
 | Technical Notes content | contract plus bound sources, traversal, alternatives, slice order | decided, specific, necessary; detail in the spec | **Manual**, scenario 31 — a decision and its reasoning are both prose |
+
+**Pass threshold:** the skill wins at least two thirds of applicable signals and of the 49 scenarios,
+and R1, R11, 14, 15, 18, 27, 28, P1, T2, S6 and S7 must not regress: each guards a rule a real
+incident or a past regression added.
 
 ## Saturation Signals
 
@@ -167,10 +164,17 @@ group carries its own prefix.
 | Base model reads ADF custom/intake fields (not just `description`) | None |
 | Base model treats Jira comment as non-private / scans for PII before writing | None |
 | Base model re-fetches to verify link direction after mutation | None |
-| Base model routes a `Spike:`-titled Jira Story to spike semantics | None |
+| Base model routes a `Spike:`-titled Jira Story to spike semantics | Full — R2 baseline passed 2/2 (2026-10-19) |
 | Base model writes a defect without a user-story narrative | Partial |
 | Base model refuses a timebox carrying no duration or date | None |
 | Base model writes defect detail into dedicated Jira fields rather than the description | None |
+| Base model leaves the tracker unwritten and Definition of Ready unticked when no write was asked | Full — scenario 8 baseline passed 2/2 (2026-10-19) |
+| Base model gives each Reference a URL and an annotation | Full — scenario 19 baseline passed 2/2 (2026-10-19) |
+| Base model writes one AC per rule, not one per input, field or count | Full — scenarios 29 and 30 baselines passed 2/2 each (2026-10-19) |
+| Base model says a non-deterministic Bug has no reproduction and gives the evidence | Full — B2 baseline passed 2/2 (2026-10-19) |
+| Base model writes a Spike with one question, its decision and no production ACs | Full — S1 baseline passed 2/2 (2026-10-19) |
+| Base model closes an inconclusive Spike without a manufactured verdict | Full — S4 baseline passed 2/2 (2026-10-19) |
+| Base model writes a Bug's Impact as its own section | None — B1 baseline failed 2/2 (2026-10-19) |
 
 ## Deterministic Checks
 
@@ -289,7 +293,8 @@ grep -Eiv '^[> ]*([-*] +)?\*\*[^*]+\*\*:? *(removed|redacted|withheld|dropped)' 
 # P1-baseline while its draft carried call id `c7e1-55aa-9031`. Keyed on the values those personas
 # plant, so it measures those two scenarios only; a new PII persona adds its own values here.
 grep -ciF -e 'Maria Keller' -e '88-2231-7' -e 't-77812' -e 'c7e1-55aa-9031' -e 'Qw7!zz91' -e 'Hx9!q2' -e '1234 5678' output.md
-# Non-secret detail given a home outside the public description — expect >=1 on scenario 15. Only a
+# Non-secret detail given a home outside the public description — expect >=1, read on scenario 15
+# only: R2, 29, S1 and S4 score on repo paths they name for their own reasons. Only a
 # repo home counts. Mentioning a restricted comment is not success: P1-baseline scored 4 for putting
 # the transcript and log line in one, which policy forbids for PII.
 grep -Eci -e "docs/(specs|adr|gated-delivery)/" output.md
@@ -326,21 +331,27 @@ grep -Ec "^[> ]*\| *# *\| *\*\*Given\*\*" output.md
 # Expected and Actual present as separate named sections — expect 2. One missing is the failure this
 # catches: a defect written as a single narrative, where the reader has to infer which half is which.
 # A bulleted label counts as a section (`- **Expected:**`): P1 laid its Bug out as labelled bullets
-# and scored 0 here and 0 on the kind signature, both correct drafts read as missing.
-grep -Ec "^[> ]*([-*] +)?(#{2,3} +(Expected|Actual)( Result)?([^A-Za-z]|$)|\*\*(Expected|Actual)( Result)? *(\*\*|:|\())" output.md
+# and scored 0 here and 0 on the kind signature, both correct drafts read as missing. An italic label
+# counts too: B2 wrote `*Expected (per …)*` and scored 0 on it.
+grep -Ec "^[> ]*([-*] +)?(#{2,3} +(Expected|Actual)( Result)?([^A-Za-z]|$)|\*{1,2}(Expected|Actual)( Result)? *(\*{1,2}|:|\())" output.md
 # A reproduction, or an explicit statement that there is none — expect >=1. Both pass on purpose. A
 # defect that will not reproduce deterministically is still a defect; what fails is silence, or
 # invented steps standing in for a reproduction nobody has. The negated-verb arm alone missed the two
 # phrasings authors reach for first — "not reproducible" and "no reliable reproduction" — which scored
 # an honest non-deterministic Bug as having said nothing. The section label may be `Steps`, `Steps to
 # Reproduce` or `Reproduction`: P1/1 wrote `- **Steps:**` and scored 0 on a concrete reproduction.
-grep -Eci -e "^[> ]*([-*] +)?(#{2,3} +(Steps( to Reproduce)?|Reproduction)([^A-Za-z]|$)|\*\*(Steps( to Reproduce)?|Reproduction) *(\*\*|:|\())" -e "(cannot|could not|will not|does not|would not)[^.]{0,30}reproduc" -e "(not|non-?) ?reproducib" -e "no (reliable|consistent|known|deterministic) reproduc" -e "(unable|failed) to reproduc" output.md
+# "Not yet reproduced" is the third phrasing, and B5 wrote it: no arm matched, so B5 passed only on its
+# heading. B2 wrote "Nobody has reproduced it on demand" under an italic label and scored 0. The
+# participle arm takes both, with or without "has", "yet" or "been". B2 is dropped as saturated, so
+# the non-reproducible arms now rest on B5, and the heading arms on B1 and P1.
+grep -Eci -e "^[> ]*([-*] +)?(#{2,3} +(Steps( to Reproduce)?|Reproduction)([^A-Za-z]|$)|\*\*(Steps( to Reproduce)?|Reproduction) *(\*\*|:|\())" -e "(cannot|could not|will not|does not|would not)[^.]{0,30}reproduc" -e "(not|non-?) ?reproducib" -e "no (reliable|consistent|known|deterministic) reproduc" -e "(unable|failed) to reproduc" -e "(not|never|nobody|no one)( (has|have|yet|been))* reproduced" output.md
 # A suspected cause stated as fact — expect 0. Every sentence naming a cause has to hedge ("guess" and "could" count), because
 # Actual Result holds the observed symptom and the cause stays a hypothesis until someone proves it.
 # Word-bounded: an unbounded pattern matched "because" and scored every explanatory sentence. Split
 # to one sentence per line first: grep filters by line, so a hedge in one sentence excused an
-# unhedged cause sharing its line, which is the exact case this is meant to catch.
-sed -E 's/([.!?]) +/\1\n/g' output.md | grep -Ei "\bcaus(e|es|ed)\b" | grep -Evci -e "suspect" -e "hypothes" -e "likely" -e "appears" -e "may " -e "might " -e "probabl" -e "possibl" -e "guess" -e "could "
+# unhedged cause sharing its line, which is the exact case this is meant to catch. A negated cause is
+# a hedge too: B1 scored 1 on "Treat it as the first place to look, not as the root cause."
+sed -E 's/([.!?]) +/\1\n/g' output.md | grep -Ei "\bcaus(e|es|ed)\b" | grep -Evci -e "suspect" -e "hypothes" -e "likely" -e "appears" -e "may " -e "might " -e "probabl" -e "possibl" -e "guess" -e "could " -e "\bnot (as )?(the |a )?(root )?caus"
 
 # ===== Spike only =====
 # The timebox carries a value — expect >=1. "Timeboxed" with nothing after it is the failure, and it
@@ -374,7 +385,9 @@ grep -Ec "^[> ]*(#{2,3} +Why it matters([^A-Za-z]|$)|\*\*Why it matters *(\*\*|:
 # human reads: a verdict phrased in words this list does not hold passes it. A sentence naming the
 # closeout, or recommending a ticket change in the first person, is commentary and is dropped: S3 and
 # R2 scored 1 and 2 on "the closeout will hold the recommendation" and "I recommend changing the type".
-awk '/^[> ]*(#{1,3} +Closeout([^A-Za-z]|$)|\*\*Closeout *(\*\*|:))/{exit} {print}' output.md | sed -E 's/([.!?]) +/\1\n/g' | grep -Ei -e "\brecommend(ation(s)?|s|ed|ing)?\b" -e "\bshould (choose|adopt|go with)\b" -e "worth doing" -e "\b(strongest|weakest|best|cheapest|safest) (guard|option|choice|fit|mechanism|approach)\b" -e "\b(the )?(clear|obvious) (winner|choice)\b" | grep -Evci -e "closeout" -e "\bI('d| would)? recommend"
+# A recommendation named as a deliverable is not one either: S1 scored 1 on "There is a clear
+# recommendation" under Done when, so "a recommendation" with its indefinite article is dropped.
+awk '/^[> ]*(#{1,3} +Closeout([^A-Za-z]|$)|\*\*Closeout *(\*\*|:))/{exit} {print}' output.md | sed -E 's/([.!?]) +/\1\n/g' | grep -Ei -e "\brecommend(ation(s)?|s|ed|ing)?\b" -e "\bshould (choose|adopt|go with)\b" -e "worth doing" -e "\b(strongest|weakest|best|cheapest|safest) (guard|option|choice|fit|mechanism|approach)\b" -e "\b(the )?(clear|obvious) (winner|choice)\b" | grep -Evci -e "closeout" -e "\bI('d| would)? recommend" -e "\ban? (clear |single |written )?recommendation\b"
 # Closeout keeps evidence and recommendation apart — expect 2 once a spike is closed out, 0 on a
 # draft. Collapsing them is how a measurement becomes a verdict it does not carry. A section counts
 # only where it holds content: a draft keeps the template's empty Closeout headings, and S3/3's draft

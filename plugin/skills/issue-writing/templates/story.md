@@ -19,7 +19,7 @@ So that \<benefit\>
 
 *Three moves, in order: the near past — ticket this continues from; current state, briefly; then what this will do once shipped. One claim each, and do not state change twice.*
 
-*That last line is one sentence for what system does, in words reader would use. Not role-want-benefit restated, not summary of acceptance criteria. `Given a listing and one of its component ids, the marketplace returns that component's stored content.` If takes two sentences, story probably two stories.*
+*That last line is one sentence for what system does, in words reader would use. Not role-want-benefit restated, not summary of acceptance criteria — a line walking through each criterion in turn is that summary, so name the one capability they add up to. `Given a listing and one of its component ids, the marketplace returns that component's stored content.` If takes two sentences, story probably two stories.*
 
 Example: In STORY-123 we added price-rule definitions to bundles. Applying a bundle has not used them — owner still creates each rule by hand. Applying a bundle to a storefront now creates the price rules its components reference, reusing one already there rather than duplicating it.
 

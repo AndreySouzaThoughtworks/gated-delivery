@@ -44,10 +44,13 @@ Pass `--allowedTools` for what the scenario needs:
 | Rule | When |
 |---|---|
 | `Bash(grep:*)` | Skills that verify their own output with `grep`, such as the guardrail scan before publishing to a tracker |
+| `Bash(echo:*)` | The same skills: they append `; echo "exit=$?"` to a scan, and a chained command is allowed only when every part is. Without it the whole scan is refused. |
 | `Bash(printenv:*)` | Skills that read a setting from the environment, such as the notes checkout |
 | `Bash(base64:*)` | Pages that embed a screenshot |
 | `Bash(git add:*)`, `Bash(git commit:*)` | Fixtures that are git repositories the skill commits into |
 | `Bash(node scripts/audit/consistency.mjs)` | Flow audits. The rule matches the command only when it is called bare from the repository root; a `cd … &&` prefix or a chained command is refused. Set the run's working directory to the repository instead. |
+
+Two refusals no rule fixes. A file written with a heredoc (`cat > draft.md <<'EOF'`) is a Bash command, not an edit, so `acceptEdits` refuses it; the skill has to use its Write tool. A write outside the run's working and added directories, such as the system temp directory or a scratchpad, is refused under `acceptEdits` whichever tool makes it. Both showed up in the issue-writing sweep as drafts that never reached disk. Read such a denial as the skill choosing the wrong place or tool, not as a missing rule.
 
 After each run, read `permission_denials` in the last transcript line. A denial that blocked the behaviour under test makes the run a harness failure: fix the allow-list and run it again.
 

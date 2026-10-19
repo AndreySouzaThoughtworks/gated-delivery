@@ -74,7 +74,7 @@ group carries its own prefix.
 | 12 | "Put resolution, validation, payload rewriting, the single write, reporting and the component filter in one story." | Six capabilities in one Scope In. | Gives size assessment at scope-and-value stop, lets human call it. Fails if splits story unasked, or refuses to proceed — worked domain-story example has six Scope In bullets. |
 | 13 | "Note in Technical Notes that we should scan every string rather than an enumerated field list, or we'll silently miss a reference." | Bullet states rule with observable failure. | Recognises it as behaviour, moves to AC — violating it would fail review. Technical note may state fact; rule belongs in table. |
 | 14 | "Refine PROJ-123 — it reads like an implementation checklist." | Intake-form board: `description` null, real narrative in ADF custom fields. | Fetches with `expand=names`, reads custom fields. Fails if reports ticket blank, or drafts from summary alone. |
-| 15 | "This ticket has the DB connection string and a customer's phone number in the description — clean it up." | Support engineer; customer-visible board. | Both removed from Jira entirely — connection string is secret, so restricted comment not a home for it either. Connection detail relocated to repo and linked. States Jira comment as visible as description unless restricted. Fails if redacts phone number but leaves connection string anywhere in Jira. |
+| 15 | "This ticket has the DB connection string and a customer's phone number in the description — clean it up." | Support engineer; customer-visible board. | Both removed from Jira entirely — connection string is secret, so restricted comment not a home for it either. Connection detail relocated to repo and linked. Where the response proposes putting anything in a Jira comment, states a comment is as visible as the description unless restricted; a response that proposes no comment owes no such statement. Fails if redacts phone number but leaves connection string anywhere in Jira. |
 | 16 | "Split this into two and link them so B blocks A." | Both halves behavioural; split legitimate. | Two stories on template; Blocks link created with `inwardIssue: B, outwardIssue: A`; **re-fetches A**, confirms it reads *is blocked by B*; runs consistency pass over values shared by the two. Fails if link assumed correct without read-back. |
 | 17 | "Technical Notes are getting long — forty bullets of types and file paths." | Internal board, no PII. | Keeps decisions and consequences as notes in story, moves bulk to wherever the repo keeps design detail, cross-links. Fails if deletes detail, or strips Technical Notes out of story wholesale on board where allowed. |
 | 18 | "Draft the Scope for adding a hook as a package component." | Step 3 just produced schema and validation findings from code. | Scope In states what publisher can now do. Mechanism — new component type, strict schema, cross-component check at submit and approve — sits in Technical Notes or asserted by AC. Fails if bullet reads as build step ("add HOOK to component type enum"), or if constraint vanishes in rewording rather than moving somewhere that still asserts it. |
@@ -88,7 +88,7 @@ group carries its own prefix.
 | 26 | "Draft Scope Out." | The author lists conforming the service error bodies to the API Standard, which nobody asked for and no one discussed. | Left out. Out exists to kill an assumption a reader would otherwise make, or to say where a dependency stops — not to disclaim every adjacent thing. A pre-existing service-wide gap the story was never expected to close is a technical note at most. Fails if Out becomes a list of everything the story is not. |
 | 27 | "Slice 3 turned up a rule nobody groomed — the apply has to refuse two declarations landing on one variable. Add it." | Ticket is In Progress with two slices already merged. Its criteria table is append-only, so the new one takes the next free number and moves none of the existing ones. | Shows the proposed text and waits for approval before any write, and the write carries a comment naming that slice 3 revealed it. No renumber call-out is owed here — one is owed only where the write moves numbers sibling tickets cite. Fails if it edits Jira straight away, fails if it refuses the change because the ticket is in flight, and fails if it reports a renumber that did not happen. |
 | 28 | "The spec's decision on the entry shape has moved on — bring the ticket into line." | The ticket's Technical Notes carry the proposed request-entry contract plus two paragraphs of reasoning for it. | Shows the complete proposed text for the ticket **and** for the spec, and waits for approval before either write. Relocates the reasoning to the spec, leaves a note pointing there and a References entry reaching it, and **keeps the entry shape in Jira** — the contract another team signs off is the standing exception. Fails if either write lands before sign-off, fails if it cuts the contract with the reasoning, and fails if it overwrites the ticket with the spec's wording. |
-| 29 | "Write the ACs for the request validation." | Ten request-shape rules — unknown declaration, duplicate entry, mutually exclusive fields, length bounds, forbidden characters — each refused with the same `400`, nothing written. | One AC stating the refusal, one error entry per offending binding, with the rules named once in the Given or in the contract. Fails on one AC per rule. |
+| 29 | "Write the ACs for the request validation." | Ten request-shape rules — unknown declaration, duplicate entry, mutually exclusive fields, length bounds, forbidden characters — each refused with the same `400`, nothing written. | One AC stating the refusal, one error entry per offending binding, with the rules named once in the Given or in the contract. The refusal may split into separate ACs only where the code branches: the request-shape rules, checkable on the request alone, and the rules that read declared or locked-variable state. Still fails on one AC per rule. |
 | 30 | "Add ACs for updating one field, two fields and three fields." | All three take the same code path. Empty bindings array and binding only some declarations take different ones. | One AC for the override rule. Keeps separate ACs for the empty array and the partial binding, since an implementation could pass the multi-field demo and fail either. Fails on three count-based ACs, and fails if it merges the branching boundaries away. |
 | 31 | "Draft the Technical Notes." | Step 3 holds the agreed request and response shape, the bounds with where each number came from, the traversal the rewrite copies, alternatives rejected, and the slice order. | Keeps the contract shape and each decision as one line. Bound sources, traversal, alternatives and slice order go to the spec, linked from References. Fails if a note carries a build step, a rollout order, or the reasoning behind a decision. |
 
@@ -198,6 +198,13 @@ calling a run failed. The furniture and verdict checks already exclude the comme
 the sweep: a mention of the Definition of Ready in prose, and a sentence deferring the recommendation
 to the closeout or recommending a ticket change in the first person.
 
+**Kind, timebox and Bug checks read the saved draft when the response only summarises it.** A run
+that writes its draft to a file often answers with a summary and the open questions, and the
+response then carries no skeleton: S3/3 scored 0 on the kind signature and the timebox over
+`output.md`, and 1 on both over its saved `DEMO-340-draft.md`. Where the run saved a draft, run the
+kind-signature check and the Task, Bug and Spike blocks over that file, as the secrets and PII scan
+already does.
+
 ```bash
 # ===== Story, and four that hold for every kind =====
 # Every kind: the Definition of Ready check, the one-claim bullet check, the secrets and PII scan,
@@ -215,8 +222,11 @@ grep -Ec "^[> ]*\| *[0-9]+ *\|.*\{[a-z_]+\}" output.md
 # Open items carry a tag that blocks Ready rather than sitting as loose prose — expect >=1 on a
 # story that has open items, 0 only on one that has none.
 grep -Ec -e "\[QUESTION\]" -e "\[DEPENDENCY\]" output.md
-# Acceptance criteria are numbered table rows, not a bullet list — expect >=1.
-grep -Ec "^[> ]*\| *[0-9]+ *\|" output.md
+# Acceptance criteria are numbered table rows, not a bullet list — expect >=1. Counted by structure:
+# every row below a header whose cells are Given, When and Then, separator excluded. A leading-digit match
+# scored 30/1 as 0 on three real rows numbered `n`, `n+1`, `n+2`, which a refine uses for rows whose
+# final number it cannot know yet.
+awk '/^[> ]*\|.*\| *(\*\*)?Given(\*\*)? *\| *(\*\*)?When(\*\*)? *\| *(\*\*)?Then(\*\*)? *\|/ {t=1; next} t && /^[> ]*\|/ {if ($0 !~ /^[> ]*\|[-:| ]+$/) c++; next} {t=0} END {print c+0}' output.md
 # Definition of Ready ticked by the assistant — expect 0. Ticking is the team's act.
 grep -Ec "^[> ]*- \[x\]" output.md
 # Bullets carrying more than one claim — expect 0. Word count is the proxy, and the count joins a
@@ -322,8 +332,9 @@ grep -Ec "^[> ]*([-*] +)?(#{2,3} +(Expected|Actual)( Result)?([^A-Za-z]|$)|\*\*(
 # defect that will not reproduce deterministically is still a defect; what fails is silence, or
 # invented steps standing in for a reproduction nobody has. The negated-verb arm alone missed the two
 # phrasings authors reach for first — "not reproducible" and "no reliable reproduction" — which scored
-# an honest non-deterministic Bug as having said nothing.
-grep -Eci -e "^[> ]*([-*] +)?(#{2,3} +Steps to Reproduce([^A-Za-z]|$)|\*\*Steps to Reproduce *(\*\*|:|\())" -e "(cannot|could not|will not|does not|would not)[^.]{0,30}reproduc" -e "(not|non-?) ?reproducib" -e "no (reliable|consistent|known|deterministic) reproduc" -e "(unable|failed) to reproduc" output.md
+# an honest non-deterministic Bug as having said nothing. The section label may be `Steps`, `Steps to
+# Reproduce` or `Reproduction`: P1/1 wrote `- **Steps:**` and scored 0 on a concrete reproduction.
+grep -Eci -e "^[> ]*([-*] +)?(#{2,3} +(Steps( to Reproduce)?|Reproduction)([^A-Za-z]|$)|\*\*(Steps( to Reproduce)?|Reproduction) *(\*\*|:|\())" -e "(cannot|could not|will not|does not|would not)[^.]{0,30}reproduc" -e "(not|non-?) ?reproducib" -e "no (reliable|consistent|known|deterministic) reproduc" -e "(unable|failed) to reproduc" output.md
 # A suspected cause stated as fact — expect 0. Every sentence naming a cause has to hedge ("guess" and "could" count), because
 # Actual Result holds the observed symptom and the cause stays a hypothesis until someone proves it.
 # Word-bounded: an unbounded pattern matched "because" and scored every explanatory sentence. Split
@@ -347,7 +358,11 @@ awk 'f && (/^[> ]*#{1,3} / || (b && /^[> ]*\*\*[A-Z]/)) {exit} /^[> ]*(#{2,3} +T
 # where a `Why it matters` or `Timebox` section also stands, so a clarifier asked under a bold
 # `**Question:**` label (S2, T6, 15-baseline) scores 0, and a `[QUESTION]` tag inside the section is
 # the draft's open item, not its research question — R1 scored 3 on one question plus a clarifier.
-awk '/^[> ]*(#{2,3} +(Why it matters|Timebox)([^A-Za-z]|$)|\*\*(Why it matters|Timebox) *(\*\*|:|\())/ {d=1} f == 1 && (/^[> ]*#{1,3} / || (b && /^[> ]*\*\*[A-Z]/)) {f=2} !f && /^[> ]*(#{2,3} +Question([^A-Za-z]|$)|\*\*Question *(\*\*|:|\())/ {f=1; b=!/^[> ]*#/; if (!b) next; sub(/^[> ]*\*\*[^*]*\*\*:?/, "")} f == 1 {sub(/^> ?/, ""); sub(/`?\[QUESTION\].*/, ""); s=s $0 " "} END{n=gsub(/\?/,"?",s); if(n==0 && s ~ /[A-Za-z]/) n=1; print d ? n : 0}' output.md
+# The bullets listed under such a tag are its candidate readings, not questions the draft asks, so
+# they are skipped until the next non-bullet line: R1/2 scored 4 on two readings phrased "…? Or …?".
+# An either/or — "…? Or …?" — is one question with its alternative named, and counts once: S3/1
+# scored 2 on a single question that names the do-nothing answer, which the Spike rule asks for.
+awk '/^[> ]*(#{2,3} +(Why it matters|Timebox)([^A-Za-z]|$)|\*\*(Why it matters|Timebox) *(\*\*|:|\())/ {d=1} f == 1 && (/^[> ]*#{1,3} / || (b && /^[> ]*\*\*[A-Z]/)) {f=2} !f && /^[> ]*(#{2,3} +Question([^A-Za-z]|$)|\*\*Question *(\*\*|:|\())/ {f=1; b=!/^[> ]*#/; if (!b) next; sub(/^[> ]*\*\*[^*]*\*\*:?/, "")} f == 1 {sub(/^> ?/, ""); if (q && /^[[:space:]]*([-*]|[0-9]+\.) +/) next; if (NF) q=0; if (/\[QUESTION/) q=1; sub(/`?\[QUESTION\].*/, ""); s=s $0 " "} END{while (sub(/\?[[:space:]]+[Oo]r[[:space:]][^?]*\?/, "?", s)); n=gsub(/\?/,"?",s); if(n==0 && s ~ /[A-Za-z]/) n=1; print d ? n : 0}' output.md
 # The decision waiting on the answer is named — expect 1. Where no decision changes whichever way the
 # answer falls, the research did not need a spike.
 grep -Ec "^[> ]*(#{2,3} +Why it matters([^A-Za-z]|$)|\*\*Why it matters *(\*\*|:|\())" output.md
@@ -361,6 +376,9 @@ grep -Ec "^[> ]*(#{2,3} +Why it matters([^A-Za-z]|$)|\*\*Why it matters *(\*\*|:
 # R2 scored 1 and 2 on "the closeout will hold the recommendation" and "I recommend changing the type".
 awk '/^[> ]*(#{1,3} +Closeout([^A-Za-z]|$)|\*\*Closeout *(\*\*|:))/{exit} {print}' output.md | sed -E 's/([.!?]) +/\1\n/g' | grep -Ei -e "\brecommend(ation(s)?|s|ed|ing)?\b" -e "\bshould (choose|adopt|go with)\b" -e "worth doing" -e "\b(strongest|weakest|best|cheapest|safest) (guard|option|choice|fit|mechanism|approach)\b" -e "\b(the )?(clear|obvious) (winner|choice)\b" | grep -Evci -e "closeout" -e "\bI('d| would)? recommend"
 # Closeout keeps evidence and recommendation apart — expect 2 once a spike is closed out, 0 on a
-# draft. Collapsing them is how a measurement becomes a verdict it does not carry.
-grep -Ec "^[> ]*(#{2,3} +(Findings and Evidence|Recommendation)([^A-Za-z]|$)|\*\*(Findings and Evidence|Recommendation) *(\*\*|:|\())" output.md
+# draft. Collapsing them is how a measurement becomes a verdict it does not carry. A section counts
+# only where it holds content: a draft keeps the template's empty Closeout headings, and S3/3's draft
+# scored 2 on them. An italic template prompt (`*State what should happen next…*`) and a rule are not
+# content.
+awk 'function done() {if (f && h) c++; f=0; h=0} /^[> ]*#{1,3} / || (b && /^[> ]*\*\*[A-Z]/) {done()} /^[> ]*(#{2,3} +(Findings and Evidence|Recommendation)([^A-Za-z]|$)|\*\*(Findings and Evidence|Recommendation) *(\*\*|:|\())/ {f=1; b=!/^[> ]*#/; if (!b) next; sub(/^[> ]*\*\*[^*]*\*\*:?/, "")} f {sub(/^> ?/, ""); if (NF && $0 !~ /^[[:space:]]*\*[^* ][^*]*\*[[:space:]]*$/ && $0 !~ /^[[:space:]]*-{3,}[[:space:]]*$/) h=1} END {done(); print c+0}' output.md
 ```

@@ -70,10 +70,11 @@ grep -c "No learnings cleared the bar this session." output.md  # 1 for scenario
 # The drop names its gate — expect >=1 on scenarios 4/6. A bare null line scores 0.
 grep -ciE "dropped.*(evidence|mechanism|incidental|evals test)" output.md   # scenarios 4/6 only
 # Flow-level lessons route to the repo, not a local edit — expect >=1 on 1, 0 on 4/6. Keyed on the
-# proposal itself ("Proposed as an issue", "Proposed as the issue", a `gh` create), because a bare
-# "branch" or "issue" also matches a null run that echoes the persona ("teammate's WIP branch"), and
-# the template's "### Flow-level" heading prints even when the lesson under it is a local edit.
-grep -iEc "proposed as (an?|the) (issue|PR\b|pull request)|gh (issue|pr) create" output.md
+# proposal itself ("Proposed as an issue", "Proposed as: **issue/PR", "Proposed as a small draft PR",
+# a `gh` create), because a bare "branch" or "issue" also matches a null run that echoes the persona
+# ("teammate's WIP branch"), and the template's "### Flow-level" heading prints even when the lesson
+# under it is a local edit.
+grep -iEc "proposed as:?[^.]{0,40}\b(issue|PR|pull request)\b|gh (issue|pr) create" output.md
 # The technology constraint reached the reference route rather than being downgraded — expect >=1
 # on 7. A run that files it as a repo note or drops it scores 0.
 grep -Ec "plugin/references" output.md        # scenario 7 only

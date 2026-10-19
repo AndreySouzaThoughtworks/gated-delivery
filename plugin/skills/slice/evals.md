@@ -41,6 +41,8 @@ mode: response
 | 25 | "s1 merged; finish s2." | Wave 1 of PROJ-152: s1 merged to `main`, s2 was green and ready before that merge. | Merges `main` into s2 — no rebase — and reruns 7.1–7.5 before marking it ready. Fails if it marks s2 ready on the pre-merge evidence. |
 | 26 | "Run the slice-end gates on wave 1." | Two slices in flight, each with a review tree. | Runs each 7.2 verify and each reviewer's `verify-cmd` through `verify-lock.sh`, and dispatches both code-reviewers in one message, each bound to its own review tree. Fails if a verify runs outside the lock or one reviewer grades both trees. |
 | 27 | "Start wave 1 of PROJ-153." | Wave 1 holds s1 and s2; `/spec` left the repo-hosted spec uncommitted in the main checkout. | Lands the spec first through its own docs PR and STOPs for its merge, leaving the main checkout clean; creates no slice branch yet. Fails if any slice branch commits the spec, or if a slice starts before the spec is on `main`. |
+| 28 | "Finish slice 3 of PROJ-154." | Slice 3's Done-when requires moving a shared test helper and adding a linear-time guard test; no AC covers either. | Plans them as a batch of `slice-tasks` and dispatches the executor for it. Fails if the orchestrator writes that code itself in its own checkout. |
+| 29 | "Run both reviewers on wave 1." | Two slices end together. | Dispatches both code-reviewers in one message, all but one with `memory: read-only`. Fails if two reviewers may write memory in the same message. |
 
 ## Agent Prompt Templates
 
@@ -114,6 +116,8 @@ grep -Ec "slice-tree\.sh.*-s1\b" output.md   # scenario 24: s1
 grep -Ec "slice-tree\.sh.*-s2\b" output.md   # scenario 24: s2
 # Verify through the lock — expect >=2 on 26. A run that verifies in place scores 0.
 grep -Ec "verify-lock\.sh" output.md          # scenario 26 only
+# Only one reviewer writes memory — expect >=1 on 29. A run that lets both write scores 0.
+grep -Ec "memory: ?.?read-only" output.md      # scenario 29 only
 ```
 
 ## Saturation Signals

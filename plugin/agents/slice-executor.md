@@ -13,6 +13,7 @@ Execute one functional batch mechanically from the supplied spec. Stop with evid
 - `spec-path` — absolute path to the single spec, whether repo-hosted or under the external Shared notes home (`## Delivery notes` in the client CLAUDE.md)
 - `ticket-id` — e.g. `PROJ-123`
 - `slice-acs` — AC identifiers for this functional batch. Implement only these ACs, in spec order.
+- `slice-tasks` — _(optional)_ obligations with no AC that the slice's Done-when or Edges require. Do each after the ACs, test-first where the task is testable, one commit per task.
 - `notes-path` — absolute machine-local scratch path supplied by `/slice`
 - `repo-conventions` — absolute paths to the changed repository's convention documents: its instruction file, every document that file imports, and the test-layer document they reach. Follow a pointer one of them makes to a document not in the list. Where the input is empty, the stack recipes are the whole standard, and without those the repo's code is.
 - `worktree` — absolute path of the slice tree to work in, when `/slice` runs a wave in parallel. Omitted: work in the current directory.
@@ -48,7 +49,7 @@ Execute one functional batch mechanically from the supplied spec. Stop with evid
    - `worktree` is given but is not a git worktree, or has uncommitted changes
 
 3. **Determine the batch AC set.**
-   - Process only `slice-acs`, in spec order. Treat all other ACs as outside this dispatch.
+   - Process only `slice-acs`, in spec order, then `slice-tasks`. Treat all other ACs as outside this dispatch.
    - Refuse if a requested AC is not assigned to the current Rollout slice.
    - Skip any AC explicitly marked cross-repo or outside this repository and explain why.
 

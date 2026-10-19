@@ -230,7 +230,7 @@ Show user complete drafted spec. Ask: _"Ready to write this to disk?"_
 
 Write the signed-off draft to the `spec-path` resolved in step 1.
 
-For a repo-hosted spec, leave the file uncommitted on the current allowed branch. `/slice` Route C commits it as the first commit on the slice-1 branch, so it is reviewed with that slice and reaches `main` through its PR.
+For a repo-hosted spec, leave the file uncommitted on the current allowed branch. `/slice` Route C commits it as the first commit on the slice-1 branch, so it is reviewed with that slice and reaches `main` through its PR. When the first wave holds two or more slices, `/slice` Route W lands it first through its own `docs/{ticket-id}-spec` PR instead.
 
 For an external working spec:
 
@@ -260,7 +260,7 @@ which stays in the ticket with its link.
 
 ### 11. Report
 
-Tell the caller where the spec lives and whether it was published. For a repo-hosted spec, say explicitly that the file is uncommitted until `/slice` Route C commits it on the slice-1 branch, and that stopping before then leaves it only in the working tree. For an external spec, report the pushed commit.
+Tell the caller where the spec lives and whether it was published. For a repo-hosted spec, say explicitly that the file is uncommitted until `/slice` commits it — on the slice-1 branch, or through its own spec PR when the first wave runs in parallel — and that stopping before then leaves it only in the working tree. For an external spec, report the pushed commit.
 
 ## What `/spec` does NOT do
 

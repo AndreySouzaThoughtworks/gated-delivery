@@ -82,6 +82,12 @@ remote_tree="$work/trees/remote"
 (cd "$plain" && "$scripts/slice-tree.sh" "$remote_tree" feat/T-2-b-s2 origin/main) >/dev/null 2>&1
 check "a branch only on the remote is resumed at its pushed tip" '[ "$(git -C "$remote_tree" rev-parse HEAD 2>/dev/null)" = "$pushed" ]'
 
+fresh_tree="$work/trees/fresh"
+(cd "$plain" && "$scripts/slice-tree.sh" "$fresh_tree" feat/T-2-c-s3 origin/main) >/dev/null 2>&1
+check "a new branch from origin/main does not track origin/main" '[ -d "$fresh_tree" ] && ! git -C "$fresh_tree" rev-parse --abbrev-ref "@{u}" >/dev/null 2>&1'
+git -C "$fresh_tree" -c push.default=upstream push -q -u origin HEAD:refs/heads/feat/T-2-c-s3 2>/dev/null
+check "the claim push creates the slice branch, not main" '[ -n "$(git -C "$remote" rev-parse --verify -q refs/heads/feat/T-2-c-s3)" ] && [ "$(git -C "$remote" rev-parse main)" = "$(git -C "$plain" rev-parse origin/main)" ]'
+
 # slice-tree.sh fast-forwards a stale local branch, and refuses a diverged one
 git -C "$plain" worktree remove --force "$remote_tree"
 git -C "$remote_tree" status >/dev/null 2>&1

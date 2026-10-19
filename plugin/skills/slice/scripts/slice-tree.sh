@@ -44,7 +44,9 @@ elif git show-ref --verify --quiet "refs/remotes/origin/$BRANCH"; then
   git worktree add -b "$BRANCH" "$SLICE_TREE" "origin/$BRANCH"
   git -C "$SLICE_TREE" branch --set-upstream-to "origin/$BRANCH" >/dev/null
 else
-  git worktree add -b "$BRANCH" "$SLICE_TREE" "$BASE"
+  # --no-track: a branch made from origin/main would otherwise track it, and
+  # with push.default=upstream its first push would land on main.
+  git worktree add --no-track -b "$BRANCH" "$SLICE_TREE" "$BASE"
 fi
 
 link_node_modules "$SLICE_TREE" "$(deps_of "$REPO")" keep-own-install

@@ -83,8 +83,9 @@ Most checks read the response (`output.md`). Checks labelled "page" read the ren
 grep -ciE '^[-*0-9.) |]*\**(business value|delivered outcome|happy path|approach|decisions)\**[[:space:]]*[:—|-]' output.md
 # Unverified behaviour named — expect at least 1 on scenario 2. Scenario 1 has nothing unverified.
 grep -ciE 'unverified|could not be (verified|exercised)|not verified' output.md
-# Premature file-write claim — expect 0 on scenario 1.
-grep -ciE "(I('ve| have)?|we('ve| have)?) (written|created|rendered|saved|updated).*(html|deskcheck|file)" output.md
+# Premature file-write claim — expect 0 on scenario 1. "Drafted" counts only with a file name, so
+# "I've drafted the narrative below" does not.
+grep -ciE -e "(I('ve| have)?|we('ve| have)?) (wrote|written|created|rendered|saved|updated).*(html|deskcheck|file)" -e "(I('ve| have)?|we('ve| have)?) drafted[^.]*\.(html|md)" output.md
 # Page: demonstration steps carry an expected and an observed result — expect two equal counts, at least 1/1, on scenarios 6 and 9.
 # Strips tags so any markup counts, and skips <pre> blocks so a pasted log line such as "expected: 2" does not.
 awk '/<pre/ {p=1} !p {l=tolower($0); gsub(/<[^>]*>/, "", l); e+=gsub(/expected( result)?:/, "", l); o+=gsub(/observed( result)?:/, "", l)} /<\/pre>/ {p=0} END {print e+0 "/" o+0}' output.md
@@ -96,8 +97,10 @@ grep -ciE '(^#+[[:space:]]*|^\*\*|<h[1-6][^>]*>[[:space:]]*)How each criterion i
 grep -ciE 'TOKEN-PROJ-205|CUSTOMER-PAYLOAD-PROJ-205' output.md
 # Feedback fields present — expect at least 3 on scenario 7.
 grep -ciE '^[-*# |]*\**(observations?|decisions?|actions?)\**[[:space:]]*[:—|-]?' output.md
-# Response reports the page path inside the notes home, which already names the ticket — expect at least 1 on scenario 8.
-grep -ciE 'notes/PROJ-208/deskcheck\.html' output.md
+# Page: written inside the notes home, which already names the ticket — expect 1 on scenario 8. Pass the
+# page written at `notes/PROJ-208/deskcheck.html` in the notes checkout. A run that only names the path
+# has no page to pass, and its response scores 0.
+{ test -s output.md && echo output.md; } | grep -c '/notes/PROJ-208/deskcheck\.html$'
 # Page: ticket link built from the Ticket URL template — expect at least 1 on scenario 8.
 grep -ciE 'tracker\.example\.com/browse/PROJ-208' output.md
 # Page: evidence pasted as preformatted output — expect at least 2 on scenario 9.

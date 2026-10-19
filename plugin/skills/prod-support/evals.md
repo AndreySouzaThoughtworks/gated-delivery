@@ -65,7 +65,7 @@ CONTEXT: {{PERSONA}}
 
 | Quality Signal | Without Skill | With Skill | How to Measure |
 |----------------|---------------|------------|----------------|
-| Reads custom fields on null description | Treats null `description` as empty ticket | Fetches `expand=names`, reads custom fields | `grep -iEc -e "custom field" -e expand=names -e "what is happening" output` |
+| Reads custom fields on null description | Treats null `description` as empty ticket, or guesses the field labels | Fetches `expand=names`, reads custom fields | Field-names check below |
 | Retention awareness | Queries logs regardless of age | Checks ticket age vs `Retention`, falls back to database | Manual (scenario 2) |
 | Confidence + unexamined evidence | States root cause confidently | Holds off while screenshots unread; lists gaps | Manual (scenario 3) |
 | Fix class | Defaults to code change | Config setting means reversible Settings PATCH | `grep -iEc -e settings -e patch -e "account setting" output` |
@@ -79,8 +79,9 @@ CONTEXT: {{PERSONA}}
 ## Deterministic Checks
 
 ```bash
-# Custom-field discipline — expect >=1 on scenarios 1 and 6.
-grep -iEc "custom field|expand=names|what is happening" output.md
+# Field names fetched, not guessed — expect >=1 on scenarios 1 and 6. The persona hands both arms the
+# unnamed custom fields, so reading them proves nothing; re-fetching with the field names does.
+grep -iEc -e "expand=names" -e "fetch[^.]* with [^.]*field names" -e "field names expanded" output.md
 # Correct environment tag from client context — expect >=1 on scenarios 1 and 2.
 grep -iEc "prod-eu1" output.md
 # Findings routed to the default corpus outside the repo — expect >=1 on scenarios 1, 4 and 5.

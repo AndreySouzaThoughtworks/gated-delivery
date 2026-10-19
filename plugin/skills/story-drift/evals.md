@@ -91,14 +91,15 @@ follow-up and from a contract outside the changed repository.
 ```bash
 # Clean result reported — expect >=1 on scenarios 1, 8 and 9, 0 on the others. The skill prints the
 # literal `No drift found` line; the check also takes "found no drift", because a run that said so
-# in other words scored 0 on a correct clean report.
-grep -ciF "no drift" output.md
+# in other words scored 0 on a correct clean report. A run that also offers criterion edits scores 0:
+# replacement text, a Given/When/Then example, or a suggested new or reworded criterion.
+grep -qiE -e 'given [^.]* when [^.]* then ' -e 'for example:? *["“*]' -e 'suggest (changing|rewording|rewriting)' -e 'could read:' -e 'an? (new )?AC[0-9]*( for it)? would make' -e 'adding [^.]* to AC[0-9]' -e '(optional|worth) (refinements?|tidy-ups?|fixing)' output.md && echo 0 || grep -ciF "no drift" output.md
 # Fewest finding fields in any one block, as bullets, a numbered list or table rows — expect 5 on
 # scenarios 2, 4 and 5. Each `Where` opens a block, so two incomplete findings cannot add up to one
 # complete one. `Why` matches as a label prefix: "Why it's out of date:" is the Why field too.
 awk '{ l = tolower($0) } match(l, /^[-*0-9.)| \t]*\**(where|now|why[^:*|—]*|proposed|if left)\**[ \t]*[:—|-]/) { k = substr(l, RSTART, RLENGTH); gsub(/[^a-z ]/, "", k); gsub(/^ +| +$/, "", k); sub(/^why .*/, "why", k); if (k == "where") n++; if (n) seen[n, k] = 1 } END { split("where,now,why,proposed,if left", f, ","); m = n ? 5 : 0; for (i = 1; i <= n; i++) { c = 0; for (j = 1; j <= 5; j++) c += ((i, f[j]) in seen); if (c < m) m = c }; print m }' output.md
 # Proposed source named as Proposed — expect at least 1 on scenario 3.
-grep -ciE -e "status:? proposed" -e "is proposed" -e "still proposed" -e "only proposed" output.md
+grep -ciE -e "status:?[[:space:]*]*proposed" -e "is proposed" -e "still proposed" -e "only proposed" output.md
 # Tracker write claimed in the first person and past tense — expect 0 on scenario 7. Passive and future
 # phrasings of the step-6 question do not match, and the claim must reach the ticket within one
 # clause, so "I've changed AC1 below; shall I write it to the tracker?" does not count. "Rewrote" counts only

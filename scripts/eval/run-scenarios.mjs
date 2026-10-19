@@ -21,6 +21,7 @@ import { pathToFileURL } from "node:url";
 
 const ROOT = process.cwd();
 const PLUGIN_DIR = join(ROOT, "plugin");
+const FIXTURES_DIR = join(ROOT, "evals", "fixtures");
 const SKILLS_DIR = join(PLUGIN_DIR, "skills");
 const RUN_CHECKS = join(ROOT, "scripts", "eval", "run-checks.mjs");
 const JUDGE = join(ROOT, "scripts", "eval", "judge.mjs");
@@ -43,7 +44,6 @@ const NOT_AVAILABLE = "n/a";
 const HARNESS_OK = "ok";
 const SETUP_FAILED = "setup-failed";
 
-const FIXTURES = "fixtures";
 const FIXTURE_SETUP = "setup.sh";
 const FIXTURE_ALLOWED_TOOLS = "allowed-tools";
 const FIXTURE_BIN = "bin";
@@ -87,8 +87,7 @@ const ALLOWED_TOOLS = [
   "Bash(git rev-parse:*)",
   "Bash(node scripts/audit/consistency.mjs)",
 ];
-const uid = process.getuid?.() ?? 0;
-const WRITABLE_TEMP_DIRS = [`/private/tmp/claude-${uid}`, `/tmp/claude-${uid}`];
+const RUN_TEMP_DIR = "tmp";
 
 const SUMMARY_COLUMNS = ["skill", "id", "arm", "run", "harness", "checks", "judge", "cost", "secs"];
 
@@ -220,7 +219,7 @@ function parseArgs(argv) {
 const snapshotPlugin = (target) =>
   cpSync(PLUGIN_DIR, target, {
     recursive: true,
-    filter: (source) => basename(source) !== "evals.md" && !/[/\\]skills[/\\][^/\\]+[/\\]fixtures$/.test(source),
+    filter: (source) => basename(source) !== "evals.md",
   });
 
 const pagesIn = (dir) =>
@@ -301,7 +300,7 @@ async function runOne({ skill, evals, arm, row, n, out, snapshot }) {
   writeFileSync(join(runDir, "persona.md"), `${row.persona}\n`);
   if (evals.clientContext) writeFileSync(join(runDir, "CLAUDE.md"), evals.clientContext);
 
-  const fixture = join(SKILLS_DIR, skill, FIXTURES, row.id);
+  const fixture = join(FIXTURES_DIR, skill, row.id);
   const hasFixture = existsSync(fixture);
   const setup = join(fixture, FIXTURE_SETUP);
   const allowedToolsFile = join(fixture, FIXTURE_ALLOWED_TOOLS);
@@ -313,6 +312,8 @@ async function runOne({ skill, evals, arm, row, n, out, snapshot }) {
       if (built.status !== 0) return { ...base, harness: SETUP_FAILED };
     }
   }
+  const tempDir = `${runDir}.${RUN_TEMP_DIR}`;
+  mkdirSync(tempDir, { recursive: true });
   const extraRules = existsSync(allowedToolsFile) ? lines(readFileSync(allowedToolsFile, "utf8")).filter(Boolean) : [];
 
   const persona = readFileSync(join(runDir, "persona.md"), "utf8").trimEnd();
@@ -333,13 +334,14 @@ async function runOne({ skill, evals, arm, row, n, out, snapshot }) {
     ...ALLOWED_TOOLS,
     ...extraRules,
     "--add-dir",
-    ...WRITABLE_TEMP_DIRS,
+    tempDir,
     "--output-format",
     "stream-json",
     "--verbose",
   ];
   const fixtureBin = join(runDir, FIXTURE_BIN);
-  const env = existsSync(fixtureBin) ? { ...process.env, PATH: `${fixtureBin}:${process.env.PATH}` } : process.env;
+  const path = existsSync(fixtureBin) ? `${fixtureBin}:${process.env.PATH}` : process.env.PATH;
+  const env = { ...process.env, PATH: path, TMPDIR: tempDir };
 
   const started = Date.now();
   const transcriptPath = `${runDir}.transcript.jsonl`;
@@ -348,6 +350,7 @@ async function runOne({ skill, evals, arm, row, n, out, snapshot }) {
   const secs = Math.round((Date.now() - started) / MS_PER_SECOND);
   renameSync(transcriptPath, join(runDir, "transcript.jsonl"));
   renameSync(stderrPath, join(runDir, "stderr.txt"));
+  renameSync(tempDir, join(runDir, RUN_TEMP_DIR));
 
   const transcript = readFileSync(join(runDir, "transcript.jsonl"), "utf8");
   const result = resultOf(transcript);

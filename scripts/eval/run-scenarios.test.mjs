@@ -87,9 +87,10 @@ const { writeFileSync } = require("node:fs");
 const { join } = require("node:path");
 const behaviour = process.env.STUB_BEHAVIOUR || "skill";
 const id = process.cwd().split("/").slice(-3).join("_");
-writeFileSync(join(process.env.STUB_LOG, id + ".json"), JSON.stringify({ cwd: process.cwd(), argv: process.argv.slice(2), path: process.env.PATH, pid: process.pid }));
+writeFileSync(join(process.env.STUB_LOG, id + ".json"), JSON.stringify({ cwd: process.cwd(), argv: process.argv.slice(2), path: process.env.PATH, pid: process.pid, tmpdir: process.env.TMPDIR }));
 const skillUse = ${JSON.stringify(SKILL_TOOL_USE)};
 const result = (extra) => JSON.stringify({ type: "result", result: "did the thing", total_cost_usd: 0.25, permission_denials: [], ...extra });
+writeFileSync(join(process.env.TMPDIR, "scratch.txt"), "x");
 if (behaviour === "sleep") { setTimeout(() => {}, 60000); return; }
 if (behaviour === "noskill") { console.log(result()); return; }
 if (behaviour === "deny") { console.log(skillUse); console.log(result({ permission_denials: [{ tool_name: "Bash" }] })); return; }
@@ -113,7 +114,7 @@ const fakeRepo = ({ evals = EVALS, fixtures = {}, graders = false } = {}) => {
   writeFileSync(join(skillDir, "SKILL.md"), "# demo\n");
   writeFileSync(join(skillDir, "evals.md"), evals);
   for (const [path, body] of Object.entries(fixtures)) {
-    const target = join(skillDir, "fixtures", path);
+    const target = join(root, "evals", "fixtures", SKILL, path);
     mkdirSync(dirname(target), { recursive: true });
     writeFileSync(target, body);
   }
@@ -279,6 +280,44 @@ test("runs each selected scenario N times with the documented flags", () => {
   }
 });
 
+const addDirs = (argv) => {
+  const dirs = [];
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] !== "--add-dir") continue;
+    while (argv[i + 1] !== undefined && !argv[i + 1].startsWith("--")) dirs.push(argv[++i]);
+  }
+  return dirs;
+};
+
+for (const arm of ["skill", "baseline"]) {
+  test(`a ${arm} run's --add-dir stays inside its own tree${arm === "skill" ? ", bar the snapshot" : ""}`, () => {
+    const repo = fakeRepo();
+    const args = ["--scenario", "1", "--repeat", "1", ...(arm === "baseline" ? ["--baseline"] : [])];
+    const { out } = run(repo, args, { STUB_BEHAVIOUR: arm === "skill" ? "skill" : "noskill" });
+    const [call] = stubCalls(repo);
+    const runDir = join(out, SKILL, "1", `${arm}-1`);
+    const allowed = arm === "skill" ? [join(out, "plugin")] : [];
+    const dirs = addDirs(call.argv);
+    assert.ok(dirs.length > 0);
+    for (const dir of dirs) {
+      assert.ok(allowed.includes(dir) || dir.startsWith(`${runDir}.`) || dir.startsWith(`${runDir}/`), dir);
+    }
+  });
+}
+
+test("each run gets its own temp dir as TMPDIR, kept in the run dir afterwards", () => {
+  const repo = fakeRepo();
+  const { out } = run(repo, ["--scenario", "1", "--repeat", "2"]);
+  const calls = stubCalls(repo);
+  const temps = calls.map((call) => call.tmpdir);
+  assert.equal(new Set(temps).size, 2);
+  for (const call of calls) {
+    assert.ok(addDirs(call.argv).includes(call.tmpdir), "TMPDIR is writable to the run");
+    assert.match(call.tmpdir, new RegExp(`^${join(out, SKILL, "1", "skill-")}[12]\\.`), "TMPDIR belongs to the run");
+  }
+  assert.ok(existsSync(join(out, SKILL, "1", "skill-1", "tmp", "scratch.txt")));
+});
+
 test("fills the Skill Agent template with the row, writes the persona and the client block", () => {
   const repo = fakeRepo();
   const { out } = run(repo, ["--scenario", "1", "--repeat", "1"]);
@@ -328,13 +367,12 @@ test("an unknown scenario id is a usage error", () => {
   assert.match(stderr, /99/);
 });
 
-test("the snapshot leaves out evals.md and fixtures", () => {
+test("the snapshot leaves out evals.md", () => {
   const repo = fakeRepo({ fixtures: { "2/notes.txt": "fixture file\n" } });
   const { out } = run(repo, ["--scenario", "1", "--repeat", "1"]);
   const snapSkill = join(out, "plugin", "skills", SKILL);
   assert.ok(existsSync(join(snapSkill, "SKILL.md")));
   assert.ok(!existsSync(join(snapSkill, "evals.md")));
-  assert.ok(!existsSync(join(snapSkill, "fixtures")));
 });
 
 test("copies a scenario's fixture, runs its setup.sh, and applies its extra rules and bin", () => {

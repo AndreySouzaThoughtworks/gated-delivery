@@ -21,13 +21,31 @@ Read the `## Artifact style` section of the nearest CLAUDE.md (contract: `docs/c
 | Template | Path to the client's own primer template, replacing `templates/primer.html` | `templates/primer.html` (neutral house style below) |
 | Brand skill | Skill that owns the client's brand tokens | None — the template's tokens are the whole style |
 | Disclosure | Banner and footer wording the client requires on shared artifacts | Internal-only banner + "Generated with Claude AI — please review before distribution." footer |
+| Team primer home | Repository and folder for team primers, and how they are published | Ask (see **Output location**) |
 
 With a client template, its own header comment states its token rules; follow those instead of the neutral rules in step 5, and still keep a sensitivity banner and the disclosure footer.
 
 ## Inputs
 
 - `topic` — what primer explains (e.g. "prebuilt agent templates", "the config compile→sync chain"). Missing or vague? **Ask inline as free text** — no `AskUserQuestion` for open input.
-- `output-path` (optional) — where to write. Default: `./{slug}-primer.html` in current working directory. Slug: 2–4 words, lowercase, hyphens, from topic.
+- `output-path` (optional) — where to write. An explicit path wins over **Output location**.
+
+## Output location
+
+Ask in step 1, with `AskUserQuestion`, whether the primer is **personal** or **for the team**. The answer sets where it is written and whether it is published.
+
+- **Personal** — write `./{slug}-primer.html` in the current working directory. Nothing is committed.
+- **Team** — write `{subject}/{slug}.html` under the `Team primer home` folder from `## Artifact style`, then publish it the way that key says after step 6.
+
+`{subject}` is the ticket key the primer explains, written as the tracker writes it, or a 2–4 word lowercase hyphenated topic when no key applies. `{slug}` is 2–4 words, lowercase, hyphens, naming this primer's angle (`oauth2-capability`). Primers on one subject share its folder and link to each other by bare filename.
+
+Resolve the checkout for a team primer in this order:
+
+1. The current repository, when it is the one `Team primer home` names.
+2. Otherwise clone that repository with `gh` into a temporary directory.
+3. When `Team primer home` is absent or the repository is unreachable, ask for a path before writing.
+
+Pull before writing, and confirm the working tree is clean and on the branch the primer is published to.
 
 ## Process
 
@@ -35,7 +53,10 @@ With a client template, its own header comment states its token rules; follow th
 
 Topic underspecified (ambiguous audience, unclear boundary)? Ask 1–2 clarifiers before researching. Primer on "templates" with no scope wastes research pass. Confirm: subject, audience (who reads this), what explicitly out of scope.
 
+Ask whether the primer is personal or for the team (see **Output location**).
+
 Also settle two things that silently distort research if guessed:
+
 - **Reader's relationship to subject** — building it, testing it, reviewing someone else's, ramping up? Changes which framings true (see "Frame from what you know" above). Ask when not obvious and would change section framing.
 - **Source surface** — which repos / docs spaces / tracker projects authoritative and in-scope, which to ignore. "Present on this machine" ≠ "in scope." Unsure whether repo or space belongs? Ask, don't sweep it in — swept-in irrelevant source is where dangling, mis-owned material comes from.
 
@@ -95,7 +116,7 @@ Run the `## Deterministic Checks` in `evals.md` against the output file, then co
 
 ### 7. Report
 
-Tell user the path. Suggest opening it (`open {path}`). Note any claim that stayed **Inferred** so they know what to verify before sharing externally.
+For a team primer, commit it with a `docs({subject}): …` subject and publish it as `Team primer home` says. Tell user the path, and the commit for a team primer. Suggest opening it (`open {path}`). Note any claim that stayed **Inferred** so they know what to verify before sharing externally.
 
 ## What `/primer` does NOT do
 

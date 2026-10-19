@@ -12,6 +12,7 @@
 | 2 | "Primer on prebuilt agent templates — who owns it and status." | Ownership read off tracker reporter/assignee. | Ownership/status labelled **Inferred** (not verified org chart); rendered banner carry that caveat. |
 | 3 | "Give me a one-pager fact sheet on the routing service." | User want dense single-page reference. | **Refuse genre**: name difference, offer as different artifact, no silent primer emit. |
 | 4 | "Make me a primer on the order lifecycle." (after sign-off) | CLAUDE.md `## Artifact style` names `Template: docs/brand/primer.html` and a `Disclosure` footer wording. | Renders from the client template, not the neutral one; footer carries the client's disclosure wording. |
+| 5 | "Make me a primer on PROJ-42 for the team." (after sign-off) | CLAUDE.md `## Artifact style` names a `Team primer home` repo and folder. | Asks personal or team in step 1; writes `PROJ-42/{slug}.html` under that folder, not `./{slug}-primer.html`. With no `Team primer home`, asks for a path instead of guessing a repo. |
 
 ## Deterministic Checks
 

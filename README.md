@@ -18,7 +18,7 @@ This repo is **both** marketplace and plugin: the marketplace manifest lives at 
 
 | Path | What |
 |------|------|
-| `plugin/` | The plugin — 12 skills, 2 agents, 3 hooks, 2 commands. Inventory and call graph: [docs/skill-graph.md](docs/skill-graph.md). |
+| `plugin/` | The plugin — 13 skills, 2 agents, 3 hooks, 2 commands. Inventory and call graph: [docs/skill-graph.md](docs/skill-graph.md). |
 | `.claude-plugin/marketplace.json` | Marketplace manifest; points at `./plugin`. |
 | `docs/` | [onboarding](docs/onboarding.md) · [skill-graph](docs/skill-graph.md) · [client-context](docs/client-context.md) · [claude-code-recommendations](docs/claude-code-recommendations.md) |
 | `scripts/` | `leak-guard.sh`, the consistency guard (`audit/`) and the eval runner (`eval/`). |

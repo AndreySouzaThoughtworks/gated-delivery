@@ -26,4 +26,7 @@ The core plugin never names a client. Everything client-specific comes from sect
 | | Runbook index, Config fix, Ship path | Repo docs for incident handling, config changes and release | The repo's `docs/` |
 | | Investigation corpus | Where per-incident notes go | `.claude/prod-support/<ticket>/` |
 | | Deploy correlation, Intake fields, Similar tickets, Call capture | Client sources for correlating deploys, reading intake forms, finding related tickets, capturing calls | Skip and say so |
+| `## Demonstration` | Environments | Non-production environments a deskcheck demonstration may run in, and how to reach each | Ask; never guess an environment name |
+| | API explorer | Interactive API documentation to link from demonstration steps | Link the request itself |
 | `## Artifact style` | Template, Brand skill, Disclosure | HTML template, brand skill and disclosure line for generated pages | The core's neutral `primer.html`, no brand skill, no banner |
+| | Team primer home | Repository and folder that hold team primers from `/primer`, and how they are published (for example, pushed to `main` without a PR) | Ask where to write a team primer |

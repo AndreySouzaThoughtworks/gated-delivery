@@ -14,7 +14,7 @@ tell. It is something to know, not something to do, which is why these are not s
 
 The plugin ships no reference of its own yet. Client-specific references — a technology one client
 uses and others do not — are listed in the `## Domain references` section of the client's CLAUDE.md
-(see [`docs/client-context.md`](../../docs/client-context.md)). Read that section too, and apply its rows
+(see [`client-context.md`](./client-context.md), the contract for every client key). Read that section too, and apply its rows
 the same way as the rows above.
 
 ## Adding one

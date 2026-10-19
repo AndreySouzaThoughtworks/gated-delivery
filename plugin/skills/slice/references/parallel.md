@@ -6,7 +6,7 @@ The orchestrator stays the only dispatcher — a subagent cannot start agents of
 
 ## Wave
 
-Route W runs every claimed slice through steps 5–7 at once.
+Route W runs every claimed slice through steps 5–7 at once. A slice of a wave of two or more always works in its own slice tree, even when this actor takes only one; only a one-slice wave uses the main checkout (Route C).
 
 1. **Start from the current `origin/main`.** Run `git fetch origin`. Every slice tree branches from `origin/main`, so a stale local `main` never becomes a wave's base. Each slice's `<slice-base>` is `main` and its `<slice-base-sha>` is `git rev-parse origin/main` at the moment its tree is created.
 2. **Land an uncommitted spec before the wave.** When the repository hosts the spec and `/spec` left it uncommitted, put it on `main` first through its own small PR: create a tree with `"<skill base directory>/scripts/slice-tree.sh" "$LOCAL_NOTES/slice-trees/{ticket-id}-spec" "docs/{ticket-id}-spec" origin/main`, copy the spec there, commit it — `docs(specs): add spec for {ticket-id}` — push it with `git -C <tree> push -u origin HEAD:refs/heads/docs/{ticket-id}-spec`, open the PR, and only then delete the copy from the main checkout. STOP for its merge, as Route E would; the next `/slice` finds the spec on `main` and takes Route W. A spec in a separate notes repository is already shared and skips this step.
@@ -16,7 +16,15 @@ Route W runs every claimed slice through steps 5–7 at once.
    "<skill base directory>/scripts/slice-tree.sh" "$LOCAL_NOTES/slice-trees/{ticket-id}-s{n}" "feat/{ticket-id}-{slug}-s{n}" origin/main
    ```
 
-   and push the branch at once — `git -C <slice-tree> push -u origin HEAD:refs/heads/<branch>`. Always name the destination ref: under `push.default=upstream` a bare push from a branch cut from `origin/main` lands on `main`. The pushed branch is the claim. On a rejected push another actor holds the slice: remove that tree and its local branch and leave the slice to its holder. When the Shared notes home is a separate notes repository, also write and push this actor's `## Resume — <actor> — s<n>` block there. Record each tree, branch and `<slice-base-sha>` in machine-local notes. STOP on any non-zero exit from the script.
+   then claim it at once with an empty commit naming this actor, and push it:
+
+   ```bash
+   git -C <slice-tree> commit --allow-empty -m "chore({ticket-id}): claim s{n} for <actor>"
+   git -C <slice-tree> push -u origin HEAD:refs/heads/<branch>
+   git -C <slice-tree> fetch origin <branch>
+   ```
+
+   Always name the destination ref: under `push.default=upstream` a bare push from a branch cut from `origin/main` lands on `main`. The claim holds only when `git -C <slice-tree> rev-parse origin/<branch>` equals that claim commit. Otherwise, a rejected push included, another actor holds the slice: remove that tree and its local branch and leave the slice to its holder. The claim commit changes no file, so it adds nothing to `<slice-base-sha>..HEAD`. When the Shared notes home is a separate notes repository, also write and push this actor's `## Resume — <actor> — s<n>` block there. Record each tree, branch and `<slice-base-sha>` in machine-local notes. STOP on any non-zero exit from the script.
 
    The script links the main checkout's `node_modules`. A slice whose write surface includes the dependency manifest replaces the link with its own install in its tree; re-runs keep that install, and its review tree uses it.
 4. **Keep each slice's notes and handoff to itself.** Each slice's agent notes go to `$LOCAL_NOTES/agent-notes/{ticket-id}-s<n>.md`. When the Shared notes home sits inside the repository, each slice writes its Resume block and Carry-forward entries to `{ticket-id}/handoff-s<n>.md` on its own branch; Route F folds them into `handoff.md`. A separate notes repository keeps one `handoff.md`, with one block per actor and slice, each headed `## Resume — <actor> — s<n>`.
@@ -54,10 +62,10 @@ Batches in later rounds build on the picked commits of earlier ones.
 
 Route D resumes every slice this actor holds:
 
-- **Slice trees.** A slice that has a slice tree, or whose wave runs in parallel, resumes in its tree through `slice-tree.sh` with the same arguments as Wave step 3, which also picks up a branch only `origin` has. A slice whose sibling merged since its gates ran goes through Wave step 6 first.
+- **Slice trees.** A slice of a multi-slice wave resumes in its slice tree through `slice-tree.sh` with the same arguments as Wave step 3, which also picks up a branch only `origin` has — also when this actor holds only that one slice. A slice whose sibling merged since its gates ran goes through Wave step 6 first.
 - **Batch branches.** List local batch branches `feat/{ticket-id}-*-s{n}-b*`. Recover `<round-base>` as `git merge-base <batch-branch> <slice-branch>`. Pick each as in Rounds step 4 before anything is re-planned — `batch-pick.sh` skips what the slice already carries, so a batch picked before the interruption is a no-op. A batch branch with no commits is removed and its batch re-run.
 
 ## Failure modes
 
-- **Two actors claim one slice:** the second push of the slice branch is rejected; that actor removes its tree and local branch and takes another slice.
+- **Two actors claim one slice:** each pushes its own claim commit; for the second, the push is rejected or `origin/<branch>` does not equal its claim commit, so it removes its tree and local branch and takes another slice. Without a claim commit both pushes carry the same SHA, and the second exits 0 with "Everything up-to-date".
 - **A wave slice conflicts with a merged sibling:** resolve it in the slice tree and record the dead end.

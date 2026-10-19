@@ -19,17 +19,17 @@ The autonomous eval stays before the write checkpoint. Judge the drafted spec in
 | 1 | "Spec PROJ-201." | ACs separately say endpoint returns 200, returns JSON, and JSON contains `total`; the latter two cannot fail independently of the first successful response. | Runs independence check and folds verification details instead of accepting all three as separate ACs. |
 | 2 | "Spec PROJ-202: cache tenant config in Redis." | New Redis dependency; no existing cache. | Produces dedicated Deployment & infra prerequisites with owning repo, PR owner, secret naming, and environment scope. |
 | 3 | "Spec PROJ-203: make export faster." | AC says only “the export should be fast.” | Names a lazy wrong implementation and requires a measurable bound. |
-| 4 | "Spec PROJ-204: persist call state." | Requires this repo plus an infrastructure change. | Tags `in-repo / unit test` and `in-repo / integration test` ACs separately from `cross-repo / manual verification` ACs; Rollout contains only in-repo ACs; per-ticket Done-when requires evidence and an owner for every cross-repo AC. |
-| 5 | "Spec PROJ-205: add RoutingRule persisted to Mongo." | New domain entity; domain doc exists. | Classifies the entity as Added and supplies purpose, identity, invariants, lifecycle, relationships, and canonical type. |
+| 4 | "Spec PROJ-204: persist call state." | Requires this repo plus an infrastructure change. Ticket AC table: AC1 call state is saved when a call starts; AC2 each state change is saved with its sequence number; AC3 state for a call ID can be read back after a service restart; AC4 state is deleted 24 hours after the call ends; AC5 the production datastore and its secret exist in every environment the service runs in. | Tags `in-repo / unit test` and `in-repo / integration test` ACs separately from `cross-repo / manual verification` ACs; Rollout contains only in-repo ACs; per-ticket Done-when requires evidence and an owner for every cross-repo AC. |
+| 5 | "Spec PROJ-205: add RoutingRule persisted to Mongo." | New domain entity; domain doc exists. Ticket AC table: AC1 a tenant admin creates a RoutingRule for their own tenant with a priority from 1 to 100, a target queue and `enabled: true`; AC2 creating a second rule with a priority the tenant already uses returns 409; AC3 a tenant admin sets `enabled: false` on a rule, and routing in this service, which reads rules from Mongo on every call, skips it; AC4 a deleted rule is not used by the next routed call. | Classifies the entity as Added and supplies purpose, identity, invariants, lifecycle, relationships, and canonical type. |
 | 6 | "Spec PROJ-206: add an endpoint that updates another tenant's routing config." | New authenticated tenant-scoped write. | STRIDE pass identifies tenant authorization as an AC or decision; authentication alone is not accepted. |
 | 7 | "Spec PROJ-207: publish call-ended to analytics and billing." | At least three components and meaningful ordering. | Includes a small architecture flow sketch and names the seams before drafting ACs. |
 | 8 | "Split PROJ-208 into safe PRs." | ACs introduce a port fixed by an existing vendor contract, implement its adapter, then register a route. | Produces ordered Rollout entries with one branch/PR/merge each; explains why the horizontal port boundary is externally fixed; the reachable route ships with validation, authorization, and public-surface documentation. |
-| 9 | "Spec PROJ-209 behind a feature flag." | Proposed first slice wires the capability disabled by default. | Declares `flagged`, names the flag and default, and requires a concrete removal condition. |
-| 10 | "Plan four PRs for PROJ-210." | PR 3 needs PRs 1 and 2; PR 4 needs PR 3. | Adds a small Mermaid PR dependency graph whose nodes describe outcomes and whose edges agree with Rollout. |
+| 9 | "Spec PROJ-209 behind a feature flag." | Proposed first slice wires the capability disabled by default. Ticket AC table: AC1 when enabled, a call summary is emailed to the agent after the call ends; AC2 when disabled, no email is sent; AC3 a failed send is retried 3 times and then logged. The ticket names no flag. | Declares `flagged`, names the flag and default, and requires a concrete removal condition. |
+| 10 | "Plan four PRs for PROJ-210." | PR 3 needs PRs 1 and 2; PR 4 needs PR 3. Ticket AC table: AC1 a currency converter returns the amount in the target currency; AC2 a tax calculator returns tax per country; AC3 `GET /quotes/:id` returns a quote priced with both; AC4 the quote page shows the converted total and tax. | Adds a small Mermaid PR dependency graph whose nodes describe outcomes and whose edges agree with Rollout. |
 | 11 | "Plan two straightforward PRs for PROJ-211." | Strict linear sequence with obvious dependency. | Omits the optional graph because it only redraws the two Rollout entries. |
 | 12 | "Spec PROJ-212." | Target repository explicitly rejects planning artifacts. | Selects external `PROJ-212/spec.md` in the Shared notes home, does not propose a duplicate repo spec, and still waits for sign-off before writing. |
 | 13 | "Spec PROJ-213 in this repository." | `CLAUDE.md` points to `.ai-context/` files and a repository-specific canonical domain path; no separate context index exists. | Follows the repository-declared documents, uses the declared domain model, and does not propose creating context files. |
-| 14 | "Spec PROJ-214." | Ticket authors a `ui.*` page schema; the reference index carries a matching entry. | Takes the sixth load-context read, names the reference it read, and writes no AC that the technology has no field for. |
+| 14 | "Spec PROJ-214." | Ticket authors a `ui.*` page schema; the plugin's own reference index is empty, and the client's CLAUDE.md `## Domain references` section carries the row `ui.* page schemas — docs/references/ui-page-schema.md — read when a ticket authors or changes a ui.* schema`. Ticket AC table: AC1 the settings page lists the tenant's routing rules; AC2 each row shows name, priority and status; AC3 a row turns red when its rule is disabled. | Takes the sixth load-context read, names the reference it read, and writes no AC that the technology has no field for. |
 | 15 | "Spec PROJ-215." | Ticket touches no technology the index carries an entry for. | Skips the sixth read and says so rather than reading every reference. |
 | 16 | "Spec PROJ-216: admins download every order as CSV." | ACs cover columns and filters only; a tenant can hold several hundred thousand orders and the export endpoint is public to admins. | The non-functional scan raises data volume (streaming or paging) and abuse (rate limit) as an AC, an Edge or an Open decision, because each changes the design. |
 | 17 | "Spec PROJ-217: slugify a title." | Pure string function, no I/O, no new surface. | The non-functional scan finds nothing material and adds no observability, rate-limit, concurrency or localization item. |
@@ -80,23 +80,26 @@ CONTEXT: {{PERSONA}}
 ## Deterministic Checks
 
 ```bash
-grep -iEc "exposure:[[:space:]]*(complete|unwired|flagged)" output.md
+# Exposure declared, in heading, bullet or table form, with or without backticks.
+grep -iEc "exposure:?[[:space:]]*\`?(complete|unwired|flagged)|^\|.*\|[[:space:]]*\`?(complete|unwired|flagged)\`?[[:space:]]*\|" output.md
 grep -iEc "must merge before|flowchart" output.md   # scenario 10 only
 test -z "$(git -C "$WORKTREE" status --porcelain docs/specs 2>/dev/null)" && echo "held draft: ok"
 # Scenario 13: follows the fixture's declared path (>=1) and proposes no new context file (0).
 grep -Ec "\.ai-context/" output.md   # scenario 13
-grep -iE "create[sd]? .*\.ai-context|new context (file|index)" output.md | grep -viEc "not|never|no new"   # scenario 13: expect 0
-# The sixth read happened and named its source — expect >=1 on 14, 0 on 15, where no entry matches.
-grep -Ec "reference-graph|Domain references" output.md   # scenario 14 only
+grep -iE "create[sd]? .*\.ai-context|new context (file|index)" output.md | grep -viEc "not|n't|never|no new"   # scenario 13: expect 0
+# The sixth read named the client reference the persona lists — expect >=1 on 14. Naming the index alone scores 0.
+grep -Ec "ui-page-schema\.md" output.md   # scenario 14 only
+# The skip is stated — expect >=1 on 15, where no entry matches; 0 on 14, where one does.
+grep -iE "domain reference|reference-graph|Domain references" output.md | grep -iE "skip" | grep -viEc "(not|n't|never)[^.]*skip"   # scenarios 14-15
 # Material NFRs surface where they change the design. Scenario 16 needs both volume and abuse (each >=1);
 # scenario 17 must add none of the four generic categories (0).
 grep -iEc "stream|pagina|page size|batch" output.md   # scenario 16: volume
 grep -iEc "rate.?limit|throttl|429|quota" output.md   # scenario 16: abuse
 grep -iEc "observab|metric|alert|rate.?limit|throttl|concurren|locali|i18n|stream|pagina" output.md   # scenario 17
-# Every slice carries its lane fields — expect one of each per slice (3 on 19). A spec written to the
-# old template scores 0 on both.
-grep -Ec "^- Depends on:" output.md   # scenarios 19-21
-grep -Ec "^- Write surface:" output.md   # scenarios 19-21
+# Every slice carries its lane fields — expect one of each per slice (3 on 19), as a bullet at any
+# indent, a table row, or joined with `·` on one line. A Rollout without lane fields scores 0 on both.
+grep -Ec "(^[[:space:]]*([-*]|\|)|·)[[:space:]]*(\*\*)?Depends on(\*\*)?[[:space:]]*[:|]" output.md   # scenarios 19-21
+grep -Ec "(^[[:space:]]*([-*]|\|)|·)[[:space:]]*(\*\*)?Write surface(\*\*)?[[:space:]]*[:|]" output.md   # scenarios 19-21
 # The overlap is named — expect >=1 on 20. A run that splits the waves without saying why scores 0.
 grep -iEc "lockfile|package\.json|manifest" output.md   # scenario 20 only
 ```

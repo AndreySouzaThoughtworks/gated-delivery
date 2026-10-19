@@ -157,8 +157,9 @@ Walk every item below explicitly with the user:
 - **Laziest-wrong test:** Name the laziest incorrect implementation that satisfies each AC literally. Tighten any AC that permits one.
 - **Merge sequence:** Propose the ordered `## Rollout`. Each slice is one branch, PR, and merge. A one-slice sequence is the common case. Where the ticket cannot form reviewable safe slices, leave the existing choices open: split the ticket, use multiple specs, or accept one larger PR. Do not write the sequence without user sign-off.
 - **No contradictions:** An implementer following the spec must not be able to produce conflicting behavior.
+- **Cross-repo ACs:** When any AC is `cross-repo / manual verification`, the AC section opens with the one-paragraph header explaining the tags (step 4), and per-ticket Done-when requires recorded evidence and an owner for every cross-repo AC.
 
-For every proposed boundary, apply the template's three-part bar: repository green, safe to deploy, and one sentence describing what becomes true on `main`. Declare each slice `complete`, `unwired`, or `flagged`; a flagged slice includes its flag name, default, and removal condition.
+For every proposed boundary, apply the template's three-part bar: repository green, safe to deploy, and one sentence describing what becomes true on `main`. Declare each slice `complete`, `unwired`, or `flagged`; a flagged slice names its flag, default, and removal condition now, at spec time. A flag name not yet known is an `## Open decisions` entry, never a blank.
 
 When a slice is too large, narrow behavior before cutting horizontally:
 
@@ -166,9 +167,9 @@ When a slice is too large, narrow behavior before cutting horizontally:
 2. Cut horizontally only against an interface fixed outside the slice: an existing caller, a contract not controlled here, or the current implementation.
 3. Otherwise run a spike. Do not commit `main` to a guessed interface merely to reduce diff size.
 
-Once a surface is reachable, its safety envelope belongs in the same slice. Rollout names merge units, not executor batches; `/slice` decides batch boundaries from implementation seams.
+Once a surface is reachable, its safety envelope — authorization, input validation, and public-surface documentation — belongs in the same slice, not only in Done-when. Rollout names merge units, not executor batches; `/slice` decides batch boundaries from implementation seams.
 
-**Plan the parallelism.** Group the slices into waves and fill each slice's lane fields by the template's `## Rollout` wave rules. Then apply the laziest-wrong test to the wave itself: for each pair in a wave, name the cheapest way the two could still collide — the same file, the same config key, the same seed data. A collision you can name moves one slice to the next wave.
+**Plan the parallelism.** Group the slices into waves by the template's `## Rollout` wave rules. Every slice carries all four lane fields — Depends on, Write surface, Shared interface, Verify needs — even in a one-slice Rollout; write `none` rather than drop one. Then apply the laziest-wrong test to the wave itself: for each pair in a wave, name the cheapest way the two could still collide — the same file, the same config key, the same seed data. A collision you can name moves one slice to the next wave.
 
 **Ordering note.** Slicing a new capability buys smaller reviews and deployment decoupled from release; slicing a defect fix buys only smaller reviews, since its first slice carries no value until the last lands. Weigh that when ordering slices and when deciding whether to slice at all.
 
@@ -201,10 +202,11 @@ Before showing final draft to user, re-read entire spec from executor's perspect
 - **Domain model deltas accurate** — every entity classified Added / Changed / Renamed / Referenced (unchanged) match work ACs imply. Canonical type pointer is real path (or noted as "added by this ticket"). If nothing touched, section is explicit "N/A — …" not missing header.
 - **Architecture sketch present iff rule triggers** — `## Architecture sketch` section appear in spec only if ≥3 components participate or ordering matter; omitted otherwise. Empty section header with no content is failure mode to watch for.
 - **Forensics output survived drafting** — every Contradictions row has disposition; no stale entry rest on age alone; every `## Relevant files` entry name check that guard it; **no claim that was Inferred now sitting in spec as fact** (it was verified, or it's named assumption in `## Open decisions`). If pass found nothing, explicit "No contradictions detected between the inspected surfaces." line present — empty table ambiguous between "clean" and "skipped".
-- **Rollout covers ACs exactly once** — every `in-repo` AC appears in exactly one slice; cross-repo ACs appear in none. Every slice declares exposure, satisfies the three-part boundary bar, and every `flagged` slice includes a removal condition.
+- **Rollout covers ACs exactly once** — every `in-repo` AC appears in exactly one slice; cross-repo ACs appear in none. Every slice declares exposure and satisfies the three-part boundary bar; every `flagged` slice names its flag, default and removal condition, or an Open decision holds the unknown name; the slice that makes a surface reachable carries its authorization, validation and public-surface documentation.
+- **Cross-repo ACs owned** — with any `cross-repo / manual verification` AC, the AC section opens with its tag-explaining header and per-ticket Done-when keeps "evidence and an owner for every cross-repo AC".
 - **Done-when matches Rollout** — exactly one slice block per Rollout entry, in the same order, containing only checks that apply to this repository.
 - **Optional PR graph agrees with Rollout** — when present, every node maps to one slice, every dependency points forward in the chosen sequence, and no graph-only requirement contradicts a Rollout boundary.
-- **Waves hold up** — every slice appears in exactly one wave-table row and carries its lane fields; no two slices in one wave depend on each other, overlap in write surface or a shared hotspot, or touch an interface that is not yet fixed; the wave table and the graph agree.
+- **Waves hold up** — every slice appears in exactly one wave-table row; every Rollout slice carries all four lane fields, even when the value is none; no two slices in one wave depend on each other, overlap in write surface or a shared hotspot, or touch an interface that is not yet fixed; the wave table and the graph agree.
 
 Fix everything found _before_ user see final draft.
 

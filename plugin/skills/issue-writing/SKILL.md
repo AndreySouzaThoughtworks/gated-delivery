@@ -35,12 +35,17 @@ acting from receiving.
 
 Precedence, highest first:
 
-1. **Explicit instruction.** "Write this as a Spike" settles it.
+1. **Explicit instruction.** "Write this as a Spike" settles it. Fill that kind's template even when
+   the brief reads like another kind or is thin: say so in one line, and turn each gap into a
+   `[QUESTION]` inside the draft. The doubts below about whether a kind fits apply only when the
+   user did not name one.
 2. **Semantic markers in the content.** A `Spike:` summary prefix, a `spike` label, a research
    question with a timebox. Expected-versus-actual behaviour and reproduction steps. A result with
    no user in it.
 3. **Tracker issue type.**
-4. **One clarification question**, where the signals above conflict or leave it genuinely open.
+4. **One clarification question**, where the signals above conflict or leave it genuinely open. Name
+   the readings, ask, and stop. Nothing rides along with it — the questions for the chosen kind
+   wait until the kind is settled.
 
 Never silently make a tracker-typed Story a semantic Story when its summary, labels and content describe a
 Spike. Never make a Task a Spike because it holds an open technical question — a Task with an
@@ -103,7 +108,8 @@ Work not sit in template cleanly? Then template wrong, or what you put in it wro
 delivery to satisfy rule — no re-cutting story boundary, no reviving deprecated ticket, no inventing
 AC because rule demanded one. Rule that fires = evidence about draft, not instruction to manufacture
 whatever silence it. Say what rule caught, say why work shaped that way, let human decide which one
-gives.
+gives. A kind the user named is not a rule firing — it is settled, and stays so (*Pick the work
+kind first*, precedence 1).
 
 ## Ask, don't assume
 
@@ -118,7 +124,8 @@ Info gaps where you ask:
 - **Nobody has decided on a particular rule yet** — ask whether the answer changes the ticket's agreed outcome: a Story's or Task's criteria, a Bug's expected result, the decision a Spike informs. If it does, it is an open question: discuss with user how to resolve it. If it only changes how the work gets done, it is the implementer's call — a Technical Note at most, never a `[QUESTION]`.
 - **The template and these rules don't cover the situation** — say so plainly and ask. Never invent rule, never present one as though it came from here. Gap quietly filled = rule nobody agreed to.
 
-Don't overload user. Batch and track questions rather than asking all at once.
+Don't overload user. Batch and track questions rather than asking all at once. The routing question
+is the exception: it goes alone.
 
 ## What every kind owes
 
@@ -135,7 +142,8 @@ table, the Definition of Ready and the Definition of Done — belongs to Story a
   understand the ticket is reading an incomplete ticket.
 - Scan for secrets, personal data, customer identifiers and internal detail before anything reaches
   the tracker.
-- Show the complete proposed text and get approval before any write.
+- Show the complete proposed text and get approval before any write — for every artifact the write
+  touches, the spec or design note that receives relocated detail included.
 - Re-fetch after every mutation and confirm it landed as intended.
 
 Do not carry the Story Definition of Ready or Definition of Done onto another kind. AC coverage
@@ -216,7 +224,9 @@ A Spike reduces uncertainty. It does not promise production behaviour. Worked ex
 `examples/throughput-spike.md`, closeout included.
 
 **One primary question or falsifiable hypothesis**, and the decision waiting on the answer. Where no
-decision changes whatever the answer is, the research does not need a Spike.
+decision changes whatever the answer is, the research does not need a Spike — say so when the kind
+is yours to pick. When the user asked for a Spike, draft it and carry the missing decision as a
+`[QUESTION]`.
 
 **The question can be answered with "do nothing".** "Which mechanism detects X?" has already decided
 that X needs detecting and that a mechanism will do it. Ask for the outcome the decision needs, and
@@ -239,7 +249,9 @@ it answers the question. Adopting it in production, and fixing what the Spike fo
 tickets. A Spike never reports production behaviour delivered because an artifact exists.
 
 **Closeout is a refine-mode act**, filled during or at the end of the research. It keeps evidence and
-recommendation apart and names the limitations of what was measured.
+recommendation apart and names the limitations of what was measured. Follow-up work — adopting an
+artifact, fixing what the research found — is listed under Recommendation as named follow-up
+tickets, never folded into Answer / Decision as work the Spike did.
 
 **A new Spike follows the board's spike convention** — the **Spike convention** key of
 `## Issue tracking`; absent one, a Task with a `Spike:` summary prefix and the `spike` label. Say so
@@ -278,17 +290,26 @@ ticket.
 
 Where the two already disagree on design, the ticket keeps what the rule above already exempts — the
 interface shape this ticket proposes or another team agreed — and the rest relocates to the spec,
-leaving a note that points there and a References entry that reaches it. Relocated, never deleted,
+leaving a note that points there and a References entry that reaches it. Show the proposed spec text
+beside the ticket text: a relocation is two writes, and each needs approval. Relocated, never deleted,
 and never overwritten with the spec's wording: syncing gives one decision two homes, and the
 consistency pass below then has nothing to prefer.
 
 **Guardrail scan before any write.** The tracker may be customer-visible, and org policy forbids PII, secrets, internal hostnames or infra names in it. Redact, or relocate to repo:
 
 ```
-grep -niE '(password|secret|token|api[_-]?key|bearer|mongodb\+srv|\.internal\.|/Users/|AKIA|-----BEGIN)' <draft-file>
+grep -niE -e "(password|passwd|pwd|secret|token|api[_-]?key)[\"']?[[:space:]]*[:=][[:space:]]*[^[:space:]]" \
+  -e 'bearer [a-z0-9._~+/-]{8,}' -e 'sk-(live|test)-[a-z0-9]{6,}' -e 'AKIA' -e '-----BEGIN' -e '/Users/' \
+  -e '[a-z][a-z0-9+.-]*://[^[:space:]/]*:[^[:space:]@]*@' -e 'mongodb\+srv' -e '\.internal([^a-z0-9-]|$)' \
+  -e '(^|[^0-9.])([0-9]{1,3}\.){3}[0-9]{1,3}([^0-9.]|$)' -e '[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}' \
+  -e '\+[0-9][0-9 ().-]{8,}' -e '(^|[^0-9])0[0-9]{2,4}[ .-]?[0-9]{6,8}([^0-9]|$)' \
+  -e '(^|[^0-9.-])[0-9]{3}[-.][0-9]{3}[-.][0-9]{4}([^0-9.-]|$)' <draft-file>
 ```
 
-Append the **Extra guardrail terms** from `## Issue tracking` to the alternation. Run it over the saved draft, every field included. With no file named it waits on stdin and scans
+The arms cover credentials given a value, connection strings carrying a user and password, hosts
+under `.internal`, IP addresses, emails and phone numbers. Credential words match only with a value
+after them, so the word "password" in a sentence explaining a redaction does not fire. Add each
+**Extra guardrail term** from `## Issue tracking` as one more `-e` arm. Run it over the saved draft, every field included. With no file named it waits on stdin and scans
 nothing.
 
 The grep is a floor, not the list. The list below is the plugin's one secrets and PII list; other skills apply it to their own artifacts. It is two tiers, and only one of them has an exception.

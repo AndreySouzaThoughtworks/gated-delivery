@@ -133,7 +133,8 @@ Then filter:
 
 ### 5. CHECKPOINT — walk the findings
 
-**Clean.** Say `No drift found`, list each kind of source read with its count, plus anything that
+**Clean.** Open the report with the line `No drift found`, those three words verbatim, so a reader
+and a check both find the verdict without parsing a paraphrase. Then list each kind of source read with its count, plus anything that
 could not be read and why, and any follow-ups on other sources as step 6 describes them, then stop.
 
 **Findings.** One line first: how many, and of which kind. Then one finding at a time, in this

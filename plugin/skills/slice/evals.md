@@ -26,18 +26,18 @@ mode: response
 | 10 | "Resume PROJ-130 on a second machine." | Draft PR and remote slice branch exist; local notes are absent; the shared handoff names the base, last verified commit, next action, and an OPEN item. | Fetches and checks out the existing slice branch, pulls shared files, reads the handoff before routing, uses its resume context, and treats missing local notes as expected. |
 | 11 | "Executor found a possible cleanup." | Note has no evidence and no later actor needs it. | Keeps it local and does not add it to the shared handoff. |
 | 12 | "Executor is blocked by a contract contradiction." | Reproducible evidence; another person must decide; no canonical destination contains the finding; losing the conversation would risk losing it. | Records an OPEN handoff item before stopping, with evidence, impact, and next action. |
-| 13 | "Prepare PR 2 of 4." | Later Rollout slices remain. | PR body names satisfied and outstanding ACs but omits `Closes`; only the final slice closes the ticket. |
+| 13 | "Prepare PR 2 of 4." | Later Rollout slices remain. | PR body names satisfied and outstanding ACs but omits `Closes` and every other closing keyword before the ticket; only the final unmerged slice closes the ticket. |
 | 14 | "The final slice merged." | Every slice merged; one OPEN handoff item remains. | Runs the ticket-wide structural sweep, harvests or closes the item, completes per-ticket gates, records the outcome, and leaves working documents in place. |
 | 15 | "Branch and start." | Dirty tree on an unrelated branch. | Stops and offers checkout, stash, or explicit stacking; no silent branch mutation. |
 | 16 | "Close the completed ticket." | Repository instructions name `.ai-context/domain-types.md` as the only canonical domain model. | Merges the domain delta into the declared path and does not propose creating a different document. |
 | 17 | "Compact and continue elsewhere." | Current slice has a branch, base SHA, last verified commit, and one next action in local notes. | Updates and pushes this actor's Resume block before recommending compaction. |
-| 18 | "Start the next slice on PROJ-140." | Handoff holds `## Resume — actor-b` naming slice 2, its branch and draft PR, and an older `## Resume — actor-a` naming slice 1, now merged. | Takes a slice nobody holds and names `actor-b` as holding slice 2. Fails if it plans slice 2, or edits that block. |
-| 19 | "Push the handoff — the other machine got there first." | Remote and local each added a different Carry-forward entry, and both edited this actor's own Resume block. | Keeps both entries, resolves the block to the later `Updated`, no force-push, other blocks untouched. |
-| 20 | "Close out PROJ-141." | Handoff holds two Resume blocks, one `HARVESTED → ADR-12` entry, one dead end with evidence, and one `OPEN` entry. | `## Outcome` leads the file and carries the dead end and where the harvested item landed; both blocks stay, stamped `Closed`; the `OPEN` entry is harvested, not dropped. Fails if anything is deleted, moved or archived. |
+| 18 | "Start the next slice on PROJ-140, then print the handoff as you leave it, in full." | Rollout: wave 1 holds s1; wave 2 holds s2 and s3, which share no write surface. Handoff holds `## Resume — actor-b` naming s2, its branch and draft PR, and an older `## Resume — actor-a` naming s1, now merged. | Takes s3, the wave-2 slice nobody holds, in its own slice tree, and names `actor-b` as holding s2. Fails if it plans s2, starts s3 in the main checkout, or edits another actor's block. |
+| 19 | "Push the handoff — the other machine got there first. Print the merged handoff in full." | Remote and local each added a different Carry-forward entry, and both edited this actor's own Resume block. | Keeps both entries, resolves the block to the later `Updated`, no force-push, other blocks untouched. |
+| 20 | "Close out PROJ-141, then print the handoff as you leave it, in full." | Handoff holds two Resume blocks, one `HARVESTED → ADR-12` entry, one dead end with evidence, and one `OPEN` entry. | `## Outcome` leads the file and carries the dead end and where the harvested item landed; both blocks stay, stamped `Closed`; the `OPEN` entry is harvested, not dropped. Fails if anything is deleted, moved or archived. |
 | 21 | "Plan the slice on PROJ-142." | Ticket touches a technology the reference index carries an entry for. | Reads the matching reference before dispatch and passes it as `reference-paths`. Fails if it lists the reference under the spec's `## Relevant files`, which the executor requires to exist in the changed repository. |
 | 22 | "Run slice 1 of PROJ-143." | The changed repository's `.ai-context/coding-conventions.md`, imported by its `CLAUDE.md`, permits a comment that gives a reason, which the production-code stack recipe bans; the production-code validator flags one such comment. | Lists the conventions document on the state block, passes it to the executor as `repo-conventions` and to the validators in `context`, assesses the finding using the repository convention, and leaves the comment in place, naming the deviation and its document at 7.6. Fails if it treats the finding as an instruction and deletes the comment. |
 | 23 | "Run wave 1 of PROJ-150 in parallel." | Rollout: wave 1 holds s1 and s2, wave 2 holds s3. No Resume block holds a slice. | Takes Route W; creates a slice tree per slice with `slice-tree.sh` and pushes each branch as its claim before any executor runs; dispatches both executors in one message, each with its own `worktree`. Fails if s3 starts, if both executors share one tree, or if an executor is dispatched before its branch is pushed. |
-| 24 | "Pick up PROJ-151 — my colleague is on it too." | Wave 1 holds s1 and s2; `origin` already has actor-b's branch for s1. | Claims and builds s2 only, naming actor-b as holder of s1. Fails if it creates a branch or tree for s1. |
+| 24 | "Pick up PROJ-151 — my colleague is on it too." | Wave 1 holds s1 and s2; `origin` already has actor-b's branch for s1. | Claims s2 in its own slice tree with an empty claim commit, naming actor-b as holder of s1. Fails if it creates a branch or tree for s1, or starts s2 in the main checkout. |
 | 25 | "s1 merged; finish s2." | Wave 1 of PROJ-152: s1 merged to `main`, s2 was green and ready before that merge. | Merges `main` into s2 — no rebase — and reruns 7.1–7.5 before marking it ready. Fails if it marks s2 ready on the pre-merge evidence. |
 | 26 | "Run the slice-end gates on wave 1." | Two slices in flight, each with a review tree. | Runs each 7.2 verify and each reviewer's `verify-cmd` through `verify-lock.sh`, and dispatches both code-reviewers in one message, each bound to its own review tree. Fails if a verify runs outside the lock or one reviewer grades both trees. |
 | 27 | "Start wave 1 of PROJ-153." | Wave 1 holds s1 and s2; `/spec` left the repo-hosted spec uncommitted in the main checkout. | Lands the spec first through its own docs PR and STOPs for its merge, leaving the main checkout clean; creates no slice branch yet. Fails if any slice branch commits the spec, or if a slice starts before the spec is on `main`. |
@@ -111,16 +111,19 @@ grep -Ec "^## Resume — .+" output.md          # scenarios 17-20
 grep -Ec "actor-b" output.md                  # scenario 18 only
 # Every surviving block is stamped, so no spent position reads as live — expect 2 on 20.
 grep -Ec "^- Closed:" output.md               # scenario 20 only
-# The outcome leads the file — expect 1. Mentioning `## Outcome` further down scores 0.
-grep -m1 -E "^## " output.md | grep -Ec "^## Outcome"   # scenario 20 only
+# The outcome leads the printed handoff — expect 1: of the handoff's own headings, `## Outcome` comes
+# first. A handoff that keeps a Resume block or Carry forward above it scores 0.
+grep -m1 -E "^## (Outcome|Resume|Carry forward)" output.md | grep -Ec "^## Outcome"   # scenario 20 only
 # The reference travelled in the payload — expect >=1 on 21. A run that routes it through the
 # spec file scores 0, because the parameter is never named.
 grep -Ec "reference-paths" output.md          # scenario 21 only
 # Parallel wave — expect >=2 on 23 (one per slice). A sequential run never names the script.
 grep -Ec "slice-tree\.sh" output.md           # scenario 23
-# The held slice is left alone — expect 0 on 24: no tree is created for s1. Expect >=1 for s2.
-grep -Ec "slice-tree\.sh.*-s1\b" output.md   # scenario 24: s1
-grep -Ec "slice-tree\.sh.*-s2\b" output.md   # scenario 24: s2
+# The held slice is left alone — expect 0 on 24: no tree is created for s1. Expect >=1 for s2: a
+# slice of a two-slice wave runs in its own tree even when this actor takes only that one. Keyed on
+# the tree path, since a `slice-tree.sh` call often wraps its arguments onto the next line.
+grep -Ec "slice-trees/[^ \"]*-s1\b" output.md   # scenario 24: s1
+grep -Ec "slice-trees/[^ \"]*-s2\b" output.md   # scenario 24: s2
 # Verify through the lock — expect >=2 on 26. A run that verifies in place scores 0.
 grep -Ec "verify-lock\.sh" output.md          # scenario 26 only
 # Only one reviewer writes memory — expect >=1 on 29. A run that lets both write scores 0.

@@ -1,6 +1,6 @@
 # gated-delivery — skills, agents & hooks
 
-**The** inventory of what the `gated-delivery` plugin ships and how the pieces call each other — other docs link here, not restate. `scripts/audit/consistency.mjs` fails CI if a skill or agent is missing below. Skills are invoked by `/skill-name` or `Skill(name)`; agents by `Agent(subagent_type: name)`; hooks fire automatically on lifecycle events. Client specifics — tracker, notes homes, stack recipes, reviewers — come from the client's CLAUDE.md as described in [client-context.md](./client-context.md).
+**The** inventory of what the `gated-delivery` plugin ships and how the pieces call each other — other docs link here, not restate. `scripts/audit/consistency.mjs` fails CI if a skill or agent is missing below. Skills are invoked by `/skill-name` or `Skill(name)`; agents by `Agent(subagent_type: name)`; hooks fire automatically on lifecycle events. Client specifics — tracker, notes homes, stack recipes, reviewers — come from the client's CLAUDE.md as described in [client-context.md](../plugin/references/client-context.md).
 
 ## Workflow skills
 
@@ -48,6 +48,7 @@ Knowledge rather than workflow. Indexed separately because a skill reads the ind
 | Index | Covers |
 |-------|--------|
 | [`reference-graph.md`](../plugin/references/reference-graph.md) | Every domain reference this plugin ships, with the work that should trigger reading it. Both directions guarded by `scripts/audit/consistency.mjs`. |
+| [`client-context.md`](../plugin/references/client-context.md) | The client-context contract: every CLAUDE.md section and key a skill reads, with its default. Not a domain reference; skills that read client keys point at it by path, and `reference-graph.md` indexes it so the guard keeps it reachable. |
 
 ## Referenced but NOT bundled here
 

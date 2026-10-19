@@ -63,8 +63,12 @@ Emit:
 - <thing> — why it stays
 ```
 
-**Propose, never silently write.** Mechanical drift fixes can apply directly (not judgment). Every trim/merge/retire of rule or doc is proposal: get sign-off, then route flow-level changes to the gated-delivery repo as a PR or an issue — same repo→release path `learn-flow` use, so change reach every install.
+**Propose, never silently write.** Mechanical drift fixes can apply directly (not judgment). Every trim/merge/retire of rule or doc is proposal: get sign-off, then PR. Never retire or trim a rule in the same session you flag it, even when told to apply it — apply only mechanical drift fixes. Route flow-level changes to the gated-delivery repo as a PR or an issue — same repo→release path `learn-flow` use, so change reach every install.
 
 ## Anti-patterns
 
 - **Adding more than you remove.** An audit that only grows the flow failed its job.
+- **Claiming usage you didn't measure.** No telemetry means ask the team, not infer.
+- **Retiring a rule in the same session you flag it.** Propose, get sign-off, then PR. This holds even when the user says to apply the findings: apply only the mechanical drift fixes, and leave every trim, merge or retire as a proposal.
+- **Skipping Step 1.** Judgment on a drifted inventory is judgment on fiction.
+

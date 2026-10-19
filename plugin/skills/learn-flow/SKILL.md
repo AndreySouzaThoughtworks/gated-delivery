@@ -47,7 +47,7 @@ For each candidate, pick exactly one destination. Pick by _who benefits_:
 
 - **Flow-level → gated-delivery repo.** Lesson about how gated-delivery skill/agent/hook/recipe behave, or convention applying to **everyone** using flow (not one client, not one codebase). Cannot be local edit — installed plugin read-only and shared. Capture as a **change proposal routed to the gated-delivery repo, as a PR or an issue**. Only path that improve flow for every install.
 - **Domain reference → `plugin/references/`.** Constraint belonging to a *technology* rather than to the flow or to one codebase, which a competent engineer would not guess and would otherwise find by shipping something that silently does nothing. Same change-proposal route against the gated-delivery repo as flow-level, and the `evals.md` gate above does not apply. Admission test is in `references/reference-graph.md`; an existing reference takes an edit, a new subject takes a row and a file.
-- **Client-level → client's CLAUDE.md overlay.** Lesson true across one client's repos — its tracker, conventions, internal tooling, review routing — but not for other clients. Edit the client folder's CLAUDE.md, in the section `docs/client-context.md` names for it. Never route it into the core plugin.
+- **Client-level → client's CLAUDE.md overlay.** Lesson true across one client's repos — its tracker, conventions, internal tooling, review routing — but not for other clients. Edit the client folder's CLAUDE.md, in the section `../../references/client-context.md` (relative to this file) names for it. Never route it into the core plugin.
 - **Repo-level → `<repo>/CLAUDE.md`.** Lesson specific to _this_ codebase (build quirks, layout, in-repo command). Edit that repo CLAUDE.md.
 - **Personal → `~/CLAUDE.md`.** Preference about how _you_ like work, not flow or repo.
 - **Lint rule.** _Recurring_ mistake, deterministically detectable (AST / lint). Propose **enabling or adding eslint rule** — in repo `eslint.config.mjs` (where team lint already run on commit), or across repos if flow-wide. No rule for one-off.
@@ -57,11 +57,13 @@ Lesson fit two → pick most durable / widest-reaching (flow > reference > clien
 
 ## Step 4 — Propose
 
-**If nothing survived Step 2, entire output = one line:**
+**If nothing survived Step 2, print this line:**
 
 ```
 No learnings cleared the bar this session.
 ```
+
+Then, for each candidate you considered, one line naming the gate it failed with one of these labels verbatim: `Dropped: <candidate> — <no evidence | incidental, no mechanism | no evals test | already documented>`. A reason in your own words may follow the label. No other output.
 
 No empty headings — blank template invite padding. Render section only for destination with actual survivor. When at least one survive, print just those sections, then ask **"Approve which of these?"** (`AskUserQuestion` if 2+ items):
 

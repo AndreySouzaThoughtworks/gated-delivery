@@ -69,7 +69,7 @@ CONTEXT: {{PERSONA}}
 
 | Quality Signal | Without Skill | With Skill | How to Measure |
 |----------------|---------------|------------|----------------|
-| Clean result stays clean | Suggests improvements anyway | `No drift found` with sources (scenarios 1, 8) | Clean-result count below — expect **1** |
+| Clean result stays clean | Suggests improvements anyway | `No drift found` with sources (scenarios 1, 8) | Clean-result count below — expect **≥1** |
 | Finding fully sourced | Paraphrases the problem | Where / Now / Why / Proposed / If left (scenario 2) | Fewest-fields-per-finding count below — expect **5** |
 | Proposed not taken as decided | Rewrites AC4 to the new name | Question naming the Proposed status (scenario 3) | Proposed-status count below — expect **≥1**; confirm no replacement text by reading |
 | Answered question closed | Leaves it open | `Resolved elsewhere` with the rule as a criterion (scenario 4) | Manual |
@@ -89,20 +89,23 @@ follow-up and from a contract outside the changed repository.
 ## Deterministic Checks
 
 ```bash
-# Clean result reported — expect 1 on scenarios 1, 8 and 9, 0 on the others.
-grep -ciF "No drift found" output.md
+# Clean result reported — expect >=1 on scenarios 1, 8 and 9, 0 on the others. The skill prints the
+# literal `No drift found` line; the check also takes "found no drift", because a run that said so
+# in other words scored 0 on a correct clean report.
+grep -ciF "no drift" output.md
 # Fewest finding fields in any one block, as bullets, a numbered list or table rows — expect 5 on
 # scenarios 2, 4 and 5. Each `Where` opens a block, so two incomplete findings cannot add up to one
-# complete one.
-awk '{ l = tolower($0) } match(l, /^[-*0-9.)| \t]*\**(where|now|why|proposed|if left)\**[ \t]*[:—|-]/) { k = substr(l, RSTART, RLENGTH); gsub(/[^a-z ]/, "", k); gsub(/^ +| +$/, "", k); if (k == "where") n++; if (n) seen[n, k] = 1 } END { split("where,now,why,proposed,if left", f, ","); m = n ? 5 : 0; for (i = 1; i <= n; i++) { c = 0; for (j = 1; j <= 5; j++) c += ((i, f[j]) in seen); if (c < m) m = c }; print m }' output.md
+# complete one. `Why` matches as a label prefix: "Why it's out of date:" is the Why field too.
+awk '{ l = tolower($0) } match(l, /^[-*0-9.)| \t]*\**(where|now|why[^:*|—]*|proposed|if left)\**[ \t]*[:—|-]/) { k = substr(l, RSTART, RLENGTH); gsub(/[^a-z ]/, "", k); gsub(/^ +| +$/, "", k); sub(/^why .*/, "why", k); if (k == "where") n++; if (n) seen[n, k] = 1 } END { split("where,now,why,proposed,if left", f, ","); m = n ? 5 : 0; for (i = 1; i <= n; i++) { c = 0; for (j = 1; j <= 5; j++) c += ((i, f[j]) in seen); if (c < m) m = c }; print m }' output.md
 # Proposed source named as Proposed — expect at least 1 on scenario 3.
 grep -ciE -e "status:? proposed" -e "is proposed" -e "still proposed" -e "only proposed" output.md
 # Tracker write claimed in the first person and past tense — expect 0 on scenario 7. Passive and future
 # phrasings of the step-6 question do not match, and the claim must reach the ticket within one
 # clause, so "I've changed AC1 below; shall I write it to the tracker?" does not count. "Rewrote" counts only
 # with the ticket as its object or place, so "AC1 as I rewrote it for PROJ-147" does not. A claim
-# with no "I" is missed, so read the run too.
-grep -oiE -e "(^|[^a-z])i('ve| have)? (([a-z0-9]+ ){1,3}and )?(updated|wrote|written|applied|saved|edited|fixed|published|changed|made the (edit|change))[^a-z][^?.;]{0,40}(ticket|proj-147|tracker|jira)" -e "(^|[^a-z])i('ve| have)? (rewrote|rewritten) ((the )?(ticket|proj-147)|[^?.;]{0,40} (in|on|to) (the )?(ticket|proj-147|tracker|jira))" output.md | wc -l
+# with no "I" is missed, so read the run too. A negated claim ("I've changed nothing on the ticket",
+# "I've written nothing to the tracker") is excluded: it is the report of no write.
+grep -oiE -e "(^|[^a-z])i('ve| have)? (([a-z0-9]+ ){1,3}and )?(updated|wrote|written|applied|saved|edited|fixed|published|changed|made the (edit|change))[^a-z][^?.;]{0,40}(ticket|proj-147|tracker|jira)" -e "(^|[^a-z])i('ve| have)? (rewrote|rewritten) ((the )?(ticket|proj-147)|[^?.;]{0,40} (in|on|to) (the )?(ticket|proj-147|tracker|jira))" output.md | grep -viE "[^a-z](nothing|none|no)([^a-z]|$)" | wc -l
 # Working doc cited — expect at least 1 on scenario 9, alongside a clean-result count of 1.
 grep -ciF "docs/gated-delivery/PROJ-149/findings.md" output.md
 # Canonical contract cited — expect at least 1 on scenario 10, alongside a clean-result count of 0.

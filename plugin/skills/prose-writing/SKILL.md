@@ -98,7 +98,14 @@ Name the unit too, where the prose was someone else's: _"read: 6 files whole"_ a
 
 ## Living docs and dated records
 
-The rule is in `writing.md`. The test: a living doc fails if it records what _was_ true; a dated record fails if you edit it to match what is true now, and stays out of repo-wide sweeps.
+The rule is in `writing.md`. Which one you are holding decides the check: a living doc fails if it records what _was_ true, a dated record fails if you edit it to match what is true now.
+
+| Writing | Then |
+| --- | --- |
+| documentation, agent instructions, skills, a spec in flight | drop completed items, drop the history of the rule |
+| a changelog, commit body, archived spec, handover note | leave it as written, and exclude it from repo-wide sweeps |
+
+A tone, wording or style fix is an edit. Asked to fix the tone of a released changelog entry, leave the entry as written and say why.
 
 ## Worked example
 

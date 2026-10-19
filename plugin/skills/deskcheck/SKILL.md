@@ -9,7 +9,7 @@ A deskcheck validates completed work through a shared walkthrough. Build its nar
 
 ## Client context
 
-Read these keys from the nearest CLAUDE.md; `docs/client-context.md` in this plugin holds their meaning and defaults:
+Read these keys from the nearest CLAUDE.md; `../../references/client-context.md`, relative to this file, holds their meaning and defaults:
 
 - `## Issue tracking` — Mechanics, Ticket URL
 - `## Delivery notes` — Shared notes home (where `deskcheck.html` lives, and where the ticket's specs and findings are)
@@ -28,8 +28,8 @@ Read these keys from the nearest CLAUDE.md; `docs/client-context.md` in this plu
 After the narrative checkpoint, write one HTML file:
 
 1. Use `output-path` when supplied.
-2. Otherwise use `{ticket}/deskcheck.html` under the Shared notes home and create the ticket directory when needed.
-3. When the Shared notes home is a separate repository, write into the local checkout at `GATED_DELIVERY_NOTES_REPO` when set; otherwise clone that repository with `gh` into a temporary directory. Before writing, confirm the checkout's working tree is clean and on `main`.
+2. Otherwise resolve the Shared notes home for this ticket — substitute the ticket key for `{ticket-id}` — and write `deskcheck.html` directly inside it, creating the directory when needed. The home already names the ticket directory: `notes/{ticket-id}/` gives `notes/PROJ-208/deskcheck.html`, never `notes/PROJ-208/PROJ-208/deskcheck.html`.
+3. When the Shared notes home is in a separate repository, the home is relative to that repository's checkout, not to the repository being changed: write into the local checkout at `GATED_DELIVERY_NOTES_REPO` when set; otherwise clone that repository with `gh` into a temporary directory. Before writing, confirm the checkout's working tree is clean and on `main`.
 4. When none of these is reachable, ask for a path before writing.
 
 Use this skill's `templates/deskcheck.html`. The result is a single static HTML file with its CSS and assets embedded. The shell has five placeholders: title, ticket key, ticket URL, prepared date and the authored body. When `## Artifact style` names a Disclosure, put its wording in the footer in place of the template's line.
@@ -130,7 +130,7 @@ Paste the evidence you collected into the page itself. A link alone is not evide
 
 - the command that was run and the trimmed output showing the result, in `<pre><code>`;
 - for an API, the request and the response showing the expected behaviour;
-- a screenshot of the product surface, embedded as `<img src="data:image/png;base64,…" alt="…">`, with alt text saying what it shows;
+- a screenshot of the product surface, embedded as `<img src="data:image/png;base64,…" alt="…">`, with alt text saying what it shows. Produce the base64 with `base64 -i shot.png | tr -d '\n'` (macOS) or `base64 -w0 shot.png` (Linux), and match the MIME type to the file. A screenshot you cannot embed — no file, or no way to encode it — is a gap stated in its criterion's row, never an `<img>` with a relative or remote `src`;
 - the passing test's name and result line, linked to the run.
 
 Paste each demonstration step's observed result beside its expected result the same way.

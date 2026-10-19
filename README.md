@@ -1,6 +1,6 @@
 # gated-delivery
 
-Claude Code plugin for issue-driven, test-first delivery, with no client baked in. Specs define independently merging PR slices; implementation runs focused batches and applies verification, structural review and fresh-context correctness gates at every merge boundary. Everything client-specific — tracker, commit convention, notes homes, stack recipes, reviewers — comes from the client's CLAUDE.md: [docs/client-context.md](docs/client-context.md).
+Claude Code plugin for issue-driven, test-first delivery, with no client baked in. Specs define independently merging PR slices; implementation runs focused batches and applies verification, structural review and fresh-context correctness gates at every merge boundary. Everything client-specific — tracker, commit convention, notes homes, stack recipes, reviewers — comes from the client's CLAUDE.md: [plugin/references/client-context.md](plugin/references/client-context.md).
 
 ## Install
 
@@ -20,7 +20,7 @@ This repo is **both** marketplace and plugin: the marketplace manifest lives at 
 |------|------|
 | `plugin/` | The plugin — 12 skills, 2 agents, 3 hooks, 2 commands. Inventory and call graph: [docs/skill-graph.md](docs/skill-graph.md). |
 | `.claude-plugin/marketplace.json` | Marketplace manifest; points at `./plugin`. |
-| `docs/` | [onboarding](docs/onboarding.md) · [skill-graph](docs/skill-graph.md) · [client-context](docs/client-context.md) |
+| `docs/` | [onboarding](docs/onboarding.md) · [skill-graph](docs/skill-graph.md) · [client-context](plugin/references/client-context.md) |
 | `scripts/` | `leak-guard.sh`, the consistency guard (`audit/`) and the eval runner (`eval/`). |
 | `tests/` | Shell tests for the leak guard, the pre-push hook, profile isolation and the behaviour of the commit commands, `code-reviewer` and `issue-writing`. |
 | `.githooks/` | `pre-commit` runs the leak guard; `pre-push` runs gitleaks on the commits being pushed. |

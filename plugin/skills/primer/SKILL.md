@@ -14,7 +14,7 @@ description: Research a topic into a "primer": a single-file, WCAG-AA HTML expla
 
 ## Client style
 
-Read these `## Artifact style` keys from the nearest CLAUDE.md; `docs/client-context.md` in this plugin holds their meaning and defaults: Template, Brand skill, Disclosure, Team primer home.
+Read these `## Artifact style` keys from the nearest CLAUDE.md; `../../references/client-context.md`, relative to this file, holds their meaning and defaults: Template, Brand skill, Disclosure, Team primer home.
 
 With a client template, its own header comment states its token rules; follow those instead of the neutral rules in step 5, and still keep a sensitivity banner and the disclosure footer.
 
@@ -37,7 +37,7 @@ Resolve the checkout for a team primer the way `deskcheck` resolves the notes re
 1. The current repository, when it is the one `Team primer home` names.
 2. Otherwise the local checkout at `GATED_DELIVERY_NOTES_REPO`, when that is the same repository.
 3. Otherwise clone that repository with `gh` into a temporary directory.
-4. When `Team primer home` is absent or the repository is unreachable, ask for a path before writing.
+4. When `Team primer home` is absent or the repository is unreachable, ask for a path before writing. When you cannot ask, write nothing — not into the working directory either: stop and report that `Team primer home` (or access to its repository) is missing. No way to ask is not permission to pick a location.
 
 Pull before writing, and confirm the working tree is clean and on `main`.
 

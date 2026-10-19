@@ -150,9 +150,9 @@ Declare how each slice stays safe before the ticket is complete:
 
 - `complete` — reachable and complete for its input domain
 - `unwired` — implemented and tested, but nothing calls it
-- `flagged` — wired behind a named flag; include its default and removal condition
+- `flagged` — wired behind a named flag; name the flag, its default and removal condition at spec time. An unknown flag name is an Open decision, never a blank
 
-Once a surface is reachable, its safety envelope ships in the same slice. Authorization and input validation for a registered route cannot be deferred.
+Once a surface is reachable, its safety envelope ships in the same slice. Authorization, input validation and public-surface documentation for a registered route cannot be deferred.
 
 For three or more slices, when dependencies are not obvious, or when a wave holds more than one slice, add a small Mermaid graph. Nodes name the PR outcome; an arrow means “must merge before.” Omit edges between independently reorderable slices. The ordered entries below remain authoritative, so omit the graph when it would only restate a simple one- or two-PR sequence.
 
@@ -180,6 +180,10 @@ Within a wave, slices merge in any order. Waves pay off only when one holds two 
 What becomes true on `main` when this merges.
 
 Boundary: why these ACs belong in one reviewable merge.
+
+Flag (`flagged` only): <name> — default <off | on> — removed when <condition>
+
+Lane fields — required on every slice; write `none` rather than omit one:
 
 - Depends on: <slices that must merge first, or none>
 - Write surface: <directories, modules or files it changes>

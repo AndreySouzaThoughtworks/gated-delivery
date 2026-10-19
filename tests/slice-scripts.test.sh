@@ -202,4 +202,22 @@ sleep 2
 run_locked "true" 2>/dev/null
 check "the lock frees itself once every holder has exited" '[ $? -eq 0 ]'
 
+# Both tree scripts print only the tree's path on stdout, so `$(script ...)` captures one line
+out_repo="$work/out-repo"
+new_repo "$out_repo"
+out_tree="$work/trees/out-s1"
+out="$(cd "$out_repo" && "$scripts/slice-tree.sh" "$out_tree" feat/T-3-a-s1 main 2>/dev/null)"
+check "slice-tree.sh prints only the tree path when it creates the tree" '[ "$out" = "$out_tree" ]'
+out="$(cd "$out_repo" && "$scripts/slice-tree.sh" "$out_tree" feat/T-3-a-s1 main 2>/dev/null)"
+check "slice-tree.sh prints only the tree path on a re-run" '[ "$out" = "$out_tree" ]'
+git -C "$out_repo" branch -q feat/T-3-b-s2 main
+out_tree2="$work/trees/out-s2"
+out="$(cd "$out_repo" && "$scripts/slice-tree.sh" "$out_tree2" feat/T-3-b-s2 main 2>/dev/null)"
+check "slice-tree.sh prints only the tree path for an existing local branch" '[ "$out" = "$out_tree2" ]'
+out_review="$work/review/out-s1"
+out="$(cd "$out_tree" && "$scripts/review-tree.sh" "$out_review" 2>/dev/null)"
+check "review-tree.sh prints only the tree path when it creates the tree" '[ "$out" = "$out_review" ]'
+out="$(cd "$out_tree" && "$scripts/review-tree.sh" "$out_review" "$(git -C "$out_tree" rev-parse HEAD~1)" 2>/dev/null)"
+check "review-tree.sh prints only the tree path when it re-points the tree" '[ "$out" = "$out_review" ]'
+
 [ "$failures" -eq 0 ] && echo "all slice script tests passed" || { echo "$failures failed"; exit 1; }

@@ -183,6 +183,21 @@ so a Story check run over a Task output reports a number that means nothing — 
 has no acceptance-criteria rows. Each block below names the kind it measures; read only that block's
 numbers for that output. Four of the checks in the first block hold whatever the kind, and say so.
 
+**Headings are matched however the draft is laid out.** A section or signature counts as a `##` or
+`###` heading, with or without a `> ` blockquote prefix, or as a bold label that closes on `**`, `:`
+or `(` (`**Expected Result**`, `**Timebox:**`). Column-0 `## ` alone scored blockquoted Spikes,
+`###` Tasks and bold-labelled Bugs as missing their skeleton. A bold sentence (`**Timebox is fine.**`)
+and a longer heading (`## Questions before…`) do not count.
+
+**The checks read the whole response, not only the draft.** The harness asks for no draft markers,
+so commentary around the draft is counted too. Expect that tolerance on four checks: the over-30-word
+bullet count (commentary bullets count), the Spike Question count (a clarification asked under a bold
+`**Question:**` label counts as one), the AC-row count (a review quoting rows counts them), and the
+draft-verdict count (a review quoting the verdicts it reports counts them). Read the hits before
+calling a run failed. The furniture and verdict checks already exclude the commentary forms seen in
+the sweep: a mention of the Definition of Ready in prose, and a sentence deferring the recommendation
+to the closeout or recommending a ticket change in the first person.
+
 ```bash
 # ===== Story, and four that hold for every kind =====
 # Every kind: the Definition of Ready check, the one-claim bullet check, the secrets and PII scan,
@@ -192,18 +207,18 @@ numbers for that output. Four of the checks in the first block hold whatever the
 # Undecided rule smuggled into an AC row — expect 0. Scoped to numbered rows for the same reason
 # the placeholder check below is: a review response legitimately quotes the TBD it is rejecting,
 # and an unscoped grep scores that compliant review as a failure.
-grep -Ec "^\| *[0-9]+ *\|.*(TBD|TO CONFIRM)" output.md
+grep -Ec "^[> ]*\| *[0-9]+ *\|.*(TBD|TO CONFIRM)" output.md
 # Unexpanded permutation placeholder inside an AC row — expect 0. The rule is to name the full set.
 # Scoped to numbered rows on purpose: `GET /bundles/{id}` in a technical note is a path parameter,
 # not a placeholder, and an unscoped grep fails the tracer example on it.
-grep -Ec "^\| *[0-9]+ *\|.*\{[a-z_]+\}" output.md
+grep -Ec "^[> ]*\| *[0-9]+ *\|.*\{[a-z_]+\}" output.md
 # Open items carry a tag that blocks Ready rather than sitting as loose prose — expect >=1 on a
 # story that has open items, 0 only on one that has none.
 grep -Ec -e "\[QUESTION\]" -e "\[DEPENDENCY\]" output.md
 # Acceptance criteria are numbered table rows, not a bullet list — expect >=1.
-grep -Ec "^\| *[0-9]+ *\|" output.md
+grep -Ec "^[> ]*\| *[0-9]+ *\|" output.md
 # Definition of Ready ticked by the assistant — expect 0. Ticking is the team's act.
-grep -Ec "^- \[x\]" output.md
+grep -Ec "^[> ]*- \[x\]" output.md
 # Bullets carrying more than one claim — expect 0. Word count is the proxy, and the count joins a
 # bullet's wrapped continuation lines: a line-at-a-time version reported 0 on both worked examples
 # while they actually held seven over the line. Nested sub-bullets count separately, not as part of
@@ -213,7 +228,7 @@ grep -Ec "^- \[x\]" output.md
 # link, so no References entry could ever fail. Verified against the case it must reject — a 34-word
 # linked reference scores 1, while a longer [QUESTION] beside it stays exempt. 30 is where both
 # examples pass and DEMO-85, written before this rule, still fails.
-awk '/^[[:space:]]*[-*] +/ {if (n>30 && !x) c++; n=NF-1; b=1; x=($0 ~ /^[[:space:]]*[-*] +(\*\*)?\[(QUESTION|DEPENDENCY| |x)\]/); next} b && NF && $0 !~ /^[|#]/ {n+=NF; next} {if (n>30 && !x) c++; n=0; b=0} END {if (n>30 && !x) c++; print c+0}' output.md
+awk '{sub(/^> ?/, "")} /^[[:space:]]*[-*] +/ {if (n>30 && !x) c++; n=NF-1; b=1; x=($0 ~ /^[[:space:]]*[-*] +(\*\*)?\[(QUESTION|DEPENDENCY| |x)\]/); next} b && NF && $0 !~ /^[|#]/ {n+=NF; next} {if (n>30 && !x) c++; n=0; b=0} END {if (n>30 && !x) c++; print c+0}' output.md
 # Background closes with a sentence, ending in a terminator — expect 1. Anchored on the section's
 # last non-empty line, because the `**What it does:**` label this replaced is gone and the behaviour
 # now closes Background — past, current state, then what this will do. The whole final paragraph is
@@ -221,7 +236,7 @@ awk '/^[[:space:]]*[-*] +/ {if (n>30 && !x) c++; n=NF-1; b=1; x=($0 ~ /^[[:space
 # two-sentence close passed, which is the same trap the density check above records. The check
 # proves the line exists and is shaped like a sentence; that it states behaviour rather than journey is the Manual
 # signal above, since both read as prose and no pattern separates them.
-awk '/^## Background/{f=1;next} f && /^## /{exit} f {if (NF) p = p (p ? " " : "") $0; else if (p) {last=p; p=""}} END {if (p) last=p; print last}' output.md | grep -Ec ".*[.!?][]\"')}»”’]*[[:space:]]*\$"
+awk 'f && (/^[> ]*#{1,3} / || (b && /^[> ]*\*\*[A-Z]/)) {exit} /^[> ]*(#{2,3} +Background([^A-Za-z]|$)|\*\*Background *(\*\*|:|\())/ {f=1; b=!/^[> ]*#/; if (!b) next; sub(/^[> ]*\*\*[^*]*\*\*:?/, "")} f {sub(/^> ?/, ""); if (NF) p = p (p ? " " : "") $0; else if (p) {last=p; p=""}} END {if (p) last=p; print last}' output.md | grep -Ec ".*[.!?][]\"')}»”’]*[[:space:]]*\$"
 # ...and that closing line is one sentence — expect 0 internal breaks. A sentence break is a terminator
 # followed by a space, which is what separates it from a dot inside `primer.html`, `1.2.3` or a URL:
 # none of those has a space after the dot, so none needs masking. A closing quote or bracket may sit
@@ -232,7 +247,7 @@ awk '/^## Background/{f=1;next} f && /^## /{exit} f {if (NF) p = p (p ? " " : ""
 # line boundaries would have fixed nothing. The trade is the mirror case, a sentence ending on an
 # initialism now reading as continuing; the terminator check above still guards the close. Earlier
 # versions masked code spans, URLs and every dotted token and still broke on a URL ending a sentence.
-awk '/^## Background/{f=1;next} f && /^## /{exit} f {if (NF) p = p (p ? " " : "") $0; else if (p) {last=p; p=""}} END {if (p) last=p; print last}' output.md | sed -E 's/([A-Za-z]\.){2,}/ABBR/g; s/etc\./etc/g; s/ vs\./ vs/g' | grep -oE '[.!?][]"'"'"')}»”’]*[[:space:]]' | wc -l
+awk 'f && (/^[> ]*#{1,3} / || (b && /^[> ]*\*\*[A-Z]/)) {exit} /^[> ]*(#{2,3} +Background([^A-Za-z]|$)|\*\*Background *(\*\*|:|\())/ {f=1; b=!/^[> ]*#/; if (!b) next; sub(/^[> ]*\*\*[^*]*\*\*:?/, "")} f {sub(/^> ?/, ""); if (NF) p = p (p ? " " : "") $0; else if (p) {last=p; p=""}} END {if (p) last=p; print last}' output.md | sed -E 's/([A-Za-z]\.){2,}/ABBR/g; s/etc\./etc/g; s/ vs\./ vs/g' | grep -oE '[.!?][]"'"'"')}»”’]*[[:space:]]' | wc -l
 # Repo-coupled detail in Technical Notes — expect 0, bar an interface shape the story proposes or
 # another team agreed. This is the staleness check: a file path, a symbol name, a route string or a
 # status code is wrong the moment someone renames, and a ticket read three months later says
@@ -243,17 +258,19 @@ awk '/^## Background/{f=1;next} f && /^## /{exit} f {if (NF) p = p (p ? " " : ""
 # why word count could not stand in for this. Domain constants (`SKILL`) and snake_case API fields
 # (`component_ids`) are deliberately not flagged: those are contract vocabulary the reader needs,
 # and flagging them would fire on every story.
-awk '/^## Technical Notes/{t=1;next} /^## /{t=0} t' output.md | grep -coE -e '`[^`]*/[^`]*`' -e '`[^`]*\.(ts|js|md|json|ya?ml)`' -e '`[a-z]+[A-Z][A-Za-z]*`' -e '`[A-Z][a-z]+[A-Z][A-Za-z]*`' -e '(GET|POST|PUT|DELETE|PATCH) /[^ `]*' -e '`[0-9]{3}`'
-# Secrets and PII heading for a customer-visible board — expect 0. Scenario 15 plants a connection
-# string and a phone number, so both need patterns: mongodb+srv alone missed postgres and jdbc, and
-# an international-only phone pattern missed national formats. The NANP arm requires a - or . between
-# groups on purpose — an any-separator 3-3-4 also matches component counts, conversation ids, epochs
-# and latency budgets, and this check expects 0, so a loose pattern fails compliant stories.
-grep -Ecin -e "password" -e "api[_-]?key" -e "bearer " -e "mongodb\+srv" -e "(postgres(ql)?|mysql|mariadb|redis|amqp)://" -e "jdbc:" -e "AKIA" -e "BEGIN RSA" -e "\+[0-9][0-9 ().-]{8,}" -e "(^|[^0-9])0[0-9]{2,4}[ .-]?[0-9]{6,8}([^0-9]|$)" -e "(^|[^0-9.-])[0-9]{3}[-.][0-9]{3}[-.][0-9]{4}([^0-9.-]|$)" -e "[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}" output.md
-# Non-secret detail given a home outside the public description — expect >=1 on scenario 15. Either
-# home counts: relocation to the repo is the preferred path, so requiring the restricted-comment
-# phrase scored the better answer as a failure.
-grep -Eci -e "restricted( jira| tracker)? comment" -e "docs/(specs|adr)" output.md
+awk 'f && (/^[> ]*#{1,3} / || (b && /^[> ]*\*\*[A-Z]/)) {exit} /^[> ]*(#{2,3} +Technical Notes([^A-Za-z]|$)|\*\*Technical Notes *(\*\*|:|\())/ {f=1; b=!/^[> ]*#/; if (!b) next; sub(/^[> ]*\*\*[^*]*\*\*:?/, "")} f {sub(/^> ?/, ""); print}' output.md | grep -coE -e '`[^`]*/[^`]*`' -e '`[^`]*\.(ts|js|md|json|ya?ml)`' -e '`[a-z]+[A-Z][A-Za-z]*`' -e '`[A-Z][a-z]+[A-Z][A-Za-z]*`' -e '(GET|POST|PUT|DELETE|PATCH) /[^ `]*' -e '`[0-9]{3}`'
+# Secrets and PII heading for a customer-visible board — expect 0. The same arms as the guardrail
+# grep in SKILL.md, so the check and the skill cannot drift apart. Scenarios 15 and P1 plant a
+# connection string, phone numbers, IP addresses and a `.internal` host. Credential words count only
+# with a value after them: the bare word "password" fired on compliant runs explaining a redaction
+# (15 scored 4, 15-baseline 2, both on prose). The NANP arm requires a - or . between groups on
+# purpose — an any-separator 3-3-4 also matches component counts, conversation ids, epochs and
+# latency budgets.
+grep -Eci -e "(password|passwd|pwd|secret|token|api[_-]?key)[\"']?[[:space:]]*[:=][[:space:]]*[^[:space:]]" -e 'bearer [a-z0-9._~+/-]{8,}' -e 'sk-(live|test)-[a-z0-9]{6,}' -e 'AKIA' -e '-----BEGIN' -e '/Users/' -e '[a-z][a-z0-9+.-]*://[^[:space:]/]*:[^[:space:]@]*@' -e 'mongodb\+srv' -e '\.internal([^a-z0-9-]|$)' -e '(^|[^0-9.])([0-9]{1,3}\.){3}[0-9]{1,3}([^0-9.]|$)' -e '[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}' -e '\+[0-9][0-9 ().-]{8,}' -e '(^|[^0-9])0[0-9]{2,4}[ .-]?[0-9]{6,8}([^0-9]|$)' -e '(^|[^0-9.-])[0-9]{3}[-.][0-9]{3}[-.][0-9]{4}([^0-9.-]|$)' output.md
+# Non-secret detail given a home outside the public description — expect >=1 on scenario 15. Only a
+# repo home counts. Mentioning a restricted comment is not success: P1-baseline scored 4 for putting
+# the transcript and log line in one, which policy forbids for PII.
+grep -Eci -e "docs/(specs|adr|gated-delivery)/" output.md
 
 # ===== Routing, every kind =====
 # Kind signatures in the output — expect exactly 1. A Story's user-story line, a Bug's Actual Result,
@@ -261,65 +278,70 @@ grep -Eci -e "restricted( jira| tracker)? comment" -e "docs/(specs|adr)" output.
 # one file is a draft that routed and then hedged, filling a second template in case the first was
 # wrong. Which of the four it is still needs a human: this counts that exactly one was chosen, not
 # that the right one was.
-grep -Ec -e "^As a \*\*" -e "^## Actual Result" -e "^## Timebox" -e "^## Completion Criteria" output.md
+grep -Ec -e "^[> ]*As a \*\*" -e "^[> ]*(#{2,3} +Actual( Result)?([^A-Za-z]|$)|\*\*Actual( Result)? *(\*\*|:|\())" -e "^[> ]*(#{2,3} +Timebox([^A-Za-z]|$)|\*\*Timebox *(\*\*|:|\())" -e "^[> ]*(#{2,3} +Completion Criteria([^A-Za-z]|$)|\*\*Completion Criteria *(\*\*|:|\())" output.md
 
 # ===== Task, Bug and Spike =====
 # Story furniture on a kind that does not take it — expect 0. The readiness and completion checklists
 # are Story obligations: test layers, a coverage target, stakeholder acceptance and sprint
-# demonstration do not describe a configuration change, a defect or an investigation.
-grep -Eci -e "definition of ready" -e "definition of done" output.md
+# demonstration do not describe a configuration change, a defect or an investigation. Counted as a
+# heading or bold label only: prose saying the Definition of Ready is absent scored R6, R7, S5 and T4,
+# all correct, as failures.
+grep -Eci "^[> ]*(#{2,3} +definition of (ready|done)([^A-Za-z]|$)|\*\*definition of (ready|done) *(\*\*|:|\())" output.md
 # A persona invented for work that has no user — expect 0. This is the distortion the routing exists
 # to stop, and it is the one that reads plausibly: a configuration Task gains a store owner who
 # appears nowhere in the work.
-grep -Ec "^(As a \*\*|I want |So that )" output.md
+grep -Ec "^[> ]*(As a \*\*|I want |So that )" output.md
 
 # ===== Task only =====
 # Completion stated as labelled criteria — expect >=1. The label is what an Open Question, a spec or
 # another ticket cites; an unlabelled checkbox leaves that prose reaching for "the criterion below".
-grep -Ec "^- \[ \] C[0-9]+\." output.md
+grep -Ec "^[> ]*- \[ \] C[0-9]+\." output.md
 # A Given/When/Then table on a Task — expect 0. It is a Story device for criteria that share a
 # precondition; here it splits one sentence across three cells and leaves half the criteria unlabelled.
-grep -Ec "^\| *# *\| *\*\*Given\*\*" output.md
+grep -Ec "^[> ]*\| *# *\| *\*\*Given\*\*" output.md
 
 # ===== Bug only =====
 # Expected and Actual present as separate named sections — expect 2. One missing is the failure this
 # catches: a defect written as a single narrative, where the reader has to infer which half is which.
-grep -Ec "^## (Expected|Actual) Result" output.md
+grep -Ec "^[> ]*(#{2,3} +(Expected|Actual)( Result)?([^A-Za-z]|$)|\*\*(Expected|Actual)( Result)? *(\*\*|:|\())" output.md
 # A reproduction, or an explicit statement that there is none — expect >=1. Both pass on purpose. A
 # defect that will not reproduce deterministically is still a defect; what fails is silence, or
 # invented steps standing in for a reproduction nobody has. The negated-verb arm alone missed the two
 # phrasings authors reach for first — "not reproducible" and "no reliable reproduction" — which scored
 # an honest non-deterministic Bug as having said nothing.
-grep -Eci -e "^## Steps to Reproduce" -e "(cannot|could not|will not|does not|would not)[^.]{0,30}reproduc" -e "(not|non-?) ?reproducib" -e "no (reliable|consistent|known|deterministic) reproduc" -e "(unable|failed) to reproduc" output.md
-# A suspected cause stated as fact — expect 0. Every sentence naming a cause has to hedge, because
+grep -Eci -e "^[> ]*(#{2,3} +Steps to Reproduce([^A-Za-z]|$)|\*\*Steps to Reproduce *(\*\*|:|\())" -e "(cannot|could not|will not|does not|would not)[^.]{0,30}reproduc" -e "(not|non-?) ?reproducib" -e "no (reliable|consistent|known|deterministic) reproduc" -e "(unable|failed) to reproduc" output.md
+# A suspected cause stated as fact — expect 0. Every sentence naming a cause has to hedge ("guess" and "could" count), because
 # Actual Result holds the observed symptom and the cause stays a hypothesis until someone proves it.
 # Word-bounded: an unbounded pattern matched "because" and scored every explanatory sentence. Split
 # to one sentence per line first: grep filters by line, so a hedge in one sentence excused an
 # unhedged cause sharing its line, which is the exact case this is meant to catch.
-sed -E 's/([.!?]) +/\1\n/g' output.md | grep -Ei "\bcaus(e|es|ed)\b" | grep -Evci -e "suspect" -e "hypothes" -e "likely" -e "appears" -e "may " -e "might " -e "probabl" -e "possibl"
+sed -E 's/([.!?]) +/\1\n/g' output.md | grep -Ei "\bcaus(e|es|ed)\b" | grep -Evci -e "suspect" -e "hypothes" -e "likely" -e "appears" -e "may " -e "might " -e "probabl" -e "possibl" -e "guess" -e "could "
 
 # ===== Spike only =====
 # The timebox carries a value — expect >=1. "Timeboxed" with nothing after it is the failure, and it
 # is the one that survives review because the section looks filled. A digits-or-ISO-date pattern
 # scored "two weeks" and "by the end of Q3" as empty, so both forms are accepted: the rule asks for a
 # value, not a format.
-awk '/^## Timebox/{f=1;next} f && /^## /{exit} f' output.md | grep -Eci -e "[0-9]+ *(hour|day|week|month|sprint)" -e "\b(one|two|three|four|five|six|seven|eight|nine|ten) (hour|day|week|month|sprint)" -e "[0-9]{4}-[0-9]{2}-[0-9]{2}" -e "(end of|by) (the )?(week|month|quarter|sprint|Q[1-4])" -e "[0-9]{1,2} (jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)"
+awk 'f && (/^[> ]*#{1,3} / || (b && /^[> ]*\*\*[A-Z]/)) {exit} /^[> ]*(#{2,3} +Timebox([^A-Za-z]|$)|\*\*Timebox *(\*\*|:|\())/ {f=1; b=!/^[> ]*#/; if (!b) next; sub(/^[> ]*\*\*[^*]*\*\*:?/, "")} f {sub(/^> ?/, ""); print}' output.md | grep -Eci -e "[0-9]+ *(hour|day|week|month|sprint)" -e "\b(one|two|three|four|five|six|seven|eight|nine|ten) (hour|day|week|month|sprint)" -e "[0-9]{4}-[0-9]{2}-[0-9]{2}" -e "(end of|by) (the )?(week|month|quarter|sprint|Q[1-4])" -e "[0-9]{1,2} (jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)"
 # One primary question, not a research backlog — expect 1. Counted inside the Question section,
 # because a second question there is a second spike. A question-mark count alone scored 0 on the
 # falsifiable hypothesis the rule explicitly allows, so declarative content with no question mark
-# counts as the one question.
-awk '/^## Question/{f=1;next} f && /^## /{exit} f{s=s $0 " "} END{n=gsub(/\?/,"?",s); if(n==0 && s ~ /[A-Za-z]/) n=1; print n}' output.md
+# counts as the one question. Anchored to the whole word: `## Questions before…` opened the section
+# and scored 4 to 9 on Story and Bug commentary.
+awk 'f && (/^[> ]*#{1,3} / || (b && /^[> ]*\*\*[A-Z]/)) {exit} /^[> ]*(#{2,3} +Question([^A-Za-z]|$)|\*\*Question *(\*\*|:|\())/ {f=1; b=!/^[> ]*#/; if (!b) next; sub(/^[> ]*\*\*[^*]*\*\*:?/, "")} f {sub(/^> ?/, ""); s=s $0 " "} END{n=gsub(/\?/,"?",s); if(n==0 && s ~ /[A-Za-z]/) n=1; print n}' output.md
 # The decision waiting on the answer is named — expect 1. Where no decision changes whichever way the
 # answer falls, the research did not need a spike.
-grep -Ec "^## Why it matters" output.md
+grep -Ec "^[> ]*(#{2,3} +Why it matters([^A-Za-z]|$)|\*\*Why it matters *(\*\*|:|\())" output.md
 # A verdict or recommendation in the draft — expect 0 above `# Closeout`. The research exists to
 # judge the options, so a draft that has already judged them turns the decision record into a
 # restatement. Split to one sentence per line so a hit counts once per sentence. Calibrated on the
 # worked example, which scores 0 with its closeout excluded, and on DEMO-123, which scores 2 on
 # "the strongest guard" and "worth doing on its own terms whatever this Spike decides". A count a
-# human reads: a verdict phrased in words this list does not hold passes it.
-awk '/^# Closeout/{exit} {print}' output.md | sed -E 's/([.!?]) +/\1\n/g' | grep -Eci -e "\brecommend(ation(s)?|s|ed|ing)?\b" -e "\bshould (choose|adopt|go with)\b" -e "worth doing" -e "\b(strongest|weakest|best|cheapest|safest) (guard|option|choice|fit|mechanism|approach)\b" -e "\b(the )?(clear|obvious) (winner|choice)\b"
+# human reads: a verdict phrased in words this list does not hold passes it. A sentence naming the
+# closeout, or recommending a ticket change in the first person, is commentary and is dropped: S3 and
+# R2 scored 1 and 2 on "the closeout will hold the recommendation" and "I recommend changing the type".
+awk '/^[> ]*(#{1,3} +Closeout([^A-Za-z]|$)|\*\*Closeout *(\*\*|:))/{exit} {print}' output.md | sed -E 's/([.!?]) +/\1\n/g' | grep -Ei -e "\brecommend(ation(s)?|s|ed|ing)?\b" -e "\bshould (choose|adopt|go with)\b" -e "worth doing" -e "\b(strongest|weakest|best|cheapest|safest) (guard|option|choice|fit|mechanism|approach)\b" -e "\b(the )?(clear|obvious) (winner|choice)\b" | grep -Evci -e "closeout" -e "\bI('d| would)? recommend"
 # Closeout keeps evidence and recommendation apart — expect 2 once a spike is closed out, 0 on a
 # draft. Collapsing them is how a measurement becomes a verdict it does not carry.
-grep -Ec "^## (Findings and Evidence|Recommendation)" output.md
+grep -Ec "^[> ]*(#{2,3} +(Findings and Evidence|Recommendation)([^A-Za-z]|$)|\*\*(Findings and Evidence|Recommendation) *(\*\*|:|\())" output.md
 ```

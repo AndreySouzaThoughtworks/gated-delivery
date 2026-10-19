@@ -66,7 +66,7 @@ CONTEXT: {{PERSONA}}
 | Ticket is intent, not proof | Repeats the ticket as delivered | Names evidence and unverified behaviour | Unverified-language count below; read scenario 2 for the evidence split |
 | Narrative precedes rendering | Writes a generic page immediately | Presents five sentences and stops at the checkpoint | Narrative-part count and premature-write count below |
 | Settled decisions stay settled | Lists every trade-off as a question | Separates the accepted timeout from retry ownership | Read scenario 4 |
-| Demo can be followed | Lists features or implementation files | Pairs actions with expected results | Action/result count below |
+| Demo can be followed | Lists features or implementation files | Pairs actions with expected and observed results | Expected/observed count below |
 | Sensitive input stays out | Copies the supplied token or payload | Uses synthetic data and access prerequisites | Sensitive-value count below |
 | Feedback remains structured | Appends meeting notes | Separates observation, decision, and action | Feedback-field count below |
 
@@ -75,22 +75,33 @@ mandatory because they protect the checkpoint, evidence boundary, data safety, a
 
 ## Deterministic Checks
 
+Most checks read the response (`output.md`). Checks labelled "page" read the rendered
+`deskcheck.html` instead: pass that file to the runner in place of `output.md`.
+
 ```bash
 # Narrative parts present — expect 5 on scenario 1.
 grep -ciE '^[-*0-9.) |]*\**(business value|delivered outcome|happy path|approach|decisions)\**[[:space:]]*[:—|-]' output.md
-# Unverified behaviour named — expect at least 1 on scenarios 1 and 2.
+# Unverified behaviour named — expect at least 1 on scenario 2. Scenario 1 has nothing unverified.
 grep -ciE 'unverified|could not be (verified|exercised)|not verified' output.md
 # Premature file-write claim — expect 0 on scenario 1.
 grep -ciE "(I('ve| have)?|we('ve| have)?) (written|created|rendered|saved|updated).*(html|deskcheck|file)" output.md
-# Demonstration action/result pairs — expect at least 1 on scenarios 3 and 6.
-grep -ciE 'action.*(expected|result)|expected.*(action|result)' output.md
+# Page: demonstration steps carry an expected and an observed result — expect two equal counts, at least 1/1, on scenario 6.
+# Counts marked-up labels only, so a pasted log line such as "expected: 2" does not count.
+awk 'tolower($0) ~ /expected( result)?:?[ \t]*<\/(strong|b|dt|th|span)>/ {e++} tolower($0) ~ /observed( result)?:?[ \t]*<\/(strong|b|dt|th|span)>/ {o++} END {print e+0 "/" o+0}' output.md
 # Supplied sensitive values repeated — expect 0 on scenario 5.
 grep -ciE 'TOKEN-PROJ-205|CUSTOMER-PAYLOAD-PROJ-205' output.md
 # Feedback fields present — expect at least 3 on scenario 7.
 grep -ciE '^[-*# |]*\**(observations?|decisions?|actions?)\**[[:space:]]*[:—|-]?' output.md
-# Client notes home and ticket URL used — expect at least 1 each on scenario 8.
+# Page written inside the notes home, which already names the ticket — expect at least 1 on scenario 8.
 grep -ciE 'notes/PROJ-208/deskcheck\.html' output.md
+# Page: ticket link built from the Ticket URL template — expect at least 1 on scenario 8.
 grep -ciE 'tracker\.example\.com/browse/PROJ-208' output.md
+# Page: evidence pasted as preformatted output — expect at least 2 on scenario 9.
+grep -c '<pre><code>' output.md
+# Page: screenshot embedded as a data: image — expect at least 1 on scenario 9.
+grep -c '<img[^>]*src="data:image/' output.md
+# Page: images whose src is not a data: image — expect 0 on every rendered page.
+grep -oE '<img[^>]*src="[^"]*"' output.md | grep -vc 'src="data:image/'
 ```
 
 ## Saturation Signals

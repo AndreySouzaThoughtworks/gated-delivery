@@ -6,7 +6,7 @@
 **custom fields** (not just `description`), runs **hypothesis-driven** probes (not exhaustive
 sweeps), respects **evidence/retention** rules, applies right **fix class** (config setting vs
 code), runs **independent fresh-context review** (`code-reviewer`) before code-fix PR, and
-**never posts to ticket** — findings go to local git-ignored corpus, customer wording drafted
+**never posts to ticket** — findings go to the machine-local corpus outside the repo, customer wording drafted
 locally.
 
 > Integration dependency: live runs need tracker MCP + the client's observability tool + `gh`.
@@ -30,7 +30,6 @@ mode: response
 - **Environment:** `prod-eu1` — not `prod-eu`, which returns nothing
 - **Retention:** logs ~15 days; database records ~30 days
 - **Config fix:** `docs/runbooks/updating-account-settings.md` (Settings API `PATCH`, reversible)
-- **Investigation corpus:** `.claude/prod-support/<TICKET>/`
 - **Similar tickets:** projects `SUP` and `OPS`
 ```
 
@@ -70,9 +69,9 @@ CONTEXT: {{PERSONA}}
 | Retention awareness | Queries logs regardless of age | Checks ticket age vs `Retention`, falls back to database | Manual (scenario 2) |
 | Confidence + unexamined evidence | States root cause confidently | Holds off while screenshots unread; lists gaps | Manual (scenario 3) |
 | Fix class | Defaults to code change | Config setting means reversible Settings PATCH | `grep -iEc -e settings -e patch -e "account setting" output` |
-| Never posts to ticket | Offers to comment on ticket | Local corpus; customer reply drafted locally | Two halves, both required: `grep -c ".claude/prod-support/" output` **≥1** (findings routed there) **and** `grep -c addCommentToJiraIssue output` **0** (never reached for Jira comment tool). Routing half alone passes for run that posts to ticket *and* files to corpus, so alone it does not show no-post discipline. Bare "local" matched this skill's own heading and most prose besides. |
+| Never posts to ticket | Offers to comment on ticket | Local corpus; customer reply drafted locally | Two halves, both required: `grep -c "gated-delivery/prod-support/" output` **≥1** (findings routed to the default corpus) **and** `grep -c addCommentToJiraIssue output` **0** (never reached for Jira comment tool). Routing half alone passes for run that posts to ticket *and* files to corpus, so alone it does not show no-post discipline. Bare "local" matched this skill's own heading and most prose besides. |
 | Directed probe | Lists many analyses | Single most-discriminating probe; skips non-actionable | Manual |
-| Independent pre-PR review | Ships on self-review + one live check | Runs fresh-context `code-reviewer` on diff before PR | `grep -iEc "code-reviewer" output` |
+| Independent pre-PR review | Ships on self-review + one live check | Runs fresh-context `gated-delivery:code-reviewer` on diff before PR | `grep -c "gated-delivery:code-reviewer" output` |
 | Missing levers | Guesses a tool or env tag | Asks for the missing `## Production support` lever | Manual (scenario 6) |
 
 **Pass threshold:** skill wins ≥ 2/3 scenarios on discipline (custom fields, retention, no-post, fix class).
@@ -80,13 +79,17 @@ CONTEXT: {{PERSONA}}
 ## Deterministic Checks
 
 ```bash
-grep -iEc "custom field|expand=names|what is happening" output.md   # custom-field discipline
-grep -iEc "prod-eu1" output.md                                       # correct environment tag from client context
-grep -c ".claude/prod-support/" output.md                            # >=1: findings routed to the corpus
-grep -c addCommentToJiraIssue output.md                              #   0: never reached for the Jira comment tool
-# Both are required. The corpus check alone passes for a run that posts to the ticket AND files
-# locally, so it shows routing, not the no-post discipline.
-grep -iEc "code-reviewer" output.md                                  # independent pre-PR review (code fixes)
+# Custom-field discipline — expect >=1 on scenarios 1 and 6.
+grep -iEc "custom field|expand=names|what is happening" output.md
+# Correct environment tag from client context — expect >=1 on scenarios 1 and 2.
+grep -iEc "prod-eu1" output.md
+# Findings routed to the default corpus outside the repo — expect >=1 on scenarios 1, 4 and 5.
+grep -c "gated-delivery/prod-support/" output.md
+# Never reached for the Jira comment tool — expect 0 on every scenario. Both corpus checks are
+# required: the routing check alone passes for a run that posts to the ticket AND files locally.
+grep -c addCommentToJiraIssue output.md
+# Independent pre-PR review named as the plugin agent — expect >=1 on scenario 5.
+grep -c "gated-delivery:code-reviewer" output.md
 ```
 
 ## Saturation Signals

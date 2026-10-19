@@ -62,12 +62,12 @@ CONTEXT: {{PERSONA}}
 |----------------|---------------|------------|----------------|
 | Tics cut from the artifact | Rewords around the frame | Frame, debate and absence gone (scenario 1) | Revised-text tic count below — expect **0** |
 | Restatement removed | Rewords the comment | Deletes it (scenario 2) | Manual: does the revised file still carry the comment? |
-| Clean prose untouched | Rewrites to show effort | Unchanged, no findings (scenario 3) | `then writes it to` survives in the revised text — expect **1** |
+| Clean prose untouched | Rewrites to show effort | Unchanged, no findings (scenario 3) | The original paragraph survives verbatim in the revised text — expect **1** |
 | Informative contrast kept | Strips every "rather than" | Keeps the migration contrast (scenario 4) | `each service` survives in the revised text — expect **1** |
 | No over-correction | Clips further | Complete sentences (scenario 5) | Article count in the revised text — expect **≥3**; a proxy, so confirm by reading |
 | Inference marked | Keeps the claim as fact | Limits or marks it (scenario 6) | Inference-marker count in the revised text — expect **≥1** |
 | Dated record left alone | Edits the entry | Leaves it and says why (scenario 7) | `startup rather than first request` survives — expect **1** |
-| Sweep reported apart from read | One undifferentiated "reviewed" | `sweep: …; read: …` with files named (scenario 8) | Report-shape count below — expect **≥1** |
+| Sweep reported apart from read | One undifferentiated "reviewed" | `sweep: …; read: …` with files named (scenario 8) | Report-shape count below — expect **1** |
 
 **Pass threshold:** the skill wins at least 6 of 8 scenarios, and scenarios 3, 4 and 7 must not
 regress. Those three catch over-triggering: a pass that rewrites correct prose is worse than no
@@ -83,8 +83,9 @@ check and still fail all three. A phrase that only the original wording contains
 # Tics left in the artifact — expect 0 on scenario 1. Artifact checks read only the text after the
 # marker, because the report above it may quote the tics it removed.
 awk '/^--- REVISED ---$/{r=1;next} r' output.md | grep -ciE -e "worth noting" -e "went back and forth" -e "doesn.t touch" -e "not just" -e "earns its place" -e "load-bearing"
-# Scenario 3 — the clean paragraph survives; expect 1.
-awk '/^--- REVISED ---$/{r=1;next} r' output.md | grep -cF "then writes it to"
+# Scenario 3 — the clean paragraph survives verbatim; expect 1. Keyed on the whole original
+# paragraph, so a one-word edit ("the error" to "its error") fails it.
+awk '/^--- REVISED ---$/{r=1;next} r' output.md | grep -cF 'The importer retries a failed batch three times, then writes it to `dead-letter/` with the error attached. Run `pnpm replay` to resubmit everything there.'
 # Scenario 4 — the migration contrast survives; expect 1.
 awk '/^--- REVISED ---$/{r=1;next} r' output.md | grep -ciF "each service"
 # Scenario 7 — the dated record survives; expect 1.
@@ -93,8 +94,9 @@ awk '/^--- REVISED ---$/{r=1;next} r' output.md | grep -cF "startup rather than 
 awk '/^--- REVISED ---$/{r=1;next} r' output.md | grep -oiwE -e "the" -e "a" -e "an" | wc -l
 # Inference marked — expect at least 1 on scenario 6.
 awk '/^--- REVISED ---$/{r=1;next} r' output.md | grep -ciE -e "inferred" -e "not (yet )?(been )?(verified|checked)" -e "locally" -e "local reproduction"
-# Sweep reported apart from read — expect at least 1 on scenario 8.
-grep -ciE "sweep:.*read:" output.md
+# Sweep reported apart from read — expect 1 on scenario 8. Joined into one line first, because the
+# report usually puts the sweep and the read on separate lines.
+tr '\n' ' ' < output.md | grep -ciE "sweep:.*read:"
 ```
 
 ## Saturation Signals

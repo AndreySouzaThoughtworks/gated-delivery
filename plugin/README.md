@@ -1,6 +1,6 @@
 # gated-delivery
 
-Claude Code plugin — issue-driven, test-first delivery flow. The orchestration skills are stack-agnostic; the stack recipes and reviewers they call come from the client's CLAUDE.md (see [client-context](../docs/client-context.md)). Install: [onboarding](../docs/onboarding.md).
+Claude Code plugin — issue-driven, test-first delivery flow. The orchestration skills are stack-agnostic; the stack recipes and reviewers they call come from the client's CLAUDE.md (see [client-context](references/client-context.md)). Install: [onboarding](../docs/onboarding.md).
 
 ## What it ships
 

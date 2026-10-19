@@ -49,7 +49,7 @@ CONTEXT: {{PERSONA}}
 
 | Quality Signal | Without Skill | With Skill | How to Measure |
 |----------------|---------------|------------|----------------|
-| Structural cohesion catch | Approves; only checks correctness | Names lens + misplaced/structural issue (scenarios 1–3, 5) | `grep -iE "lens [a-h]" output` |
+| Structural cohesion catch | Approves; only checks correctness | Names lens + misplaced/structural issue (scenarios 1–3, 5) | Lens-named count in Deterministic Checks — **≥1** on 1–3 and 5, **0** on 4 |
 | Auto-apply vs surface split | Lumps everything into one comment list | Separates auto-applied mechanical fixes from judgment calls | **Manual:** content under both headings, each item under right one? Not greppable — both headings part of output template, so any template-shaped output matches regardless. |
 | Explicit verdict | Ends with vague "looks fine" | Emits `READY-TO-COMMIT` or `REVISE-FIRST` | `grep -cE -e '^READY-TO-COMMIT$' -e '^REVISE-FIRST$' output` — anchored to token alone on own line, so template placeholder does not count. Two `-e` patterns not one alternation: `\|` escaped for markdown table reaches regex as literal pipe, matches nothing. |
 | Stays in lane (no false finds) | May invent structure/style nits on clean code | Returns READY-TO-COMMIT on clean diff (scenario 4) | Manual: zero invented findings |
@@ -61,8 +61,9 @@ no-false-findings invariant (scenario 4 must not regress).
 ## Deterministic Checks
 
 ```bash
-# A lens was named
-grep -iEc "lens [a-h]" output.md
+# A lens was named with a finding — either "Lens A" in prose or a lens-table row such as
+# "| A. Cohesion | 1 finding |". A row reporting CLEAN or N/A does not count.
+grep -ciE '\blens [a-h]\b|^\| *\**[a-h]\. [^|]+\| *\**[0-9]+ findings?' output.md
 # A verdict was emitted
 grep -cE -e '^READY-TO-COMMIT$' -e '^REVISE-FIRST$' output.md   # verdict token, alone on its line
 # auto-applied vs surfaced: MANUAL. Both are template headings, so any grep on them matches

@@ -31,7 +31,7 @@ mode: response
 | 1 | "Update the retry limit in the HTTP client to 5." | `docs/http-client.md` documents default of 3 retries; `src/http/client.ts` reads `RETRY_MAX` from env, fallback 10; env file sets 3. | Produces **contradiction ledger row** (doc 3, code default 10, config 3) with disposition. Does NOT silently declare one correct. |
 | 2 | "Add a null check to `parseAmount`." | `parseAmount` shared helper, four callers across `src/billing/`, `src/invoice/`, two tests. Prompt names only billing path. | **Blast radius** names sibling callers, not just path in request, and names test guarding them. |
 | 3 | "Change the log level on line 40 of `worker.ts` from debug to info." | One-line change. Nothing else in repo depends on it. | Stays in **Quick posture**, names tier, answers in few lines. Does NOT emit eleven-section full pass. |
-| 3b | "Bump the cache TTL constant from 60 to 300 — trivial one-liner." | Looks trivial, but `README.md` documents TTL as 60s and integration test asserts documented value. | Quick posture's **item 4 opens `Surfaces disagree:`** and names both artifacts, so change does not pass as trivial. Stays quick — reports, does not expand own tier. This is `/slice` step-0 gate's contract. |
+| 3b | "Bump the cache TTL constant from 60 to 300 — trivial one-liner." | Invoked from `/slice` step 0. Looks trivial, but `README.md` documents TTL as 60s and integration test asserts documented value. | Quick posture's **item 4 opens `Surfaces agree; all must change together:`** (or `Surfaces disagree:`) and names both artifacts, so change does not pass as trivial. Stays quick — `/slice` is the caller, so it reports and does not expand own tier. This is `/slice` step-0 gate's contract. |
 | 4 | "Refactor the auth guard — I think the docs are out of date." | Code, tests, config, doc all agree; doc last touched 14 months ago but still accurate. | Emits exact line `No contradictions detected between the inspected surfaces.` and does **not** flag doc stale on age alone. |
 | 5 | "Fix the timezone bug in the scheduler." | Large repo: scheduler, worker pool, config loader, two adapters, ADR, runbook all plausibly relevant. | Names **2–3 surfaces with reasons** and asks before expanding, instead of reading everything or claiming to have read everything. |
 | 6 | "Wire the new export endpoint through the controller." | Controller, DTO, service, OpenAPI contract; contract uses `$ref` to shared envelope persona does not provide. | Marks envelope's fields **unknown / Missing context** — does not assert field absent, does not invent referenced schema's contents. |
@@ -66,24 +66,25 @@ CONTEXT: {{PERSONA}}
 | Unresolved refs stay unknown | Asserts field absent | Marks unknown pending schema (scenario 6) | `grep -icE unknown output` — ≥1. `missing context` branch dropped: matched `### 6. Missing context`, heading every full pass emits, so run that wrongly declared field absent still scored. |
 | Stops before code (all tiers) | Produces diff or edit | Ends in next step, no diff | Manual: output contains no code edit |
 | Stop token offered (full-pass scenarios only) | Proceeds unprompted | Ends in PROCEED/ADJUST/STOP | `grep -cE -e '\bPROCEED\b' -e '\bADJUST\b' -e '\bSTOP\b' output` — ≥1 on full-pass scenarios, **0** on quick ones |
-| Catches trivial-looking contradiction | Waves through as one-liner | Opens item 4 with `Surfaces disagree:`, names both artifacts, stays quick (scenario 3b) | `grep -c "Surfaces disagree:" output` — **1** for 3b, **0** for scenario 3. 3b's discriminator: quick-tier, so neither section count nor clean sentence separates catch from miss. |
+| Catches trivial-looking coupling | Waves through as one-liner | Opens item 4 with `Surfaces agree; all must change together:` or `Surfaces disagree:`, names both artifacts, stays quick (scenario 3b) | Coupling count in Deterministic Checks — **1** for 3b, **0** for scenario 3. 3b's discriminator: quick-tier, so neither section count nor clean sentence separates catch from miss. |
+| Verified means read | Lists the persona's facts as verified | Persona facts sit under Inferred, marked `(task context)` | Manual: no Verified item lacks a file locator from a read this session |
 
 ### Expected tier per scenario
 
 Every measure below is tier-dependent — grade against this table. Undefined expectation = ungradeable
 scenario.
 
-| Scenario | Tier | `^### ` | stop token | clean line | `Surfaces disagree:` | `unknown` |
+| Scenario | Tier | `^### ` | stop token | clean line | coupling line | `unknown` |
 |---|---|---|---|---|---|---|
-| 1 (retry limit, three surfaces disagree) | full | ≥1 | ≥1 | **0** | n/a | n/a |
+| 1 (retry limit, three surfaces disagree; standalone, so the quick check escalates itself) | full | ≥1 | ≥1 | **0** | n/a | n/a |
 | 2 (shared helper, four callers) | quick | 0 | 0 | n/a | **0** | n/a |
 | 3 (log level one-liner) | quick | 0 | 0 | n/a | **0** | n/a |
-| 3b (TTL bump, doc + test disagree) | quick | 0 | 0 | n/a | **1** | n/a |
+| 3b (TTL bump, doc + test pin the value; `/slice` caller) | quick | 0 | 0 | n/a | **1** | n/a |
 | 4 (auth guard, everything agrees) | full | ≥1 | ≥1 | **1** | n/a | n/a |
 | 5 (timezone bug, large repo) | full | ≥1 | ≥1 | n/a | n/a | n/a |
 | 6 (unresolved `$ref`) | full | ≥1 | ≥1 | n/a | n/a | **≥1** |
 
-Quick-tier scenarios grade on `Surfaces disagree:`; full-tier ones grade on clean line. Neither
+Quick-tier scenarios grade on the coupling line; full-tier ones grade on clean line. Neither
 column applies to both — why every scenario needs tier declared before grading.
 
 **Pass threshold:** skill wins ≥ 2/3 of 7 scenarios, and scenarios 3, 3b, 4 must not regress.
@@ -117,6 +118,8 @@ grep -c "No contradictions detected between the inspected surfaces." output.md
 # Tier calibration — 0 on quick scenarios (2, 3, 3b), ≥1 on full ones (1, 4, 5, 6).
 # 3 and 3b are both quick: 3b is caught by the ledger check above, not by section count.
 grep -c "^### " output.md
+# Coupling caught at the quick gate — 1 for 3b, 0 for 3.
+grep -cE "Surfaces disagree:|Surfaces agree; all must change together:" output.md
 # Locator honesty: every file:line cited must resolve to a real file
 grep -oE "[a-zA-Z0-9_/.-]+\.(ts|js|md|json):[0-9]+" output.md
 ```

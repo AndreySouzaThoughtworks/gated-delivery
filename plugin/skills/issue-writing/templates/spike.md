@@ -10,7 +10,7 @@
 
 ## Why it matters
 
-*Name the product, delivery, timing, commercial, or technical decision that will use the answer, and what each answer would lead to. If no decision changes, the research may not justify a Spike.*
+*Name the product, delivery, timing, commercial, or technical decision that will use the answer, and what each answer would lead to. If no decision changes, the research may not justify a Spike — say so when the kind is yours to pick; when the user asked for a Spike, keep drafting and carry the missing decision as a `[QUESTION]`.*
 
 ## Timebox
 
@@ -55,7 +55,7 @@
 
 ## Recommendation
 
-*State what should happen next and why.*
+*State what should happen next and why. Name each piece of follow-up work — adopting an artifact, fixing what the Spike found — as a follow-up ticket here; none of it is reported as done by this Spike.*
 
 ## Produced Artifacts
 

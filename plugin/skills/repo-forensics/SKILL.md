@@ -31,20 +31,28 @@ triggers above.
 Before writing code, inspect relevant files and repository context. **Do not implement yet.**
 List:
 
-1. **What you can verify from the repository** — each claim with locator.
+1. **What you can verify from the repository** — each claim with a real file locator from a file
+   you read this session. A claim that comes from the task description or the user's message is
+   not verified: it goes under item 2, marked `(task context)`.
 2. **What you are inferring** — and why.
 3. **What remains uncertain.**
-4. **Where the surfaces disagree** — one line each, no ledger. Open this item with one of two exact
+4. **Where the surfaces disagree** — one line each, no ledger. Open this item with one of three exact
    phrases, so finding unambiguous to reader and grader:
 
    - `Surfaces disagree:` then one line per disagreement, naming both artifacts.
-   - `Surfaces agree.` when they don't.
+   - `Surfaces agree; all must change together:` when they agree today but each pins the value the
+     change moves, then one line per artifact that must change with it.
+   - `Surfaces agree.` when neither applies.
 
-   **Escalation is caller's call, not yours.** Standalone, recommend full pass and let user choose.
-   When `/slice` or `/spec` invoked you, hand finding back and stop — `/slice` step 0 falls through
-   to step 1 on it, and `/spec` step 3 already running full pass. Expanding tier yourself turns "a
-   handful of lines" into eleven sections at a gate that only needed yes/no, and makes `/spec` run
-   pass twice.
+   **Escalation.** When `/slice` or `/spec` invoked you, escalation is the caller's call: hand the
+   finding back and stop — `/slice` step 0 falls through to step 1 on it, and `/spec` step 3 already
+   running full pass. Expanding tier yourself turns "a handful of lines" into eleven sections at a
+   gate that only needed yes/no, and makes `/spec` run pass twice.
+
+   **Standalone, run the full pass instead of asking** when item 4 opens with anything other than
+   `Surfaces agree.`, or when the change edits more than one surface (code plus the doc, config or
+   test that pins the value). No caller exists to take the decision, and a question nobody answers
+   leaves the change on Quick. Name the tier you end on in the first line.
 5. **Which files or checks matter** — surfaces change touches, *and* test or command that would
    catch break in each. Naming check up front is what makes next step verifiable, not hopeful.
 6. **What could break if this is changed** — blast radius. Grep callers of what you about to touch.
@@ -69,8 +77,10 @@ inspect smallest relevant surface area. If you later need more, ask before expan
 ### 2. Verified
 
 The Verified/Inferred rubric is in `prose-writing/writing.md`; this skill adds the locator rule.
-What current repo evidence directly supports. Every verified claim carries locator: `file:line`,
-test name, config key, commit hash, log line, command output, or documentation reference.
+What current repo evidence directly supports. Every verified claim carries a real locator from a
+file or command you ran this session: `file:line`, test name, config key, commit hash, log line,
+command output, or documentation reference. A claim taken from the task description or the user's
+message is not verified, however specific: it goes under **Inferred**, marked `(task context)`.
 
 If line numbers unavailable or unreliable, say so — do not approximate them. Never invent a locator:
 no fabricated file path, line number, test name, commit hash or config key. If you cannot cite
@@ -197,9 +207,13 @@ different surface. Neither replaces other.
 After running this skill, check:
 
 - Tier named in first line.
-- Every Verified claim carries real locator, no locator approximated.
+- Every Verified claim carries a real file locator, none approximated. Nothing sourced from the task
+  context sits under Verified.
 - Full pass: Contradictions either populated ledger or explicit no-contradictions sentence.
-  Quick posture: item 4 opens with `Surfaces disagree:` or `Surfaces agree.` — no ledger.
+  Quick posture: item 4 opens with `Surfaces disagree:`, `Surfaces agree; all must change together:`
+  or `Surfaces agree.` — no ledger.
+- Standalone with item 4 not `Surfaces agree.`, or the change editing more than one surface: the
+  tier is full pass.
 - No stale entry rests on age alone.
 - Every finding in full pass has a disposition.
 - Output ends in smallest-safe-next-step and no code, every tier. Explicit `PROCEED`/`ADJUST`/`STOP`

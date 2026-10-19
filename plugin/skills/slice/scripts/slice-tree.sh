@@ -37,16 +37,16 @@ elif git show-ref --verify --quiet "refs/heads/$BRANCH"; then
   fi
   # git refuses a branch already checked out in another tree, which is the
   # guard against two writers on one slice.
-  git worktree add "$SLICE_TREE" "$BRANCH"
+  git worktree add "$SLICE_TREE" "$BRANCH" >&2
 elif git show-ref --verify --quiet "refs/remotes/origin/$BRANCH"; then
   # Another machine pushed this slice: continue from its tip, never re-create
   # it from the base, which would diverge from the pushed branch.
-  git worktree add -b "$BRANCH" "$SLICE_TREE" "origin/$BRANCH"
+  git worktree add -b "$BRANCH" "$SLICE_TREE" "origin/$BRANCH" >&2
   git -C "$SLICE_TREE" branch --set-upstream-to "origin/$BRANCH" >/dev/null
 else
   # --no-track: a branch made from origin/main would otherwise track it, and
   # with push.default=upstream its first push would land on main.
-  git worktree add --no-track -b "$BRANCH" "$SLICE_TREE" "$BASE"
+  git worktree add --no-track -b "$BRANCH" "$SLICE_TREE" "$BASE" >&2
 fi
 
 # The calling tree's dependencies: the main checkout's for a slice tree, the

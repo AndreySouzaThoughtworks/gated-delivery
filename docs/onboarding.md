@@ -1,6 +1,6 @@
 # gated-delivery — install & onboarding
 
-Issue-driven, test-first delivery flow for Claude Code, with no client baked in. Client specifics come from the client's CLAUDE.md — see [client-context.md](./client-context.md).
+Issue-driven, test-first delivery flow for Claude Code, with no client baked in. Client specifics come from the client's CLAUDE.md — see [client-context.md](../plugin/references/client-context.md).
 
 ## Install
 
@@ -27,7 +27,7 @@ Client plugins, MCP servers and the client's CLAUDE.md belong only in that clien
 
 ## Per-client setup
 
-Add the sections the client needs to its CLAUDE.md (a folder-level CLAUDE.md above the client's repos works for all of them). Every key has a default, so a client with none still runs; see [client-context.md](./client-context.md) for the table.
+Add the sections the client needs to its CLAUDE.md (a folder-level CLAUDE.md above the client's repos works for all of them). Every key has a default, so a client with none still runs; see [client-context.md](../plugin/references/client-context.md) for the table.
 
 ## Per-repo setup
 

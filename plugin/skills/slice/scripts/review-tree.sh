@@ -21,9 +21,9 @@ assert_outside_repo "$REVIEW_TREE" "$WRITING_TREE"
 # git refuses to hand the same branch to a second worktree. Re-point rather
 # than add: every STOP in step 7 leaves the tree registered.
 if is_registered_worktree "$REVIEW_TREE"; then
-  git -C "$REVIEW_TREE" checkout --detach "$SHA"
+  git -C "$REVIEW_TREE" checkout --detach "$SHA" >&2
 else
-  git worktree add --detach "$REVIEW_TREE" "$SHA"
+  git worktree add --detach "$REVIEW_TREE" "$SHA" >&2
 fi
 
 # The writing tree's dependencies, so a slice that installed its own is

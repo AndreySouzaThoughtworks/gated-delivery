@@ -23,7 +23,7 @@ import { fileURLToPath } from "node:url";
 
 const HOOK = join(dirname(fileURLToPath(import.meta.url)), "format-on-edit.mjs");
 
-const logDir = mkdtempSync(join(tmpdir(), "aifsd-format-log-"));
+const logDir = mkdtempSync(join(tmpdir(), "gated-delivery-format-log-"));
 const invocationLog = join(logDir, "invocations.log");
 writeFileSync(invocationLog, "");
 
@@ -50,7 +50,7 @@ const V2 = { bin: { prettier: "./bin-prettier.js" } };
  * state passes even with the guards deleted. Asserting on the log distinguishes them.
  */
 const workdir = (layout = V3) => {
-  const dir = mkdtempSync(join(tmpdir(), "aifsd-format-test-"));
+  const dir = mkdtempSync(join(tmpdir(), "gated-delivery-format-test-"));
   const pkg = join(dir, "node_modules", "prettier");
   const rel = typeof layout.bin === "string" ? layout.bin : layout.bin.prettier;
   const cli = join(pkg, rel);
@@ -133,7 +133,7 @@ test("finds the CLI wherever the installed prettier declares it", () => {
 test("no prettier in the repo: silent no-op, never a crash", () => {
   // A repo without prettier is the common case for a plugin installed everywhere. Resolution fails,
   // and the hook must exit 0 having run nothing at all.
-  const dir = mkdtempSync(join(tmpdir(), "aifsd-format-bare-"));
+  const dir = mkdtempSync(join(tmpdir(), "gated-delivery-format-bare-"));
   writeFileSync(join(dir, "a.ts"), UNFORMATTED);
   resetInvocations();
   assert.equal(run(dir, { tool_input: { file_path: "a.ts" } }), "");

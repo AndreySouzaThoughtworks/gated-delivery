@@ -2,7 +2,7 @@
 set -uo pipefail
 
 core="$(cd "$(dirname "$0")/.." && pwd)"
-denylist="${AIFSD_DENYLIST:-$HOME/.config/aifsd/denylist}"
+denylist="${GATED_DELIVERY_DENYLIST:-$HOME/.config/gated-delivery/denylist}"
 project="${1:-$HOME/Develop}"
 profile="$(mktemp -d)"
 trap 'rm -rf "$profile"' EXIT

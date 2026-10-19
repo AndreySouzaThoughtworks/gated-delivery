@@ -27,7 +27,7 @@ A ticket drifts when something decided or delivered after grooming makes its tex
 | Contracts the ticket, its working docs or a linked spec names as canonical | a field, status, error or rule a criterion states differently since the contract changed |
 | Specs of linked and sibling tickets | a resolved decision that changes this ticket's surface |
 | Comments, here and on linked tickets | a decision agreed in discussion that never reached the criteria |
-| The ticket's folder in the shared notes home (`## Delivery notes` → Shared notes home in the nearest CLAUDE.md; default `docs/aifsd/{ticket-id}/` in the changed repository) | anything the flow keeps for this ticket — findings, handoff, relocated design detail — naming the contracts or decisions a criterion rests on |
+| The ticket's folder in the shared notes home (`## Delivery notes` → Shared notes home in the nearest CLAUDE.md; default `docs/gated-delivery/{ticket-id}/` in the changed repository) | anything the flow keeps for this ticket — findings, handoff, relocated design detail — naming the contracts or decisions a criterion rests on |
 | Merged PRs linked from any of the above | behaviour on `main` that a criterion still describes as to-be-built, or describes differently |
 
 An **unclear criterion** is a finding too, but only when it blocks kickoff: it depends on a rule

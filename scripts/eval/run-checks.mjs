@@ -227,7 +227,7 @@ function report(skill, outputFile) {
 
 /** Every command in every skill must at least RUN. No fixtures, no expectations — just executable. */
 function lint() {
-  const scratch = join(mkdtempSync(join(tmpdir(), "aifsd-evalcheck-")), "output.md");
+  const scratch = join(mkdtempSync(join(tmpdir(), "gated-delivery-evalcheck-")), "output.md");
   writeFileSync(scratch, "placeholder\n");
   const skills = skillNames();
   let broken = 0;

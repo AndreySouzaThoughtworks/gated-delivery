@@ -5,7 +5,7 @@ readonly EXIT_LEAK=1
 readonly EXIT_BLOCKED=2
 readonly GREP_NO_MATCH=1
 
-denylist="${AIFSD_DENYLIST:-$HOME/.config/aifsd/denylist}"
+denylist="${GATED_DELIVERY_DENYLIST:-$HOME/.config/gated-delivery/denylist}"
 root="${1:-$(git rev-parse --show-toplevel)}"
 rev="${2:-}"
 

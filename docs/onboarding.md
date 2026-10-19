@@ -27,10 +27,10 @@ claude plugin marketplace add ~/Develop/gated-delivery
 claude plugin install gated-delivery@gated-delivery
 ```
 
-Allow the machine-local notes folder once per profile. Claude Code treats `~/.claude/` and `.git/` as sensitive, so `/slice` keeps its notes and review worktrees in `~/.local/state/aifsd/`, which a session may only write once it is listed in the profile's `settings.json`:
+Allow the machine-local notes folder once per profile. Claude Code treats `~/.claude/` and `.git/` as sensitive, so `/slice` keeps its notes and review worktrees in `~/.local/state/gated-delivery/`, which a session may only write once it is listed in the profile's `settings.json`:
 
 ```json
-{ "permissions": { "additionalDirectories": ["~/.local/state/aifsd"] } }
+{ "permissions": { "additionalDirectories": ["~/.local/state/gated-delivery"] } }
 ```
 
 Client plugins, MCP servers and the client's CLAUDE.md belong only in that client's profile and folder.
@@ -45,14 +45,14 @@ Add the sections the client needs to its CLAUDE.md (a folder-level CLAUDE.md abo
 
 `/spec` gets the required spec structure, including Rollout, from its own `templates/change.md`. A target-repository template contributes only repository-specific additions.
 
-The verify gate (`verify-on-stop`) runs `AIFSD_VERIFY_CMD` if set, else the `## Verification` Verify command from the nearest folder-level CLAUDE.md above the repo (a repo's own CLAUDE.md is ignored, since a cloned repo controls it), else the repo's `pnpm lint`; no wiring, no extra package.
+The verify gate (`verify-on-stop`) runs `GATED_DELIVERY_VERIFY_CMD` if set, else the `## Verification` Verify command from the nearest folder-level CLAUDE.md above the repo (a repo's own CLAUDE.md is ignored, since a cloned repo controls it), else the repo's `pnpm lint`; no wiring, no extra package.
 
 ## Knobs (environment variables)
 
 | Variable | Default | Effect |
 |----------|---------|--------|
-| `AIFSD_VERIFY_CMD` | `pnpm lint` | Command the Stop verify-hook runs when the working tree is dirty. Point it at a different gate (e.g. `pnpm check`) to override. |
-| `AIFSD_VERIFY_MAX_BLOCKS` | `3` | How many turns in a row the Stop hook may block before it gives up — stops a stuck loop when the gate can't go green. |
+| `GATED_DELIVERY_VERIFY_CMD` | `pnpm lint` | Command the Stop verify-hook runs when the working tree is dirty. Point it at a different gate (e.g. `pnpm check`) to override. |
+| `GATED_DELIVERY_VERIFY_MAX_BLOCKS` | `3` | How many turns in a row the Stop hook may block before it gives up — stops a stuck loop when the gate can't go green. |
 
 ## What runs automatically (hooks — zero setup)
 

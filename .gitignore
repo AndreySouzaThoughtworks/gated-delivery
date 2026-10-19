@@ -3,3 +3,7 @@ node_modules/
 
 # Local Claude Code state (settings.local.json, worktrees) for sessions working on this repo.
 .claude/
+
+# Claude Code state that `claude plugin` commands can drop into the current folder.
+backups/
+policy-limits.json*

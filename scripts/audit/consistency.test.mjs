@@ -23,7 +23,7 @@ const write = (dir, relPath, body) => {
 
 /** A fixture the guard must accept: 1 skill, 1 agent, 1 hook, all documented. */
 const validRepo = () => {
-  const dir = mkdtempSync(join(tmpdir(), "aifsd-guard-test-"));
+  const dir = mkdtempSync(join(tmpdir(), "gated-delivery-guard-test-"));
   write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\n---\n\n## Heading One\n");
   write(
     dir,

@@ -25,7 +25,7 @@ project="$work/project"
 export TRACKER_STORE="$work/store"
 failures=0
 
-if [ -n "${AIFSD_TEST_PROFILE:-}" ]; then export CLAUDE_CONFIG_DIR="$AIFSD_TEST_PROFILE"; fi
+if [ -n "${GATED_DELIVERY_TEST_PROFILE:-}" ]; then export CLAUDE_CONFIG_DIR="$GATED_DELIVERY_TEST_PROFILE"; fi
 if (cd "$work" && claude -p ping </dev/null 2>&1) | grep -q 'Not logged in'; then
   echo "skip: profile ${CLAUDE_CONFIG_DIR:-~/.claude} is not logged in" >&2
   exit "$EXIT_NOT_LOGGED_IN"
@@ -62,7 +62,7 @@ cat > "$project/CLAUDE.md" <<EOF
 
 ## Delivery notes
 
-- **Shared notes home:** \`docs/aifsd/{ticket-id}/\`
+- **Shared notes home:** \`docs/gated-delivery/{ticket-id}/\`
 EOF
 cat > "$TRACKER_STORE/tickets/DEMO-1.md" <<'EOF'
 Implement PracticeCallerService

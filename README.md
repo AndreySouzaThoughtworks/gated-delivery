@@ -29,7 +29,7 @@ This repo is **both** marketplace and plugin: the marketplace manifest lives at 
 
 The core must never name a client. `scripts/leak-guard.sh` greps the staged, tracked content for every pattern in a denylist and fails the commit on a match; it fails closed when the denylist is missing, empty or invalid, or when the scan itself errors.
 
-- The denylist lives at `~/.config/aifsd/denylist` (override with `AIFSD_DENYLIST`), one extended regex per line, and is **never committed** here: the list of client names is itself client data.
+- The denylist lives at `~/.config/gated-delivery/denylist` (override with `GATED_DELIVERY_DENYLIST`), one extended regex per line, and is **never committed** here: the list of client names is itself client data.
 - Enable the hooks once per clone: `git config core.hooksPath .githooks`. The pre-push hook needs `gitleaks` on `PATH`.
 - CI cannot run the leak guard, because the denylist exists only on your machine. CI runs the guard's own self-test and gitleaks; the client-term check happens at commit time locally.
 
@@ -45,6 +45,6 @@ The core must never name a client. `scripts/leak-guard.sh` greps the staged, tra
 | `bash tests/issue-writing.test.sh` | Yes | `issue-writing` refines and creates Stories in the full template, keeps implementation detail out of the behavioural sections and secrets out of the tracker |
 | `bash tests/issue-writing.test.sh --control` | Yes | Same scenarios with every skill disabled; expected to fail the checks the skill is responsible for |
 
-Login-bound tests skip with exit 3 when the profile is not logged in. Point them at another profile with `AIFSD_TEST_PROFILE=~/.claude-<name>`. Each run starts real `claude -p` sessions on that account.
+Login-bound tests skip with exit 3 when the profile is not logged in. Point them at another profile with `GATED_DELIVERY_TEST_PROFILE=~/.claude-<name>`. Each run starts real `claude -p` sessions on that account.
 
 The verification gate (`verify-on-stop` hook) runs the repo's own lint at turn-end. Knobs: [docs/onboarding.md](docs/onboarding.md#knobs-environment-variables).

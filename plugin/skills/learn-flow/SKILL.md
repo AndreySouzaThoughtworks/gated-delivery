@@ -26,7 +26,7 @@ Starting hypothesis = **"this session produced nothing worth shipping"** — tha
 
 Scan adversarially. For each thing that nag — gotcha, correction, sequence that worked, time sink — ask rejection question _first_: **"why is this _not_ worth keeping?"** Make candidate defend survival; no fishing.
 
-After a `/slice` session, scan two places for the ticket(s) worked. **The Local notes home** — `## Delivery notes` in the client's CLAUDE.md, default `~/.local/state/aifsd/` — holds the executor's raw entries: assumptions, surprises, deviations, `## REFACTOR-NOTE`s. **`handoff.md` in the Shared notes home** — same section, default `docs/aifsd/{ticket-id}/` — holds what `/slice` step 7.6 promoted out of those notes: evidenced carry-forward items and the decisions taken at each slice-end checkpoint. Both are ready-made evidence you otherwise miss; the notes are richer, the handoff is what survived.
+After a `/slice` session, scan two places for the ticket(s) worked. **The Local notes home** — `## Delivery notes` in the client's CLAUDE.md, default `~/.local/state/gated-delivery/` — holds the executor's raw entries: assumptions, surprises, deviations, `## REFACTOR-NOTE`s. **`handoff.md` in the Shared notes home** — same section, default `docs/gated-delivery/{ticket-id}/` — holds what `/slice` step 7.6 promoted out of those notes: evidenced carry-forward items and the decisions taken at each slice-end checkpoint. Both are ready-made evidence you otherwise miss; the notes are richer, the handoff is what survived.
 
 If nothing overturn null in 30 seconds, say so and stop. Typing `/learn-flow` does **not** obligate capture — "nothing this time" = common, correct outcome.
 

@@ -39,7 +39,7 @@
 |-------|------|-----------|
 | PreToolUse (Bash) | `guard-bash.mjs` | Denies a narrow catastrophic set (`rm -rf` on `/`/`~`/`$HOME`, force-push to main/master, fork bomb). |
 | PostToolUse (Edit\|Write) | `format-on-edit.mjs` | `prettier --write` on the edited file; no-op without prettier. |
-| Stop | `verify-on-stop.mjs` | When uncommitted changes exist, runs `AIFSD_VERIFY_CMD` (default `pnpm lint`) and blocks turn-end until it passes. No-ops when the repo has no such script, and when the change is out of scope — no lint-able file types, or nothing under the roots the repo's own lint script names. Plugin-safe (`decision:"block"`); after `AIFSD_VERIFY_MAX_BLOCKS` blocks it releases for the rest of the session. |
+| Stop | `verify-on-stop.mjs` | When uncommitted changes exist, runs `GATED_DELIVERY_VERIFY_CMD` (default `pnpm lint`) and blocks turn-end until it passes. No-ops when the repo has no such script, and when the change is out of scope — no lint-able file types, or nothing under the roots the repo's own lint script names. Plugin-safe (`decision:"block"`); after `GATED_DELIVERY_VERIFY_MAX_BLOCKS` blocks it releases for the rest of the session. |
 
 ## Domain references (`plugin/references/`)
 

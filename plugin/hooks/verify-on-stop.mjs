@@ -2,7 +2,7 @@
 // Stop-hook verification gate: blocks turn-end while the repo's lint gate reports
 // issues, but only when there are uncommitted changes. Plugin-safe (uses the
 // decision:"block" JSON path, not exit 2) and self-capping (won't loop forever).
-// Command: AIFSD_VERIFY_CMD, else the `## Verification` Verify command in the nearest CLAUDE.md
+// Command: GATED_DELIVERY_VERIFY_CMD, else the `## Verification` Verify command in the nearest CLAUDE.md
 // in a folder above the repo and inside the home folder, else "pnpm lint". The repo's own CLAUDE.md
 // is never read: a cloned repo controls it, and this command runs unprompted at every turn end.
 // Folders above or outside home are never read either: other users may write there.
@@ -13,9 +13,9 @@ import { homedir, tmpdir } from "node:os";
 import { dirname, extname, join, resolve, sep } from "node:path";
 
 const DEFAULT_VERIFY_CMD = "pnpm lint";
-const MAX_CONSECUTIVE_BLOCKS = Number(process.env.AIFSD_VERIFY_MAX_BLOCKS ?? 3);
+const MAX_CONSECUTIVE_BLOCKS = Number(process.env.GATED_DELIVERY_VERIFY_MAX_BLOCKS ?? 3);
 const TEN_MINUTES_MS = 10 * 60 * 1000;
-const requestedTimeoutMs = Number(process.env.AIFSD_VERIFY_TIMEOUT_MS);
+const requestedTimeoutMs = Number(process.env.GATED_DELIVERY_VERIFY_TIMEOUT_MS);
 // Node reads 0 as "no timeout" and NaN as no limit at all, so only a positive number may replace the cap.
 const VERIFY_TIMEOUT_MS = Number.isFinite(requestedTimeoutMs) && requestedTimeoutMs > 0 ? requestedTimeoutMs : TEN_MINUTES_MS;
 
@@ -65,11 +65,11 @@ const verifyCmdFromInstructions = () => {
   return undefined;
 };
 
-const VERIFY_CMD = process.env.AIFSD_VERIFY_CMD ?? verifyCmdFromInstructions() ?? DEFAULT_VERIFY_CMD;
+const VERIFY_CMD = process.env.GATED_DELIVERY_VERIFY_CMD ?? verifyCmdFromInstructions() ?? DEFAULT_VERIFY_CMD;
 const VERIFY_OUTPUT_TAIL = 1500;
 // Sentinel in the counter file: this session gave up on the gate. Negative, so no block count reaches it.
 const RELEASED = -1;
-const COUNTER_DIR = join(tmpdir(), "aifsd-verify-stop");
+const COUNTER_DIR = join(tmpdir(), "gated-delivery-verify-stop");
 
 const allow = () => process.exit(0);
 const block = (reason) => {

@@ -13,15 +13,15 @@ The core plugin never names a client. Everything client-specific comes from sect
 | | Bug fields | Dedicated fields for environment, steps, expected and actual result | Put them in the description |
 | | Incident tracker | Project or board that holds production incidents; read by `prod-support` | The project the ticket lives in |
 | `## Commit convention` | Applies to, Subject, Ticket key, Branch, Remote, PR title | See `/gated-delivery:commit` | Plain Conventional Commits |
-| `## Delivery notes` | Shared notes home | Per-ticket handoff, progress, findings and spec files shared across machines and people, and how they are published | `docs/aifsd/{ticket-id}/` in the repo being changed |
-| | Local notes home | Machine-local scratch: agent notes, review worktrees, batch state | `~/.local/state/aifsd/` — allow it once per profile in `permissions.additionalDirectories` (see onboarding) |
+| `## Delivery notes` | Shared notes home | Per-ticket handoff, progress, findings and spec files shared across machines and people, and how they are published | `docs/gated-delivery/{ticket-id}/` in the repo being changed |
+| | Local notes home | Machine-local scratch: agent notes, review worktrees, batch state | `~/.local/state/gated-delivery/` — allow it once per profile in `permissions.additionalDirectories` (see onboarding) |
 | | Spec placement | Per-repo rule for whether specs live in the repo | Ask on first spec in a repo, then record the answer here |
-| | `AIFSD_NOTES_REPO` (env var, not a CLAUDE.md key) | Local checkout of the notes repository when the Shared notes home lives in a separate repo | Clone it with `gh` |
+| | `GATED_DELIVERY_NOTES_REPO` (env var, not a CLAUDE.md key) | Local checkout of the notes repository when the Shared notes home lives in a separate repo | Clone it with `gh` |
 | `## Stack recipes` | per stack | Skills or docs to load when writing or reviewing code in that stack | None; use the repo's own conventions |
 | `## Review routing` | per job | Reviewer agents or skills for security, architecture, types, tests | Built-in `/security-review` and `/code-review`; skip the rest and say so |
 | `## Domain references` | per domain | Client reference docs a skill may load | None |
 | | API standard | The client's normative API guidelines | Ask when a story defines an API |
-| `## Verification` | Verify command | The one verify command for the turn-end gate, `/slice` and the code-reviewer. Resolution: `AIFSD_VERIFY_CMD`, else this key from the nearest CLAUDE.md in a folder above the repo and inside the home folder — never the repo's own CLAUDE.md, never an `@`-imported file, never a folder above or outside home | Gate: `pnpm lint`. `/slice` and code-reviewer: `pnpm check`, else `pnpm lint`, else `pnpm test` |
+| `## Verification` | Verify command | The one verify command for the turn-end gate, `/slice` and the code-reviewer. Resolution: `GATED_DELIVERY_VERIFY_CMD`, else this key from the nearest CLAUDE.md in a folder above the repo and inside the home folder — never the repo's own CLAUDE.md, never an `@`-imported file, never a folder above or outside home | Gate: `pnpm lint`. `/slice` and code-reviewer: `pnpm check`, else `pnpm lint`, else `pnpm test` |
 | `## Production support` | Observability, Log query, Environment, Auth errors, Retention | Where and how to read production telemetry | Ask; never guess an environment name |
 | | Runbook index, Config fix, Ship path | Repo docs for incident handling, config changes and release | The repo's `docs/` |
 | | Investigation corpus | Where per-incident notes go | `.claude/prod-support/<ticket>/` |

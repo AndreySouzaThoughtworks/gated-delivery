@@ -2,7 +2,7 @@
 // This hook BLOCKS turn-end, so its control flow is the highest-consequence untested code in the
 // plugin. Each test builds a throwaway git repo under the OS temp dir; nothing touches this repo.
 //
-// AIFSD_VERIFY_CMD is driven with a plain `sh` command rather than a pnpm script: the hook only
+// GATED_DELIVERY_VERIFY_CMD is driven with a plain `sh` command rather than a pnpm script: the hook only
 // consults package.json for pnpm-shaped commands (verifyScriptIsAbsent), so a shell command
 // exercises the real verify → block → counter path without needing pnpm or a lint setup.
 
@@ -25,7 +25,7 @@ const git = (cwd, args) => execFileSync("git", args, { cwd, stdio: "ignore" });
  * dedicated test for that path.
  */
 const makeRepo = ({ dirty, pkg = true, lint = "true" }) => {
-  const dir = mkdtempSync(join(tmpdir(), "aifsd-verify-test-"));
+  const dir = mkdtempSync(join(tmpdir(), "gated-delivery-verify-test-"));
   // `--template=` opts out of the user's global init.templateDir. Without it, git copies in the
   // machine's pre-commit/pre-push hooks (signing, gitleaks) and they reject the commit below.
   git(dir, ["init", "-q", "--template="]);
@@ -50,8 +50,8 @@ const run = (cwd, { verifyCmd, maxBlocks, sessionId, env = {} } = {}) => {
     input: JSON.stringify({ session_id: sessionId ?? `t-${randomUUID()}` }),
     env: {
       ...process.env,
-      ...(verifyCmd ? { AIFSD_VERIFY_CMD: verifyCmd } : {}),
-      ...(maxBlocks ? { AIFSD_VERIFY_MAX_BLOCKS: String(maxBlocks) } : {}),
+      ...(verifyCmd ? { GATED_DELIVERY_VERIFY_CMD: verifyCmd } : {}),
+      ...(maxBlocks ? { GATED_DELIVERY_VERIFY_MAX_BLOCKS: String(maxBlocks) } : {}),
       ...env,
     },
   });
@@ -102,7 +102,7 @@ test("never runs a Verify command from the repo's own CLAUDE.md", () => {
 });
 
 test("finds the Verification section in a CLAUDE.md above the repo", () => {
-  const parent = mkdtempSync(join(tmpdir(), "aifsd-verify-parent-"));
+  const parent = mkdtempSync(join(tmpdir(), "gated-delivery-verify-parent-"));
   const dir = join(parent, "repo");
   renameSync(makeRepo({ dirty: true }), dir);
   writeFileSync(join(dir, "fail.sh"), "echo FROM_PARENT_MARKER\nexit 1\n");
@@ -114,7 +114,7 @@ test("finds the Verification section in a CLAUDE.md above the repo", () => {
 test("never reads a CLAUDE.md committed in an outer repo around a nested repo", () => {
   // A vendored repo or submodule sits inside another repo; the folder above it is that outer,
   // untrusted repo, whose committed CLAUDE.md must not be executed.
-  const home = mkdtempSync(join(tmpdir(), "aifsd-verify-nested-"));
+  const home = mkdtempSync(join(tmpdir(), "gated-delivery-verify-nested-"));
   const outer = join(home, "outer");
   renameSync(makeRepo({ dirty: false }), outer);
   writeFileSync(join(outer, "pwn.sh"), `touch "${join(outer, "PWNED")}"\n`);
@@ -128,10 +128,10 @@ test("never reads a CLAUDE.md committed in an outer repo around a nested repo", 
 });
 
 test("never follows a CLAUDE.md that is a symlink", () => {
-  const parent = mkdtempSync(join(tmpdir(), "aifsd-verify-symlink-"));
+  const parent = mkdtempSync(join(tmpdir(), "gated-delivery-verify-symlink-"));
   const dir = join(parent, "repo");
   renameSync(makeRepo({ dirty: true }), dir);
-  const elsewhere = mkdtempSync(join(tmpdir(), "aifsd-verify-elsewhere-"));
+  const elsewhere = mkdtempSync(join(tmpdir(), "gated-delivery-verify-elsewhere-"));
   writeFileSync(join(elsewhere, "pwn.sh"), `touch "${join(elsewhere, "PWNED")}"\n`);
   writeFileSync(join(elsewhere, "CLAUDE.md"), VERIFICATION_SECTION(`sh ${join(elsewhere, "pwn.sh")}`));
   symlinkSync(join(elsewhere, "CLAUDE.md"), join(parent, "CLAUDE.md"));
@@ -141,7 +141,7 @@ test("never follows a CLAUDE.md that is a symlink", () => {
 
 test("never reads a CLAUDE.md above the home folder", () => {
   // Folders above home (or shared ones like /tmp) may be writable by other users.
-  const outer = mkdtempSync(join(tmpdir(), "aifsd-verify-outer-"));
+  const outer = mkdtempSync(join(tmpdir(), "gated-delivery-verify-outer-"));
   const home = join(outer, "home");
   mkdirSync(home);
   const dir = join(home, "repo");
@@ -153,25 +153,25 @@ test("never reads a CLAUDE.md above the home folder", () => {
 });
 
 test("reads no CLAUDE.md at all for a repo outside the home folder", () => {
-  const parent = mkdtempSync(join(tmpdir(), "aifsd-verify-outside-"));
+  const parent = mkdtempSync(join(tmpdir(), "gated-delivery-verify-outside-"));
   const dir = join(parent, "repo");
   renameSync(makeRepo({ dirty: true }), dir);
   writeFileSync(join(dir, "fail.sh"), "echo OUTSIDE_HOME_MARKER\nexit 1\n");
   writeFileSync(join(parent, "CLAUDE.md"), VERIFICATION_SECTION("sh fail.sh"));
-  const result = run(dir, { env: { HOME: mkdtempSync(join(tmpdir(), "aifsd-verify-otherhome-")) } });
+  const result = run(dir, { env: { HOME: mkdtempSync(join(tmpdir(), "gated-delivery-verify-otherhome-")) } });
   assert.doesNotMatch(result?.reason ?? "", /OUTSIDE_HOME_MARKER/, "no CLAUDE.md outside home may be read");
 });
 
 test("blocks with a timeout reason when the verify command hangs", () => {
   const dir = makeRepo({ dirty: true });
-  const result = run(dir, { verifyCmd: "sleep 3", env: { AIFSD_VERIFY_TIMEOUT_MS: "200" } });
+  const result = run(dir, { verifyCmd: "sleep 3", env: { GATED_DELIVERY_VERIFY_TIMEOUT_MS: "200" } });
   assert.equal(result?.decision, "block");
   assert.match(result.reason, /timed out/);
 });
 
 test("a verify command that reads stdin gets end-of-input instead of hanging", () => {
   const dir = makeRepo({ dirty: true });
-  assert.equal(run(dir, { verifyCmd: "cat >/dev/null && exit 0", env: { AIFSD_VERIFY_TIMEOUT_MS: "2000" } }), null);
+  assert.equal(run(dir, { verifyCmd: "cat >/dev/null && exit 0", env: { GATED_DELIVERY_VERIFY_TIMEOUT_MS: "2000" } }), null);
 });
 
 test("a timeout also stops processes the verify command started", () => {
@@ -181,13 +181,13 @@ test("a timeout also stops processes the verify command started", () => {
   const orphanMarker = join(dir, "ORPHAN");
   run(dir, {
     verifyCmd: `sh -c '(sleep 2; touch "${orphanMarker}") & sleep 5'`,
-    env: { AIFSD_VERIFY_TIMEOUT_MS: "300" },
+    env: { GATED_DELIVERY_VERIFY_TIMEOUT_MS: "300" },
   });
   execFileSync("sleep", ["3"]);
   assert.equal(existsSync(orphanMarker), false, "the verify command's child must be stopped with it");
 });
 
-test("AIFSD_VERIFY_CMD overrides the CLAUDE.md Verify command", () => {
+test("GATED_DELIVERY_VERIFY_CMD overrides the CLAUDE.md Verify command", () => {
   const dir = makeRepo({ dirty: true });
   writeFileSync(join(dir, "fail.sh"), "exit 1\n");
   writeFileSync(join(dir, "CLAUDE.md"), VERIFICATION_SECTION("sh fail.sh"));
@@ -324,7 +324,7 @@ test("no-ops when the repo has no lint script", () => {
 
 test("no package.json stands the gate down even with an explicit non-pnpm override", () => {
   // Pins current behaviour: verifyScriptIsAbsent() early-returns true on a missing package.json
-  // BEFORE it checks whether the command is pnpm-shaped, so AIFSD_VERIFY_CMD is not consulted here.
+  // BEFORE it checks whether the command is pnpm-shaped, so GATED_DELIVERY_VERIFY_CMD is not consulted here.
   // Defensible (no package.json = not a JS repo) but it does mean the override is silently
   // ignored. Change this test deliberately if that call is ever revisited.
   const dir = makeRepo({ dirty: true, pkg: false });
@@ -338,7 +338,7 @@ test("fails open on unusable stdin", () => {
       cwd: dir,
       encoding: "utf8",
       input,
-      env: { ...process.env, AIFSD_VERIFY_CMD: "sh -c 'exit 0'" },
+      env: { ...process.env, GATED_DELIVERY_VERIFY_CMD: "sh -c 'exit 0'" },
     });
     assert.equal(out, "", `expected allow for stdin: ${input || "<empty>"}`);
   }

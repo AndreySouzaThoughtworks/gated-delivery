@@ -17,24 +17,24 @@ mkdir -p "$work/repo"
 printf 'acme\nACME-[0-9]+\n\n' > "$work/denylist"
 echo "generic content" > "$work/repo/clean.md"
 
-expect_exit "clean tree passes with a blank denylist line" 0 env AIFSD_DENYLIST="$work/denylist" "$guard" "$work/repo"
+expect_exit "clean tree passes with a blank denylist line" 0 env GATED_DELIVERY_DENYLIST="$work/denylist" "$guard" "$work/repo"
 
 echo "see ticket Acme-42" > "$work/repo/leak.md"
-expect_exit "client term is rejected case-insensitively" 1 env AIFSD_DENYLIST="$work/denylist" "$guard" "$work/repo"
+expect_exit "client term is rejected case-insensitively" 1 env GATED_DELIVERY_DENYLIST="$work/denylist" "$guard" "$work/repo"
 rm "$work/repo/leak.md"
 
-expect_exit "missing denylist fails closed" 2 env AIFSD_DENYLIST="$work/absent" "$guard" "$work/repo"
+expect_exit "missing denylist fails closed" 2 env GATED_DELIVERY_DENYLIST="$work/absent" "$guard" "$work/repo"
 : > "$work/empty"
-expect_exit "empty denylist fails closed" 2 env AIFSD_DENYLIST="$work/empty" "$guard" "$work/repo"
+expect_exit "empty denylist fails closed" 2 env GATED_DELIVERY_DENYLIST="$work/empty" "$guard" "$work/repo"
 
 printf 'acme\n(unclosed\n' > "$work/bad-denylist"
-expect_exit "invalid denylist pattern fails closed" 2 env AIFSD_DENYLIST="$work/bad-denylist" "$guard" "$work/repo"
+expect_exit "invalid denylist pattern fails closed" 2 env GATED_DELIVERY_DENYLIST="$work/bad-denylist" "$guard" "$work/repo"
 
 echo "locked" > "$work/repo/locked.md"
 chmod 000 "$work/repo/locked.md"
-expect_exit "unreadable file alone fails closed" 2 env AIFSD_DENYLIST="$work/denylist" "$guard" "$work/repo"
+expect_exit "unreadable file alone fails closed" 2 env GATED_DELIVERY_DENYLIST="$work/denylist" "$guard" "$work/repo"
 echo "see ticket Acme-42" > "$work/repo/leak.md"
-expect_exit "a leak is reported even when another file is unreadable" 1 env AIFSD_DENYLIST="$work/denylist" "$guard" "$work/repo"
+expect_exit "a leak is reported even when another file is unreadable" 1 env GATED_DELIVERY_DENYLIST="$work/denylist" "$guard" "$work/repo"
 rm -f "$work/repo/leak.md"
 chmod 600 "$work/repo/locked.md"
 
@@ -44,12 +44,12 @@ printf 'ignored/\n' > "$git_repo/.gitignore"
 mkdir -p "$git_repo/ignored"
 echo "acme notes" > "$git_repo/ignored/scratch.md"
 git -C "$git_repo" add .gitignore
-expect_exit "in a repo, git-ignored files are not scanned" 0 env AIFSD_DENYLIST="$work/denylist" "$guard" "$git_repo"
+expect_exit "in a repo, git-ignored files are not scanned" 0 env GATED_DELIVERY_DENYLIST="$work/denylist" "$guard" "$git_repo"
 
 echo "acme leak" > "$git_repo/staged.md"
 git -C "$git_repo" add staged.md
 echo "clean now" > "$git_repo/staged.md"
-expect_exit "in a repo, the staged content is scanned, not the working copy" 1 env AIFSD_DENYLIST="$work/denylist" "$guard" "$git_repo"
+expect_exit "in a repo, the staged content is scanned, not the working copy" 1 env GATED_DELIVERY_DENYLIST="$work/denylist" "$guard" "$git_repo"
 
 history_repo="$work/history"
 git init -q --template= "$history_repo"
@@ -61,8 +61,8 @@ git -C "$history_repo" add notes.md
 git -C "$history_repo" commit -q -m leak
 echo "clean" > "$history_repo/notes.md"
 git -C "$history_repo" commit -q -am clean
-expect_exit "a revision argument scans that commit, so a leak removed later is still caught" 1 env AIFSD_DENYLIST="$work/denylist" "$guard" "$history_repo" HEAD~1
-expect_exit "a revision argument passes a clean commit" 0 env AIFSD_DENYLIST="$work/denylist" "$guard" "$history_repo" HEAD
-expect_exit "an unknown revision fails closed" 2 env AIFSD_DENYLIST="$work/denylist" "$guard" "$history_repo" no-such-rev
+expect_exit "a revision argument scans that commit, so a leak removed later is still caught" 1 env GATED_DELIVERY_DENYLIST="$work/denylist" "$guard" "$history_repo" HEAD~1
+expect_exit "a revision argument passes a clean commit" 0 env GATED_DELIVERY_DENYLIST="$work/denylist" "$guard" "$history_repo" HEAD
+expect_exit "an unknown revision fails closed" 2 env GATED_DELIVERY_DENYLIST="$work/denylist" "$guard" "$history_repo" no-such-rev
 
 exit "$failures"

@@ -10,7 +10,7 @@ failures=0
 keep_on_failure() { if [ "$failures" -gt 0 ]; then echo "kept for inspection: $work" >&2; else rm -rf "$work"; fi; }
 trap keep_on_failure EXIT
 
-if [ -n "${AIFSD_TEST_PROFILE:-}" ]; then export CLAUDE_CONFIG_DIR="$AIFSD_TEST_PROFILE"; fi
+if [ -n "${GATED_DELIVERY_TEST_PROFILE:-}" ]; then export CLAUDE_CONFIG_DIR="$GATED_DELIVERY_TEST_PROFILE"; fi
 if (cd "$work" && claude -p ping </dev/null 2>&1) | grep -q 'Not logged in'; then
   echo "skip: profile ${CLAUDE_CONFIG_DIR:-~/.claude} is not logged in" >&2
   exit "$EXIT_NOT_LOGGED_IN"

@@ -19,7 +19,7 @@ check() {
 }
 
 printf 'acme\n' > "$work/denylist"
-export AIFSD_DENYLIST="$work/denylist"
+export GATED_DELIVERY_DENYLIST="$work/denylist"
 
 git init -q --bare "$work/remote.git"
 repo="$work/repo"

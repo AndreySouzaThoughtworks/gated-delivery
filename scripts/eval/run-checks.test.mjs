@@ -19,7 +19,7 @@ const REPO = join(HERE, "..", "..");
 const fence = (body) => `## Deterministic Checks\n\n\`\`\`bash\n${body}\n\`\`\`\n`;
 
 const outputFile = (body) => {
-  const f = join(mkdtempSync(join(tmpdir(), "aifsd-runner-test-")), "output.md");
+  const f = join(mkdtempSync(join(tmpdir(), "gated-delivery-runner-test-")), "output.md");
   writeFileSync(f, body);
   return f;
 };
@@ -111,7 +111,7 @@ test("$WORKTREE is supplied by the runner", () => {
 test("a path containing shell metacharacters is read, not executed", () => {
   // JSON.stringify wraps in double quotes, inside which $(...) still expands: a path holding
   // `$(id -u)` was substituted and then executed, so the check read a different file entirely.
-  const dir = mkdtempSync(join(tmpdir(), "aifsd-runner-quote-"));
+  const dir = mkdtempSync(join(tmpdir(), "gated-delivery-runner-quote-"));
   const nasty = join(dir, "$(id -u) `whoami` x");
   mkdirSync(nasty, { recursive: true });
   const file = join(nasty, "output.md");
@@ -124,7 +124,7 @@ test("a path containing shell metacharacters is read, not executed", () => {
 });
 
 test("a prelude assignment also quotes the path safely", () => {
-  const dir = mkdtempSync(join(tmpdir(), "aifsd-runner-quote2-"));
+  const dir = mkdtempSync(join(tmpdir(), "gated-delivery-runner-quote2-"));
   const nasty = join(dir, "$(id -u)");
   mkdirSync(nasty, { recursive: true });
   const file = join(nasty, "output.md");
@@ -214,14 +214,14 @@ test("parentheses inside a command substitution do not close it early", () => {
 test("an ambient environment variable does not satisfy a fence reference", () => {
   // Otherwise --lint passes or fails on what the host happens to export, and a typo'd name is
   // waved through whenever something unrelated shares it.
-  process.env.AIFSD_AMBIENT_PROBE = "/tmp";
+  process.env.GATED_DELIVERY_AMBIENT_PROBE = "/tmp";
   try {
-    const { checks } = parseChecks(fence('grep -c hello "$AIFSD_AMBIENT_PROBE"'));
+    const { checks } = parseChecks(fence('grep -c hello "$GATED_DELIVERY_AMBIENT_PROBE"'));
     const result = runCheck(checks[0], outputFile("hello\n"));
     assert.equal(result.ok, false);
-    assert.match(result.result, /unset variable\(s\): AIFSD_AMBIENT_PROBE/);
+    assert.match(result.result, /unset variable\(s\): GATED_DELIVERY_AMBIENT_PROBE/);
   } finally {
-    delete process.env.AIFSD_AMBIENT_PROBE;
+    delete process.env.GATED_DELIVERY_AMBIENT_PROBE;
   }
 });
 
@@ -257,7 +257,7 @@ test("--lint passes over the real skills and goes red when a check is broken", (
   assert.match(real.out, /[1-9]\d* checks across [1-9]\d*\/\d+ skills/, real.out);
 
   // Same runner, one deliberately broken fence: it must go red, or --lint proves nothing in CI.
-  const broken = mkdtempSync(join(tmpdir(), "aifsd-runner-broken-"));
+  const broken = mkdtempSync(join(tmpdir(), "gated-delivery-runner-broken-"));
   const skill = join(broken, "plugin", "skills", "busted");
   mkdirSync(skill, { recursive: true });
   writeFileSync(join(skill, "evals.md"), fence("# broken\ngrep --nonsense-flag x output.md"));

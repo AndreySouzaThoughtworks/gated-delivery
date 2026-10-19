@@ -12,6 +12,6 @@ What ships, what each piece does and how the pieces call each other — all in *
 
 ## Dependencies & knobs
 
-- **A lint script** — the verify hook runs the repo's own lint (`pnpm lint` unless `AIFSD_VERIFY_CMD` says otherwise). Knobs: [`docs/onboarding.md`](../docs/onboarding.md#knobs-environment-variables).
+- **A lint script** — the verify hook runs the repo's own lint (`pnpm lint` unless `GATED_DELIVERY_VERIFY_CMD` says otherwise). Knobs: [`docs/onboarding.md`](../docs/onboarding.md#knobs-environment-variables).
 - **`senior-review-lens`** ships **in this plugin** — the canonical 8-lens copy, so every repo runs the same version.
 - **Stack recipes and validator agents** — not bundled; each client names its own under `## Stack recipes` and `## Review routing`.

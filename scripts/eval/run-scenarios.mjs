@@ -42,6 +42,7 @@ const ARM_SKILL = "skill";
 const ARM_BASELINE = "baseline";
 const NOT_AVAILABLE = "n/a";
 const HARNESS_OK = "ok";
+const DENIED_NOTE = "denied=";
 const SETUP_FAILED = "setup-failed";
 
 const FIXTURE_SETUP = "setup.sh";
@@ -165,7 +166,7 @@ export function harnessFlags({ transcript, arm, skill, timedOut }) {
   if (arm === ARM_SKILL && !transcript.includes('"name":"Skill"')) flags.push("no-skill");
   if (arm === ARM_BASELINE && transcript.includes(`skills/${skill}/`)) flags.push("read-skill");
   if (!result) flags.push("no-result");
-  if (result?.permission_denials?.length) flags.push("denied");
+  if (result?.permission_denials?.length) flags.push(`${DENIED_NOTE}${result.permission_denials.length}`);
   if (timedOut) flags.push("timeout");
   return flags;
 }
@@ -310,7 +311,7 @@ async function runOne({ skill, evals, arm, row, n, out, snapshot }) {
     if (existsSync(setup)) {
       const built = spawnSync("bash", [setup, fixture], { cwd: runDir, encoding: "utf8" });
       writeFileSync(`${runDir}.setup.log`, `${built.stdout ?? ""}${built.stderr ?? ""}`);
-      if (built.status !== 0) return { ...base, harness: SETUP_FAILED };
+      if (built.status !== 0) return { ...base, harness: SETUP_FAILED, failed: true };
     }
   }
   const tempDir = `${runDir}.${RUN_TEMP_DIR}`;
@@ -358,9 +359,12 @@ async function runOne({ skill, evals, arm, row, n, out, snapshot }) {
   writeFileSync(join(runDir, "prompt.txt"), prompt);
   writeFileSync(join(runDir, "output.md"), result?.result ? `${result.result}\n` : "");
   const flags = harnessFlags({ transcript, arm, skill, timedOut });
+  const notes = flags.filter((flag) => flag.startsWith(DENIED_NOTE));
+  const failures = flags.filter((flag) => !notes.includes(flag));
   return {
     ...base,
-    harness: flags.join(",") || HARNESS_OK,
+    harness: [...(failures.length ? failures : [HARNESS_OK]), ...notes].join(","),
+    failed: failures.length > 0,
     checks: gradeChecks(skill, row.id, runDir),
     judge: gradeJudge(skill, row.id, runDir),
     cost: (result?.total_cost_usd ?? 0).toFixed(2),
@@ -410,7 +414,7 @@ async function main() {
     console.log(`DISAGREE ${skill} ${id} ${a}: ${outcomes.join(" | ")}`);
   }
   console.log(`\n${join(out, "summary.tsv")}`);
-  return results.some((row) => row.harness !== HARNESS_OK) ? EXIT_HARNESS_FAILURE : EXIT_OK;
+  return results.some((row) => row.failed) ? EXIT_HARNESS_FAILURE : EXIT_OK;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

@@ -93,6 +93,7 @@ const result = (extra) => JSON.stringify({ type: "result", result: "did the thin
 writeFileSync(join(process.env.TMPDIR, "scratch.txt"), "x");
 if (behaviour === "pages") { writeFileSync("page.html", "thing"); writeFileSync(join(process.env.TMPDIR, "narrow.html"), "nope"); }
 if (behaviour === "sleep") { setTimeout(() => {}, 60000); return; }
+if (behaviour === "denynoskill") { console.log(result({ permission_denials: [{ tool_name: "Bash" }] })); return; }
 if (behaviour === "noskill") { console.log(result()); return; }
 if (behaviour === "deny") { console.log(skillUse); console.log(result({ permission_denials: [{ tool_name: "Bash" }] })); return; }
 if (behaviour === "readskill") { console.log(JSON.stringify({ type: "assistant", message: { content: [{ type: "tool_use", name: "Read", input: { file_path: "/x/plugin/skills/demo/SKILL.md" } }] } })); console.log(result()); return; }
@@ -222,9 +223,11 @@ test("flags a skill run that never invoked the skill, and passes one that did", 
   ]);
 });
 
-test("flags permission denials, and stays quiet on an empty list", () => {
-  const denied = `${SKILL_TOOL_USE}\n${resultLine({ permission_denials: [{ tool_name: "Bash" }] })}\n`;
-  assert.deepEqual(harnessFlags({ transcript: denied, arm: "skill", skill: SKILL, timedOut: false }), ["denied"]);
+test("notes how many permissions were denied, and stays quiet on an empty list", () => {
+  const denied = `${SKILL_TOOL_USE}\n${resultLine({ permission_denials: [{ tool_name: "Bash" }, { tool_name: "Read" }] })}\n`;
+  assert.deepEqual(harnessFlags({ transcript: denied, arm: "skill", skill: SKILL, timedOut: false }), ["denied=2"]);
+  const clean = `${SKILL_TOOL_USE}\n${resultLine()}\n`;
+  assert.deepEqual(harnessFlags({ transcript: clean, arm: "skill", skill: SKILL, timedOut: false }), []);
 });
 
 test("flags a timeout and a run with no result line", () => {
@@ -494,13 +497,18 @@ test("stopping the runner stops the sessions it started", async () => {
   assert.ok(await waitFor(() => !alive(pid)), "the session outlived the runner");
 });
 
-test("a skill run with denials and no Skill call carries both flags in the summary", () => {
+test("a denial is noted in the summary but is not a harness failure", () => {
   const repo = fakeRepo();
-  const { out } = run(repo, ["--scenario", "1", "--repeat", "1"], { STUB_BEHAVIOUR: "deny" });
-  assert.equal(summaryRows(out)[0].harness, "denied");
-  const second = fakeRepo();
-  const { out: out2 } = run(second, ["--scenario", "1", "--repeat", "1"], { STUB_BEHAVIOUR: "noskill" });
-  assert.equal(summaryRows(out2)[0].harness, "no-skill");
+  const { out, status } = run(repo, ["--scenario", "1", "--repeat", "1"], { STUB_BEHAVIOUR: "deny" });
+  assert.equal(summaryRows(out)[0].harness, "ok,denied=1");
+  assert.equal(status, 0);
+});
+
+test("a skill run with no Skill call is a harness failure, and keeps its denial note", () => {
+  const repo = fakeRepo();
+  const { out, status } = run(repo, ["--scenario", "1", "--repeat", "1"], { STUB_BEHAVIOUR: "denynoskill" });
+  assert.equal(summaryRows(out)[0].harness, "no-skill,denied=1");
+  assert.equal(status, 1);
 });
 
 test("a baseline that reads the skill's files is a harness failure", () => {

@@ -60,6 +60,10 @@ review2="$work/review/s2"
 (cd "$tree2" && "$scripts/review-tree.sh" "$review2") >/dev/null 2>&1
 check "review tree uses a slice tree's own install" '[ "$(readlink "$review2/node_modules")" = "$tree2/node_modules" ]'
 
+batch_tree="$work/trees/s2-b1"
+(cd "$tree2" && "$scripts/slice-tree.sh" "$batch_tree" feat/T-1-b-s2-b1 HEAD) >/dev/null 2>&1
+check "a batch tree uses its slice tree's own install" '[ "$(readlink "$batch_tree/node_modules")" = "$tree2/node_modules" ]'
+
 # slice-tree.sh, in a repository with no dependencies
 plain="$work/plain"
 new_repo "$plain"
@@ -136,6 +140,28 @@ before="$(git -C "$pick_repo" rev-parse HEAD)"
 (cd "$pick_repo" && GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t "$scripts/batch-pick.sh" b3 "$slice_base") >/dev/null 2>&1
 status=$?
 check "a conflicting batch exits 3 and leaves the slice as it was" '[ $status -eq 3 ] && [ "$(git -C "$pick_repo" rev-parse HEAD)" = "$before" ] && [ -z "$(git -C "$pick_repo" status --porcelain)" ]'
+
+pick() { (cd "$pick_repo" && GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t "$scripts/batch-pick.sh" "$@"); }
+
+before="$(git -C "$pick_repo" rev-parse HEAD)"
+out="$(pick b1 "$slice_base" 2>/dev/null)"; status=$?
+check "re-picking a batch already on the slice is a no-op, not a conflict" '[ $status -eq 0 ] && [ "$(git -C "$pick_repo" rev-parse HEAD)" = "$before" ] && [ "$out" = "$before..$before" ]'
+
+g "$pick_repo" branch -q b-empty "$slice_base"
+out="$(pick b-empty "$slice_base" 2>/dev/null)"; status=$?
+check "a batch with no commits is a no-op, not a conflict" '[ $status -eq 0 ] && [ "$out" = "$before..$before" ]'
+
+pick no-such-branch "$slice_base" >/dev/null 2>&1
+check "a missing batch branch is an error, not a conflict" '[ $? -eq 1 ] && [ "$(git -C "$pick_repo" rev-parse HEAD)" = "$before" ]'
+
+g "$pick_repo" branch -q b4 "$slice_base"
+g "$pick_repo" branch -q b4-side "$slice_base"
+g "$pick_repo" checkout -q b4-side; echo side > "$pick_repo/side.txt"; g "$pick_repo" add side.txt; g "$pick_repo" commit -q -m "feat: side"
+g "$pick_repo" checkout -q b4; echo four > "$pick_repo/four.txt"; g "$pick_repo" add four.txt; g "$pick_repo" commit -q -m "feat: AC5"
+g "$pick_repo" merge -q --no-ff --no-edit b4-side
+g "$pick_repo" checkout -q slice
+err="$(cd "$pick_repo" && env -u GIT_COMMITTER_NAME -u GIT_COMMITTER_EMAIL -u GIT_AUTHOR_NAME -u GIT_AUTHOR_EMAIL -u EMAIL GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 git -c user.useConfigOnly=true -c user.name= -c user.email= rev-parse HEAD >/dev/null; cd "$pick_repo" && env -u GIT_COMMITTER_NAME -u GIT_COMMITTER_EMAIL -u GIT_AUTHOR_NAME -u GIT_AUTHOR_EMAIL -u EMAIL GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=user.useConfigOnly GIT_CONFIG_VALUE_0=true "$scripts/batch-pick.sh" b4 "$slice_base" 2>&1 >/dev/null)"; status=$?
+check "a pick that fails for a reason other than a conflict exits 1 and shows why" '[ $status -eq 1 ] && [ -n "$err" ] && [ "$(git -C "$pick_repo" rev-parse HEAD)" = "$before" ] && [ -z "$(git -C "$pick_repo" status --porcelain)" ]'
 
 echo dirt > "$pick_repo/dirt.txt"
 (cd "$pick_repo" && "$scripts/batch-pick.sh" b2 "$slice_base") >/dev/null 2>&1

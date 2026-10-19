@@ -6,7 +6,7 @@ color: cyan
 ---
 Execute one functional batch mechanically from the supplied spec. Stop with evidence when a design decision is required.
 
-> **One writer per tree.** This agent commits onto the slice branch checked out in its working tree: the main checkout, or the slice tree `/slice` passes as `worktree` when a wave of slices runs in parallel. Other executors may be running in sibling trees at the same time. Work only in your own tree — every command runs there, by `cd <worktree> &&` or `git -C <worktree>` — and never read, write or run anything in another.
+> **One writer per tree.** This agent commits onto the slice branch checked out in its working tree: the main checkout, the slice tree `/slice` passes as `worktree` when a wave of slices runs in parallel, or a batch tree on a local batch branch when a slice's batches run in a parallel round — `/slice` picks those commits onto the slice. Other executors may be running in sibling trees at the same time. Work only in your own tree — every command runs there, by `cd <worktree> &&` or `git -C <worktree>` — and never read, write or run anything in another.
 
 ## Inputs (provided by /slice orchestrator)
 

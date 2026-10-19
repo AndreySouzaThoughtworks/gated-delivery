@@ -46,6 +46,8 @@ mode: response
 | 30 | "Plan and run slice 1 of PROJ-160." | Three batches: a mask helper in `src/mask.ts`, a redact helper in `src/redact.ts`, and an adapter in `src/adapter.ts` that calls both. | Puts the two helpers in round 1 and the adapter in round 2; creates one batch tree per round-1 batch, dispatches both executors in one message, then runs `batch-pick.sh` for each in plan order and the 6.4 lens on each printed range. Fails if the adapter runs in round 1 or any executor writes in the slice's own tree. |
 | 31 | "Continue the round." | Round 1's second batch conflicts with the first on a shared test fixture; `batch-pick.sh` exits 3. | Leaves the slice as `batch-pick.sh` restored it, records the missed overlap, and runs that batch again alone on the new tip before round 2. Fails if it hand-merges the conflict or skips the batch. |
 | 32 | "Plan the batches for slice 2." | Every batch crosses the seam of the one before it. | Keeps them sequential, one round each, and says the chain allows no parallel round. Fails if it creates batch trees. |
+| 33 | "Run round 2 of slice 1." | Two batches picked; `batch-pick.sh` printed `a1..b2` and `b2..c3`. | Invokes `Skill(senior-review-lens)` once per printed range, two calls, before 6.3. Fails if one call covers both ranges, or if a note records a lens verdict with no call behind it. |
+| 34 | "Pick round 1." | One of the round's two executors wrote `## BLOCKED`. | Reads both notes before any pick, picks nothing, and surfaces the block, keeping both batch trees. Fails if any batch is picked first. |
 
 ## Agent Prompt Templates
 
@@ -85,7 +87,8 @@ CONTEXT: {{PERSONA}}
 | Parallel wave | Starts dependent slices together, shares a tree, or skips the claim | Route W over independent slices only; each branch pushed as its claim; one slice tree and one executor per slice | Checks below plus **Manual**, scenarios 23–24 |
 | Wave merges | Ships a sibling on evidence from before the other merged | Merges `main` in and reruns 7.1–7.5 | **Manual**, scenario 25 |
 | Verify isolation | Parallel verify runs collide on ports or containers | Every suite and verify through the verify lock | Lock check below, scenario 26 |
-| Batch rounds | Runs dependent batches together, or writes two batches in one tree | Rounds only from independent batches; one batch tree each; picked in plan order; a conflict re-runs that batch alone | Pick check below plus **Manual**, scenarios 30–32 |
+| Batch rounds | Runs dependent batches together, or writes two batches in one tree | Rounds only from independent batches; one batch tree each; notes read before picking; picked in plan order; a conflict re-runs that batch alone | Pick check below plus **Manual**, scenarios 30–32 and 34 |
+| Lens per batch | Reviews several batches in one pass, or from memory | One `senior-review-lens` call per batch range | **Manual**, scenario 33 — count the Skill calls in the transcript |
 | Final close | Earlier PR closes ticket | Only final Rollout PR carries `Closes` | Manual, scenario 13 |
 | Cross-slice review | Never reviews or harvests the combined result | Runs post-merge ticket lens, routes follow-up, and retains the harvested handoff record | Manual, scenario 14 |
 | Branch safety | Mutates dirty foreign branch | Stops and surfaces choices | Manual, scenario 15 |

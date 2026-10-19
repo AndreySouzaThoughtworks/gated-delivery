@@ -49,5 +49,7 @@ else
   git worktree add --no-track -b "$BRANCH" "$SLICE_TREE" "$BASE"
 fi
 
-link_node_modules "$SLICE_TREE" "$(deps_of "$REPO")" keep-own-install
+# The calling tree's dependencies: the main checkout's for a slice tree, the
+# slice tree's own install for a batch tree cut from it.
+link_node_modules "$SLICE_TREE" "$(deps_of "$(git rev-parse --show-toplevel)")" keep-own-install
 echo "$SLICE_TREE"

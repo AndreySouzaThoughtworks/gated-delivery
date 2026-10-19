@@ -62,7 +62,7 @@ Inspect:
 - open tracker blockers;
 - the single repo-hosted or external spec;
 - whether the spec has `## Rollout` and how many slices it names;
-- local and remote branches matching `feat/{ticket-id}-*-s*`;
+- local and remote branches matching `feat/{ticket-id}-*-s*`, reporting batch branches (`…-s{n}-b{k}`, local only) under their slice, never as slices;
 - merged, open, and draft PRs for the ticket, including a spec PR from `docs/{ticket-id}-spec`;
 - machine-local agent notes, if present;
 - shared handoff, if present.
@@ -100,7 +100,7 @@ Read the rows top to bottom and take the **first** that matches; confirm it befo
 | A new finding changes architecture, scope, ACs, exposure, or PR shape | **Route B′ — Spec update first.** Pause implementation, update decisions and Rollout with the user, publish the spec, mark the finding `ROUTED`, then return to the route this table gives. |
 | Decisions resolved but Rollout missing | **Route R — Rollout first.** Propose the merge sequence and waves by applying `/spec` step 5's method and the template's boundary bar here; do not invoke `Skill(spec)`, which refuses a ticket that already has a spec. Publish the updated spec and STOP. `/slice` does not invent merge boundaries while executing. |
 | Every Rollout slice merged | **Route F — Close the ticket.** Run step 9, harvest the handoff, and complete per-ticket Done-when. |
-| This actor holds one or more unmerged slices whose PRs are not yet ready | **Route D — Resume.** Resume all of them: a slice that has a slice tree, or whose wave runs in parallel, resumes in its slice tree through `slice-tree.sh` (step 4W.3), which also picks up a branch only `origin` has; a lone slice resumes in the main checkout. Read each slice's Rollout entry, agent notes when present, the handoff, PR base, and commits; surface completed and remaining ACs, then re-plan only those slices' batches. A slice whose sibling merged since its gates ran goes through step 4W.6 first. |
+| This actor holds one or more unmerged slices whose PRs are not yet ready | **Route D — Resume.** Resume all of them: a slice that has a slice tree, or whose wave runs in parallel, resumes in its slice tree through `slice-tree.sh` (step 4W.3), which also picks up a branch only `origin` has; a lone slice resumes in the main checkout. Read each slice's Rollout entry, agent notes when present, the handoff, PR base, and commits, and pick any batch branches an interrupted round left (step 6, "Resuming an interrupted round"); surface completed and remaining ACs, then re-plan only those slices' batches. A slice whose sibling merged since its gates ran goes through step 4W.6 first. |
 | Every unmerged slice of the earliest unmerged wave is held, and none is this actor's in progress | **Route E — Wait for merge.** Report each held slice with its holder and PR, and the next wave, if any. STOP. Never start a later wave while an earlier one has an unmerged slice. |
 | The earliest unmerged wave has two or more slices nobody holds | **Route W — Run the wave in parallel.** Confirm which slices this actor takes, up to the parallel cap, and whether to run them in parallel or one at a time; then continue to step 4W. Taking one slice, or declining parallel, continues as Route C. |
 | The earliest unmerged wave has one slice nobody holds | **Route C — Start the slice.** Continue to step 4. A repo-hosted spec still uncommitted from `/spec` is committed there as the branch's first commit. |
@@ -145,7 +145,7 @@ Route W runs every claimed slice through steps 5–7 at once. The orchestrator s
 4. **Keep each wave slice's handoff to itself.** When the Shared notes home sits inside the repository, sibling branches must not edit one file: each wave slice writes its Resume block and Carry-forward entries to `{ticket-id}/handoff-s<n>.md` on its own branch. Route F folds every `handoff-s<n>.md` into `handoff.md`. A separate notes repository keeps one `handoff.md`, with one block per actor and slice.
 5. **Run steps 5–7 for the claimed slices together:**
    - **5:** one checkpoint shows every claimed slice with its batch plan.
-   - **6.1:** batch *k* of every slice goes out in one message, one `slice-executor` per slice, each given its own slice tree as `worktree`. A slice with fewer batches drops out of later rounds.
+   - **6.1:** each slice's next dispatch — its next batch, or every batch of its next round — goes out together in one message, each executor in its own tree. A slice with nothing left to dispatch sits out. When the writers would pass the parallel cap, dispatch fewer: slices earlier in Rollout order go first, and a slice's round shrinks before another slice waits.
    - **6.2–6.6:** per slice, in its tree; suites through the verify lock. A `## BLOCKED` stops that slice only; the others continue, and the next checkpoint surfaces it.
    - **7:** one review tree per slice, created by running `review-tree.sh` **from that slice's tree**, so it detaches at the slice tip and uses the slice's dependencies. 7.1 validators for all slices go in one message. 7.2 and 7.3 run per slice. 7.5 dispatches every slice's `code-reviewer` in one message, each bound to its own review tree, with `verify-cmd` through the lock. 7.6 is one checkpoint covering every slice. 7.7 runs per slice.
 6. **Merge in any order.** Slices in one wave were checked independent, so whichever is approved first merges first. After a merge, every other slice of the wave merges `main` into its branch — never a rebase — and, because `HEAD` changed, reruns 7.1–7.5 before it is marked ready. Before that rerun, re-record its `<slice-base-sha>` as the `origin/main` commit it just merged: the old base would put the sibling's merged work inside `<slice-base-sha>..HEAD`, and the lens and reviewer would grade it as this slice's. From the merged commit, the range is exactly this slice's net change. A merge conflict means the wave check missed an overlap: resolve it in that slice's tree and record it in `## Carry forward` as a dead end, so `/learn-flow` can tighten the spec's wave rule.
@@ -184,13 +184,14 @@ Run 6.1–6.6 for every batch in the current slice. `## BLOCKED` still stops imm
 
 **Run a round of two or more batches in parallel.** Every batch writes in its own **batch tree**, never in the slice's writing tree, so no two writers share a tree:
 
-1. Record the slice tip as `<round-base>`. For each batch, create its tree from the slice's writing tree: `"<skill base directory>/scripts/slice-tree.sh" "$LOCAL_NOTES/slice-trees/{ticket-id}-s{n}-b{k}" "feat/{ticket-id}-{slug}-s{n}-b{k}" <round-base>`. Batch branches stay local and are never pushed.
-2. Dispatch the round's executors in **one message** (6.1), each with its batch tree as `worktree` and its own notes file, `{ticket-id}-s{n}-b{k}.md`.
-3. When all return, pick each batch onto the slice **in batch-plan order**, from the slice's writing tree: `"<skill base directory>/scripts/batch-pick.sh" "feat/{ticket-id}-{slug}-s{n}-b{k}" <round-base>`. It keeps one commit per AC and prints the batch's range on the slice — `<before>..<after>` — which is that batch's 6.4 range. Exit 3 is a conflict: the slice is left exactly as it was; record the overlap the round check missed and run that batch again, alone, on the new tip, before the next round.
-4. Run 6.2, 6.4 and 6.5 for each picked batch on its printed range; 6.3's suite runs once per round, after the last pick, through the verify lock. 6.6 follows.
-5. Remove each batch tree with `git worktree remove --force <batch-tree>`, then delete its local branch with `git branch -D <batch-branch>`: its commits now live on the slice.
+1. Record the slice tip as `<round-base>`; a resumed session recovers it as `git merge-base <batch-branch> <slice-branch>`. A batch whose write surface includes the dependency manifest never runs in a round: it runs alone in the slice's writing tree, so its install never goes through a shared link. For each batch, create its tree from the slice's writing tree: `"<skill base directory>/scripts/slice-tree.sh" "$LOCAL_NOTES/slice-trees/{ticket-id}-s{n}-b{k}" "feat/{ticket-id}-{slug}-s{n}-b{k}" <round-base>`. Batch branches stay local and are never pushed.
+2. Dispatch the round's executors in **one message** (6.1), each with its batch tree as `worktree`, its own notes file `{ticket-id}-s{n}-b{k}.md`, and `Verify needs: exclusive` whatever the slice declares: batches of one slice share fixtures more than separate slices do.
+3. When all return, **read every batch's notes first (6.2)**. A `## BLOCKED` in any of them stops the round before anything is picked: surface it, and keep every batch tree for the resume. A `PARTIAL` batch is dispatched again in its own tree to finish before it is picked.
+4. Pick each batch onto the slice **in batch-plan order**, from the slice's writing tree: `"<skill base directory>/scripts/batch-pick.sh" "feat/{ticket-id}-{slug}-s{n}-b{k}" <round-base>`. It picks only commits the slice does not already carry, by patch, keeps one commit per AC, and prints the batch's range on the slice — `<before>..<after>` — which is that batch's 6.4 range; an empty range means nothing was left to pick. Exit 1 is a failure that is not a conflict — a missing branch, a dirty tree, a git error it prints — fix the cause and pick again. Exit 3 is a conflict, with the slice left exactly as it was: record the overlap the round check missed, remove that batch's tree and delete its branch, and run the batch again, alone, in the slice's writing tree on the new tip, before the next round.
+5. Run 6.4 and 6.5 for each picked batch on its printed range, then 6.3's suite once for the round, after the last pick and every fix those reviews committed, through the verify lock. 6.6 follows.
+6. Remove each picked batch's tree with `git worktree remove --force <batch-tree>`, then delete its local branch with `git branch -D <batch-branch>`: its commits now live on the slice.
 
-**Resuming an interrupted round.** Route D lists local batch branches `feat/{ticket-id}-*-s{n}-b*`. A batch branch with commits the slice lacks is picked as in step 3 before anything is re-planned; one with no commits is removed and its batch re-run.
+**Resuming an interrupted round.** Route D lists local batch branches `feat/{ticket-id}-*-s{n}-b*`. Each is picked as in step 4 before anything is re-planned — `batch-pick.sh` skips what the slice already carries, so a batch picked before the interruption is a no-op, never a duplicate. A batch branch with no commits is removed and its batch re-run.
 
 A round of one batch runs in the slice's writing tree as below. Batches in later rounds build on the picked commits of earlier ones. Writers across a wave's slices and a slice's batches together stay within the parallel cap.
 
@@ -205,10 +206,10 @@ Call `Agent(subagent_type: slice-executor)` with:
 - `notes-path` — the machine-local agent-notes path;
 - `repo-conventions` — the convention sources resolved at start;
 - `reference-paths` — absolute paths to the domain references the index matched, omitted when none matched;
-- `worktree` — the slice tree, in a parallel wave; omitted when the slice runs in the main checkout;
+- `worktree` — the tree this executor writes in: its batch tree in a parallel round, else its slice tree in a parallel wave; omitted only when it writes in the main checkout;
 - `verify-lock` — the absolute path of `scripts/verify-lock.sh`, and the slice's `Verify needs` from its Rollout entry. The executor runs locked commands with `GATED_DELIVERY_VERIFY_LOCK_TIMEOUT_S=300` in front and the Bash timeout at 600000 ms.
 
-Run it in the foreground — in a parallel wave, the round's executors go in one message and all return before 6.2. STOP if the executor is not found. Cross-repo ACs do not appear in Rollout or batch planning.
+Run it in the foreground — every executor of one dispatch, across a wave's slices and a round's batches, goes in one message and all return before 6.2. STOP if the executor is not found. Cross-repo ACs do not appear in Rollout or batch planning.
 
 #### 6.2. Read agent notes
 
@@ -224,7 +225,7 @@ Run `pnpm test` or the repository equivalent through the verify lock. Fix and co
 
 #### 6.4. Run `senior-review-lens` on the batch
 
-Unless the slice contains one batch, invoke `Skill(senior-review-lens)` with this batch's exact commit range: `<previous-batch-tip>..HEAD`, or `<slice-base-sha>..HEAD` for the first batch. STOP if `senior-review-lens` is not found.
+Unless the slice contains one batch, invoke `Skill(senior-review-lens)` with this batch's exact commit range: `<previous-batch-tip>..HEAD`, or `<slice-base-sha>..HEAD` for the first batch, or the range `batch-pick.sh` printed in a round. **One `Skill` call per batch range**: a lens loaded for an earlier batch, or reviewed from memory, does not count, and no note may record a lens verdict for a range the skill was not invoked on. STOP if `senior-review-lens` is not found.
 
 Apply clear fixes in follow-up commits. Carry judgment calls to step 7.6. Report what each lens examined alongside its letter. Structural feedback stays per batch because cohesion and test-shape choices have no recipe for the executor to consult, and the lens is one in-context invocation rather than three sub-agents.
 
@@ -331,7 +332,7 @@ Keep this actor's Resume block and the shared Carry-forward list current:
 ```md
 ## Resume — <actor>[ — s<n>]
 
-- Updated: <UTC timestamp>
+- Updated: <UTC timestamp, from `date -u +%Y-%m-%dT%H:%MZ`>
 - Slice: <current Rollout slice>
 - Branch: <branch>
 - Base: <ref> at <SHA>
@@ -404,10 +405,10 @@ Then complete Route F:
 3. Harvest every `OPEN` handoff entry into the spec, an ADR, a tracker ticket, a named PR, or repository documentation, or close it with evidence. An entry bound for the tracker goes through `Skill(issue-writing)`, whose publishing rules keep design detail in the spec and out of the ticket.
 4. Record the outcome in the spec and other canonical destinations.
 5. **Fold per-slice handoffs.** Where a wave wrote `{ticket-id}/handoff-s<n>.md` files, move each one's Resume block and Carry-forward entries into `handoff.md` unchanged, then delete the per-slice files in the close-out commit — their content lives on in `handoff.md`.
-6. **Lead the handoff with its outcome.** Write `## Outcome` as the file's **first** section — what shipped, where each harvested item landed, and the dead ends and assumptions a later reader would otherwise re-derive — then stamp each `## Resume — <actor>` block `Closed: <UTC timestamp>` so no spent position reads as live. Nothing is deleted, moved or archived: the outcome earns the top of the file, it does not replace what is under it. Stamping others' blocks is 7.6's one exception, because no block is live once the ticket has shipped.
+6. **Lead the handoff with its outcome.** Write `## Outcome` as the file's **first** section — what shipped, where each harvested item landed, and the dead ends and assumptions a later reader would otherwise re-derive — then stamp each `## Resume — <actor>` block `Closed: <UTC timestamp, from `date -u +%Y-%m-%dT%H:%MZ`>` so no spent position reads as live. Nothing is deleted, moved or archived: the outcome earns the top of the file, it does not replace what is under it. Stamping others' blocks is 7.6's one exception, because no block is live once the ticket has shipped.
 7. Set the spec's frontmatter `status: Shipped`, so a reader can tell a shipped spec from one still in flight.
 8. Recommend `/learn-flow` before closing out, while the machine-local notes still exist: they hold the gotchas and dead ends that 7.6's promotion bar deliberately excludes, and that reflection pass is their only remaining consumer.
-9. Leave the main checkout on `main`, clean and pulled, and delete every merged slice branch, locally and on `origin` (`git push origin --delete <branch>`), unless the host already deleted it on merge.
+9. Leave the main checkout on `main`, clean and pulled, and delete every merged branch this ticket created — slice branches, the spec branch and the close-out branch — locally and on `origin` (`git push origin --delete <branch>`), unless the host already deleted it on merge. When close-out goes through a PR, this step runs on the next `/slice` after that PR merges; do not hand it to the user.
 10. Leave the machine-local notes in place. They accumulate one file per ticket in `$LOCAL_NOTES/agent-notes/`, outside every repository, and `/learn-flow` treats a matching entry from an earlier ticket as its strongest corroboration that a lesson is structural rather than incidental. Pruning them is the user's call, not a workflow step.
 
 ## What `/slice` does NOT do

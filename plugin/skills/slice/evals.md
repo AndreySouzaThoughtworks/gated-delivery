@@ -104,7 +104,9 @@ CONTEXT: {{PERSONA}}
 grep -iEc "route (a|b|r|c|d|e|w|f)" output.md
 grep -Ec "gh pr create --draft" output.md    # scenario 6
 grep -iEq "evidence" output.md && grep -iEq "impact" output.md && grep -iEq "next" output.md   # scenario 12
-grep -Ec "\.ai-context/domain-types\.md" output.md   # scenario 16
+# The delta is written into the declared file — expect >=1 on 16: a line that stages it, an Edit or Write call on it, or one that
+# merges, copies or folds a change into it. A run that only names the path, or says it does not apply, scores 0.
+grep -iEc "(git add|Edit\(|Write\()[^&;|]*\.ai-context/domain-types\.md|(merge|copy|fold|append)[^.]* into [^.]*\.ai-context/domain-types\.md" output.md   # scenario 16
 # Blocks are actor-scoped — expect >=1 on 17-19, and 2 on 20, whose input held two. The em-dash is
 # the discriminating part: the shared `## Resume` this replaced scores 0, and a close-out that
 # tidies the blocks away scores 0 where the retention rule requires 2.

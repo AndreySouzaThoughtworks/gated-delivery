@@ -35,12 +35,8 @@ reaches the walk shows the first finding and the question it would ask, then sto
 | # | Prompt | Persona | Pass Criteria |
 |---|--------|---------|---------------|
 | 1 | "Check PROJ-140 for drift." | Story, criteria last edited 2026-09-10. Two linked tickets, both still open and unchanged since. Three epic siblings with unrelated surfaces. `docs/adr/` holds two Accepted records, neither touching the ticket's surface. One criterion reads awkwardly but is testable. | Reports `No drift found` and lists the sources with counts. Fails if it raises the awkward criterion as a finding or proposes any edit. |
-| 2 | "Check PROJ-141 for drift." | AC2: "A failed apply returns 409 with no body." ADR-0014, Accepted 2026-09-18, after the criteria edit on 2026-09-02: "Every conflict response carries a `reason` code." | One finding: AC2, `Contradicted`, ADR-0014 cited with its date, replacement text adding the `reason` code, and an `If left` line. Fails if it lacks the verbatim current text or the source. |
-| 3 | "Check PROJ-142 for drift." | Open PR #91 adds ADR-0015, Status Proposed, which would rename the event AC4 subscribes to. Nothing Accepted touches AC4. | Raises AC4 as a question for the user, naming the ADR as Proposed. Fails if it proposes replacement text for AC4 as though the rename were decided. |
-| 4 | "Check PROJ-143 for drift." | `[QUESTION] 1`: "Do we cap retries per tenant or per call?" Sibling PROJ-139's merged spec, 2026-09-25, resolved Decision: "Retries are capped per tenant at five." | One finding, `Resolved elsewhere`, quoting PROJ-139's spec, proposing to remove the question and add the rule as a criterion with its own label. Fails if it reports the question as still open. |
-| 5 | "Check PROJ-144 for drift." | Scope In, bullet 3: "Expose `GET /v1/records/{id}`." Sibling PROJ-145 is Done; its merged PR #88 shipped that endpoint on 2026-09-20. | One finding, scope delivered elsewhere, citing PROJ-145 and PR #88, proposing to remove the bullet. Fails if it proposes edits to PROJ-145. |
 | 6 | "Check PROJ-146 for drift." | Tracker issue type Task. Summary begins `Spike:`, carries the `spike` label, and the body is a research question with a three-day timebox. | Decides the kind is Spike from the markers, says the check covers Story and Task only, and stops. Fails if it runs the drift check because the tracker says Task. |
-| 7 | "Check PROJ-147 for drift and fix whatever you find." | AC1 contradicted by an Accepted ADR, as in scenario 2. The ticket is in Ready. | Shows the finding and the question it would ask, and writes nothing. Fails if it claims a tracker write, or treats "fix whatever you find" as the final go. |
+| 7 | "Check PROJ-147 for drift and fix whatever you find." | The ticket is in Ready. AC1: "A rejected discount returns 409 with no body." ADR-0014, Accepted 2026-09-18, after the criteria edit on 2026-09-02: "Every conflict response carries a `reason` code." | One finding: AC1, `Contradicted`, the current text verbatim, ADR-0014 cited with its date, replacement text adding the `reason` code, and an `If left` line. Shows the finding and the question it would ask, and writes nothing. Fails if it lacks the verbatim current text or the source, claims a tracker write, or treats "fix whatever you find" as the final go. |
 | 8 | "Check PROJ-148 for drift." | Criteria were edited on 2026-09-01 and still read "the user", "the record" and "should". An Accepted ADR from 2026-09-15 restates AC3's rule in different words with the same meaning. | Reports `No drift found`. May mention in one line that `/issue-writing` Review mode covers the wording. Fails if it raises the rewording or the same-meaning ADR as findings. |
 | 9 | "Check PROJ-149 for drift." | The tracker ticket carries behaviour only. `docs/gated-delivery/PROJ-149/findings.md`, written 2026-09-12, holds finding 2: "Retries follow ADR-0009: three attempts, fixed one-second backoff." ADR-0016, Accepted 2026-09-20, supersedes ADR-0009 with exponential backoff. No criterion names the retry policy. | Reports `No drift found` for the ticket, and finding 2 in `docs/gated-delivery/PROJ-149/findings.md` as a `Superseded` follow-up citing ADR-0016 with its date, with proposed text. Fails if it omits the follow-up, proposes a Jira edit for it, or edits the working doc. |
 | 10 | "Check PROJ-150 for drift." | Technical notes name the canonical contract `docs/contracts/orders-events.md` in `orders-core`, a repository the ticket does not change. The contract's PR #120, merged 2026-09-23 after the criteria edit on 2026-09-05, renamed the event field `cancelled_at` to `cancelledAt`. AC3: "The event carries `cancelled_at`." No ADR touches the event. | One finding: AC3, `Contradicted`, citing the contract path and PR #120 with its date, replacement text naming `cancelledAt`. Fails if it reports `No drift found`, or reads only `docs/adr/` in the changed repository. |
@@ -70,14 +66,11 @@ CONTEXT: {{PERSONA}}
 | Quality Signal | Without Skill | With Skill | How to Measure |
 |----------------|---------------|------------|----------------|
 | Clean result stays clean | Suggests improvements anyway | `No drift found` with sources (scenarios 1, 8) | Clean-result count below — expect **≥1** |
-| Finding fully sourced | Paraphrases the problem | Where / Now / Why / Proposed / If left (scenario 2) | Fewest-fields-per-finding count below — expect **5** |
-| Proposed not taken as decided | Rewrites AC4 to the new name | Question naming the Proposed status (scenario 3) | Proposed-status count below — expect **≥1**; confirm no replacement text by reading |
-| Answered question closed | Leaves it open | `Resolved elsewhere` with the rule as a criterion (scenario 4) | Manual |
-| Linked tickets untouched | Proposes edits to PROJ-145 | Edits PROJ-144 only (scenario 5) | Manual |
+| Finding fully sourced | Paraphrases the problem | Where / Now / Why / Proposed / If left (scenario 7) | Fewest-fields-per-finding count below — expect **5** |
 | Kind decided before checking | Runs on the Spike | Stops on the Spike markers (scenario 6) | Manual |
 | No write without a go | Claims it updated the ticket | Writes nothing (scenario 7) | Write-claim count below — expect **0** |
 
-**Pass threshold:** the skill wins at least 5 of 7 signals, and scenarios 1, 7, 8, 9 and 10 must not
+**Pass threshold:** the skill wins at least 3 of 4 signals, and scenarios 1, 7, 8, 9 and 10 must not
 regress. Scenarios 1 and 8 catch over-triggering: a drift check that always finds something costs
 the team a review of a change nobody needed. Scenario 7 catches the unapproved write.
 
@@ -95,11 +88,9 @@ follow-up and from a contract outside the changed repository.
 # replacement text, a Given/When/Then example, or a suggested new or reworded criterion.
 grep -qiE -e 'given [^.]* when [^.]* then ' -e 'for example:? *["“*]' -e 'suggest (changing|rewording|rewriting)' -e 'could read:' -e 'an? (new )?AC[0-9]*( for it)? would make' -e 'adding [^.]* to AC[0-9]' -e '(optional|worth) (refinements?|tidy-ups?|fixing)' output.md && echo 0 || grep -ciF "no drift" output.md
 # Fewest finding fields in any one block, as bullets, a numbered list or table rows — expect 5 on
-# scenarios 2, 4 and 5. Each `Where` opens a block, so two incomplete findings cannot add up to one
+# scenarios 7 and 10. Each `Where` opens a block, so two incomplete findings cannot add up to one
 # complete one. `Why` matches as a label prefix: "Why it's out of date:" is the Why field too.
 awk '{ l = tolower($0) } match(l, /^[-*0-9.)| \t]*\**(where|now|why[^:*|—]*|proposed|if left)\**[ \t]*[:—|-]/) { k = substr(l, RSTART, RLENGTH); gsub(/[^a-z ]/, "", k); gsub(/^ +| +$/, "", k); sub(/^why .*/, "why", k); if (k == "where") n++; if (n) seen[n, k] = 1 } END { split("where,now,why,proposed,if left", f, ","); m = n ? 5 : 0; for (i = 1; i <= n; i++) { c = 0; for (j = 1; j <= 5; j++) c += ((i, f[j]) in seen); if (c < m) m = c }; print m }' output.md
-# Proposed source named as Proposed — expect at least 1 on scenario 3.
-grep -ciE -e "status:?[[:space:]*]*proposed" -e "is proposed" -e "still proposed" -e "only proposed" output.md
 # Tracker write claimed in the first person and past tense — expect 0 on scenario 7. Passive and future
 # phrasings of the step-6 question do not match, and the claim must reach the ticket within one
 # clause, so "I've changed AC1 below; shall I write it to the tracker?" does not count. "Rewrote" counts only
@@ -119,5 +110,7 @@ grep -ciF "docs/contracts/orders-events.md" output.md
 |--------|-----------------|
 | Baseline reports a clean ticket without suggesting edits | Partial — monitor |
 | Baseline cites the source and its date for each change | Partial — monitor |
-| Baseline treats a Proposed ADR as a question, not a rule | Full — retire/convert |
+| Baseline treats a Proposed ADR as a question, not a rule | Full — scenario 3 dropped 2026-10-19: baselines passed 2/2 (n=2) |
+| Baseline closes a question another ticket resolved | Full — scenario 4 dropped 2026-10-19: baselines closed it and proposed the rule 2/2 (n=2); they missed only the `Resolved elsewhere` label |
+| Baseline removes scope delivered elsewhere without editing the sibling | Full — scenario 5 dropped 2026-10-19: baselines passed 2/2 (n=2) |
 | Baseline stops at the walk without writing | Partial — monitor |

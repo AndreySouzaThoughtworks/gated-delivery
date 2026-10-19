@@ -428,3 +428,60 @@ test("an index naming CLAUDE.md as client context is not a dangling reference", 
   const { code, out } = runGuard(dir);
   assert.equal(code, 0, out);
 });
+
+test("a manifest description naming a skill that does not exist is reported", () => {
+  // Both manifests advertised "a quick behavioural story rewrite" long after that skill was deleted.
+  // Prose cannot be resolved, so the descriptions name skills as `/name` and the guard resolves those.
+  for (const manifest of ["plugin/.claude-plugin/plugin.json", ".claude-plugin/marketplace.json"]) {
+    const dir = validRepo();
+    const description = "Includes /alpha and /story-rewrite.";
+    write(
+      dir,
+      manifest,
+      manifest.startsWith("plugin/")
+        ? JSON.stringify({ name: "p", description })
+        : JSON.stringify({ plugins: [{ name: "p", source: "plugin", description }] }),
+    );
+    const { code, out } = runGuard(dir);
+    assert.equal(code, 1, `expected failure for ${manifest}: ${out}`);
+    assert.match(out, new RegExp(`${manifest.replace(/\./g, "\\.")} description names "/story-rewrite"`));
+    assert.doesNotMatch(out, /names "\/alpha"/);
+  }
+});
+
+test("a manifest description naming only real skills, commands and paths stays silent", () => {
+  const dir = validRepo();
+  write(dir, "plugin/commands/ship.md", "---\ndescription: ship it\n---\n");
+  write(
+    dir,
+    "plugin/.claude-plugin/plugin.json",
+    JSON.stringify({ name: "p", description: "Runs /alpha, /gated-delivery:ship and ./plugin/x, via and/or bot." }),
+  );
+  const { code, out } = runGuard(dir);
+  assert.equal(code, 0, out);
+  assert.doesNotMatch(out, /ERROR/);
+});
+
+test("warns when a skill or agent file uses a phrase banned by the writing rules", () => {
+  const skill = validRepo();
+  write(skill, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\n---\n\n## Heading One\n\nThis step earns its place.\n");
+  const skillRun = runGuard(skill);
+  assert.equal(skillRun.code, 0, "style drift is a WARN, never an ERROR");
+  assert.match(skillRun.out, /WARN.*plugin\/skills\/alpha\/SKILL\.md:7 uses banned phrase "earns its place"/);
+
+  const agent = validRepo();
+  write(agent, "plugin/agents/bot.md", "---\nname: bot\n---\n\nThe Load-Bearing check.\n");
+  assert.match(runGuard(agent).out, /WARN.*plugin\/agents\/bot\.md:5 uses banned phrase "load-bearing"/);
+});
+
+test("the prose-writing skill may name the phrases it bans", () => {
+  const dir = validRepo();
+  write(dir, "plugin/skills/prose-writing/SKILL.md", "---\nname: prose-writing\n---\n\ngrep 'earns its place|load-bearing'\n");
+  write(dir, "plugin/skills/prose-writing/evals.md", "## Deterministic Checks\n\n```bash\ngrep -c foo output.md\n```\n");
+  write(dir, "plugin/skills/prose-writing/writing.md", "- the phrases \"earns its place\" and \"load-bearing\"\n");
+  write(dir, "README.md", "The plugin — 2 skills, 1 agents, 1 hooks.\n");
+  write(dir, "docs/skill-graph.md", "| `/alpha` | a skill |\n| `/prose-writing` | prose |\n| `bot` | an agent |\n");
+  const { code, out } = runGuard(dir);
+  assert.equal(code, 0, out);
+  assert.doesNotMatch(out, /banned phrase/);
+});

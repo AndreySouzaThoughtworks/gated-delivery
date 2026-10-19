@@ -8,9 +8,9 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdtempSync, mkdirSync, renameSync, symlinkSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdtempSync, mkdirSync, renameSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -40,8 +40,10 @@ const makeRepo = ({ dirty, pkg = true, lint = "true" }) => {
   return dir;
 };
 
-const run = (cwd, { verifyCmd, maxBlocks, sessionId, env = {} } = {}) => {
-  const out = execFileSync("node", [HOOK], {
+const freshLockFile = () => join(mkdtempSync(join(tmpdir(), "gated-delivery-verify-lock-")), "verify.lock");
+
+const run = (cwd, { verifyCmd, maxBlocks, sessionId, env = {}, hook = HOOK } = {}) => {
+  const out = execFileSync("node", [hook], {
     cwd,
     encoding: "utf8",
     // The hook persists a block counter in tmpdir keyed by session_id, and those files outlive the
@@ -50,6 +52,8 @@ const run = (cwd, { verifyCmd, maxBlocks, sessionId, env = {} } = {}) => {
     input: JSON.stringify({ session_id: sessionId ?? `t-${randomUUID()}` }),
     env: {
       ...process.env,
+      // Each run gets its own lock, so the suite never waits on — or blocks — this machine's real verify runs.
+      GATED_DELIVERY_VERIFY_LOCK: freshLockFile(),
       ...(verifyCmd ? { GATED_DELIVERY_VERIFY_CMD: verifyCmd } : {}),
       ...(maxBlocks ? { GATED_DELIVERY_VERIFY_MAX_BLOCKS: String(maxBlocks) } : {}),
       ...env,
@@ -185,6 +189,68 @@ test("a timeout also stops processes the verify command started", () => {
   });
   execFileSync("sleep", ["3"]);
   assert.equal(existsSync(orphanMarker), false, "the verify command's child must be stopped with it");
+});
+
+/** Another process holding the verify lock, the way a background /slice verify does. */
+const holdLock = (lockFile) =>
+  new Promise((ready, failed) => {
+    const holder = spawn("perl", [
+      "-e",
+      'use Fcntl qw(:flock); open(my $fh, ">>", $ARGV[0]) or die; flock($fh, LOCK_EX) or die; $| = 1; print "held\\n"; sleep 60',
+      lockFile,
+    ]);
+    holder.stdout.once("data", () => ready(holder));
+    holder.once("error", failed);
+  });
+
+const LOCK_PROBE = (lockFile) =>
+  `perl -e 'use Fcntl qw(:flock); open(my $fh, ">>", $ARGV[0]) or die; exit(flock($fh, LOCK_EX | LOCK_NB) ? 0 : 1)' "${lockFile}"`;
+
+test("allows without running the verify command while another run holds the verify lock", async () => {
+  // A background /slice verify and this hook would otherwise fight over ports and containers.
+  const dir = makeRepo({ dirty: true });
+  const lockFile = freshLockFile();
+  const holder = await holdLock(lockFile);
+  try {
+    writeFileSync(join(dir, "fail.sh"), "touch RAN\nexit 1\n");
+    const opts = { verifyCmd: "sh fail.sh", maxBlocks: 1, sessionId: `busy-${randomUUID()}`, env: { GATED_DELIVERY_VERIFY_LOCK: lockFile } };
+    const busy = run(dir, opts);
+    assert.equal(busy?.decision, undefined, "a held lock must allow the stop");
+    assert.match(busy?.systemMessage ?? "", /skipped/, "a skipped verify must say so, never pass silently");
+    assert.equal(existsSync(join(dir, "RAN")), false, "the verify command must not run while the lock is held");
+    holder.kill();
+    await new Promise((done) => holder.once("close", done));
+    assert.equal(run(dir, opts)?.decision, "block", "a busy lock must not have counted as a block");
+  } finally {
+    holder.kill();
+  }
+});
+
+test("runs the verify command while holding the verify lock, and a failure still blocks", () => {
+  const dir = makeRepo({ dirty: true });
+  const lockFile = freshLockFile();
+  writeFileSync(join(dir, "fail.sh"), `touch RAN\n${LOCK_PROBE(lockFile)} || touch LOCKED\nexit 1\n`);
+  const result = run(dir, { verifyCmd: "sh fail.sh", env: { GATED_DELIVERY_VERIFY_LOCK: lockFile } });
+  assert.equal(result?.decision, "block");
+  assert.equal(existsSync(join(dir, "RAN")), true, "the verify command must run when the lock is free");
+  assert.equal(existsSync(join(dir, "LOCKED")), true, "the verify command must run under the lock");
+});
+
+test("runs unlocked when the lock wrapper is missing", async () => {
+  const hookDir = mkdtempSync(join(tmpdir(), "gated-delivery-verify-nowrapper-"));
+  const hook = join(hookDir, "verify-on-stop.mjs");
+  copyFileSync(HOOK, hook);
+  const dir = makeRepo({ dirty: true });
+  const lockFile = freshLockFile();
+  const holder = await holdLock(lockFile);
+  try {
+    writeFileSync(join(dir, "fail.sh"), "touch RAN\nexit 1\n");
+    const result = run(dir, { hook, verifyCmd: "sh fail.sh", env: { GATED_DELIVERY_VERIFY_LOCK: lockFile } });
+    assert.equal(result?.decision, "block");
+    assert.equal(existsSync(join(dir, "RAN")), true, "without the wrapper the command runs as before");
+  } finally {
+    holder.kill();
+  }
 });
 
 test("GATED_DELIVERY_VERIFY_CMD overrides the CLAUDE.md Verify command", () => {
@@ -338,7 +404,7 @@ test("fails open on unusable stdin", () => {
       cwd: dir,
       encoding: "utf8",
       input,
-      env: { ...process.env, GATED_DELIVERY_VERIFY_CMD: "sh -c 'exit 0'" },
+      env: { ...process.env, GATED_DELIVERY_VERIFY_LOCK: freshLockFile(), GATED_DELIVERY_VERIFY_CMD: "sh -c 'exit 0'" },
     });
     assert.equal(out, "", `expected allow for stdin: ${input || "<empty>"}`);
   }

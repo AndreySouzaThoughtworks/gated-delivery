@@ -6,7 +6,7 @@ description: Create a spec file from a tracker ticket. Walks the user through th
 
 **Hold drafts in conversation until sign-off.** Draft spec content lives in conversation until step 9. Do not write it until the user signs off on every section.
 
-**Branch preconditions.** A repo-hosted spec written at step 9 must land on `main` or the ticket's own branch (`feat/{ticket-id}-*`), with a clean working tree. Any other state — STOP and ask the user how to proceed. An external working spec is committed only in the notes repository — the repository holding the Shared notes home (`## Delivery notes` in the client's CLAUDE.md); do not mutate the changed repository to store it. Before reading from or writing to that notes-repo checkout, verify it too: working tree clean and HEAD on `main`, otherwise STOP. Pulling `main` from a feature branch merges it, and committing there lands the spec inside an unrelated PR.
+**Branch preconditions.** A repo-hosted spec written at step 9 must land on `main` or the ticket's own branch (`feat/{ticket-id}-*`), with a clean working tree. Any other state — STOP and ask the user how to proceed. An external working spec is committed only in the notes repository — the repository holding the Shared notes home (`## Delivery notes` in the client's CLAUDE.md); do not mutate the changed repository to store it. Before reading from or writing to that notes-repo checkout, verify it too: working tree clean and HEAD on `main`, otherwise STOP.
 
 ## Inputs
 
@@ -77,7 +77,7 @@ If ticket lack AC table, or existing ACs incomplete or ambiguous, stop and ask u
 - **Red flags** — code smells, oversized files, tangled responsibilities in target area
 - **Open decisions** — places where implementation has meaningful architectural fork
 
-**Then sketch architecture flow.** If ≥3 components participate in change, or order of events matter across new flow, draft short Mermaid sequence or flowchart diagram (~10 nodes max) of how flow run end-to-end, paired with one paragraph naming seam(s) introduced. Get user sign-off on shape of flow before drafting ACs at step 4 — picture is what ACs written against, and changes to it after ACs locked in are expensive. Skip sketch entirely when change local (one or two components, no ordering concerns); don't manufacture diagram to fill slot.
+**Then sketch architecture flow.** If ≥3 components participate in change, or order of events matter across new flow, draft short Mermaid sequence or flowchart diagram (~10 nodes max) of how flow run end-to-end, paired with one paragraph naming seam(s) introduced. Get user sign-off on shape of flow before drafting ACs at step 4. Skip sketch entirely when change local (one or two components, no ordering concerns); don't manufacture diagram to fill slot.
 
 **Then answer four structural questions explicitly:**
 
@@ -101,11 +101,9 @@ If work introduce new external dependency (database, cache, queue, secret, third
 - **Env scope** — which envs need infra? Often _not_ all envs service deployed to. Match service's actual `replicaCount > 0` envs to avoid paying for unused resources.
 - **Reference service for pattern** — find service already using same dependency, cite its layout (e.g. service already wired into the infra repo; a service already carrying the shared Redis client's Helm bindings).
 
-This sub-step catch "we silently expected someone else to do production work."
-
 #### 3c. Cross-repo footprint
 
-Sum above: does ticket's work span more than this repo? If yes, spec's AC section need explicit tagging (see step 4) — `in-repo / automated` vs `cross-repo / manual`. Note footprint here so AC tagging consistent later, and so step 9 of `/slice` (Open PR) can call out which ACs the PR satisfy vs which external.
+Sum above: does ticket's work span more than this repo? If yes, spec's AC section need explicit tagging (see step 4) — `in-repo / unit test` or `in-repo / integration test` vs `cross-repo / manual verification`. Note footprint here so AC tagging consistent later, and so `/slice` step 7.7 (Mark the PR ready) can list in the PR body which ACs the PR satisfy vs which external.
 
 #### 3d. Internal domain entities
 
@@ -122,7 +120,7 @@ Your analysis here flows into the spec's `## Domain model` section at step 4. Fo
 
 #### 3e. Security & threat model
 
-**Always run security pass; scale depth to change.** Design-time lens that catch authz / trust-boundary gaps *before* ACs written against insecure design — class of issue code-level review can't catch, because faithful implementation of unsafe design look correct. Canonical example: tenant-scoped write endpoint that authenticate caller but never check whether they authorized to write *that* tenant's data — code correct, design open.
+**Always run security pass; scale depth to change.** Catch authz / trust-boundary gaps *before* ACs written against insecure design — e.g. tenant-scoped write endpoint that authenticate caller but never check whether they authorized to write *that* tenant's data.
 
 Invoke the threat-modeling skill `## Review routing` names for methodology (decompose → STRIDE per component → map mitigations → residual risk); when none is named, apply those four steps directly. Scale by what change touch:
 
@@ -146,13 +144,7 @@ Walk this skill's own `templates/change.md` section by section in template order
 
 **For Domain model section** — present Added/Changed/Renamed/Referenced classification from step 3d. For each Added entity, use the repository's canonical domain-model shape or the fallback shape from step 3d. For Changed/Renamed entries, draft only lines that changed. Confirm entity list with user before drafting detail; the spec is the canonical record of the delta until it is merged into the repository's model at ticket close.
 
-**For Acceptance criteria section** — if ticket's cross-repo footprint (step 3c) non-empty, tag each AC with implementation location and verification mode. Use one of:
-
-- `in-repo / unit test` — implementable by slice-executor via TDD; verified by automated test in this repo
-- `in-repo / integration test` — implementable in this repo with Testcontainers or similar; verified by integration test
-- `cross-repo / manual verification` — outside this repo's executor scope (infra, ops, deployment readiness); verified manually against deployed environment
-
-Add one-paragraph header at top of AC section explaining tags. Let slice-executor see at glance which ACs to TDD and which to skip with scratch note.
+**For Acceptance criteria section** — if ticket's cross-repo footprint (step 3c) non-empty, tag each AC with the template's location / verification tags, and add one-paragraph header at top of AC section explaining them.
 
 **For Rollout and Done-when sections** — leave their repeated slice entries open while first drafting. Step 5 proposes the merge sequence; step 6 may reshape it as decisions resolve. After the sequence is final, emit one `### Slice <n>` Done-when block per Rollout entry, in the same order. Include only stack validators and verification commands that apply to this repository.
 
@@ -176,17 +168,11 @@ When a slice is too large, narrow behavior before cutting horizontally:
 
 Once a surface is reachable, its safety envelope belongs in the same slice. Rollout names merge units, not executor batches; `/slice` decides batch boundaries from implementation seams.
 
-**Plan the parallelism.** Group the slices into waves so independent work runs at the same time, by subagents or by people. For each slice record what the template's lane fields ask: the slices it depends on, its write surface, any interface it shares with a slice in the same wave, and what its verify run needs. A slice joins the earliest wave whose predecessors all merge before it. Two slices share a wave only when:
+**Plan the parallelism.** Group the slices into waves and fill each slice's lane fields by the template's `## Rollout` wave rules. Then apply the laziest-wrong test to the wave itself: for each pair in a wave, name the cheapest way the two could still collide — the same file, the same config key, the same seed data. A collision you can name moves one slice to the next wave.
 
-1. neither depends on the other;
-2. their write surfaces do not overlap — count the shared hotspots as overlap: a dependency manifest or lockfile, migration numbering, a module or route registry, generated code, a changelog. The spec itself and the handoff are not overlap: each slice ticks only its own Done-when block, and `/slice` gives each wave slice its own handoff entry;
-3. every interface both touch is already fixed: on `main`, outside this repository, or written out verbatim in the spec's `## Interface` before the wave starts. A slice that defines an interface the others consume goes in an earlier wave.
+**Ordering note.** Slicing a new capability buys smaller reviews and deployment decoupled from release; slicing a defect fix buys only smaller reviews, since its first slice carries no value until the last lands. Weigh that when ordering slices and when deciding whether to slice at all.
 
-Then apply the laziest-wrong test to the wave itself: for each pair in a wave, name the cheapest way the two could still collide — the same file, the same config key, the same seed data. A collision you can name moves one slice to the next wave. Parallelism is worth its cost only with two or more slices in a wave; a strict chain stays a list, and saying so is a valid answer.
-
-**Ordering note.** Adding a capability on the exposure axis buys smaller reviews and deployment decoupled from release. Fixing a defect buys only the smaller reviews — the first slice of a fix carries no value on `main` until the last one lands. That affects which slice you would rather land first, and whether slicing the ticket is worth its overhead at all; it does not change what is allowed.
-
-Add the template's optional PR dependency graph when there are at least three slices, the required-before relationships are not obvious, or a wave holds more than one slice. Nodes describe PR outcomes and arrows mean “must merge before.” The Rollout entries remain authoritative; omit a graph that only redraws a simple one- or two-PR list.
+Add the template's optional PR dependency graph when its trigger fires.
 
 If any check fails, return to step 4 and revise.
 
@@ -195,11 +181,11 @@ If any check fails, return to step 4 and revise.
 If `Open decisions` section non-empty, walk it with user. For each decision:
 
 - Present question, options, tradeoffs
-- **Framing check (`senior-review-lens` Lens H):** before resolving, ask whether question is deepest relevant one or whether hard constraint (PII, compliance, vendor contract, latency budget, deployment topology) already collapsed 2–3 of options. If yes, restate question one level deeper and revise option list before getting user's call. Surface "X vs Y" decision that turn out corollary of deeper constraint waste user's attention.
+- **Framing check (`senior-review-lens` Lens H):** before resolving, ask whether question is deepest relevant one or whether hard constraint (PII, compliance, vendor contract, latency budget, deployment topology) already collapsed 2–3 of options. If yes, restate question one level deeper and revise option list before getting user's call.
 - Get user's call (or explicitly defer if waiting on someone else)
 - Update section: replace open question with chosen approach + reasoning + consequences
 
-Spec **cannot** be dispatched for implementation while any decision unresolved. If decisions can't be resolved now, spec committed in draft state and `/slice` route to Route B (Resolve decisions) on next invocation.
+Spec **cannot** be dispatched for implementation while any decision unresolved. If decisions can't be resolved now, spec written with `status: Draft` and `/slice` route to Route B (Resolve decisions) on next invocation.
 
 If a decision changes PR shape or exposure, revise Rollout with the user before continuing.
 
@@ -218,9 +204,9 @@ Before showing final draft to user, re-read entire spec from executor's perspect
 - **Rollout covers ACs exactly once** — every `in-repo` AC appears in exactly one slice; cross-repo ACs appear in none. Every slice declares exposure, satisfies the three-part boundary bar, and every `flagged` slice includes a removal condition.
 - **Done-when matches Rollout** — exactly one slice block per Rollout entry, in the same order, containing only checks that apply to this repository.
 - **Optional PR graph agrees with Rollout** — when present, every node maps to one slice, every dependency points forward in the chosen sequence, and no graph-only requirement contradicts a Rollout boundary.
-- **Waves hold up** — every slice carries its lane fields; no two slices in one wave depend on each other, overlap in write surface or a shared hotspot, or touch an interface that is not yet fixed; the wave table and the graph agree.
+- **Waves hold up** — every slice appears in exactly one wave-table row and carries its lane fields; no two slices in one wave depend on each other, overlap in write surface or a shared hotspot, or touch an interface that is not yet fixed; the wave table and the graph agree.
 
-Fix everything found _before_ user see final draft. User catching these fine; you catching them first better.
+Fix everything found _before_ user see final draft.
 
 ### 8. CHECKPOINT — final review
 
@@ -250,9 +236,8 @@ Update frontmatter:
 
 Add a comment linking to the single spec location. Post it through the tracker Mechanics (`## Issue tracking`). Use the repository URL for a repo-hosted spec or the notes-repository URL for an external spec. Run `Skill(issue-writing)`'s guardrail scan on the comment before posting it; a link is still a write.
 
-**Where speccing invalidated the ticket, reconcile it.** Step 2 made the ticket the source of
-truth for the user-facing story, so a criterion the spec silently contradicts leaves two documents
-disagreeing with no signal which one won — and the ticket is the one the team reads. Route the edit
+**Where speccing invalidated the ticket, reconcile it** — the ticket stays source of truth for the
+user-facing story, so no criterion may be left silently contradicted by the spec. Route the edit
 through `Skill(issue-writing)`; its publishing section decides what may reach a ticket.
 Criteria and scope change with the user's approval and a comment saying what revealed it. The design
 behind them stays in this spec, bar an interface shape the ticket proposes or another team agreed,

@@ -4,19 +4,9 @@ Issue-driven, test-first delivery flow for Claude Code, with no client baked in.
 
 ## Install
 
-From a local checkout (directory marketplace):
+Install steps are in the [README](../README.md#install). Install at **user** scope and run `/reload-plugins` afterwards, or the agents stay unregistered in the running session (`agent type not found`). Check with `claude plugin list` for `Scope: user`, then confirm the skills, commands and agents listed in [skill-graph.md](./skill-graph.md) resolve.
 
-```text
-claude plugin marketplace add ~/Develop/gated-delivery
-/plugin install gated-delivery@gated-delivery
-/reload-plugins
-```
-
-Skipping `/reload-plugins` leaves the agents unregistered in the running session (`agent type not found`). Install at **user** scope, or the skills exist only in the repo you installed from; check with `claude plugin list` for `Scope: user`.
-
-Verify: `/slice`, `/spec`, `/repo-forensics`, `/senior-review-lens`, `/prod-support`, `/renovate-shepherd`, `/learn-flow`, `/audit-flow`, `/primer`, `/issue-writing`, `/prose-writing`, `/story-drift` resolve, and `Agent(code-reviewer)` / `Agent(slice-executor)` are available.
-
-### One profile per client or account
+## One profile per client or account
 
 Each `CLAUDE_CONFIG_DIR` is a separate Claude Code profile with its own login, plugins, MCP servers, memory and history. Install the core into each profile you use:
 
@@ -60,9 +50,4 @@ Three hooks fire on their own: a Bash guard, a formatter after every edit, and a
 
 ## Daily use
 
-- Start a ticket: `/slice PROJ-123`. It routes by state (no spec → `/spec` first; resume; etc.).
-- Trivial one-line change? `/slice` has a step-0 escape hatch — straight to change + PR, no spec or slicing. It runs a `/repo-forensics` quick look first, so "trivial" is checked, not assumed.
-- About to touch existing code outside a ticket? `/repo-forensics` — what's verified vs inferred, what could break, the smallest safe next step. Stops before writing code.
-- Production incident: `/prod-support <ticket>`.
-- Renovate cleanup: `/renovate-shepherd`.
-- At a session break: `/learn-flow` to capture lessons back into the flow. Before a release (or when it feels bloated): `/audit-flow` to trim and keep it coherent.
+Which skill to run when, and how they call each other: [skill-graph.md](./skill-graph.md).

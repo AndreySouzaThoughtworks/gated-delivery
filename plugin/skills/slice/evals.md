@@ -100,9 +100,9 @@ CONTEXT: {{PERSONA}}
 
 ```bash
 grep -iEc "route (a|b|r|c|d|e|w|f)" output.md
-grep -iEc "draft" output.md                    # scenario 6
+grep -Ec "gh pr create --draft" output.md    # scenario 6
 grep -iEq "evidence" output.md && grep -iEq "impact" output.md && grep -iEq "next" output.md   # scenario 12
-grep -iEc "canonical|repository instructions|domain" output.md   # scenario 16
+grep -Ec "\.ai-context/domain-types\.md" output.md   # scenario 16
 # Blocks are actor-scoped — expect >=1 on 17-19, and 2 on 20, whose input held two. The em-dash is
 # the discriminating part: the shared `## Resume` this replaced scores 0, and a close-out that
 # tidies the blocks away scores 0 where the retention rule requires 2.

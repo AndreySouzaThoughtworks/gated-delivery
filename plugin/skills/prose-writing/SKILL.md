@@ -9,9 +9,9 @@ description: Construction, relevance and placement pass over prose that outlives
 
 ## When this runs
 
-Before the write, not after. Anything that survives the conversation gets the pass: commit subjects and bodies, PR titles and bodies, code comments, markdown files, spec sections, skill and agent instructions, frontmatter descriptions, user-facing error copy, Jira ticket text.
+Before the write, not after. Anything that survives the conversation gets the pass: commit subjects and bodies, PR titles and bodies, code comments, markdown files, spec sections, skill and agent instructions, frontmatter descriptions, user-facing error copy, tracker ticket text.
 
-Chat replies are out of scope — they answer a reader who has the conversation. Durable prose answers one who does not.
+Scope is artifacts that outlive the conversation, the same as `writing.md`. Chat replies are out of scope — they answer a reader who has the conversation. Durable prose answers one who does not.
 
 **The pass gets skipped on artifact prose** — rules applied to the reply and forgotten at the file. Run it on the draft before it reaches disk.
 
@@ -46,33 +46,25 @@ Apply the four lenses below to each paragraph as you go. They are what you read 
 
 ## Lens 1 — construction
 
-| Tic                                     | Test                                                                                       | Fix                                                                                                                                                                                                                     |
-| --------------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Walk-up paragraph                       | Does sentence one carry a fact, or announce that facts are coming?                         | Delete it. Open on the fact.                                                                                                                                                                                            |
-| Announcing frame                        | "Two things remain open", "Worth noting", "The point is", "The interesting bit is"         | Delete the frame, keep what followed.                                                                                                                                                                                   |
-| Affirm-then-justify                     | "Good question, and it matters", "Yes, and it's worth X because Y"                         | Delete.                                                                                                                                                                                                                 |
-| Editorialising lead-in                  | "Honestly", "The honest read is", "To be fair"                                             | Delete.                                                                                                                                                                                                                 |
-| Self-commentary                         | "this reads better as", "that is a virtue rather than a workaround"                        | Delete. Prose does not review itself.                                                                                                                                                                                   |
-| "not just A, but B"                     | grep `not just`                                                                            | State B.                                                                                                                                                                                                                |
-| Negation-contrast                       | grep `rather than`, `instead of`, `not a .* but`                                           | Keep only where the contrast is the information — a migration note, a corrected assumption. Otherwise state the positive and drop the foil.                                                                             |
-| Define-by-absence                       | "X is not Y, it's Z"                                                                       | "X is Z".                                                                                                                                                                                                               |
-| Negative space                          | "does not use X", "dependency-free — no lodash, no date-fns"                               | Cut the enumerated absences. A positive claim stands alone.                                                                                                                                                             |
-| Banned phrases                          | grep `earns its place`, `load-bearing`                                                     | Rewrite the claim in its own words.                                                                                                                                                                                     |
-| Triplet or anaphora                     | Does a sentence repeat a structure for cadence — "four kinds, four templates, four bars"?  | Keep the one that carries a fact. Rhythm is not a claim.                                                                                                                                                                |
-| Aphorism                                | Does a line sound quotable, and does the sentence beside it say the same thing concretely? | Keep the concrete one. An abstraction next to its own example adds nothing.                                                                                                                                             |
-| Section introduces the section below it | Does this paragraph tell the reader what the next heading is about?                        | Cut it. Move any fact it alone carries under that heading.                                                                                                                                                              |
-| Restates its neighbour                  | Does this sentence re-assert the one above it in different words?                          | Cut the weaker. Closing a rule by naming what it is not usually restates the rule.                                                                                                                                      |
-| Telegraphic or fragmentary prose        | Are necessary articles, verbs, or connecting words omitted, or is the subject unclear?     | Restore the missing words and write brief complete sentences. Imperative instructions may use an implied subject; headings, labels, table cells and conventional commit subjects may remain fragments when unambiguous. |
+| Tic | Test | Fix |
+| --- | --- | --- |
+| Walk-up, announcing frame, affirm-then-justify, editorialising lead-in | Does sentence one carry a fact, or announce, affirm or editorialise first — "Two things remain open", "Good question, and it matters", "To be fair"? | Delete it. Open on the fact. |
+| Self-commentary | "this reads better as", "that is a virtue rather than a workaround" | Delete. Prose does not review itself. |
+| Negation-contrast | grep `rather than`, `instead of`, `not a .* but` | Keep only where the contrast is the information — a migration note, a corrected assumption. Otherwise state the positive and drop the foil. |
+| "not just A, but B"; define-by-absence | grep `not just`; "X is not Y, it's Z" | State B; write "X is Z". |
+| Negative space | "does not use X", an enumerated list of absences | Cut the absences. A positive claim stands alone. |
+| Banned phrases | the pre-filter | Rewrite the claim in its own words. |
+| Triplet or anaphora | Does a sentence repeat a structure for cadence — "four kinds, four templates, four bars"? | Keep the one that carries a fact. Rhythm is not a claim. |
+| Aphorism | Does a line sound quotable, and does the sentence beside it say the same thing concretely? | Keep the concrete one. An abstraction next to its own example adds nothing. |
+| Section introduces the section below it | Does this paragraph tell the reader what the next heading is about? | Cut it. Move any fact it alone carries under that heading. |
+| Restates its neighbour | Does this sentence re-assert the one above it in different words? | Cut the weaker. Closing a rule by naming what it is not usually restates the rule. |
+| Telegraphic or fragmentary prose | Are necessary articles, verbs, or connecting words omitted, or is the subject unclear? | Restore the missing words and write brief complete sentences. Imperative instructions may use an implied subject; headings, labels, table cells and conventional commit subjects may remain fragments when unambiguous. |
 
 ## Lens 2 — relevance
 
-One question: is this important to the work, or important to the conversation that produced it?
-
-A point clarified mid-discussion feels like context worth keeping and reads as noise to someone who was not there. Debates about where a thing should live, corrections made in flight, the reasoning you discarded — all conversation, none of it durable. Cut it.
+Test: would a reader who was not in the conversation need this? Debates about where a thing should live, corrections made in flight and discarded reasoning fail it. Cut them.
 
 ## Lens 3 — placement
-
-Is this already captured somewhere, and does capturing it _here_ serve this reader?
 
 - Another artifact owns it → link or cite it by path and line. A copy disagrees with its source within a day.
 - A wrapper restating what it wraps → cut the restatement. A comment over an `it()` whose title already names the rule is this case, and reads as new information until you look at the line below.
@@ -82,7 +74,7 @@ Is this already captured somewhere, and does capturing it _here_ serve this read
 
 ## Lens 4 — assumptions
 
-An inference written as a fact is the one error a reader cannot detect. Every claim is verified, inferred, or checkable-but-unchecked. Verify the third kind before writing it. Mark the second as inferred, in the artifact — a report or a doc is where an assumption gets surfaced, since the conversation that held it is gone.
+Apply the Verified / Inferred / checkable-but-unchecked rubric in `writing.md` to every claim. An inference written as a fact is the one error a reader cannot detect.
 
 ## Reporting the pass
 
@@ -94,24 +86,19 @@ Name the unit too, where the prose was someone else's: _"read: 6 files whole"_ a
 
 ## Per-artifact traps
 
-| Artifact                | Trap                                                                                                                     |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Commit subject          | Conventional Commits type matches what the change is. Where the org checks the **PR title** instead, follow the client's commit convention.               |
-| Commit body             | Its reader has `git log` and nothing else. Anything that needs the conversation to parse is cut.                         |
-| PR body                 | The ticket and the spec already say what the work is. Link them, then state what this PR does that they do not describe. |
-| Code comment            | The code states what. A comment states why, or drifts from the line below it.                                            |
-| Markdown doc            | Living: it holds what is true now. Completed tasks are removed, not ticked and annotated.                                |
-| Frontmatter description | Retrieval triggers, phrased as the user would phrase the request.                                                        |
-| Error copy              | Match the audience — end users get the next action, developers get the precise cause.                                    |
+| Artifact | Trap |
+| --- | --- |
+| Commit subject | Conventional Commits type matches what the change is. Where the org checks the **PR title** instead, follow the client's commit convention. |
+| Commit body | Its reader has `git log` and nothing else. Anything that needs the conversation to parse is cut. |
+| PR body | The ticket and the spec already say what the work is. Link them, then state what this PR does that they do not describe. |
+| Code comment | The code states what. A comment states why, or drifts from the line below it. |
+| Markdown doc | Living: it holds what is true now. Completed tasks are removed, not ticked and annotated. |
+| Frontmatter description | Retrieval triggers, phrased as the user would phrase the request. |
+| Error copy | Match the audience — end users get the next action, developers get the precise cause. |
 
 ## Living docs and dated records
 
-The rule is in `writing.md`. Which one you are holding decides the check: a living doc fails if it records what _was_ true, a dated record fails if you edit it to match what is true now.
-
-| Writing                                                     | Then                                                      |
-| ----------------------------------------------------------- | --------------------------------------------------------- |
-| documentation, agent instructions, skills, a spec in flight | drop completed items, drop the history of the rule        |
-| a changelog, commit body, archived spec, handover note      | leave it as written, and exclude it from repo-wide sweeps |
+The rule is in `writing.md`. The test: a living doc fails if it records what _was_ true; a dated record fails if you edit it to match what is true now, and stays out of repo-wide sweeps.
 
 ## Worked example
 

@@ -68,10 +68,12 @@ inspect smallest relevant surface area. If you later need more, ask before expan
 
 ### 2. Verified
 
+The Verified/Inferred rubric is in `prose-writing/writing.md`; this skill adds the locator rule.
 What current repo evidence directly supports. Every verified claim carries locator: `file:line`,
 test name, config key, commit hash, log line, command output, or documentation reference.
 
-If line numbers unavailable or unreliable, say so — do not approximate them. If you cannot cite
+If line numbers unavailable or unreliable, say so — do not approximate them. Never invent a locator:
+no fabricated file path, line number, test name, commit hash or config key. If you cannot cite
 evidence for claim, it belongs in **Inferred** or **Missing context**, not here.
 
 ### 3. Inferred
@@ -162,17 +164,11 @@ Then **STOP** — `PROCEED` / `ADJUST` / `STOP`. Don't generate code until direc
 
 ## Hard rules
 
-- **Never invent an evidence locator** — no fabricated file paths, line numbers, test names, commit
-  hashes, or config keys. Approximate locator is a wrong one.
 - **Never claim to have inspected what you didn't.** Don't summarise repository contents from
   memory or model knowledge.
-- **Separate what you found from what you guessed.** Label every assumption as one.
-- **Keep human decisions visible.** If safest next step is to ask a person, say that directly.
-- **Prefer narrow over broad**, in both finding and fix.
-- **Don't implement until the direction is confirmed.**
-- **PII in evidence.** Production logs carry PII. Cite opaque identifiers only — never transcript
-  content, caller numbers, agent emails, or settings dumps — and never paste log bodies into a file
-  that might be committed. `/prod-support` owns full rules; this is the pointer.
+- **PII in evidence.** Production logs carry PII. Cite opaque identifiers only, and never paste log
+  bodies into a file that might be committed. The secrets and PII list in
+  `gated-delivery:issue-writing` (*Publishing to the tracker*, guardrail scan) names what stays out.
 
 ## Boundaries
 
@@ -188,14 +184,8 @@ This skill runs **before a change exists**. Does not overlap reviewers:
 Not an incident tool. Incident ticket or customer-reported regression → `/prod-support`.
 
 **Don't assume auto-invocation.** Explicit phrasing — "inspect first", "before you change
-anything", "what could break" — is reliable trigger. On ordinary small edits ("change this string",
-"reword this line") it has been seen not to fire, in a few ad-hoc runs rather than recorded
-measurement, so treat that as caution, not finding. Broadening description was tried once and
-appeared to make no difference; plausible reading is that one-line reword sits below any skill's
-trigger bar anyway, which this skill's own proportionality rule would endorse.
-
-Either way, dependable coverage is `/slice` step 0 for ticket work and invoking it by name
-everywhere else.
+anything", "what could break" — is the reliable trigger; ordinary small edits may not fire it.
+Dependable coverage is `/slice` step 0 for ticket work and invoking it by name everywhere else.
 
 **"Contradictions" elsewhere means something else.** `/spec` 5 and 7, and `issue-writing`'s consistency pass, check
 *authored artifacts* against each other — do ACs conflict, does Summary match Interface. This ledger
@@ -221,14 +211,7 @@ Structure adopted from the
 [Repo Forensics Starter Prompt](https://practiceofclarity.eu/en-us/shared/thinkfirst/repo-forensics-starter-prompt/)
 (Practice of Clarity, Mikey Sebastian Drozd, CC BY 4.0) plus companion six-item pre-code checklist.
 
-**§5 staleness earned its place** on a real instance during this skill's own build, recorded in
-PR #14: rot survived on the one doc surface `consistency.mjs` did not read. A second instance has
-since been recorded and acted on — the guard now fails on a reference to a skill that no longer
-exists — so the rule stands on that record and on eval scenario 4, not on this paragraph.
-
-**Adds:** surface budget, cross-surface ledger, staleness as finding, no-invented-locators, the
-*check* that guards each surface, blast radius as own question, inspect-first for work that never
-reaches `/spec`. **Does not repeat:** `/prod-support` evidence discipline, `code-reviewer`
+**Does not repeat:** `/prod-support` evidence discipline, `code-reviewer`
 verify-or-`UNVERIFIED`, `/spec` 3a canonical-doc rule, `/slice` 5 smallest-step sizing.
 
 ## Related skills

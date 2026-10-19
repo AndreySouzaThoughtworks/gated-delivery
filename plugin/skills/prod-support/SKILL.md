@@ -10,31 +10,15 @@ For a support ticket raising a production issue on a service you deliver. Work a
 
 ## Service conventions (set per client and service)
 
-**Method** below service-agnostic; these **levers** vary by client and service. Read them from the `## Production support` section of the nearest CLAUDE.md (contract: `docs/client-context.md` in this plugin), plus `## Issue tracking` for ticket mechanics. A lever that is absent: use the default below, or ask before relying on a guess. Client-wide rules ("never post to ticket / local corpus", the tracker mechanics) apply unchanged across that client's services.
-
-| Lever | `## Production support` key | Default when absent |
-|-------|-----------------------------|---------------------|
-| Observability tool and how to drive it | Observability | Ask which tool holds production logs |
-| Log query for this service | Log query | Ask |
-| Environment tag, and look-alikes that return nothing | Environment | Ask; never guess an env tag |
-| Where auth / streaming 401s surface | Auth errors | Backend logs, then front-end monitoring if the tool has it |
-| Log retention, and the fallback data source past it | Retention | Check the tool's retention before querying |
-| Symptom → runbook index | Runbook index | the index the repo's instructions name, commonly `docs/CONTEXT.md` |
-| Reversible config-fix runbook | Config fix | None — a config fix needs the client's documented path |
-| Ship path | Ship path | the repo's path-to-production doc, commonly `docs/PATH_TO_PRODUCTION.md` |
-| Git-ignored scratch corpus | Investigation corpus | `.claude/prod-support/<TICKET>/` (must be in `.gitignore`) |
-| Deploy correlation | Deploy correlation | git log + release tags of the service repo |
-| Support ticket intake fields | Intake fields | read every populated field, not only `description` |
-| Projects to search for similar tickets | Similar tickets | the `## Issue tracking` Incident tracker, else the project the ticket lives in |
-| Telephony / network capture stack | Call capture | Ask |
+**Method** below is service-agnostic; these **levers** vary by client and service. Read them from the `## Production support` section of the nearest CLAUDE.md, plus `## Issue tracking` for ticket mechanics; `docs/client-context.md` in this plugin holds each key's meaning and default. Keys: Observability, Log query, Environment, Auth errors, Retention, Runbook index, Config fix, Ship path, Investigation corpus, Deploy correlation, Intake fields, Similar tickets, Call capture. An absent key takes its default there; where that default is to ask, ask before relying on a guess. Client-wide rules ("never post to ticket / local corpus", the tracker mechanics) apply unchanged across that client's services.
 
 ## Step 1 — Understand the ticket
 
 Use the tracker mechanics `## Issue tracking` names first — need them to read ticket. Then:
 
 - Read ticket **and all comments**. Note the customer identifier the data uses (reporter says "Acme Poland"; data wants the account or tenant key — in conversation URLs and the stored records).
-- **Real report may live in custom fields, not `description`.** Support boards fed by an intake form populate **custom fields** — `description` often `null`. Fetch with every field populated (Jira: `expand=names`, read the ADF custom fields) and read the fields `Intake fields` names **before** concluding ticket empty — typically the narrative (often holds a **conversation or request ID**), steps to reproduce, expected result, plus customer ID, affected product, severity. Restricting the fetch to the standard set hides all these, makes populated ticket look blank.
-- **Open every attachment — usually primary evidence.** Screenshots show exact symptom, values, scope (all rows vs some) that text omits. Tracker attachment binaries often can't be fetched by MCP/WebFetch tools (Jira returns 403), so **ask user to download and share local path**, then `Read` it. If you genuinely cannot see attachment, say so explicitly, treat cause as unconfirmed — **never present confident root cause while reporter's own screenshots unread.**
+- **Read every populated field per the tracker adapter `issue-writing/trackers/<tracker>.md`**, and the fields `Intake fields` names, **before** concluding the ticket is empty. On intake boards the narrative often holds a **conversation or request ID**.
+- **Open every attachment — usually primary evidence.** Screenshots show exact symptom, values, scope (all rows vs some) that text omits. Tracker attachment binaries often can't be fetched by MCP/WebFetch tools (some return 403), so **ask user to download and share local path**, then `Read` it. If you genuinely cannot see attachment, say so explicitly, treat cause as unconfirmed — **never present confident root cause while reporter's own screenshots unread.**
 - **Search the tracker for similar / recent tickets now** — over the projects `Similar tickets` names, by error string, customer, keyword, or time window. Matching prior ticket can short-circuit whole investigation (known cause + fix), otherwise seeds hypotheses; doing it first cheap and high-leverage. **Don't dismiss match on narrow signature** — same root cause can surface differently on different endpoints.
 - Route symptom via the repo's runbook index (`Runbook index`) to matching runbook/reference. That index is source of truth for symptom → doc map (and grows there); matched doc holds known causes, exact queries, config levers, prior-ticket precedent.
 
@@ -53,15 +37,15 @@ Reach for strategy your current hypothesis needs, load its skill only when you c
   - *breadth* — cross-customer scan of signature: one customer elevated = customer-side factor; many customers proportional = our regression.
   - auth / streaming 401s surface where `Auth errors` says, which is often front-end monitoring rather than backend logs.
 - **Deploy correlation** (`gh` or the GitHub mechanics the client names; `git fetch --all --tags && git checkout main && git pull --ff-only` first — stale repo burns hypotheses) — for "started on day X": git log + the deploy source `Deploy correlation` names + release `merged_at`. **Read actual diff, never trust PR title.**
-- **Code path / cross-repo** — read suspected path with `Explore`, cite `file:line`; trace across services when bug spans repos.
+- **Code path / cross-repo** — on freshly pulled checkouts, read suspected path with `Explore`, cite `file:line`; trace across services when bug spans repos.
 - **Config / glossary / engine** — configuration-class symptoms; runbook has exact checks.
-- **Customer-side capture** — when symptom points customer-side, kick off `chrome://net-export` early via support (round-trip latency; not HAR), keep investigating server-side meanwhile. SIP / call-audio → the stack `Call capture` names (often different from the main observability tool).
+- **Customer-side capture** — when the symptom points customer-side, request the capture `Call capture` names early through support, and keep investigating server-side meanwhile. Check the closest precedent ticket for the capture format it needed before asking; the wrong format costs a round trip. Call capture often lives outside the main observability tool.
 
 **Subagents optional tactic, not method.** Fire one when chosen strategy genuinely independent, or big search you want kept out of main context — even couple in parallel.
 
-## Step 4 — Reproduce (when it earns its place)
+## Step 4 — Reproduce (when it pays off)
 
-Reproduce to lock in fix's acceptance check or hand vendor runnable case — **skip for pinned config fix you're not escalating** (nothing to reproduce). When you do: if direct API call triggers bug (e.g. a vendor translation endpoint with text + settings causing it), capture **`.http` file** (VS Code REST Client): failing call, contrast/baseline call, fixed call, each with expected output in comment. **Never hardcode real key** — use `@key = {{$dotenv KEY_NAME}}` or placeholder, staging only.
+Reproduce to lock in fix's acceptance check or hand vendor runnable case — **skip for pinned config fix you're not escalating** (nothing to reproduce). When you do: if direct API call triggers bug (e.g. a third-party endpoint called with the input and settings that cause it), capture **`.http` file** (VS Code REST Client): failing call, contrast/baseline call, fixed call, each with expected output in comment. **Never hardcode real key** — use `@key = {{$dotenv KEY_NAME}}` or placeholder, staging only.
 
 ## Step 5 — Fix, then report
 
@@ -76,26 +60,14 @@ Reproduce to lock in fix's acceptance check or hand vendor runnable case — **s
 Keep working evidence in **local, git-ignored scratchpad** — the `Investigation corpus` path, default `.claude/prod-support/<TICKET>/` (confirm it is in `.gitignore`): `findings.md` (root cause, ruled-out hypotheses, confidence) and optionally `discovery.md` / `progress.md`. This corpus **transient and never pushed** — holds highest-PII material of whole flow (logs, settings dumps, caller IDs, transcripts, screenshots), and git history permanent and org-wide. Two rules:
 
 - **Never commit the corpus.** Anything that must persist is **sanitised** lesson, folded into runbook or the repo's context index (PII-free by construction) in fix PR — that, plus support ticket (status), is inheritance path. One committable artifact is **`.http` repro** (Step 4): PII/secret-free by construction (placeholders / `$dotenv`, staging only), so commits *with fix PR*, not in scratchpad.
-- **Keep even local copy PII-lean and clean up** when ticket closes: reference opaque conversation IDs only; redact caller numbers, transcript content, agent emails; never paste settings dumps, SIP URIs, IPs, hostnames, or customer screenshots into file you might later commit.
+- **Keep even local copy PII-lean and clean up** when ticket closes: reference opaque conversation IDs only, and keep everything the secrets and PII list in `gated-delivery:issue-writing` (*Publishing to the tracker*, guardrail scan) names out of any file you might later commit.
 
 ## Rules
 
-- **Directed, not exhaustive.** Run probe that tests current hypothesis — not every analysis. Skip what you won't act on.
-- **Confirm before you commit.** Hypothesise from cheap signals, but don't call something the cause — or fix it — until evidence confirms. Runbook that already pins cause, or prior ticket with same root cause, *is* that evidence — no live probe needed; otherwise run one. If you can't evidence cause, say so; state confidence as number ("~85%") **and enumerate evidence you have NOT examined** (unopened screenshots, unread logs, purged records) — confidence number hiding unread primary evidence worse than none. Keep "mechanism exists in code" separate from "this is what happened to these calls" — latter needs records/screenshots.
+- **Confirm before you commit.** Don't call something the cause — or fix it — until evidence confirms. A runbook that already pins the cause, or a prior ticket with the same root cause, *is* that evidence. If you can't evidence the cause, say so; state confidence as a number ("~85%") **and enumerate the evidence you have NOT examined** (unopened screenshots, unread logs, purged records). Keep "mechanism exists in code" separate from "this is what happened to these calls"; the latter needs records or screenshots.
 - **Probe/repro must exercise bug path, not adjacent one.** Same observable output ≠ same root cause: exit code, empty result, or 500 can match for completely unrelated reasons. Before trusting probe's confirm/kill — or calling repro valid — confirm failing branch actually hit (assert on value only that branch produces, or instrument intermediate state). Check that turns green after fix but was red for wrong reason proves nothing.
-- **Exact `Environment` tag** for observability queries (never a look-alike); auth/streaming 401s where `Auth errors` says.
-- **Fresh local repos** before reading code; read diff, not PR title.
-- **Never post to ticket.** Findings go in local handover corpus; ticket/customer wording drafted locally for user or support owner to post.
-
-## Pitfalls (from real investigations)
-
-- **Stale local repo** — regression commit not in old checkout. `fetch && pull --ff-only` first.
-- **Over-claimed certainty** — "100% confident" call refuted day later. Hold off until probe confirms.
-- **Dismissed right hypothesis on narrow signature** — bug surfaced differently elsewhere. Check broader population (and similar tickets) before refuting.
-- **Asked for wrong artefact** — HAR instead of `chrome://net-export/`. Check closest precedent ticket first.
-- **Ran probe whose outcome changes nothing** — before recommending any investigation step, ask: "what do I do differently for each possible result?" If both outcomes lead to same action (or no action), skip probe.
-- **Queried logs after they expired** — observability retention is finite (one real case: ~15 days for logs, ~30 days for the database). Check ticket creation date against `Retention` first; past it, skip the logs, go straight to the longer-lived source or mark logs unavailable.
-- **Trusted self-review + one live check** — fix passed self-review and qa validation but was inert on real (cold-load) path; only external fresh-context review caught it. Run `gated-delivery:code-reviewer` before PR, validate *failing* path, not just "it works now."
+- **Test a probe before running it:** "what do I do differently for each possible result?" If every outcome leads to the same action, or none, skip it.
+- **Check the ticket's creation date against `Retention` before querying logs.** Past it, skip the logs and go straight to the longer-lived source, or mark logs unavailable.
 
 ## When this skill has done its job — reflect twice
 

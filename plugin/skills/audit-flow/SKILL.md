@@ -1,6 +1,6 @@
 ---
 name: audit-flow
-description: Periodic health audit of the gated-delivery flow itself (skills, agents, hooks), not of user code: runs the consistency guard, then a judgment pass for overlap, conflict, gaps and bloat, and proposes trims. Use before an gated-delivery release, when the flow feels bloated, after adding skills or rules, or on "audit the flow", "is the flow still coherent", "trim the flow". Propose, never silently write.
+description: Periodic health audit of the gated-delivery flow itself (skills, agents, hooks), not of user code: runs the consistency guard, then a judgment pass for overlap, conflict, gaps and bloat, and proposes trims. Use before a gated-delivery release, when the flow feels bloated, after adding skills or rules, or on "audit the flow", "is the flow still coherent", "trim the flow". Propose, never silently write.
 ---
 # audit-flow — keep the flow coherent and trim
 
@@ -30,15 +30,15 @@ node scripts/audit/consistency.mjs
 
 Read current skills, agents, hooks, and `senior-review-lens` lenses, then look for these:
 
-- **Overlap / double coverage.** Two things enforcing same rule. Check skill steps against each other (e.g. same reviewer running at two checkpoints) and against `senior-review-lens` lenses; check verify/format/guard hooks don't fight skill step. (Verification gate just run repo's eslint — no bespoke rule set to dedupe.)
+- **Overlap / double coverage.** Two things enforcing same rule. Check skill steps against each other (e.g. same reviewer running at two checkpoints) and against `senior-review-lens` lenses; check verify/format/guard hooks don't fight skill step. (The verification gate runs the client's Verify command; there is no bespoke rule set to dedupe.)
 - **Conflict.** Two rules pulling opposite ways, or hook fighting skill step.
 - **Coverage gaps.** Class of mistake nothing catch — name as candidate new rule (don't build here; that a proposal).
 - **Doc bloat.** Note/section now redundant with table or another doc (we trim these aggressively). Dangling cross-links, stale "we will…" language, duplicated explanations.
-- **Dead weight.** Skill/hook/check no longer earning its place.
+- **Dead weight.** Skill/hook/check nobody would miss if it were removed.
 
 ## Step 3 — Usage (be honest about what you can and can't know)
 
-**No skill-invocation telemetry** — don't claim usage numbers you can't measure. Use only real signals: git churn on flow repo, eslint-rule churn in consuming repos, and **what team reports** (the `learn-flow` channel). Where rule *looks* unused or over-broad, flag as question for team — never retire rule on inferred usage alone.
+**No skill-invocation telemetry** — don't claim usage numbers you can't measure. Use only real signals: git churn on flow repo, eslint-rule churn in consuming repos, and **what the team reports**. Where rule *looks* unused or over-broad, flag as question for team — never retire rule on inferred usage alone.
 
 ## Step 4 — Report and propose
 
@@ -54,7 +54,7 @@ Emit:
 - <finding> — <which pieces> — proposed resolution (trim X / merge X+Y / add Z)
 
 ### Trim candidates
-- <doc/section/rule> — why it no longer earns its place
+- <doc/section/rule> — why it is no longer needed
 
 ### Usage questions for the team
 - <rule that looks unused/over-broad> — ask, don't assume
@@ -63,11 +63,8 @@ Emit:
 - <thing> — why it stays
 ```
 
-**Propose, never silently write.** Mechanical drift fixes can apply directly (not judgment). Every trim/merge/retire of rule or doc is proposal: get sign-off, then route flow-level changes to the gated-delivery repo — local branch, or PR once the repo has a remote — same repo→release path `learn-flow` use, so change reach every install.
+**Propose, never silently write.** Mechanical drift fixes can apply directly (not judgment). Every trim/merge/retire of rule or doc is proposal: get sign-off, then route flow-level changes to the gated-delivery repo as a PR or an issue — same repo→release path `learn-flow` use, so change reach every install.
 
 ## Anti-patterns
 
-- **Adding more than you remove.** Audit that only grow flow failed its job.
-- **Claiming usage you didn't measure.** No telemetry = ask team, don't infer.
-- **Retiring rule same session you flag it.** Propose, get sign-off, then PR.
-- **Skipping Step 1.** Judgment on drifted inventory is judgment on fiction.
+- **Adding more than you remove.** An audit that only grows the flow failed its job.

@@ -55,8 +55,8 @@ stall mid-sprint on something already known? No — drop it.
 ### 1. Read the ticket
 
 Read the issue through the tracker mechanics the nearest CLAUDE.md names (`## Issue tracking` →
-Mechanics) with every custom field: on intake boards the narrative often lives in a custom field
-(ADF on Jira) and `description` is null. Read every comment in full,
+Mechanics), reading every populated field per the tracker adapter
+`issue-writing/trackers/<tracker>.md`. Read every comment in full,
 and the change history to its last page. Where the mechanics have no dedicated read for comments
 and the change history, read them through their last-resort read, and check the comment count against what came back,
 since a decision made in a comment is a source. A history request that returns only its newest page
@@ -64,12 +64,10 @@ reports it as complete, so on a ticket with sprint, rank or status churn the cri
 off it silently. Where the full history is out of reach, name the baseline as partial in the report
 and compare every source against the current text, not only the ones dated after an edit.
 
-- **Kind.** Decide it by `gated-delivery:issue-writing`'s *Pick the work kind first*, all of it: explicit
-  instruction, then the semantic markers in the content — a `Spike:` prefix, a `spike` label, a
-  research question with a timebox, expected-versus-actual behaviour with a reproduction — then the
-  issue type, and its one clarification question when those signals conflict. Some projects file a
-  Spike as a Task, so the issue type alone lets one through. Story or Task continues; a Bug, Spike
-  or Design Task is out of scope: say so and stop.
+- **Kind.** Decide it by `gated-delivery:issue-writing`'s *Pick the work kind first*, all of it —
+  precedence, tie-breakers and the clarification question; the issue type alone lets a Spike filed
+  as a Task through. Story or Task continues; a Bug, Spike or Design Task is out of scope: say so
+  and stop.
 - **Baseline.** From the history, the date each criterion was last edited. A source dated after its
   criterion's edit is the likeliest drift, so read those first. An older source is still compared
   against the current text: a later edit to one criterion says nothing about whether the others
@@ -93,12 +91,12 @@ something changed.
   criteria of the siblings that name a surface this ticket names — a contract, entity, endpoint,
   event or field. Status and summary are enough for the rest.
 - **Remote links.** PRs with `gh pr view` — merged ones describe `main`, open ones describe intent.
-  Linked Confluence or Notion pages, when the ticket depends on them.
+  Linked knowledge-base pages, when the ticket depends on them.
 
 ### 3. Read the decision records, contracts and specs
 
-Find where each repository keeps them before reading: its `.ai-context/` folder where present, else
-its README and `docs/` tree. `docs/adr/` and `docs/contracts/` are common homes,
+Find where each repository keeps them before reading: where the repository's instructions point
+(e.g. `.ai-context/`), else its README and `docs/` tree. `docs/adr/` and `docs/contracts/` are common homes,
 and a contract named as canonical can live in a repository the ticket does not change. Read on the
 default branch, fetched remotely or from a freshly pulled local checkout.
 
@@ -162,10 +160,10 @@ Ask whether to write. On yes, write through `Skill(gated-delivery:issue-writing)
 section: guardrail scan, write, re-fetch, then confirm the text landed word for word.
 Definition of Ready boxes, assignee, sprint and points stay as they are.
 
-**A new open item on a Ready ticket changes what the status claims.** Where a finding raised as an
-open question would leave a `[QUESTION]` or `[DEPENDENCY]` on a ticket in a Ready status, resolve it
-with the user before the write, or agree with them that the ticket moves back out of Ready and make
-that transition as part of the write. Otherwise the status stays as it is.
+**A finding raised as an open question on a Ready ticket** follows `gated-delivery:issue-writing`'s
+Ready-status rule (*Read the status against the open questions*). Where the user agrees the ticket
+moves back out of Ready, make that transition as part of the write. Otherwise the status stays as
+it is.
 
 Every source other than this ticket stays as it is; working docs belong to the workflow that wrote
 them. A change one of them needs goes in the report as a follow-up for the user, with its source and

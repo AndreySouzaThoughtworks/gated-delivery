@@ -8,20 +8,13 @@ description: Research a topic into a "primer": a single-file, WCAG-AA HTML expla
 
 **Hold artifact until outline signed off.** Research + section outline live in conversation. HTML file written to disk ONCE — after user signs off outline at step 4. No render 25KB then redo.
 
-**Evidence discipline.** Every factual claim is either **Verified** (you read file / ran query / saw source — cite it) or **Inferred** (pattern-suggested — say so). Never state inferred as fact. Mark inferred org-roles, statuses, roadmap items explicitly in doc (banner caveat).
+**Evidence discipline.** Label every factual claim by the Verified/Inferred rubric in `prose-writing/writing.md`. Mark inferred org roles, statuses and roadmap items explicitly in the doc, with a caveat in the banner.
 
 **Frame from what you know, not what nearby.** Verified/Inferred rubric covers factual claims; NOT reader's *relationship* to material — that they own, wrote, work in, or responsible for repo/service/team. Never assert that relationship unless they told you. "Checked out in working directory" ≠ "theirs"; "team named in the tracker" ≠ "reader's team." Such relationship — or any context changing how section framed (reader's role, their goal, in-scope vs out-of-scope sources) — unclear and would change doc? **Ask before rendering**, don't guess. Cheap `AskUserQuestion` beats confident-wrong framing.
 
 ## Client style
 
-Read the `## Artifact style` section of the nearest CLAUDE.md (contract: `docs/client-context.md` in this plugin). It may name:
-
-| Key | Meaning | Default when absent |
-|-----|---------|---------------------|
-| Template | Path to the client's own primer template, replacing `templates/primer.html` | `templates/primer.html` (neutral house style below) |
-| Brand skill | Skill that owns the client's brand tokens | None — the template's tokens are the whole style |
-| Disclosure | Banner and footer wording the client requires on shared artifacts | Internal-only banner + "Generated with Claude AI — please review before distribution." footer |
-| Team primer home | Repository and folder for team primers, and how they are published | Ask (see **Output location**) |
+Read these `## Artifact style` keys from the nearest CLAUDE.md; `docs/client-context.md` in this plugin holds their meaning and defaults: Template, Brand skill, Disclosure, Team primer home.
 
 With a client template, its own header comment states its token rules; follow those instead of the neutral rules in step 5, and still keep a sensitivity banner and the disclosure footer.
 
@@ -39,13 +32,14 @@ Ask in step 1, with `AskUserQuestion`, whether the primer is **personal** or **f
 
 `{subject}` is the ticket key the primer explains, written as the tracker writes it, or a 2–4 word lowercase hyphenated topic when no key applies. `{slug}` is 2–4 words, lowercase, hyphens, naming this primer's angle (`oauth2-capability`). Primers on one subject share its folder and link to each other by bare filename.
 
-Resolve the checkout for a team primer in this order:
+Resolve the checkout for a team primer the way `deskcheck` resolves the notes repository (its *Output location*, step 3):
 
 1. The current repository, when it is the one `Team primer home` names.
-2. Otherwise clone that repository with `gh` into a temporary directory.
-3. When `Team primer home` is absent or the repository is unreachable, ask for a path before writing.
+2. Otherwise the local checkout at `GATED_DELIVERY_NOTES_REPO`, when that is the same repository.
+3. Otherwise clone that repository with `gh` into a temporary directory.
+4. When `Team primer home` is absent or the repository is unreachable, ask for a path before writing.
 
-Pull before writing, and confirm the working tree is clean and on the branch the primer is published to.
+Pull before writing, and confirm the working tree is clean and on `main`.
 
 ## Process
 
@@ -71,8 +65,8 @@ Fan out across sources that fit topic; no over-fetch. Typical sources:
   this flow maintains those deliberately, so curated and in-scope by construction — opposite
   of broad sweep, which is where mis-owned and dangling material comes from. Start here,
   widen only for what they can't answer.
-- **Docs workspace** (Notion `notion-search` / `notion-fetch`, Drive, Confluence — whichever the client uses) — PRDs, specs, decks, meeting notes.
-- **Tracker** (via the mechanics `## Issue tracking` names — e.g. Jira `searchJiraIssuesUsingJql`, `getJiraIssue`) — epics, status, ownership (reporter/assignee). Roles read off the tracker are **Inferred**, not verified org chart — label them so.
+- **Knowledge base** — PRDs, specs, decks and meeting notes, through the knowledge-base search the client context names.
+- **Tracker** — epics, status and ownership (reporter, assignee), through the tracker search the `## Issue tracking` Mechanics name. Roles read off the tracker are **Inferred**, not a verified org chart; label them so.
 - **Repos** — code, schemas, seed data. Prefer sub-agent (`Explore` / `general-purpose`) for broad multi-repo sweeps so file dumps stay out of context; have it return conclusions + `file:line` citations.
 
 Large tool outputs (>~25k tokens) get saved to file by harness — grep/slice that file or hand to sub-agent; no pulling all into context.
@@ -83,7 +77,7 @@ Track each claim with its evidence as you go. Need citations for outline checkpo
 
 Primer's spine, adapted to topic:
 
-- **① Core idea** — single load-bearing sentence (goes in `.key` box). Lead with mental model, then why true, then reframe ("think of it as X, not Y").
+- **① Core idea** — the single sentence the rest depends on (goes in `.key` box). Lead with mental model, then why true, then reframe ("think of it as X, not Y").
 - **Middle sections** — one idea each. Use component that fits: `.two`/`.three` cards for contrasts/phases, `ol.steps` for sequence, SVG `figure` for flow/lifecycle, `table` for comparisons or status. Watch **overload trap** — term means two things? Give it own section.
 - **Ownership & status** (if relevant) — table of who owns what + tracker state, with inferred-roles caveat.
 - **⑦ Glossary** — terms cold reader needs.
@@ -94,7 +88,7 @@ Present outline as: section list (with component each will use) + key claims und
 
 Show outline. Ask: _"Is this the right shape and are these the right claims to render?"_ Revise until user signs off. **Do not write HTML before this.**
 
-This is gate before *first* render — but scope not set-once. Topic narrows or shifts after sign-off (user refocuses, cuts branch, sharpens audience)? **Re-open outline and prune to new scope before touching file again.** Every section must earn its place against *current* question, not the one you started with. Section that made sense under original framing but no longer serves narrowed one is dangling — cut it, don't carry forward because already written. State plainly what you dropping and why. When re-scoping, also re-check surviving sections don't assert reader relationships or ownership narrowed framing no longer supports.
+This is gate before *first* render — but scope not set-once. Topic narrows or shifts after sign-off (user refocuses, cuts branch, sharpens audience)? **Re-open outline and prune to new scope before touching file again.** Every section must serve the *current* question, not the one you started with. Section that made sense under original framing but no longer serves narrowed one is dangling — cut it, don't carry forward because already written. State plainly what you dropping and why. When re-scoping, also re-check surviving sections don't assert reader relationships or ownership narrowed framing no longer supports.
 
 ### 5. Render into the template
 
@@ -105,7 +99,7 @@ Copy the template (`Template` from `## Artifact style`, else `templates/primer.h
 - **Accent** `#7AA7D6` is **non-text only** — borders, SVG strokes, arrowheads, key-box left rule. Never accent body/link text.
 - Exactly **one Highlight** `#E8590C` moment — header accent bar. No second.
 - Spacing on **4/8/12/16/24/32/48/64/96** scale. Card/container radius 8px; chips 4px (no full pills).
-- Keep **internal-only banner** and the **disclosure footer** (`Disclosure`, default "Generated with Claude AI").
+- Keep the **internal-only banner** and the **disclosure footer** (`Disclosure`).
 - SVG diagrams: box titles `#1C1E21`, secondary text `#5A6270`, fills white / Subtle / Accent soft, strokes Accent.
 
 Brand questions beyond what template covers (surface template doesn't have)? Consult the `Brand skill` from `## Artifact style` when one is named — it owns tokens; template is its applied form. None named → stay inside the template's tokens.
@@ -118,15 +112,10 @@ Run the `## Deterministic Checks` in `evals.md` against the output file, then co
 
 For a team primer, commit it with a `docs({subject}): …` subject and publish it as `Team primer home` says. Tell user the path, and the commit for a team primer. Suggest opening it (`open {path}`). Note any claim that stayed **Inferred** so they know what to verify before sharing externally.
 
-## What `/primer` does NOT do
+## Boundaries
 
-- Write HTML before step-4 outline sign-off.
-- Produce one-page fact sheet, slide deck, or prose/markdown doc — different genres; say so and stop.
-- State inferred claims (roles, status, roadmap) as fact — label them, caveat in banner.
-- Assert reader owns / wrote / works in repo, service, or team they never claimed — ask when unsure, don't infer from what on machine.
-- Carry section forward after scope narrows just because already written — re-prune to current question (step 4).
-- Edit `<style>` block's tokens — breaks style/AA guarantee. Restyle via the client's `Brand skill` or `Template`, not by hand.
-- Distribute externally — primers carry internal-only banner; external sharing is user's explicit call.
+- Never distribute a primer externally; it carries an internal-only banner, and external sharing is the user's explicit call.
+- Restyle through the client's `Brand skill` or `Template`, never by editing the `<style>` tokens by hand.
 
 ## Related skills
 
@@ -136,7 +125,4 @@ For a team primer, commit it with a `docs({subject}): …` subject and publish i
 
 ## Verification
 
-The contrast, style and structure checks live in `evals.md` under `## Deterministic Checks`, which
-is the copy `scripts/eval/run-checks.mjs` executes. They were stated here as well until the pipes in
-the table cells had to be escaped to render, at which point the two copies were no longer the same
-text and only one of them ran.
+The contrast, style and structure checks live in `evals.md` under `## Deterministic Checks`; step 6 runs them.

@@ -1,5 +1,5 @@
 ---
-allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git branch:*), Bash(git switch:*), Bash(git log:*), Bash(git add:*), Bash(git commit:*), Bash(git fetch:*), Bash(git push:*), Bash(git rev-list:*), Bash(git merge-base:*), Bash(git config:*), Bash(gh pr create:*), Bash(gh pr view:*)
+allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git branch:*), Bash(git switch:*), Bash(git log:*), Bash(git add:*), Bash(git commit:*), Bash(git fetch:*), Bash(git push:*), Bash(git reset --hard:*), Bash(git cherry-pick:*), Bash(git rev-list:*), Bash(git merge-base:*), Bash(git config:*), Bash(gh pr create:*), Bash(gh pr view:*)
 description: Commit, fast-forward push to an explicit refspec, and open a PR — following the client's commit convention
 ---
 
@@ -47,6 +47,6 @@ With `push.default = upstream`, a branch whose upstream is `origin/<default-bran
 
 Commit as the repo's configured identity — never pass `-c user.email`. GitHub rejects pushes authored with a private address (`GH007`).
 
-**6. Open the PR.** `gh pr create` with a body that states why the change exists and how it was verified, ending with the attribution lines the harness supplies for pull requests, unless the user's own instructions say otherwise.
+**6. Open the PR.** `gh pr create` with a body that leads with What changes and How verified, each bullet carrying its own reason. Link the ticket and spec rather than restating them. End with the attribution lines the harness supplies for pull requests, unless the user's own instructions say otherwise.
 
 If a hook rejects the push, report its output verbatim and fix the cause — never reach for `--no-verify`.

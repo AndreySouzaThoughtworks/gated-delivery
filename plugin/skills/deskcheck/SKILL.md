@@ -9,16 +9,12 @@ A deskcheck validates completed work through a shared walkthrough. Build its nar
 
 ## Client context
 
-Read these sections of the nearest CLAUDE.md (contract: `docs/client-context.md` in this plugin):
+Read these keys from the nearest CLAUDE.md; `docs/client-context.md` in this plugin holds their meaning and defaults:
 
-| Section | Key | Used for | Default when absent |
-|---|---|---|---|
-| `## Issue tracking` | Mechanics | Reading the ticket, its criteria and links | The tracker's connected MCP server, else its CLI |
-| | Ticket URL | The ticket link in the page header | The tracker's default link form |
-| `## Delivery notes` | Shared notes home | Where `deskcheck.html` lives and where specs and findings for the ticket are found | `docs/gated-delivery/{ticket-id}/` in the repo being changed |
-| `## Demonstration` | Environments | Which non-production environment the demonstration runs in and how to reach it | Ask; never guess an environment name |
-| | API explorer | Interactive API documentation to link from demonstration steps | Link the request itself |
-| `## Artifact style` | Disclosure | Footer wording on shared pages | The template's footer |
+- `## Issue tracking` — Mechanics, Ticket URL
+- `## Delivery notes` — Shared notes home (where `deskcheck.html` lives, and where the ticket's specs and findings are)
+- `## Demonstration` — Environments, API explorer
+- `## Artifact style` — Disclosure
 
 ## Inputs
 
@@ -87,7 +83,7 @@ Make the happy path runnable. Collect only what the presenter needs:
 
 Run the happy path once while preparing and keep what each step produced: the screenshot, the response, the output. Step 7 pastes it into the page.
 
-Never place credentials, customer data or production payloads in the artifact. Name access prerequisites without copying secrets.
+The artifact follows the secrets and PII rule in `gated-delivery:issue-writing` (*Publishing to the tracker*, guardrail scan); production payloads count as customer data. Name access prerequisites without copying secrets.
 
 A demonstration step pairs an action with an observable result. Explanatory implementation notes belong after the demonstration unless the action cannot be understood without them.
 
@@ -139,7 +135,7 @@ Paste the evidence you collected into the page itself. A link alone is not evide
 
 Paste each demonstration step's observed result beside its expected result the same way.
 
-Keep the decisive lines, not whole logs. Escape pasted text like any other copied value. Redact credentials, tokens, customer data and production payloads before pasting; where only a production run exists, paste a synthetic run instead. A criterion with nothing collected says "No evidence collected" in its row and stays unverified.
+Keep the decisive lines, not whole logs. Escape pasted text like any other copied value. Redact what that rule lists before pasting; where only a production run exists, paste a synthetic run instead. A criterion with nothing collected says "No evidence collected" in its row and stays unverified.
 
 ### 8. Show the decisions
 
@@ -175,7 +171,7 @@ The shell provides styles for `.value`, `.links`, `.setup`, `.steps`, `.approach
 
 Use direct, explanatory prose. A presenter should be able to follow the page without translating terse notes, while a reviewer should be able to skim the headings and understand the story.
 
-Name what a source says in words and link it. A bare criterion or acceptance-criterion label, such as `C6` or `AC1m`, means nothing to a reader without the ticket open.
+Name what a source says in words and link it, and expand every criterion label as `prose-writing/writing.md` requires.
 
 ## Feedback
 

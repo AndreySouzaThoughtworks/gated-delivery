@@ -1,6 +1,6 @@
 ---
 name: learn-flow
-description: Reflect at a session break and route each lesson by scope: flow-level to an gated-delivery change proposal, client-level to the client's CLAUDE.md, repo-level to that repo's CLAUDE.md, personal to the global CLAUDE.md, recurring mistakes to a lint rule. Use on /learn-flow, "what did we learn", "lessons learned", "let's capture this", or after a /slice or /spec session with friction. Propose, never silently write.
+description: Reflect at a session break and route each lesson by scope: flow-level to a gated-delivery change proposal, client-level to the client's CLAUDE.md, repo-level to that repo's CLAUDE.md, personal to the global CLAUDE.md, recurring mistakes to a lint rule. Use on /learn-flow, "what did we learn", "lessons learned", "let's capture this", or after a /slice or /spec session with friction. Propose, never silently write.
 ---
 # learn-flow — capture lessons and improve the flow
 
@@ -45,9 +45,9 @@ This gate asks about skill behaviour. A lesson about a *technology* — a field 
 
 For each candidate, pick exactly one destination. Pick by _who benefits_:
 
-- **Flow-level → gated-delivery repo.** Lesson about how gated-delivery skill/agent/hook/recipe behave, or convention applying to **everyone** using flow (not one client, not one codebase). Cannot be local edit — installed plugin read-only and shared. Capture as **change proposal against the gated-delivery repo — a local branch with the diff (default), or an issue or draft PR once the repo has a remote**. Only path that improve flow for every install.
+- **Flow-level → gated-delivery repo.** Lesson about how gated-delivery skill/agent/hook/recipe behave, or convention applying to **everyone** using flow (not one client, not one codebase). Cannot be local edit — installed plugin read-only and shared. Capture as a **change proposal routed to the gated-delivery repo, as a PR or an issue**. Only path that improve flow for every install.
 - **Domain reference → `plugin/references/`.** Constraint belonging to a *technology* rather than to the flow or to one codebase, which a competent engineer would not guess and would otherwise find by shipping something that silently does nothing. Same change-proposal route against the gated-delivery repo as flow-level, and the `evals.md` gate above does not apply. Admission test is in `references/reference-graph.md`; an existing reference takes an edit, a new subject takes a row and a file.
-- **Client-level → client's CLAUDE.md overlay.** Lesson true across one client's repos — its tracker, conventions, internal tooling, review routing — but not for other clients. Edit the client folder's CLAUDE.md, in the section `docs/client-context.md` names for it (`## Issue tracking`, `## Commit convention`, `## Delivery notes`, `## Stack recipes`, `## Review routing`, `## Domain references`, `## Verification`). Never route it into the core plugin.
+- **Client-level → client's CLAUDE.md overlay.** Lesson true across one client's repos — its tracker, conventions, internal tooling, review routing — but not for other clients. Edit the client folder's CLAUDE.md, in the section `docs/client-context.md` names for it. Never route it into the core plugin.
 - **Repo-level → `<repo>/CLAUDE.md`.** Lesson specific to _this_ codebase (build quirks, layout, in-repo command). Edit that repo CLAUDE.md.
 - **Personal → `~/CLAUDE.md`.** Preference about how _you_ like work, not flow or repo.
 - **Lint rule.** _Recurring_ mistake, deterministically detectable (AST / lint). Propose **enabling or adding eslint rule** — in repo `eslint.config.mjs` (where team lint already run on commit), or across repos if flow-wide. No rule for one-off.
@@ -86,7 +86,7 @@ No empty headings — blank template invite padding. Render section only for des
 ### Personal → ~/CLAUDE.md
 - <exact line>
 
-### Habit-hooks check → <package/repo>
+### Lint rule → <repo eslint config>
 - category / what it flags / detection
 
 ### Dropped (only items you actually considered)
@@ -97,7 +97,7 @@ No empty headings — blank template invite padding. Render section only for des
 
 ## Step 5 — Apply approved items
 
-- **Flow-level** → in the gated-delivery repo, create a local branch carrying the drafted change and show its diff (default). Once the repo has a remote: `gh issue create` with drafted title/body, or open draft PR if change small and concrete. **Never edit installed plugin copy in place** — versioned; changes reach users through repo and re-install. Report branch name or issue/PR URL.
+- **Flow-level** → route it to the gated-delivery repo: `gh issue create` with drafted title/body, or a draft PR if the change is small and concrete. **Never edit installed plugin copy in place** — versioned; changes reach users through repo and re-install. Report the issue or PR URL.
 - **Domain reference** → same route as flow-level, against `plugin/references/`: edit the matching reference, or add a row to `reference-graph.md` and the file beside it. The guard fails CI on a row without a file or a file without a row.
 - **Client-level / Repo-level / Personal** → `Edit` target CLAUDE.md on exact section. Show one-line diff.
 - **Lint rule** → name eslint rule + config it belong in; route as PR to repo `eslint.config.mjs` (or each repo config if flow-wide). No hand-rolled bespoke checker — prefer standard eslint/tseslint rule or plugin.
@@ -106,8 +106,4 @@ After each action, confirm in one line: `<target> — <created/updated/filed>`.
 
 ## Anti-patterns
 
-- **Keeping the plausible-but-marginal.** Failure mode not 10 obvious-junk items — it that one tidy-sounding lesson with no structural cause behind it. Cannot name its evidence and mechanism that make it bite next person → fail keep-bar regardless how reasonable it read. This the trap to watch.
-- **A flow-level item with no evals test.** Cannot state failing-before / passing-after scenario → not flow-worthy — downgrade, route to a domain reference when the lesson is a technology constraint, or drop. No shipping to team plugin on vibes.
-- **Editing the installed plugin.** Flow lessons go to repo, not local skill file — local edit drift and die on next install. Routing to repo = whole point.
-- **Writing before approval.** Wrong capture pollute every future run.
-- **Forcing a capture when nothing surfaced.** "No learnings worth keeping this session" = _expected_ result, not failure to be useful.
+- **Keeping the plausible-but-marginal.** The failure mode is not ten obvious-junk items; it is one tidy-sounding lesson with no structural cause behind it. This is the trap to watch.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Create, or reuse, the writing worktree for one slice of a parallel wave.
+# Create, or reuse, a slice, batch or spec writing worktree.
 #
 # Usage: slice-tree.sh <slice-tree> <branch> [<base>]    run from inside the repository
 #

@@ -11,6 +11,7 @@ import { execFileSync, execSync, spawn } from "node:child_process";
 import { existsSync, lstatSync, readFileSync, realpathSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, extname, join, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const DEFAULT_VERIFY_CMD = "pnpm lint";
 const MAX_CONSECUTIVE_BLOCKS = Number(process.env.GATED_DELIVERY_VERIFY_MAX_BLOCKS ?? 3);
@@ -70,8 +71,19 @@ const VERIFY_OUTPUT_TAIL = 1500;
 // Sentinel in the counter file: this session gave up on the gate. Negative, so no block count reaches it.
 const RELEASED = -1;
 const COUNTER_DIR = join(tmpdir(), "gated-delivery-verify-stop");
+// The machine-wide lock /slice verify runs hold. The hook waits only briefly: a stop must not stall
+// behind another run, and the lock wrapper's own long default would outlast VERIFY_TIMEOUT_MS.
+const LOCK_WRAPPER = join(dirname(fileURLToPath(import.meta.url)), "../skills/slice/scripts/verify-lock.sh");
+const LOCK_WAIT_S = "5";
+const LOCK_BUSY_EXIT = 75;
+const LOCK_BUSY_MESSAGE = "still held after";
+const LOCK_PATH_LABEL = "the verify lock";
 
 const allow = () => process.exit(0);
+const allowSkipped = (reason) => {
+  process.stdout.write(JSON.stringify({ systemMessage: `verify-on-stop skipped: ${reason}` }));
+  process.exit(0);
+};
 const block = (reason) => {
   process.stdout.write(JSON.stringify({ decision: "block", reason }));
   process.exit(0);
@@ -193,9 +205,15 @@ const verifyScriptIsAbsent = () => {
 
 // The verify command runs in its own process group so a timeout can stop everything it started;
 // killing only the shell leaves linters and test workers running behind the next turn.
+const spawnVerify = () => {
+  const options = { cwd: process.cwd(), detached: true, stdio: ["ignore", "pipe", "pipe"] };
+  if (!existsSync(LOCK_WRAPPER)) return spawn(VERIFY_CMD, { ...options, shell: true });
+  return spawn(LOCK_WRAPPER, [VERIFY_CMD], { ...options, env: { ...process.env, GATED_DELIVERY_VERIFY_LOCK_TIMEOUT_S: LOCK_WAIT_S } });
+};
+
 const runVerify = () =>
   new Promise((done) => {
-    const child = spawn(VERIFY_CMD, { shell: true, cwd: process.cwd(), detached: true, stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawnVerify();
     let output = "";
     let timedOut = false;
     const keepTail = (chunk) => {
@@ -211,11 +229,12 @@ const runVerify = () =>
     }, VERIFY_TIMEOUT_MS);
     child.on("error", (error) => {
       clearTimeout(timer);
-      done({ passed: false, timedOut, output: String(error.message) });
+      done({ passed: false, timedOut, lockBusy: false, output: String(error.message) });
     });
     child.on("close", (code) => {
       clearTimeout(timer);
-      done({ passed: code === 0 && !timedOut, timedOut, output });
+      const lockBusy = code === LOCK_BUSY_EXIT && output.includes(LOCK_BUSY_MESSAGE);
+      done({ passed: code === 0 && !timedOut, timedOut, lockBusy, output });
     });
   });
 
@@ -236,7 +255,8 @@ const main = async () => {
 
   if (released) allow();
 
-  const { passed, timedOut, output } = await runVerify();
+  const { passed, timedOut, lockBusy, output } = await runVerify();
+  if (lockBusy) allowSkipped(`another verify run holds ${LOCK_PATH_LABEL}; run the verify command once it finishes`);
   if (passed) {
     resetCounter(counter);
     allow();

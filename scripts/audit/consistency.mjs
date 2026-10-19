@@ -133,6 +133,11 @@ const markdownFiles = (dir) =>
     e.isDirectory() ? markdownFiles(join(dir, e.name)) : e.name.endsWith(".md") ? [join(dir, e.name)] : [],
   );
 const localNames = new Set([...skills, ...agents, ...commands]);
+const LOCAL_PREFIX = "gated-delivery:";
+const isDangling = (raw) => {
+  const name = raw.startsWith(LOCAL_PREFIX) ? raw.slice(LOCAL_PREFIX.length) : raw;
+  return !name.includes(":") && !NOT_LOCAL_NAMES.has(name) && !localNames.has(name);
+};
 const docFiles = [
   ...markdownFiles(PLUGIN),
   ...markdownFiles(join(ROOT, "docs")),
@@ -150,12 +155,27 @@ for (const file of docFiles) {
     ...body.matchAll(/`\/?gated-delivery:([\w-]+)`/g),
   ].map((m) => m[1]);
   const unresolved = new Set(
-    referenced
-      .map((raw) => (raw.startsWith("gated-delivery:") ? raw.slice("gated-delivery:".length) : raw))
-      .filter((n) => !n.includes(":") && !NOT_LOCAL_NAMES.has(n) && !localNames.has(n)),
+    referenced.filter(isDangling).map((raw) => (raw.startsWith(LOCAL_PREFIX) ? raw.slice(LOCAL_PREFIX.length) : raw)),
   );
   for (const name of unresolved) {
     error(`${file.slice(ROOT.length + 1)} references "${name}", which is not a skill or agent in this repo`);
+  }
+}
+
+// --- 6a'. Manifest descriptions advertise only what ships ---
+// Both manifests kept advertising a story-rewrite skill after it was deleted; prose cannot be resolved
+// against the inventory, so descriptions name skills as `/name` and every such name must resolve.
+// A slash preceded by a word character, dot or slash is a path or an "and/or", not a skill.
+const pluginManifest = join(PLUGIN, ".claude-plugin", "plugin.json");
+const manifestDescriptions = [
+  ["plugin/.claude-plugin/plugin.json", existsSync(pluginManifest) ? [JSON.parse(read(pluginManifest)).description] : []],
+  [".claude-plugin/marketplace.json", (marketplace.plugins ?? []).map((p) => p.description)],
+];
+for (const [manifest, descriptions] of manifestDescriptions) {
+  for (const description of descriptions.filter(Boolean)) {
+    for (const [, raw] of description.matchAll(/(?<![\w./])\/([a-z][\w:-]*)/g)) {
+      if (isDangling(raw)) error(`${manifest} description names "/${raw}", which is not a skill or command in this repo`);
+    }
   }
 }
 
@@ -228,6 +248,27 @@ for (const skill of skills) {
   if (existsSync(evalsPath) && parseChecks(read(evalsPath)).checks.length === 0) {
     warn(`skill "${skill}" has no runnable "## Deterministic Checks" fence — --lint measures nothing for it`);
   }
+}
+
+// --- 6e. Skill and agent prose avoids the phrases the writing rules ban ---
+// shortcut: writing.md bans these in prose, not in a machine-readable list; extend this constant when
+// writing.md's "the phrases ..." line changes, or move that list into a parseable block.
+// WARN, not ERROR: a hit can be a quotation that needs a human to judge. prose-writing is exempt
+// because its own greps and rules have to name the phrases they ban.
+const BANNED_PHRASES = ["earns its place", "load-bearing"];
+const PHRASE_RULE_OWNER = "prose-writing";
+const instructionFiles = [
+  ...skills.filter((s) => s !== PHRASE_RULE_OWNER).flatMap((s) => markdownFiles(join(skillsDir, s))),
+  ...agents.map((a) => join(agentsDir, `${a}.md`)),
+];
+for (const file of instructionFiles) {
+  read(file).split("\n").forEach((line, i) => {
+    for (const phrase of BANNED_PHRASES) {
+      if (line.toLowerCase().includes(phrase)) {
+        warn(`${file.slice(ROOT.length + 1)}:${i + 1} uses banned phrase "${phrase}" (plugin/skills/prose-writing/writing.md)`);
+      }
+    }
+  });
 }
 
 // --- 7. Eval measures: the traps that scored a broken check as a passing one ---

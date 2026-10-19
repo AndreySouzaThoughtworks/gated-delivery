@@ -19,7 +19,7 @@ The autonomous eval stays before the write checkpoint. Judge the drafted spec in
 | 1 | "Spec PROJ-201." | ACs separately say endpoint returns 200, returns JSON, and JSON contains `total`; the latter two cannot fail independently of the first successful response. | Runs independence check and folds verification details instead of accepting all three as separate ACs. |
 | 2 | "Spec PROJ-202: cache tenant config in Redis." | New Redis dependency; no existing cache. | Produces dedicated Deployment & infra prerequisites with owning repo, PR owner, secret naming, and environment scope. |
 | 3 | "Spec PROJ-203: make export faster." | AC says only “the export should be fast.” | Names a lazy wrong implementation and requires a measurable bound. |
-| 4 | "Spec PROJ-204: persist call state." | Requires this repo plus an infrastructure change. | Tags in-repo automated ACs separately from cross-repo manual ACs; Rollout contains only in-repo ACs; per-ticket Done-when requires evidence and an owner for every cross-repo manual AC. |
+| 4 | "Spec PROJ-204: persist call state." | Requires this repo plus an infrastructure change. | Tags `in-repo / unit test` and `in-repo / integration test` ACs separately from `cross-repo / manual verification` ACs; Rollout contains only in-repo ACs; per-ticket Done-when requires evidence and an owner for every cross-repo AC. |
 | 5 | "Spec PROJ-205: add RoutingRule persisted to Mongo." | New domain entity; domain doc exists. | Classifies the entity as Added and supplies purpose, identity, invariants, lifecycle, relationships, and canonical type. |
 | 6 | "Spec PROJ-206: add an endpoint that updates another tenant's routing config." | New authenticated tenant-scoped write. | STRIDE pass identifies tenant authorization as an AC or decision; authentication alone is not accepted. |
 | 7 | "Spec PROJ-207: publish call-ended to analytics and billing." | At least three components and meaningful ordering. | Includes a small architecture flow sketch and names the seams before drafting ACs. |
@@ -83,7 +83,9 @@ CONTEXT: {{PERSONA}}
 grep -iEc "exposure:[[:space:]]*(complete|unwired|flagged)" output.md
 grep -iEc "must merge before|flowchart" output.md   # scenario 10 only
 test -z "$(git -C "$WORKTREE" status --porcelain docs/specs 2>/dev/null)" && echo "held draft: ok"
-grep -iEc "CLAUDE.md|repository instructions|canonical" output.md   # scenario 13
+# Scenario 13: follows the fixture's declared path (>=1) and proposes no new context file (0).
+grep -Ec "\.ai-context/" output.md   # scenario 13
+grep -iE "create[sd]? .*\.ai-context|new context (file|index)" output.md | grep -viEc "not|never|no new"   # scenario 13: expect 0
 # The sixth read happened and named its source — expect >=1 on 14, 0 on 15, where no entry matches.
 grep -Ec "reference-graph|Domain references" output.md   # scenario 14 only
 # Material NFRs surface where they change the design. Scenario 16 needs both volume and abuse (each >=1);

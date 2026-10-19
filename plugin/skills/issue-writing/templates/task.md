@@ -14,7 +14,7 @@
 
 ## Completion Criteria
 
-*One line per criterion, labelled `C1`, `C2` and so on, so an Open Question, a spec or another ticket can cite one by name. Group under bold labels past about six. Leave the label unbolded: some trackers (Jira among them) stop parsing the line as a tickable task-list item when bold follows the checkbox, and renders a literal `[ ]` in a plain bullet instead.*
+*One line per criterion, labelled `C1`, `C2` and so on, so an Open Question, a spec or another ticket can cite one by name. Group under bold labels past about six. Leave the label unbolded; the tracker adapter in `trackers/` says why.*
 
 *Each line states what is observably true once the work is done, and what triggers it where there is a trigger. Where the only honest evidence is a configuration value — a target, a window, a tier — state the value and say it is conformance, rather than writing it as though something had been observed.*
 

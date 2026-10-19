@@ -114,7 +114,7 @@ Info gaps where you ask:
 
 - **You don't know how the system behaves** - before scanning unfamiliar services, ask user for repository references. When searching these, prefer remote versions, or if local you MUST be on main with latest pulled.
 - **A file you found is not in a repo** — loose file, fixture, export, anything outside tracked repo or design registers. Ask user what it is and whether to trust before using. Never cite one you not asked about.
-- **You don't know the product intent** - for broad understanding, ask user for product spec docs or epics. Can also offer research relevant Notion docs. At lower levels, ask user questions.
+- **You don't know the product intent** - for broad understanding, ask user for product spec docs or epics. Can also offer to research the client's knowledge base. At lower levels, ask user questions.
 - **Nobody has decided on a particular rule yet** — ask whether the answer changes the ticket's agreed outcome: a Story's or Task's criteria, a Bug's expected result, the decision a Spike informs. If it does, it is an open question: discuss with user how to resolve it. If it only changes how the work gets done, it is the implementer's call — a Technical Note at most, never a `[QUESTION]`.
 - **The template and these rules don't cover the situation** — say so plainly and ask. Never invent rule, never present one as though it came from here. Gap quietly filled = rule nobody agreed to.
 
@@ -249,7 +249,7 @@ when creating one, since boards often carry older Spikes that do not follow it.
 
 NEVER create or edit a tracker issue unless asked, and show description for approval first. All tracker access goes through the **Mechanics** named in the `## Issue tracking` section of the nearest CLAUDE.md. Load `trackers/<tracker>.md` beside this file for that tracker's traps; where no adapter exists, say so and keep to the generic rules here.
 
-**Read before writing.** Fetch every populated field, **custom fields** included — the tracker adapter says how. On intake-form boards `description` often null and real narrative lives in custom fields — restricting fetch to standard fields hides them, makes populated ticket look blank.
+**Read before writing.** Read every populated field per the tracker adapter `trackers/<tracker>.md`.
 
 **Read the status against the open questions.** A ticket in a Ready status tells the next person it can be picked up, and an open `[QUESTION]` or `[DEPENDENCY]` says it cannot. Before a write that leaves one on a Ready ticket, including one the write itself adds, resolve it with the user, or agree with them that the ticket moves back out of Ready.
 
@@ -291,13 +291,13 @@ grep -niE '(password|secret|token|api[_-]?key|bearer|mongodb\+srv|\.internal\.|/
 Append the **Extra guardrail terms** from `## Issue tracking` to the alternation. Run it over the saved draft, every field included. With no file named it waits on stdin and scans
 nothing.
 
-The grep is a floor, not the list. Also caller numbers, emails, conversation IDs, connection strings, hostnames, internal service names. A comment is as visible as a description unless it carries a visibility restriction — a "private note" is not private by intent. A Bug is where this bites hardest: the reproduction that actually reproduces it is the one carrying the real identifier.
+The grep is a floor, not the list. The list below is the plugin's one secrets and PII list; other skills apply it to their own artifacts. It is two tiers, and only one of them has an exception.
 
-That list is two tiers, and only one of them has an exception.
-
-**Secrets and PII** — credentials, tokens, connection strings, caller numbers, emails, conversation ids — never reach the tracker in any field, a restricted comment included. Redact them and put the value where secrets belong.
+**Secrets and PII** — credentials, tokens and keys, connection strings, caller numbers, emails, conversation ids, IP and call addresses, transcript content, settings dumps, log bodies, production payloads, customer data and customer screenshots — never reach the tracker in any field, a restricted comment included. Redact them and put the value where secrets belong.
 
 **Internal detail that is not secret** — a hostname, an internal service name — may reach the tracker only in a verified restricted comment, and only when detail cannot leave the tracker. Never description, summary, labels, custom fields, or unrestricted comment. Repo first. Exception deliberate, not loophole: visibility restriction is only thing standing between that detail and a customer.
+
+A comment is as visible as a description unless it carries a visibility restriction — a "private note" is not private by intent. A Bug is where this bites hardest: the reproduction that actually reproduces it is the one carrying the real identifier.
 
 **Mutate safely.** Discovery before mutation — get transitions before transitioning, get link types before linking, discover fields before setting. Verify after — re-fetch and confirm change landed *as intended*. Link direction especially: re-fetch the dependent ticket and confirm it reads *is blocked by* the blocker, not reverse — the tracker adapter gives the call shape.
 

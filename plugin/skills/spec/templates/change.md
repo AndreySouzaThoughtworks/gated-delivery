@@ -83,7 +83,7 @@ Restate the ticket's ACs as concrete **input → output** statements, ready to t
 - `in-repo / integration test` — implementable in this repo with Testcontainers or similar; verified by integration test
 - `cross-repo / manual verification` — outside this repo's executor scope (infra, ops, deployment readiness); verified manually against deployed environment
 
-Drop tags if every AC is `in-repo / automated` — noise for single-repo tickets.
+Drop tags if every AC is `in-repo / unit test` or `in-repo / integration test` — noise for single-repo tickets.
 
 - [ ] **AC[1] — `in-repo / unit test`:** Given <input>, when <action>, then <exact expected output>.
 - [ ] **AC[2] — `in-repo / unit test`:** Given <empty/zero case>, when <action>, then <specific handling>.
@@ -154,7 +154,7 @@ Declare how each slice stays safe before the ticket is complete:
 
 Once a surface is reachable, its safety envelope ships in the same slice. Authorization and input validation for a registered route cannot be deferred.
 
-For three or more slices, or when dependencies are not obvious, add a small Mermaid graph. Nodes name the PR outcome; an arrow means “must merge before.” Omit edges between independently reorderable slices. The ordered entries below remain authoritative, so omit the graph when it would only restate a simple one- or two-PR sequence.
+For three or more slices, when dependencies are not obvious, or when a wave holds more than one slice, add a small Mermaid graph. Nodes name the PR outcome; an arrow means “must merge before.” Omit edges between independently reorderable slices. The ordered entries below remain authoritative, so omit the graph when it would only restate a simple one- or two-PR sequence.
 
 ```mermaid
 flowchart LR
@@ -163,7 +163,13 @@ flowchart LR
 ```
 
 
-Waves group slices that may run at the same time, by subagents or by people. A slice joins the earliest wave after every slice it depends on. Slices share a wave only when neither depends on the other, their write surfaces do not overlap (a manifest or lockfile, migration numbering, a registry, generated code and a changelog count as overlap; each slice's own Done-when block and handoff entry do not), and every interface both touch is already fixed. Within a wave, slices merge in any order.
+Waves group slices that may run at the same time, by subagents or by people. A slice joins the earliest wave after every slice it depends on. Two slices share a wave only when:
+
+1. neither depends on the other;
+2. their write surfaces do not overlap — a dependency manifest or lockfile, migration numbering, a module or route registry, generated code and a changelog count as overlap; each slice's own Done-when block and handoff entry do not;
+3. every interface both touch is already fixed: on `main`, outside this repository, or written verbatim in `## Interface` before the wave starts. A slice that defines an interface the others consume goes in an earlier wave.
+
+Within a wave, slices merge in any order. Waves pay off only when one holds two or more slices; a strict chain stays a list.
 
 | Wave | Slices | Why they cannot collide |
 |---|---|---|
@@ -175,7 +181,6 @@ What becomes true on `main` when this merges.
 
 Boundary: why these ACs belong in one reviewable merge.
 
-- Wave: <n>
 - Depends on: <slices that must merge first, or none>
 - Write surface: <directories, modules or files it changes>
 - Shared interface: <interface a same-wave slice also touches, and where it is fixed — or none>

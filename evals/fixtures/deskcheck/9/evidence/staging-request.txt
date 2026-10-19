@@ -1,0 +1,10 @@
+POST https://staging.orders.example.com/v1/orders
+Authorization: Bearer <staging partner token, not copied>
+Content-Type: application/json
+
+{"partnerId":"p-test-1","lines":[{"sku":"TEST-SKU-1","qty":2}]}
+
+HTTP/1.1 202 Accepted
+Content-Type: application/json
+
+{"status":"accepted"}

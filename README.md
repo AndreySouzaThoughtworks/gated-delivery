@@ -22,6 +22,7 @@ This repo is **both** marketplace and plugin: the marketplace manifest lives at 
 | `.claude-plugin/marketplace.json` | Marketplace manifest; points at `./plugin`. |
 | `docs/` | [onboarding](docs/onboarding.md) · [skill-graph](docs/skill-graph.md) · [client-context](plugin/references/client-context.md) |
 | `scripts/` | `leak-guard.sh`, the consistency guard (`audit/`) and the eval runner (`eval/`). |
+| `evals/fixtures/` | Run directories for eval scenarios that need more than a persona, read by `scripts/eval/run-scenarios.mjs`; kept outside `plugin/` so installs do not carry them. |
 | `tests/` | Shell tests for the leak guard, the pre-push hook, profile isolation and the behaviour of the commit commands, `code-reviewer` and `issue-writing`. |
 | `.githooks/` | `pre-commit` runs the leak guard; `pre-push` runs gitleaks on the commits being pushed. |
 

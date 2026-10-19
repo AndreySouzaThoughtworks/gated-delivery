@@ -1,0 +1,6 @@
+PASS test/orders.e2e-spec.ts
+  Orders
+    ✓ GET /orders returns the open orders (48 ms)
+      expected: Array<Order> of length 2 where status === "open" && partnerId === "p-test-1"
+
+Tests: 1 passed, 1 total

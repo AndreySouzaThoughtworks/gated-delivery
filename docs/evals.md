@@ -12,7 +12,7 @@ node scripts/eval/run-scenarios.mjs <skill> [--scenario <id>…] [--repeat 2] [-
 
 It runs every row of the skill's Test Scenarios unless `--scenario` names some, each `--repeat` times (default 2, see §5), `--jobs` at once (default 4). `--baseline` fills the Baseline Agent template instead and loads no plugin (§8). Each run is stopped after 1200 seconds of wall-clock time; there is no spend cap. Set `GATED_DELIVERY_CLAUDE_BIN` to use another `claude` binary. Run it from the repository root.
 
-Each run lands in `<out>/<skill>/<id>/<arm>-<n>/` with `prompt.txt`, `transcript.jsonl`, `output.md`, `checks.txt` and `judge.json`. `<out>/summary.tsv` has one line per run: skill, id, arm, run, harness, checks, judge, cost, secs. The table it prints ends with a `DISAGREE` line for every scenario whose repeats graded differently.
+Each run lands in `<out>/<skill>/<id>/<arm>-<n>/` with `prompt.txt`, `transcript.jsonl`, `output.md`, `checks.txt`, `judge.json` and `tmp/`, the run's own temp directory. `<out>/summary.tsv` has one line per run: skill, id, arm, run, harness, checks, judge, cost, secs. The table it prints ends with a `DISAGREE` line for every scenario whose repeats graded differently.
 
 The `harness` column is `ok` or names what makes the run unusable as a result: `no-skill` (a skill run with no `"name":"Skill"` call), `read-skill` (a baseline that read `skills/<skill>/`), `no-result`, `denied` (any `permission_denials`), `timeout`, or `setup-failed`. Any of them makes the runner exit 1. `checks` comes from `run-checks.mjs <skill> <file> --scenario <id>` on `output.md` and on every `.html` page the run wrote; `judge` from `judge.mjs <skill> <id> <run-dir>`. Either is `n/a` when its script is not there.
 
@@ -20,17 +20,17 @@ The sections below are what the runner does and why, for reading its runs and fo
 
 ## 1. Snapshot the plugin without its rubrics
 
-Load a copy of the plugin with every `evals.md` and every `fixtures/` directory removed. A run that can read its own `evals.md` sees the Pass Criteria and grades itself against them. The runner writes the copy to `<out>/plugin`.
+Load a copy of the plugin with every `evals.md` removed. A run that can read its own `evals.md` sees the Pass Criteria and grades itself against them. The runner writes the copy to `<out>/plugin`.
 
 ```bash
-rsync -a --exclude evals.md --exclude 'skills/*/fixtures/' plugin/ "$SNAP/plugin/"
+rsync -a --exclude evals.md plugin/ "$SNAP/plugin/"
 ```
 
 ## 2. Start one run
 
 One directory per run holds the fixture: the persona, any client `CLAUDE.md`, a git repository when the scenario needs one. The runner writes the row's persona to `persona.md` and, when the `evals.md` has a `## Client context` section, its fenced block to `CLAUDE.md`. For a `mode: response` skill it adds one line to the prompt saying that nothing beyond the persona is reachable.
 
-A scenario that needs more than that gets a directory `plugin/skills/<skill>/fixtures/<id>/`. The runner copies it over the run directory, so a `persona.md` or `CLAUDE.md` there replaces the one built from `evals.md`. Two names are not copied: `setup.sh` runs in the run directory with the fixture directory as `$1`, to build what cannot be committed, such as a git repository or `node_modules`; `allowed-tools` adds one `--allowedTools` rule per line. A `bin/` directory in the run is put first on `PATH`, for stubs such as `gh`. The response line is left out, because a fixture is reachable. Keep fixtures free of client names and secrets: this repository is public.
+A scenario that needs more than that gets a directory `evals/fixtures/<skill>/<id>/` at the repository root, outside the plugin so installs do not carry it. The runner copies it over the run directory, so a `persona.md` or `CLAUDE.md` there replaces the one built from `evals.md`. Two names are not copied: `setup.sh` runs in the run directory with the fixture directory as `$1`, to build what cannot be committed, such as a git repository or `node_modules`; `allowed-tools` adds one `--allowedTools` rule per line. A `bin/` directory in the run is put first on `PATH`, for stubs such as `gh`. The response line is left out, because a fixture is reachable. Keep fixtures free of client names and secrets: this repository is public.
 
 Fill the scenario's prompt into the Skill Agent template and run from that directory:
 
@@ -59,7 +59,7 @@ Run under a profile that is logged in. Set a wall-clock budget per run and stop 
 
 `acceptEdits` allows file edits inside the working and added directories, and nothing else. A headless run cannot answer a permission prompt, so a refused command is skipped and the run either carries on without it or burns time on workarounds. One deskcheck run spent 74 minutes and $11 trying encoders after `base64` was refused.
 
-Pass `--allowedTools` for what the scenario needs. The runner passes every rule below, plus `ls`, `cat`, `wc`, `file`, `cp`, the read-only `git status`, `log`, `diff`, `show`, `branch` and `rev-parse`, `--add-dir` for `/private/tmp/claude-<uid>` and `/tmp/claude-<uid>`, and the fixture's `allowed-tools`:
+Pass `--allowedTools` for what the scenario needs. The runner passes every rule below, plus `ls`, `cat`, `wc`, `file`, `cp`, the read-only `git status`, `log`, `diff`, `show`, `branch` and `rev-parse`, and the fixture's `allowed-tools`. For the temp directory it creates one per run, passes it to `--add-dir` and sets `TMPDIR` to it, so no run can read another run's files or an old copy of an `evals.md`:
 
 | Rule | When |
 |---|---|

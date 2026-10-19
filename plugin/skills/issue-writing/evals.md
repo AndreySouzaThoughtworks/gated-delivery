@@ -340,7 +340,10 @@ grep -Ec "^[> ]*([-*] +)?(#{2,3} +(Expected|Actual)( Result)?([^A-Za-z]|$)|\*\*(
 # phrasings authors reach for first — "not reproducible" and "no reliable reproduction" — which scored
 # an honest non-deterministic Bug as having said nothing. The section label may be `Steps`, `Steps to
 # Reproduce` or `Reproduction`: P1/1 wrote `- **Steps:**` and scored 0 on a concrete reproduction.
-grep -Eci -e "^[> ]*([-*] +)?(#{2,3} +(Steps( to Reproduce)?|Reproduction)([^A-Za-z]|$)|\*\*(Steps( to Reproduce)?|Reproduction) *(\*\*|:|\())" -e "(cannot|could not|will not|does not|would not)[^.]{0,30}reproduc" -e "(not|non-?) ?reproducib" -e "no (reliable|consistent|known|deterministic) reproduc" -e "(unable|failed) to reproduc" output.md
+# "Not yet reproduced" is the third phrasing, and B5 wrote it: no arm matched, so B5 passed only on its
+# heading. B2 wrote "Nobody has reproduced it on demand" under an italic label and scored 0. The
+# participle arm takes both, with or without "has", "yet" or "been".
+grep -Eci -e "^[> ]*([-*] +)?(#{2,3} +(Steps( to Reproduce)?|Reproduction)([^A-Za-z]|$)|\*\*(Steps( to Reproduce)?|Reproduction) *(\*\*|:|\())" -e "(cannot|could not|will not|does not|would not)[^.]{0,30}reproduc" -e "(not|non-?) ?reproducib" -e "no (reliable|consistent|known|deterministic) reproduc" -e "(unable|failed) to reproduc" -e "(not|never|nobody|no one)( (has|have|yet|been))* reproduced" output.md
 # A suspected cause stated as fact — expect 0. Every sentence naming a cause has to hedge ("guess" and "could" count), because
 # Actual Result holds the observed symptom and the cause stays a hypothesis until someone proves it.
 # Word-bounded: an unbounded pattern matched "because" and scored every explanatory sentence. Split

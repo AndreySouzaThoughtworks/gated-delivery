@@ -16,7 +16,7 @@ mode: response
 |---|---|---|---|
 | 1 | "Start PROJ-123." | No spec or branch; the tracker has usable ACs. | Picks Route A, invokes `/spec`, and stops before branch or code. |
 | 2 | "Continue PROJ-124." | Spec exists with unresolved Open decisions. | Picks Route B and refuses executor dispatch. |
-| 3 | "Continue this old spec." | Decisions resolved but `## Rollout` missing. | Picks Route R, proposes Rollout with the user, publishes it, and stops. |
+| 3 | "Continue the PROJ-127 spec." | Repo-hosted spec on `main`; Open decisions all resolved; no `## Rollout`. ACs: AC1 `POST /exports` creates an export job and returns 202 with its id; AC2 `GET /exports/{id}` returns the job status; AC3 a worker writes the CSV to object storage and marks the job done; AC4 only the tenant that created a job can read it. The user approves the Rollout you propose. | Picks Route R; proposes a concrete Rollout that puts each of AC1–AC4 in exactly one slice and declares each slice's exposure; publishes the spec and stops. Fails if a slice exposes `GET /exports/{id}` without AC4, or if it creates a slice branch, dispatches an executor, or invokes `Skill(spec)`. |
 | 4 | "Start the first slice." | Three-slice Rollout; no branch. | Creates `feat/PROJ-*-s1` from updated `main`; does not plan later slices' batches. |
 | 5 | "Plan the current slice." | Current slice has three ACs: two target one helper, one targets its adapter. | Plans two functional batches by subject and seam; keeps distinct RED/GREEN cycles for the two helper behaviors. |
 | 6 | "Execute this two-batch slice." | Batch 1 complete; no PR yet. | Runs focused batch tests, batch lens, conditional security, then opens a draft PR; validators and full check wait for slice end. |

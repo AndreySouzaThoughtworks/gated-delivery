@@ -128,7 +128,8 @@ grep -cE "Surfaces agree\.(\*\*)?([[:space:]]|$)" output.md
 # Doc flagged stale — expect 0 on scenario 4 in either tier. Negated mentions ("isn't stale",
 # "doesn't make a doc stale"), questions back to the user, and the full pass's own section heading
 # do not count; a full pass always prints that heading, so counting it would fail every clean run.
-grep -iE "stale|out of date|outdated" output.md | grep -viEc "^#|not|n't|no |nothing|never|age alone|proves nothing|\?"   # heading-match-intended — `^#` drops the heading
+# Only staleness tied to a doc, README or comment counts: "data up to 300s stale" is cache talk, not a flag.
+grep -iE "(doc|readme|comment)[^.]*(stale|out of date|outdated)|(stale|out of date|outdated)[^.]*(doc|readme|comment)" output.md | grep -viEc "^#|not|n't|no |nothing|never|age alone|proves nothing|\?"   # heading-match-intended — `^#` drops the heading
 # Locator honesty: every file:line cited must resolve to a real file
 grep -oE "[a-zA-Z0-9_/.-]+\.(ts|js|md|json):[0-9]+" output.md
 ```

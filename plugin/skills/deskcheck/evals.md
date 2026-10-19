@@ -106,6 +106,9 @@ grep -c '<pre><code>' output.md
 grep -c '<img[^>]*src="data:image/' output.md
 # Page: images whose src is not a data: image — expect 0 on every rendered page.
 grep -oE '<img[^>]*src="[^"]*"' output.md | grep -vc 'src="data:image/'
+# Page: screenshot given as a plain link instead of an embedded image — expect 0 on scenario 9. Links to
+# image files count only when the page embeds no data: image, so a sources list beside the embed scores 0.
+grep -q '<img[^>]*src="data:image/' output.md && echo 0 || grep -ciE '<a [^>]*href="[^"]*\.(png|jpe?g)"' output.md
 ```
 
 ## Saturation Signals

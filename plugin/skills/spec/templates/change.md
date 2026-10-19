@@ -83,6 +83,8 @@ Restate the ticket's ACs as concrete **input → output** statements, ready to t
 - `in-repo / integration test` — implementable in this repo with Testcontainers or similar; verified by integration test
 - `cross-repo / manual verification` — outside this repo's executor scope (infra, ops, deployment readiness); verified manually against deployed environment
 
+Tag each in-repo AC with the test layer that proves it. Both in-repo tags appear only when both layers are used; a ticket whose in-repo ACs are all integration-tested carries no `in-repo / unit test` tag.
+
 Drop tags if every AC is `in-repo / unit test` or `in-repo / integration test` — noise for single-repo tickets.
 
 - [ ] **AC[1] — `in-repo / unit test`:** Given <input>, when <action>, then <exact expected output>.
@@ -226,7 +228,7 @@ Verification checklist. `/spec` emits one slice block for every `## Rollout` ent
 - [ ] No unresolved entries remain in Open decisions
 - [ ] Every threat in Security has a disposition: control exists, AC, resolved decision, or accepted risk
 - [ ] Every contradiction in Red flags has a disposition
-- [ ] Every `cross-repo / manual verification` AC has recorded evidence and an owner — one line per AC: `AC<n> — evidence: <what is recorded, where> — owner: <person or role>`
+- [ ] Every `cross-repo / manual verification` AC has recorded evidence and an owner — one line per AC: `AC<n> — evidence: <what is recorded, where> — owner: <person, team or role>`. "Unassigned", "TBD" or an open-decision pointer is not an owner: write the most likely owning team or role and add an Open decision to confirm it
 - [ ] Non-obvious durable guidance is captured in the canonical document named by the repository instructions
 - [ ] Every `flagged` slice's flag is removed or has a live removal ticket
 - [ ] Domain model deltas are merged into the repository's canonical domain model when one exists

@@ -44,11 +44,13 @@ Pass `--allowedTools` for what the scenario needs:
 | Rule | When |
 |---|---|
 | `Bash(grep:*)` | Skills that verify their own output with `grep`, such as the guardrail scan before publishing to a tracker |
-| `Bash(echo:*)` | The same skills: they append `; echo "exit=$?"` to a scan, and a chained command is allowed only when every part is. Without it the whole scan is refused. |
+| `Bash(echo:*)` | The same skills, when they print a scan's exit status as a separate bare command. |
 | `Bash(printenv:*)` | Skills that read a setting from the environment, such as the notes checkout |
-| `Bash(base64:*)` | Pages that embed a screenshot |
+| `Bash(base64:*)`, `Bash(tr:*)`, `Bash(mkdir:*)`, and an assembler: `Bash(python3:*)`, `Bash(awk:*)` or `Bash(sed:*)` | Pages that embed a screenshot: the skill encodes the image, strips line breaks, makes the page's directory and splices the encoded image into the page. Also pass `--add-dir` for a writable temp directory, such as `/private/tmp/claude-501` and its `/tmp/claude-501` alias, where the encoded image and the assembler script land. |
 | `Bash(git add:*)`, `Bash(git commit:*)` | Fixtures that are git repositories the skill commits into |
 | `Bash(node scripts/audit/consistency.mjs)` | Flow audits. The rule matches the command only when it is called bare from the repository root; a `cd … &&` prefix or a chained command is refused. Set the run's working directory to the repository instead. |
+
+Compound commands are refused under `acceptEdits` even when every part is allowed. In the deskcheck scenario 9 runs, `ls -la && ls -la evidence` was denied with `Bash(ls:*)` allowed, and `R=…; mkdir -p … && python3 -I assemble.py …` with `Bash(mkdir:*)` and `Bash(python3:*)` allowed; `cd … && …` and `…; …` chains were denied the same way. Runs must call each command bare, from the run's working directory; a refused chain reads as a skill defect it is not.
 
 Two refusals no rule fixes. A file written with a heredoc (`cat > draft.md <<'EOF'`) is a Bash command, not an edit, so `acceptEdits` refuses it; the skill has to use its Write tool. A write outside the run's working and added directories, such as the system temp directory or a scratchpad, is refused under `acceptEdits` whichever tool makes it. Both showed up in the issue-writing sweep as drafts that never reached disk. Read such a denial as the skill choosing the wrong place or tool, not as a missing rule.
 

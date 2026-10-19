@@ -96,8 +96,8 @@ awk '/^--- REVISED ---$/{r=1;next} r' output.md | grep -oiwE -e "the" -e "a" -e 
 awk '/^--- REVISED ---$/{r=1;next} r' output.md | grep -ciE -e "inferred" -e "not (yet )?(been )?(verified|checked)" -e "locally" -e "local reproduction"
 # Pre-filter reported apart from read — expect 1 on scenario 8. Joined into one line first, because the
 # report usually puts the two steps on separate lines. Accepts the step's name, "pre-filter", and the
-# older "sweep" label.
-tr '\n' ' ' < output.md | grep -ciE "(sweep|pre-filter):.*read:"
+# older "sweep" label, as labels ("Pre-filter: … Read:") or in prose ("the pre-filter found … the read found").
+tr '\n' ' ' < output.md | grep -ciE "(sweep|pre-filter):.*read:|(sweep|pre-filter) found.*read found"
 ```
 
 ## Saturation Signals

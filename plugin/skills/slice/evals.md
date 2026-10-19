@@ -119,10 +119,11 @@ grep -m1 -E "^## (Outcome|Resume|Carry forward)" output.md | grep -Ec "^## Outco
 # The reference travelled in the payload — expect >=1 on 21. A run that routes it through the
 # spec file scores 0, because the parameter is never named.
 grep -Ec "reference-paths" output.md          # scenario 21 only
-# Parallel wave — expect >=2 on 23: distinct slices given a tree, read from `slice-trees/…-sN` paths,
-# a "same for sN" continuation, or a `for n in 1 2;` loop. Counting `slice-tree.sh` lines scored a
-# loop or a "# same for s2" as 1. A one-slice run scores 1; a sequential run scores 0.
-{ grep -oE "slice-trees/[^ \"]*-s[0-9]+\b" output.md | grep -oE "s[0-9]+$"; grep -oiE "same for s[0-9]+" output.md | grep -oE "s[0-9]+$"; grep -oE "for [a-z]+ in [0-9 ]+;" output.md | grep -oE "[0-9]+" | sed 's/^/s/'; } | sort -u | grep -c .   # scenario 23
+# Parallel wave — expect >=2 on 23: distinct slice ids on lines naming `slice-tree.sh` or a
+# `slice-trees/` path, on a "same … for s2" line within three lines after one, or in a loop
+# (`for n in 1 2;`, "for each `n` in 1, 2"). Keying on "same for sN" alone scored "# same three
+# commands for s2" and the prose loop as 1. A one-slice run scores 1; a sequential run scores 0.
+{ awk '/slice-tree\.sh|slice-trees\// {print; w=3; next} w-- > 0 && tolower($0) ~ /same[^.]*for/' output.md | grep -oE "\bs[0-9]+\b"; grep -oiE "for (each )?\`?[a-z]+\`? in [0-9][0-9, ]*" output.md | grep -oE "[0-9]+" | sed 's/^/s/'; } | sort -u | grep -c .   # scenario 23
 # The held slice is left alone — expect 0 on 24: no tree is created for s1. Expect >=1 for s2: a
 # slice of a two-slice wave runs in its own tree even when this actor takes only that one. Keyed on
 # the tree path, since a `slice-tree.sh` call often wraps its arguments onto the next line.
@@ -134,7 +135,9 @@ grep -Ec "verify-lock\.sh" output.md          # scenario 26 only
 # reviewer write scores 1. Counts occurrences, not lines: two dispatches often share one line.
 grep -Eo "memory: ?.?read-only" output.md | grep -c .      # scenario 29 only
 # A parallel round picks its batches back — expect >=2 on 30, 0 on 32, which has no round to pick.
-grep -Ec "batch-pick\.sh" output.md          # scenarios 30 and 32
+# Counts distinct batch ids on lines naming `batch-pick.sh` or on a "same … for -b2" line within
+# three lines after one: counting script lines scored "then the same for `-b2`" as 1.
+awk '/batch-pick\.sh/ {print; w=3; next} w-- > 0 && tolower($0) ~ /same[^.]*for/' output.md | grep -oE "\bb[0-9]+\b" | sort -u | grep -c .   # scenarios 30 and 32
 # Claim race. The push is create-only — expect >=1 on 35: an empty lease, the `:` followed by a
 # space or line end. A plain push, a bare --force-with-lease, or a lease naming a SHA scores 0.
 grep -Ec -e "--force-with-lease=refs/heads/[^ :]+:( |$)" output.md   # scenario 35

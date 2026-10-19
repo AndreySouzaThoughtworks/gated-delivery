@@ -19,7 +19,7 @@ The autonomous eval stays before the write checkpoint. Judge the drafted spec in
 | 1 | "Spec PROJ-201." | ACs separately say endpoint returns 200, returns JSON, and JSON contains `total`; the latter two cannot fail independently of the first successful response. | Runs independence check and folds verification details instead of accepting all three as separate ACs. |
 | 2 | "Spec PROJ-202: cache tenant config in Redis." | New Redis dependency; no existing cache. | Produces dedicated Deployment & infra prerequisites with owning repo, PR owner, secret naming, and environment scope. |
 | 3 | "Spec PROJ-203: make export faster." | AC says only “the export should be fast.” | Names a lazy wrong implementation and requires a measurable bound. |
-| 4 | "Spec PROJ-204: persist call state." | Requires this repo plus an infrastructure change. Ticket AC table: AC1 call state is saved when a call starts; AC2 each state change is saved with its sequence number; AC3 state for a call ID can be read back after a service restart; AC4 state is deleted 24 hours after the call ends; AC5 the production datastore and its secret exist in every environment the service runs in. | Tags `in-repo / unit test` and `in-repo / integration test` ACs separately from `cross-repo / manual verification` ACs; Rollout contains only in-repo ACs; the drafted per-ticket Done-when block is written out and lists AC5 with its evidence and an owner. Fails if evidence and owner appear only in the AC text, or the response only says the checklist includes them. |
+| 4 | "Spec PROJ-204: persist call state." | Requires this repo plus an infrastructure change. Ticket AC table: AC1 call state is saved when a call starts; AC2 each state change is saved with its sequence number; AC3 state for a call ID can be read back after a service restart; AC4 state is deleted 24 hours after the call ends; AC5 the production datastore and its secret exist in every environment the service runs in. | Tags each in-repo AC with the test layer that proves it (`in-repo / unit test` or `in-repo / integration test`; both tags appear only when both layers are used) separately from `cross-repo / manual verification` ACs; Rollout contains only in-repo ACs; the drafted per-ticket Done-when block is written out and lists AC5 with its evidence and an owner — a person, team or role. Fails if evidence and owner appear only in the AC text, if the response only says the checklist includes them, or if the owner is "unassigned", "TBD" or only a pointer to an open decision. |
 | 5 | "Spec PROJ-205: add RoutingRule persisted to Mongo." | New domain entity; domain doc exists. Ticket AC table: AC1 a tenant admin creates a RoutingRule for their own tenant with a priority from 1 to 100, a target queue and `enabled: true`; AC2 creating a second rule with a priority the tenant already uses returns 409; AC3 a tenant admin sets `enabled: false` on a rule, and routing in this service, which reads rules from Mongo on every call, skips it; AC4 a deleted rule is not used by the next routed call. | Classifies the entity as Added and supplies purpose, identity, invariants, lifecycle, relationships, and canonical type. |
 | 6 | "Spec PROJ-206: add an endpoint that updates another tenant's routing config." | New authenticated tenant-scoped write. | STRIDE pass identifies tenant authorization as an AC or decision; authentication alone is not accepted. |
 | 7 | "Spec PROJ-207: publish call-ended to analytics and billing." | At least three components and meaningful ordering. | Includes a small architecture flow sketch and names the seams before drafting ACs. |
@@ -81,9 +81,10 @@ CONTEXT: {{PERSONA}}
 
 ```bash
 # Exposure declared, in heading, bullet or table form, with or without backticks: `exposure: x`, a
-# slice line carrying a backticked value (Slice 1 with `unwired` in backticks), or a table cell that is or opens
-# with the value. A Rollout that never declares one scores 0.
-grep -iEc "exposure:?[[:space:]]*\`?(complete|unwired|flagged)|slice[^|]*\`(complete|unwired|flagged)\`|^\|.*\|[[:space:]]*\`?(complete|unwired|flagged)\`?[[:space:]]*\||^\|.*\|[[:space:]]*\`(complete|unwired|flagged)\`[^|]*\|" output.md
+# slice line carrying a backticked value (Slice 1 with `unwired` in backticks), a table cell that is the
+# value, or a table row with the backticked value anywhere ("| 1 | S0: add both dependencies (`unwired`) |").
+# A Rollout that never declares one scores 0.
+grep -iEc "exposure:?[[:space:]]*\`?(complete|unwired|flagged)|slice[^|]*\`(complete|unwired|flagged)\`|^\|.*\|[[:space:]]*\`?(complete|unwired|flagged)\`?[[:space:]]*\||^\|.*\`(complete|unwired|flagged)\`" output.md
 grep -iEc "must merge before|flowchart" output.md   # scenario 10 only
 test -z "$(git -C "$WORKTREE" status --porcelain docs/specs 2>/dev/null)" && echo "held draft: ok"
 # Scenario 13: follows the fixture's declared path (>=1) and proposes no new context file (0).
@@ -100,9 +101,10 @@ grep -iEc "rate.?limit|throttl|429|quota" output.md   # scenario 16: abuse
 grep -iEc "observab|metric|alert|rate.?limit|throttl|concurren|locali|i18n|stream|pagina" output.md   # scenario 17
 # Every slice carries its lane fields — expect one of each per slice (3 on 19), as a bullet at any
 # indent (optionally after a bold slice label), a table row, joined with `·`, or in prose
-# ("- **S0:** depends on none. Write surface is …"), any case. A Rollout without lane fields scores 0.
-grep -iEc "(^[[:space:]]*([-*]|\|)[[:space:]]*(\*\*[^*]+\*\*[[:space:]]*)?|·[[:space:]]*)(\*\*)?depends on(\*\*)?[[:space:]]*([:|]|none|s[0-9]|slice)" output.md   # scenarios 19-21
-grep -iEc "(^[[:space:]]*([-*]|\|)[[:space:]]*(\*\*[^*]+\*\*[[:space:]]*)?|·[[:space:]]*|[.;][[:space:]]+)(\*\*)?write surface(\*\*)?[[:space:]]*([:|]|is |are )" output.md   # scenarios 19-21
+# ("- **S0:** depends on none. Write surface is …"), any case — plus one per body row of a column table
+# whose header has a `Depends on` / `Write surface` column. A Rollout without lane fields scores 0.
+echo $(( $(grep -iEc "(^[[:space:]]*([-*]|\|)[[:space:]]*(\*\*[^*]+\*\*[[:space:]]*)?|·[[:space:]]*)(\*\*)?depends on(\*\*)?[[:space:]]*([:|]|none|s[0-9]|slice)" output.md) + $(awk '!/^[[:space:]]*\|/ {t=0; next} tolower($0) ~ /\|[[:space:]]*depends on[[:space:]]*\|/ {t=1; next} t && !/^[[:space:]]*\|[-:| ]+\|[[:space:]]*$/ {n++} END {print n+0}' output.md) ))   # scenarios 19-21
+echo $(( $(grep -iEc "(^[[:space:]]*([-*]|\|)[[:space:]]*(\*\*[^*]+\*\*[[:space:]]*)?|·[[:space:]]*|[.;][[:space:]]+)(\*\*)?write surface(\*\*)?[[:space:]]*([:|]|is |are )" output.md) + $(awk '!/^[[:space:]]*\|/ {t=0; next} tolower($0) ~ /\|[[:space:]]*write surface[[:space:]]*\|/ {t=1; next} t && !/^[[:space:]]*\|[-:| ]+\|[[:space:]]*$/ {n++} END {print n+0}' output.md) ))   # scenarios 19-21
 # The overlap is named — expect >=1 on 20. A run that splits the waves without saying why scores 0.
 grep -iEc "lockfile|package\.json|manifest" output.md   # scenario 20 only
 ```

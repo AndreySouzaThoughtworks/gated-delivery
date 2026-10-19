@@ -87,7 +87,7 @@ const ALLOWED_TOOLS = [
   "Bash(git rev-parse:*)",
   "Bash(node scripts/audit/consistency.mjs)",
 ];
-const RUN_TEMP_DIR = "tmp";
+const RUN_TEMP_DIR = "run-tmp";
 
 const SUMMARY_COLUMNS = ["skill", "id", "arm", "run", "harness", "checks", "judge", "cost", "secs"];
 
@@ -232,7 +232,8 @@ const worst = (verdicts) => verdicts.reduce((a, b) => (VERDICT_SEVERITY.indexOf(
 
 function gradeChecks(skill, id, runDir) {
   if (!existsSync(RUN_CHECKS)) return NOT_AVAILABLE;
-  const files = [join(runDir, "output.md"), ...pagesIn(runDir)];
+  const scratch = join(runDir, RUN_TEMP_DIR, "");
+  const files = [join(runDir, "output.md"), ...pagesIn(runDir).filter((page) => !page.startsWith(scratch))];
   const log = [];
   const verdicts = files.map((file) => {
     const { status, stdout, stderr } = spawnSync("node", [RUN_CHECKS, skill, file, "--scenario", id], {

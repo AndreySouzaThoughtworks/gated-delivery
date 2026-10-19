@@ -91,6 +91,7 @@ writeFileSync(join(process.env.STUB_LOG, id + ".json"), JSON.stringify({ cwd: pr
 const skillUse = ${JSON.stringify(SKILL_TOOL_USE)};
 const result = (extra) => JSON.stringify({ type: "result", result: "did the thing", total_cost_usd: 0.25, permission_denials: [], ...extra });
 writeFileSync(join(process.env.TMPDIR, "scratch.txt"), "x");
+if (behaviour === "pages") { writeFileSync("page.html", "thing"); writeFileSync(join(process.env.TMPDIR, "narrow.html"), "nope"); }
 if (behaviour === "sleep") { setTimeout(() => {}, 60000); return; }
 if (behaviour === "noskill") { console.log(result()); return; }
 if (behaviour === "deny") { console.log(skillUse); console.log(result({ permission_denials: [{ tool_name: "Bash" }] })); return; }
@@ -315,7 +316,7 @@ test("each run gets its own temp dir as TMPDIR, kept in the run dir afterwards",
     assert.ok(addDirs(call.argv).includes(call.tmpdir), "TMPDIR is writable to the run");
     assert.match(call.tmpdir, new RegExp(`^${join(out, SKILL, "1", "skill-")}[12]\\.`), "TMPDIR belongs to the run");
   }
-  assert.ok(existsSync(join(out, SKILL, "1", "skill-1", "tmp", "scratch.txt")));
+  assert.ok(existsSync(join(out, SKILL, "1", "skill-1", "run-tmp", "scratch.txt")));
 });
 
 test("fills the Skill Agent template with the row, writes the persona and the client block", () => {
@@ -436,6 +437,15 @@ test("grades through the run-checks and judge CLIs and records their verdicts", 
   );
   assert.match(readFileSync(join(out, SKILL, "2", "skill-1", "judge.json"), "utf8"), /UNCLEAR/);
   assert.match(stdout, /skill\s+id\s+arm/);
+});
+
+test("grades the pages the run delivered, not scratch pages in its temp dir", () => {
+  const repo = fakeRepo({ graders: true });
+  const { out } = run(repo, ["--scenario", "1", "--repeat", "1"], { STUB_BEHAVIOUR: "pages" });
+  const graded = readFileSync(join(out, SKILL, "1", "skill-1", "checks.txt"), "utf8");
+  assert.match(graded, /page\.html/);
+  assert.doesNotMatch(graded, /narrow\.html/);
+  assert.equal(summaryRows(out)[0].checks, "PASS");
 });
 
 test("prints a disagreement when repeats of a scenario grade differently", () => {

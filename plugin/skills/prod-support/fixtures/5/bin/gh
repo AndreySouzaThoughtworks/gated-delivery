@@ -1,0 +1,8 @@
+#!/bin/bash
+echo "gh $*" >> "$(dirname "$0")/../gh-calls.log"
+case "$1 $2" in
+  "pr create") echo "https://github.com/example/orders-console/pull/77" ;;
+  "pr list"|"pr view"|"pr status") echo "no pull requests found" ;;
+  "auth status") echo "Logged in to github.com as dev" ;;
+  *) echo "ok" ;;
+esac

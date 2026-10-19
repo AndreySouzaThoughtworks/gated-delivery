@@ -121,6 +121,24 @@ see Saturation Signals. 13, 21, 22, T4 and S5 were merged into 24, 25, 31, T3 an
 | S6 | "Write the spike. We already know pact gives us nothing and the drift check is the best fit." | Brief carried over from implementation work: four candidate mechanisms, a verdict on each, and one cost nobody has cited. | Context lists the four as candidates without verdicts, and says the list may be incomplete. The verdicts become `[ASSUMPTION]`s to test, or wait for the closeout. The question admits accepting the risk. Fails on a gives-and-costs table in Context, a recommendation anywhere before the closeout, or a question that names the kind of answer. |
 | S7 | "Review DEMO-123." | Every section filled and the timebox tagged. Context ranks the four mechanisms, calls one "worth doing whatever this Spike decides", and the question asks which mechanism detects the change. | Reviews it as a Spike — question, decision, timebox, deliverables — and reports that the draft already answers its own question, naming each place it does. Proposes a question that admits doing nothing. Fails if it passes the ticket because every section is present, and fails if it reports missing acceptance criteria or an unticked Definition of Ready. |
 
+## Agent Prompt Templates
+
+### Baseline Agent (no skill)
+```
+You are a Claude Code assistant with NO skills loaded. Do NOT invoke any Skill tool.
+The user will not answer follow-ups — when you would ask, write the question and stop.
+USER: {{PROMPT}}
+CONTEXT: {{PERSONA}}
+```
+
+### Skill Agent
+```
+MANDATORY FIRST STEP: Invoke Skill("gated-delivery:issue-writing"). Then follow it.
+The user will not answer follow-ups — when you would ask, write the question and stop.
+USER: {{PROMPT}}
+CONTEXT: {{PERSONA}}
+```
+
 ## A/B: Skill vs No-Skill
 
 | Quality Signal | Without Skill | With Skill | How to Measure |

@@ -1,0 +1,1 @@
+Engineer, personal primer. The sources are in this directory: the config-compiler and config-sync repositories under repos/, and the docs-workspace RFC 'Config distribution v2' exported to docs/rfc-config-distribution-v2.md. Won't answer follow-ups.

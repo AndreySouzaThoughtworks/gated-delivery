@@ -66,7 +66,7 @@ Fan out across sources that fit topic; no over-fetch. Typical sources:
   of broad sweep, which is where mis-owned and dangling material comes from. Start here,
   widen only for what they can't answer.
 - **Knowledge base** — PRDs, specs, decks and meeting notes, through the knowledge-base search the client context names.
-- **Tracker** — epics, status and ownership (reporter, assignee), through the tracker search the `## Issue tracking` Mechanics name. Roles read off the tracker are **Inferred**, not a verified org chart; label them so.
+- **Tracker** — epics, status and ownership (reporter, assignee), through the tracker search the `## Issue tracking` Mechanics name. Roles and status read off the tracker are **Inferred**, not a verified org chart; label them so. Ownership is **Verified** only when a document names the owner (an org chart, a service catalog, a README `Owner:` line). A `CODEOWNERS` entry shows who must review, not who owns, so state it as one line under one label, such as "`CODEOWNERS` lists `@team` as reviewer; ownership **Inferred** (`CODEOWNERS:1`)": the citation stays, the label is never Verified.
 - **Repos** — code, schemas, seed data. Prefer sub-agent (`Explore` / `general-purpose`) for broad multi-repo sweeps so file dumps stay out of context; have it return conclusions + `file:line` citations.
 
 Large tool outputs (>~25k tokens) get saved to file by harness — grep/slice that file or hand to sub-agent; no pulling all into context.
@@ -79,10 +79,10 @@ Primer's spine, adapted to topic:
 
 - **① Core idea** — the single sentence the rest depends on (goes in `.key` box). Lead with mental model, then why true, then reframe ("think of it as X, not Y").
 - **Middle sections** — one idea each. Use component that fits: `.two`/`.three` cards for contrasts/phases, `ol.steps` for sequence, SVG `figure` for flow/lifecycle, `table` for comparisons or status. Watch **overload trap** — term means two things? Give it own section.
-- **Ownership & status** (if relevant) — table of who owns what + tracker state, with inferred-roles caveat.
+- **Ownership & status** (if relevant) — table of who owns what + tracker state, with inferred-roles caveat. Every row and its outline line is **Inferred**, `CODEOWNERS` and author lines included, unless a document names the owner.
 - **⑦ Glossary** — terms cold reader needs.
 
-Present outline as: section list (with component each will use) + key claims under each + source for each claim (Verified/Inferred). Keep tight.
+Present outline as: section list (with component each will use) + key claims under each + source for each claim (Verified/Inferred). Label every sentence that states a fact, wherever it sits in the reply: status and context lines, what the doc will leave out, sequence steps, diagram sections, gaps and missing files, each glossary entry, closing notes. Every **Verified** label cites its file by full path, never shortened; an absence the read files show (no caller, no `try/catch`) is **Verified**, citing them; a claim with no file to cite is **Inferred**. A citation alone is no label. The reply holds only the outline and the sign-off question: no setup paragraph before it, no notes after. What the cited lines show, and what follows directly from them (no `try/catch`, so it throws), is **Verified**; a gloss or a reading beyond them is **Inferred**. Leave out estimates computed from them. Keep tight.
 
 ### 4. CHECKPOINT — sign off the outline
 

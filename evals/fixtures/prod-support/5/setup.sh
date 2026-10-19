@@ -11,7 +11,7 @@ git config user.name dev
 git config commit.gpgsign false
 git config core.hooksPath "$NO_HOOKS"
 mkdir -p .git/info
-printf '%s\n' persona.md bin/ gh-calls.log origin.git/ drafted/ >> .git/info/exclude
+printf '%s\n' persona.md bin/ gh-calls.log origin.git/ drafted/ .corpus/ >> .git/info/exclude
 
 git add -A
 git commit -q -m "feat: transcript panel"

@@ -85,6 +85,8 @@ Make the happy path runnable. Collect only what the presenter needs:
 - ordered actions and the expected result of each;
 - a fallback such as a screenshot, trace or recorded output when the live path is unavailable.
 
+Run the happy path once while preparing and keep what each step produced: the screenshot, the response, the output. Step 7 pastes it into the page.
+
 Never place credentials, customer data or production payloads in the artifact. Name access prerequisites without copying secrets.
 
 A demonstration step pairs an action with an observable result. Explanatory implementation notes belong after the demonstration unless the action cannot be understood without them.
@@ -126,7 +128,20 @@ When the ticket lists acceptance or completion criteria, show them in a table st
 
 Write each criterion in words, keeping its label only as a prefix. State how it is met as evidence a reviewer can check: a test, a document, an observed result. A criterion that is unmet, partly met, or met in a way the ticket's wording does not anticipate says so in its row. Title the section "How each criterion is met". Open it with one sentence that gives the verdict, such as "Every criterion is met" or "Five of seven criteria are met", and names the pull requests that met them. A gap belongs in its row and in that sentence; a heading built around it turns one unverified criterion into the page's headline.
 
-### 7. Show the decisions
+### 7. Paste the evidence
+
+Paste the evidence you collected into the page itself. A link alone is not evidence: the room may not open it, and the run behind it can expire. After the criteria table, give each criterion that is met its own `<details>` block, summarised with the criterion in words, holding what proves it:
+
+- the command that was run and the trimmed output showing the result, in `<pre><code>`;
+- for an API, the request and the response showing the expected behaviour;
+- a screenshot of the product surface, embedded as `<img src="data:image/png;base64,…" alt="…">`, with alt text saying what it shows;
+- the passing test's name and result line, linked to the run.
+
+Paste each demonstration step's observed result beside its expected result the same way.
+
+Keep the decisive lines, not whole logs. Escape pasted text like any other copied value. Redact credentials, tokens, customer data and production payloads before pasting; where only a production run exists, paste a synthetic run instead. A criterion with nothing collected says "No evidence collected" in its row and stays unverified.
+
+### 8. Show the decisions
 
 List every trade-off the delivered work rests on that the ticket, spec or an ADR already settled, in a table inside a `<details>` block after the approach:
 
@@ -135,43 +150,32 @@ List every trade-off the delivered work rests on that the ticket, spec or an ADR
 
 Give each row a one-sentence reason. Without it, what the decision lets through reads as a defect, and the deskcheck turns into an argument about work already agreed. A settled decision is shown so reviewers can object knowingly, never posed as a question.
 
-### 8. Show what delivery surfaced
+### 9. Show what delivery surfaced
 
 In a second `<details>` block, list what building and verifying the work uncovered that nobody could have decided beforehand: evidence that came from somewhere other than planned, a criterion verified differently, a constraint found on the way. These are findings, stated plainly with their evidence.
 
-### 9. Render the page
+### 10. Render the page
 
 Replace the four document values, then write the complete narrative into `DESKCHECK_BODY` in this order:
 
 1. Ticket, title, delivered outcome and source links.
 2. Business value.
 3. The criteria and how each is met, when the ticket lists any.
-4. Happy-path demonstration.
-5. Approach overview.
-6. Optional detail.
-7. Decisions and what they let through.
-8. What delivery surfaced.
-9. Light relief.
+4. The evidence for each criterion.
+5. Happy-path demonstration, each step with its observed result.
+6. Approach overview.
+7. Optional detail.
+8. Decisions and what they let through.
+9. What delivery surfaced.
 10. The feedback prompt.
 11. Reference links.
 12. Feedback and actions already captured, when this is an update after the deskcheck.
 
-The shell provides styles for `.value`, `.links`, `.setup`, `.steps`, `.approach-grid`, `details`, `table` inside `.table-wrap`, `.feedback`, `.joke` and `.notes`. Use the structures that help this deskcheck.
+The shell provides styles for `.value`, `.links`, `.setup`, `.steps`, `.approach-grid`, `details`, `table` inside `.table-wrap`, `.feedback`, `.evidence` and `.notes`. Use the structures that help this deskcheck.
 
 Use direct, explanatory prose. A presenter should be able to follow the page without translating terse notes, while a reviewer should be able to skim the headings and understand the story.
 
 Name what a source says in words and link it. A bare criterion or acceptance-criterion label, such as `C6` or `AC1m`, means nothing to a reader without the ticket open.
-
-## Light relief
-
-Just before the feedback prompt, add one short joke about the delivered work. It lightens the room at the moment people are asked to speak. Offer three jokes in the conversation and write the one the user picks. Label it so nobody reads it as a finding, set it in the template's `.joke` style, and end it with a drum:
-
-```html
-<section aria-labelledby="joke">
-  <p class="eyebrow" id="joke"><span aria-hidden="true">😄</span> Light relief</p>
-  <p class="joke">The joke. <span aria-hidden="true">🥁</span></p>
-</section>
-```
 
 ## Feedback
 
@@ -186,9 +190,10 @@ After the deskcheck, update the same file when asked. Record the feedback, decis
 Before reporting the path:
 
 1. Search the file for `{{` and `}}`; no placeholders remain.
-2. Confirm the document contains one `h1` and sections for the criteria when the ticket lists any, business value, the happy path, the approach, the decisions, light relief and feedback.
-3. Confirm every demonstration step contains an action and an expected result.
-4. Confirm every local link resolves and every external link has an `https://` URL.
-5. Confirm the file contains no `<script>`, `on…=` event attribute, `javascript:` or `data:` link, remote stylesheet, remote font, credentials, customer data or production payloads, and that the `Content-Security-Policy` meta tag is unchanged.
-6. Open the file in a browser. Inspect the full page at desktop width and a narrow viewport; fix overflow, unreadable contrast and broken hierarchy. Headless Chrome will not size a window below about 500 pixels, so its narrow screenshot clips the page; measure `document.documentElement.scrollWidth` inside a 390-pixel iframe instead.
-7. Report the output path and any part of the delivered behaviour that remains unverified.
+2. Confirm the document contains one `h1` and sections for the criteria when the ticket lists any, business value, the happy path, the evidence, the approach, the decisions and feedback.
+3. Confirm every demonstration step contains an action, an expected result and its observed result.
+4. Confirm every criterion reported as met has pasted evidence beside it — output, response or screenshot, not only a link.
+5. Confirm every local link resolves and every external link has an `https://` URL.
+6. Confirm the file contains no `<script>`, `on…=` event attribute, `javascript:` or `data:` link (a `data:` image pasted as evidence is fine), remote stylesheet, remote font, credentials, customer data or production payloads, and that the `Content-Security-Policy` meta tag is unchanged.
+7. Open the file in a browser. Inspect the full page at desktop width and a narrow viewport; fix overflow, unreadable contrast and broken hierarchy. Headless Chrome will not size a window below about 500 pixels, so its narrow screenshot clips the page; measure `document.documentElement.scrollWidth` inside a 390-pixel iframe instead.
+8. Report the output path and any part of the delivered behaviour that remains unverified.

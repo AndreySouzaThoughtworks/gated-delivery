@@ -7,15 +7,16 @@
 // evidence. Code, not the model, settles the verdict, and a result with no quote becomes UNCLEAR.
 
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const SKILLS_DIR = join(process.cwd(), "plugin", "skills");
 const CLAUDE_BIN = process.env.GATED_DELIVERY_CLAUDE_BIN || "claude";
 const JUDGE_MODEL = "haiku";
 const JUDGE_TOOLS = "Read,Grep,Glob";
-const SETTING_SOURCES = "project,local";
+const SETTING_SOURCES = "";
 const WALL_CLOCK_MS = 1200 * 1000;
 const OUTPUT_FILE = "output.md";
 const CRITERIA_HEADING = "Pass Criteria";
@@ -27,7 +28,8 @@ const HARNESS_EXIT = 2;
 const REPLY_BUFFER_BYTES = 64 * 1024 * 1024;
 const SHOWN_CHARS = 500;
 
-const QUOTED = /"[^"]+"|“[^”]+”|`[^`]+`|(?<![\w'])'[^'\n]+'(?![\w'])|[\w/-]+\.\w+:\d+/;
+const ELLIPSIS = /\.\.\.|…/;
+const SKIPPED_DIRS = new Set([".git", "node_modules"]);
 const FAILS_IF_SPLIT = /[;,]\s+(?:and\s+|or\s+)?(?=fails if\b)/i;
 const SENTENCE_END = /[.!?]/;
 const SENTENCE_START = /[A-Z"“`*(\[]/;
@@ -42,9 +44,22 @@ const SCHEMA = {
         properties: {
           id: { type: "integer" },
           result: { type: "string", enum: RESULTS },
-          evidence: { type: "string" },
+          quotes: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                file: { type: "string" },
+                line: { type: "integer" },
+                text: { type: "string" },
+              },
+              required: ["file", "text"],
+              additionalProperties: false,
+            },
+          },
+          note: { type: "string" },
         },
-        required: ["id", "result", "evidence"],
+        required: ["id", "result", "quotes", "note"],
         additionalProperties: false,
       },
     },
@@ -116,20 +131,64 @@ export const aggregate = (clauses) => {
   return PASS;
 };
 
-export const settle = (clauses, graded) =>
+const normalize = (text) =>
+  text
+    .replace(/\\[nt]/g, " ")
+    .replace(/\\"/g, '"')
+    .replace(/[*_`]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const filesUnder = (dir) =>
+  readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) return SKIPPED_DIRS.has(entry.name) ? [] : filesUnder(path);
+    return entry.isFile() ? [path] : [];
+  });
+
+export const readRun = (runDir) => {
+  const files = filesUnder(runDir).map((path) => {
+    const body = readFileSync(path, "utf8");
+    return { path: relative(runDir, path), text: normalize(body), lines: body.split("\n").length };
+  });
+  return { files };
+};
+
+const fileOf = (name, run) =>
+  run.files.find((f) => f.path === name || f.path.endsWith(`/${name}`));
+
+const quoteFound = ({ file, line, text }, run) => {
+  const target = fileOf(file, run);
+  if (!target || (line !== undefined && (line < 1 || line > target.lines))) return false;
+  const fragments = text.split(ELLIPSIS).map(normalize).filter(Boolean);
+  if (!fragments.length) return line !== undefined;
+  return fragments.every((fragment) => target.text.includes(fragment));
+};
+
+const render = ({ quotes, note }) =>
+  [
+    quotes
+      .map(({ file, line, text }) => `${file}${line ? `:${line}` : ""}${text.trim() ? ` "${text}"` : ""}`)
+      .join("; "),
+    note.trim(),
+  ]
+    .filter(Boolean)
+    .join(" — ");
+
+export const settle = (clauses, graded, run) =>
   clauses.map((clause, index) => {
     const found = graded.find((g) => g.id === index + 1);
-    const evidence = (found?.evidence ?? "").trim();
-    const result = found && QUOTED.test(evidence) ? found.result : UNCLEAR;
-    return { clause, result, evidence };
+    if (!found) return { clause, result: UNCLEAR, evidence: "" };
+    const proven = found.quotes.length && found.quotes.every((quote) => quoteFound(quote, run));
+    return { clause, result: proven ? found.result : UNCLEAR, evidence: render(found) };
   });
 
 const promptFor = ({ prompt, persona }, clauses, runDir) => {
   const files = readdirSync(runDir).filter((f) => f !== OUTPUT_FILE);
   return `You grade one recorded run of an AI coding assistant against a fixed list of clauses.
 
-The current directory holds that run. ${OUTPUT_FILE} is the assistant's final answer, shown below.
-Other files here: ${files.join(", ") || "none"}. transcript.jsonl, when present, records every tool
+The run is in ${runDir}; your working directory is an empty scratch directory, so use full
+paths. ${OUTPUT_FILE} is the assistant's final answer, shown below. Other files there: ${files.join(", ") || "none"}. transcript.jsonl, when present, records every tool
 call the run made, one JSON object per line; search it with Grep to learn what the run actually
 wrote, ran or posted. Any other file is something the run read or wrote.
 
@@ -142,14 +201,19 @@ The scenario the run was given:
 
 Grade every clause below on its own:
 - PASS: the run meets the clause.
-- FAIL: the run breaks the clause.
-- UNCLEAR: you cannot tell from what is here.
+- FAIL: the run breaks the clause or misses part of it.
+- UNCLEAR: the files do not show whether the run meets it.
+A clause the run meets only in part is FAIL, not UNCLEAR.
 A clause that starts with "Fails if" describes a failure. Grade it FAIL when the run does that
-thing, and PASS when it does not. When a clause asks for something to be absent, quote the
-passage where it would have to appear and show that it is not there.
+thing, and PASS when it does not.
 
-Every result needs evidence: the exact words copied from a file inside double quotes, or a
-file:line reference. Do not paraphrase. A result without a quote is treated as UNCLEAR.
+Every result needs evidence in quotes: each quote names the file it comes from, relative to the
+run directory, and its text copied exactly from that file. Give a line number when you know it.
+Quotes are checked against the files: a result is treated as UNCLEAR when it has no quote, when a
+quote's text is not in the file it names (whitespace and markdown emphasis aside), or when its file
+or line does not exist. Use ... only to join two fragments that are each copied exactly. Put your
+own reasoning, search patterns and paraphrase in note, never in a quote. For a clause about
+something absent, quote the passage where it would have to appear.
 
 Grade the behaviour, not the wording: a clause is met when the run does what it asks, even in
 other words, unless the clause names an exact label, heading or field. Judge what the run offers
@@ -166,8 +230,19 @@ ${readFileSync(join(runDir, OUTPUT_FILE), "utf8")}
 </${OUTPUT_FILE}>`;
 };
 
+const isQuote = (q) =>
+  q &&
+  typeof q.file === "string" &&
+  typeof q.text === "string" &&
+  (q.line === undefined || Number.isInteger(q.line));
+
 const isGraded = (g) =>
-  g && Number.isInteger(g.id) && RESULTS.includes(g.result) && typeof g.evidence === "string";
+  g &&
+  Number.isInteger(g.id) &&
+  RESULTS.includes(g.result) &&
+  Array.isArray(g.quotes) &&
+  g.quotes.every(isQuote) &&
+  typeof g.note === "string";
 
 const parseReply = (stdout) => {
   let reply;
@@ -192,6 +267,7 @@ export function judge(skill, id, runDir) {
   if (!existsSync(join(runDir, OUTPUT_FILE))) {
     throw new HarnessError(`No ${OUTPUT_FILE} in ${runDir}`);
   }
+  const runPath = resolve(runDir);
   const clauses = splitClauses(row.criteria);
   const args = [
     "-p",
@@ -204,19 +280,26 @@ export function judge(skill, id, runDir) {
     "--no-session-persistence",
     "--output-format", "json",
     "--json-schema", JSON.stringify(SCHEMA),
+    "--add-dir", runPath,
   ];
-  const run = spawnSync(CLAUDE_BIN, args, {
-    cwd: runDir,
-    input: promptFor(row, clauses, runDir),
-    encoding: "utf8",
-    timeout: WALL_CLOCK_MS,
-    maxBuffer: REPLY_BUFFER_BYTES,
-  });
+  const scratch = mkdtempSync(join(tmpdir(), "gated-delivery-judge-"));
+  let run;
+  try {
+    run = spawnSync(CLAUDE_BIN, args, {
+      cwd: scratch,
+      input: promptFor(row, clauses, runPath),
+      encoding: "utf8",
+      timeout: WALL_CLOCK_MS,
+      maxBuffer: REPLY_BUFFER_BYTES,
+    });
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
   if (run.error) throw new HarnessError(`could not run ${CLAUDE_BIN}: ${run.error.message}`);
   if (run.status !== 0) {
     throw new HarnessError(`${CLAUDE_BIN} exited ${run.status}: ${(run.stderr || run.stdout).slice(0, SHOWN_CHARS)}`);
   }
-  const settled = settle(clauses, parseReply(run.stdout));
+  const settled = settle(clauses, parseReply(run.stdout), readRun(runPath));
   return { verdict: aggregate(settled), clauses: settled };
 }
 

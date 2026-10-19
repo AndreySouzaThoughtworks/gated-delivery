@@ -10,19 +10,30 @@ pass() { echo "ok   $1"; }
 fail() { echo "FAIL $1"; failures=$((failures + 1)); }
 check() { if eval "$2"; then pass "$1"; else fail "$1"; fi; }
 
-repo="$work/repo"
-git init -q --template= -b main "$repo"
-git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
-mkdir "$repo/node_modules"
+new_repo() {
+  git init -q --template= -b main "$1"
+  git -C "$1" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  printf 'node_modules/\n' > "$1/.gitignore"
+  git -C "$1" add .gitignore
+  git -C "$1" -c user.email=t@t -c user.name=t commit -q -m ignore
+}
 
-# slice-tree.sh
+# slice-tree.sh, in a repository with dependencies installed
+repo="$work/repo"
+new_repo "$repo"
+mkdir "$repo/node_modules"
 tree="$work/trees/s1"
 (cd "$repo" && "$scripts/slice-tree.sh" "$tree" feat/T-1-a-s1 main) >/dev/null 2>&1
 check "slice tree is created on its own branch" '[ "$(git -C "$tree" branch --show-current)" = feat/T-1-a-s1 ]'
 check "slice tree links the repository node_modules" '[ "$(readlink "$tree/node_modules")" = "$repo/node_modules" ]'
+check "the node_modules link leaves a new slice tree clean" '[ -d "$tree" ] && [ -z "$(git -C "$tree" status --porcelain)" ]'
 
 (cd "$repo" && "$scripts/slice-tree.sh" "$tree" feat/T-1-a-s1 main) >/dev/null 2>&1
 check "slice tree setup is re-runnable" '[ $? -eq 0 ] && [ "$(git -C "$tree" branch --show-current)" = feat/T-1-a-s1 ]'
+
+ln -s "$work/trees" "$work/trees-link"
+(cd "$repo" && "$scripts/slice-tree.sh" "$work/trees-link/s1" feat/T-1-a-s1 main) >/dev/null 2>&1
+check "a tree named through a symlinked folder is recognised on re-run" '[ $? -eq 0 ]'
 
 (cd "$repo" && "$scripts/slice-tree.sh" "$repo/inner" feat/T-1-b-s2 main) >/dev/null 2>&1
 check "slice tree inside the repository is refused" '[ $? -ne 0 ] && [ ! -d "$repo/inner" ]'
@@ -34,41 +45,75 @@ tree2="$work/trees/s2"
 (cd "$repo" && "$scripts/slice-tree.sh" "$tree2" feat/T-1-b-s2 main) >/dev/null 2>&1
 check "two slice trees coexist" '[ "$(git -C "$tree2" branch --show-current)" = feat/T-1-b-s2 ] && [ -d "$tree" ]'
 
-# review-tree.sh still works through the shared helper
+rm -f "$tree2/node_modules" && mkdir "$tree2/node_modules" && touch "$tree2/node_modules/own-install"
+(cd "$repo" && "$scripts/slice-tree.sh" "$tree2" feat/T-1-b-s2 main) >/dev/null 2>&1
+check "a slice tree's own install survives a re-run" '[ -f "$tree2/node_modules/own-install" ]'
+
+# review-tree.sh, run from a slice tree
 review="$work/review/s1"
 (cd "$tree" && "$scripts/review-tree.sh" "$review") >/dev/null 2>&1
 tip="$(git -C "$tree" rev-parse HEAD 2>/dev/null)"
 check "review tree is detached at the slice tip" '[ -n "$tip" ] && [ -d "$review" ] && [ -z "$(git -C "$review" branch --show-current)" ] && [ "$(git -C "$review" rev-parse HEAD)" = "$tip" ]'
-check "review tree links the main repository node_modules" '[ "$(readlink "$review/node_modules")" = "$repo/node_modules" ]'
+check "review tree links the slice tree dependencies" '[ "$(readlink "$review/node_modules")" = "$repo/node_modules" ]'
+
+review2="$work/review/s2"
+(cd "$tree2" && "$scripts/review-tree.sh" "$review2") >/dev/null 2>&1
+check "review tree uses a slice tree's own install" '[ "$(readlink "$review2/node_modules")" = "$tree2/node_modules" ]'
+
+# slice-tree.sh, in a repository with no dependencies
+plain="$work/plain"
+new_repo "$plain"
+plain_tree="$work/trees/plain"
+(cd "$plain" && "$scripts/slice-tree.sh" "$plain_tree" feat/T-2-a-s1 main) >/dev/null 2>&1
+check "no node_modules link is made when the repository has none" '[ -d "$plain_tree" ] && [ ! -e "$plain_tree/node_modules" ] && [ ! -L "$plain_tree/node_modules" ]'
+
+# slice-tree.sh resumes a branch that exists only on the remote
+remote="$work/remote.git"
+git init -q --bare "$remote"
+git -C "$plain" remote add origin "$remote"
+git -C "$plain" push -q origin main
+git -C "$plain" checkout -q -b feat/T-2-b-s2
+git -C "$plain" -c user.email=t@t -c user.name=t commit -q --allow-empty -m "s2 work"
+pushed="$(git -C "$plain" rev-parse HEAD)"
+git -C "$plain" push -q origin feat/T-2-b-s2
+git -C "$plain" checkout -q main
+git -C "$plain" branch -q -D feat/T-2-b-s2
+remote_tree="$work/trees/remote"
+(cd "$plain" && "$scripts/slice-tree.sh" "$remote_tree" feat/T-2-b-s2 origin/main) >/dev/null 2>&1
+check "a branch only on the remote is resumed at its pushed tip" '[ "$(git -C "$remote_tree" rev-parse HEAD 2>/dev/null)" = "$pushed" ]'
 
 # verify-lock.sh
 lock="$work/verify.lock"
 log="$work/lock.log"
 run_locked() { GATED_DELIVERY_VERIFY_LOCK="$lock" "$scripts/verify-lock.sh" "$@"; }
 
-run_locked "echo start-a >> '$log'; sleep 1; echo end-a >> '$log'" 2>/dev/null &
-first=$!
-sleep 0.2
-run_locked "echo start-b >> '$log'; sleep 1; echo end-b >> '$log'" 2>/dev/null &
-second=$!
-wait "$first" "$second"
-order="$(tr "\n" " " < "$log")"
-check "two locked commands never overlap" '[ "$order" = "start-a end-a start-b end-b " ] || [ "$order" = "start-b end-b start-a end-a " ]'
+for i in 1 2 3 4 5 6; do
+  run_locked "echo s >> '$log'; sleep 0.3; echo e >> '$log'" 2>/dev/null &
+done
+wait
+check "six concurrent locked commands never overlap" '[ "$(tr -d "\n" < "$log")" = "sesesesesese" ]'
 
 run_locked "exit 7" 2>/dev/null
 check "the command exit status is returned" '[ $? -eq 7 ]'
-check "the lock is released after a failing command" '[ ! -e "$lock" ]'
-
-mkdir "$lock"
-sh -c 'echo $$' > "$lock/pid"
 run_locked "true" 2>/dev/null
-check "a lock held by a dead process is reclaimed" '[ $? -eq 0 ] && [ ! -e "$lock" ]'
+check "the lock is free after a failing command" '[ $? -eq 0 ]'
 
-mkdir "$lock"
-echo $$ > "$lock/pid"
+run_locked "sleep 3" 2>/dev/null &
+holder=$!
+sleep 0.5
 GATED_DELIVERY_VERIFY_LOCK_TIMEOUT_S=1 run_locked "echo ran > '$work/ran'" 2>/dev/null
 status=$?
 check "a live holder past the timeout returns 75 without running" '[ $status -eq 75 ] && [ ! -e "$work/ran" ]'
-rm -rf "$lock"
+wait "$holder"
+
+GATED_DELIVERY_VERIFY_LOCK="$lock" "$scripts/verify-lock.sh" "sleep 2 & wait" 2>/dev/null &
+wrapper=$!
+sleep 0.5
+kill -9 "$wrapper" 2>/dev/null
+GATED_DELIVERY_VERIFY_LOCK_TIMEOUT_S=1 run_locked "true" 2>/dev/null
+check "an orphaned verify run still holds the lock" '[ $? -eq 75 ]'
+sleep 2
+run_locked "true" 2>/dev/null
+check "the lock frees itself once every holder has exited" '[ $? -eq 0 ]'
 
 [ "$failures" -eq 0 ] && echo "all slice script tests passed" || { echo "$failures failed"; exit 1; }

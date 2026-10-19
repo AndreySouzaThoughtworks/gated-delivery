@@ -22,7 +22,7 @@ mode: response
 | 6 | "Execute this two-batch slice." | Batch 1 complete; no PR yet. | Runs focused batch tests, batch lens, conditional security, then opens a draft PR; validators and full check wait for slice end. |
 | 7 | "Finish the slice." | `## Review routing` names three stack validators for the repository's stack, all configured; all batches complete; package manifest unchanged. | Runs the three configured stack validators once, full check once, whole-slice lens, current slice Done-when, and code-reviewer with full current-slice AC text; reports the gates and asks whether to mark the PR ready. |
 | 8 | "Finish a dependency-changing slice." | Lockfile changed in one of three batches. | Runs code security on relevant batches and one supply-chain scan at slice end, not one dependency scan per batch. |
-| 9 | "Continue after PR 1 merged." | Rollout has three slices; s1 merged, no s2 branch. | Picks Route N and creates s2 from updated `main`. |
+| 9 | "Continue after PR 1 merged." | Rollout has three slices; s1 merged, no s2 branch. | Picks Route C — s2 is alone in the next wave — and creates s2 from updated `main`. |
 | 10 | "Resume PROJ-130 on a second machine." | Draft PR and remote slice branch exist; local notes are absent; the shared handoff names the base, last verified commit, next action, and an OPEN item. | Fetches and checks out the existing slice branch, pulls shared files, reads the handoff before routing, uses its resume context, and treats missing local notes as expected. |
 | 11 | "Executor found a possible cleanup." | Note has no evidence and no later actor needs it. | Keeps it local and does not add it to the shared handoff. |
 | 12 | "Executor is blocked by a contract contradiction." | Reproducible evidence; another person must decide; no canonical destination contains the finding; losing the conversation would risk losing it. | Records an OPEN handoff item before stopping, with evidence, impact, and next action. |
@@ -36,10 +36,11 @@ mode: response
 | 20 | "Close out PROJ-141." | Handoff holds two Resume blocks, one `HARVESTED → ADR-12` entry, one dead end with evidence, and one `OPEN` entry. | `## Outcome` leads the file and carries the dead end and where the harvested item landed; both blocks stay, stamped `Closed`; the `OPEN` entry is harvested, not dropped. Fails if anything is deleted, moved or archived. |
 | 21 | "Plan the slice on PROJ-142." | Ticket touches a technology the reference index carries an entry for. | Reads the matching reference before dispatch and passes it as `reference-paths`. Fails if it lists the reference under the spec's `## Relevant files`, which the executor requires to exist in the changed repository. |
 | 22 | "Run slice 1 of PROJ-143." | The changed repository's `.ai-context/coding-conventions.md`, imported by its `CLAUDE.md`, permits a comment that gives a reason, which the production-code stack recipe bans; the production-code validator flags one such comment. | Lists the conventions document on the state block, passes it to the executor as `repo-conventions` and to the validators in `context`, assesses the finding using the repository convention, and leaves the comment in place, naming the deviation and its document at 7.6. Fails if it treats the finding as an instruction and deletes the comment. |
-| 23 | "Run wave 1 of PROJ-150 in parallel." | Rollout: wave 1 holds s1 and s2, wave 2 holds s3. No Resume block holds a slice. | Takes Route W; writes one `## Resume — <actor> — s<n>` block per slice and pushes before branching; creates a slice tree per slice with `slice-tree.sh`; dispatches both executors in one message, each with its own `worktree`. Fails if s3 starts, if both executors share one tree, or if a branch is created before the claim is pushed. |
-| 24 | "Pick up PROJ-151 — my colleague is on it too." | Wave 1 holds s1 and s2; the handoff already has `## Resume — actor-b — s1`. | Claims and builds s2 only, naming actor-b as holder of s1. Fails if it creates a branch or tree for s1. |
+| 23 | "Run wave 1 of PROJ-150 in parallel." | Rollout: wave 1 holds s1 and s2, wave 2 holds s3. No Resume block holds a slice. | Takes Route W; creates a slice tree per slice with `slice-tree.sh` and pushes each branch as its claim before any executor runs; dispatches both executors in one message, each with its own `worktree`. Fails if s3 starts, if both executors share one tree, or if an executor is dispatched before its branch is pushed. |
+| 24 | "Pick up PROJ-151 — my colleague is on it too." | Wave 1 holds s1 and s2; `origin` already has actor-b's branch for s1. | Claims and builds s2 only, naming actor-b as holder of s1. Fails if it creates a branch or tree for s1. |
 | 25 | "s1 merged; finish s2." | Wave 1 of PROJ-152: s1 merged to `main`, s2 was green and ready before that merge. | Merges `main` into s2 — no rebase — and reruns 7.1–7.5 before marking it ready. Fails if it marks s2 ready on the pre-merge evidence. |
 | 26 | "Run the slice-end gates on wave 1." | Two slices in flight, each with a review tree. | Runs each 7.2 verify and each reviewer's `verify-cmd` through `verify-lock.sh`, and dispatches both code-reviewers in one message, each bound to its own review tree. Fails if a verify runs outside the lock or one reviewer grades both trees. |
+| 27 | "Start wave 1 of PROJ-153." | Wave 1 holds s1 and s2; `/spec` left the repo-hosted spec uncommitted in the main checkout. | Commits the spec once, as s1's first commit, and branches s2 from that commit, so neither branch adds the spec separately. Fails if both branches commit the spec, or if s2 lacks it. |
 
 ## Agent Prompt Templates
 
@@ -65,7 +66,7 @@ CONTEXT: {{PERSONA}}
 
 | Signal | Failure | Expected behavior | Measurement |
 |---|---|---|---|
-| State routing | Improvises or resumes wrong slice | Selects Route A, B, B′, R, C, D, E, N, or F from evidence | Manual, scenarios 1–4 and 9–10 |
+| State routing | Improvises or resumes wrong slice | Selects Route A, B, B′, R, F, D, E, W, or C from evidence, first matching row winning | Manual, scenarios 1–4 and 9–10 |
 | Merge-unit meaning | Treats dispatch as slice | One Rollout slice equals one branch, PR, and merge | Manual, scenarios 4–7 |
 | Batch cohesion | Groups by size or AC count | Groups by test subject and production seam | Manual, scenario 5 |
 | Early feedback | Waits until all work is complete | Opens draft PR after first batch | Manual, scenario 6 |
@@ -76,7 +77,7 @@ CONTEXT: {{PERSONA}}
 | Slice already held | Plans the slice another actor holds | Takes a free slice, and names the holder | Holder check below; **whether the planned slice is the held one is Manual**, scenario 18 — the number comes from the persona |
 | Merge of two writers | Drops one side's evidence, or force-pushes | Both entries kept, block resolved by `Updated` | **Manual**, scenario 19 |
 | Close-out record | A reader months later meets the route before the result, or the route is deleted to spare them | `## Outcome` leads the file; the blocks stay, stamped `Closed` | Close-out checks below, scenario 20 |
-| Parallel wave | Starts dependent slices together, shares a tree, or skips the claim | Route W over independent slices only; claim pushed first; one slice tree and one executor per slice | Checks below plus **Manual**, scenarios 23–24 |
+| Parallel wave | Starts dependent slices together, shares a tree, or skips the claim | Route W over independent slices only; each branch pushed as its claim; one slice tree and one executor per slice | Checks below plus **Manual**, scenarios 23–24 |
 | Wave merges | Ships a sibling on evidence from before the other merged | Merges `main` in and reruns 7.1–7.5 | **Manual**, scenario 25 |
 | Verify isolation | Parallel verify runs collide on ports or containers | Every suite and verify through the verify lock | Lock check below, scenario 26 |
 | Final close | Earlier PR closes ticket | Only final Rollout PR carries `Closes` | Manual, scenario 13 |
@@ -89,7 +90,7 @@ CONTEXT: {{PERSONA}}
 ## Deterministic Checks
 
 ```bash
-grep -iEc "route (a|b|r|c|d|e|n|f)" output.md
+grep -iEc "route (a|b|r|c|d|e|w|f)" output.md
 grep -iEc "draft" output.md                    # scenario 6
 grep -iEq "evidence" output.md && grep -iEq "impact" output.md && grep -iEq "next" output.md   # scenario 12
 grep -iEc "canonical|repository instructions|domain" output.md   # scenario 16
@@ -106,9 +107,11 @@ grep -m1 -E "^## " output.md | grep -Ec "^## Outcome"   # scenario 20 only
 # The reference travelled in the payload — expect >=1 on 21. A run that routes it through the
 # spec file scores 0, because the parameter is never named.
 grep -Ec "reference-paths" output.md          # scenario 21 only
-# Parallel wave — expect >=2 on 23 (one per slice), 0 on 24's s1. A sequential run never names the script.
-grep -Ec "slice-tree\.sh" output.md           # scenarios 23-24
-grep -Ec "^## Resume — .+ — s[0-9]+" output.md # scenarios 23-24
+# Parallel wave — expect >=2 on 23 (one per slice). A sequential run never names the script.
+grep -Ec "slice-tree\.sh" output.md           # scenario 23
+# The held slice is left alone — expect 0 on 24: no tree is created for s1. Expect >=1 for s2.
+grep -Ec "slice-tree\.sh.*-s1\b" output.md   # scenario 24: s1
+grep -Ec "slice-tree\.sh.*-s2\b" output.md   # scenario 24: s2
 # Verify through the lock — expect >=2 on 26. A run that verifies in place scores 0.
 grep -Ec "verify-lock\.sh" output.md          # scenario 26 only
 ```

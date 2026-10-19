@@ -163,7 +163,7 @@ flowchart LR
 ```
 
 
-Waves group slices that may run at the same time, by subagents or by people. A slice joins the earliest wave after every slice it depends on. Slices share a wave only when neither depends on the other, their write surfaces do not overlap (a manifest or lockfile, migration numbering, a registry, generated code and a changelog count as overlap), and every interface both touch is already fixed. Within a wave, slices merge in any order.
+Waves group slices that may run at the same time, by subagents or by people. A slice joins the earliest wave after every slice it depends on. Slices share a wave only when neither depends on the other, their write surfaces do not overlap (a manifest or lockfile, migration numbering, a registry, generated code and a changelog count as overlap; each slice's own Done-when block and handoff entry do not), and every interface both touch is already fixed. Within a wave, slices merge in any order.
 
 | Wave | Slices | Why they cannot collide |
 |---|---|---|

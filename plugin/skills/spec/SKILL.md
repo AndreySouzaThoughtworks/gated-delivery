@@ -179,7 +179,7 @@ Once a surface is reachable, its safety envelope belongs in the same slice. Roll
 **Plan the parallelism.** Group the slices into waves so independent work runs at the same time, by subagents or by people. For each slice record what the template's lane fields ask: the slices it depends on, its write surface, any interface it shares with a slice in the same wave, and what its verify run needs. A slice joins the earliest wave whose predecessors all merge before it. Two slices share a wave only when:
 
 1. neither depends on the other;
-2. their write surfaces do not overlap — count the shared hotspots as overlap: a dependency manifest or lockfile, migration numbering, a module or route registry, generated code, a changelog;
+2. their write surfaces do not overlap — count the shared hotspots as overlap: a dependency manifest or lockfile, migration numbering, a module or route registry, generated code, a changelog. The spec itself and the handoff are not overlap: each slice ticks only its own Done-when block, and `/slice` gives each wave slice its own handoff entry;
 3. every interface both touch is already fixed: on `main`, outside this repository, or written out verbatim in the spec's `## Interface` before the wave starts. A slice that defines an interface the others consume goes in an earlier wave.
 
 Then apply the laziest-wrong test to the wave itself: for each pair in a wave, name the cheapest way the two could still collide — the same file, the same config key, the same seed data. A collision you can name moves one slice to the next wave. Parallelism is worth its cost only with two or more slices in a wave; a strict chain stays a list, and saying so is a valid answer.

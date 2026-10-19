@@ -77,7 +77,7 @@ Named per client in its CLAUDE.md (`## Stack recipes`, `## Review routing`, `## 
   ├── full repository verification, under verify-lock.sh  (7.2, once per slice)
   ├── Skill(senior-review-lens)                           (7.3, complete slice)
   ├── Agent(code-reviewer)                                (7.5, current slice ACs)
-  ├── slice review + shared handoff → ready PR → merge → Route N    (7.6–8)
+  ├── slice review + shared handoff → ready PR → merge → next wave (7.6–8)
   ├── Skill(issue-writing)                                (7.6 refactor-note ticket, 9 flag-removal tickets and harvest)
   └── Skill(senior-review-lens)                           (9, merged ticket)
 

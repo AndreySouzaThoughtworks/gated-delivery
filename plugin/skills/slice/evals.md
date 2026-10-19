@@ -36,6 +36,10 @@ mode: response
 | 20 | "Close out PROJ-141." | Handoff holds two Resume blocks, one `HARVESTED → ADR-12` entry, one dead end with evidence, and one `OPEN` entry. | `## Outcome` leads the file and carries the dead end and where the harvested item landed; both blocks stay, stamped `Closed`; the `OPEN` entry is harvested, not dropped. Fails if anything is deleted, moved or archived. |
 | 21 | "Plan the slice on PROJ-142." | Ticket touches a technology the reference index carries an entry for. | Reads the matching reference before dispatch and passes it as `reference-paths`. Fails if it lists the reference under the spec's `## Relevant files`, which the executor requires to exist in the changed repository. |
 | 22 | "Run slice 1 of PROJ-143." | The changed repository's `.ai-context/coding-conventions.md`, imported by its `CLAUDE.md`, permits a comment that gives a reason, which the production-code stack recipe bans; the production-code validator flags one such comment. | Lists the conventions document on the state block, passes it to the executor as `repo-conventions` and to the validators in `context`, assesses the finding using the repository convention, and leaves the comment in place, naming the deviation and its document at 7.6. Fails if it treats the finding as an instruction and deletes the comment. |
+| 23 | "Run wave 1 of PROJ-150 in parallel." | Rollout: wave 1 holds s1 and s2, wave 2 holds s3. No Resume block holds a slice. | Takes Route W; writes one `## Resume — <actor> — s<n>` block per slice and pushes before branching; creates a slice tree per slice with `slice-tree.sh`; dispatches both executors in one message, each with its own `worktree`. Fails if s3 starts, if both executors share one tree, or if a branch is created before the claim is pushed. |
+| 24 | "Pick up PROJ-151 — my colleague is on it too." | Wave 1 holds s1 and s2; the handoff already has `## Resume — actor-b — s1`. | Claims and builds s2 only, naming actor-b as holder of s1. Fails if it creates a branch or tree for s1. |
+| 25 | "s1 merged; finish s2." | Wave 1 of PROJ-152: s1 merged to `main`, s2 was green and ready before that merge. | Merges `main` into s2 — no rebase — and reruns 7.1–7.5 before marking it ready. Fails if it marks s2 ready on the pre-merge evidence. |
+| 26 | "Run the slice-end gates on wave 1." | Two slices in flight, each with a review tree. | Runs each 7.2 verify and each reviewer's `verify-cmd` through `verify-lock.sh`, and dispatches both code-reviewers in one message, each bound to its own review tree. Fails if a verify runs outside the lock or one reviewer grades both trees. |
 
 ## Agent Prompt Templates
 
@@ -72,6 +76,9 @@ CONTEXT: {{PERSONA}}
 | Slice already held | Plans the slice another actor holds | Takes a free slice, and names the holder | Holder check below; **whether the planned slice is the held one is Manual**, scenario 18 — the number comes from the persona |
 | Merge of two writers | Drops one side's evidence, or force-pushes | Both entries kept, block resolved by `Updated` | **Manual**, scenario 19 |
 | Close-out record | A reader months later meets the route before the result, or the route is deleted to spare them | `## Outcome` leads the file; the blocks stay, stamped `Closed` | Close-out checks below, scenario 20 |
+| Parallel wave | Starts dependent slices together, shares a tree, or skips the claim | Route W over independent slices only; claim pushed first; one slice tree and one executor per slice | Checks below plus **Manual**, scenarios 23–24 |
+| Wave merges | Ships a sibling on evidence from before the other merged | Merges `main` in and reruns 7.1–7.5 | **Manual**, scenario 25 |
+| Verify isolation | Parallel verify runs collide on ports or containers | Every suite and verify through the verify lock | Lock check below, scenario 26 |
 | Final close | Earlier PR closes ticket | Only final Rollout PR carries `Closes` | Manual, scenario 13 |
 | Cross-slice review | Never reviews or harvests the combined result | Runs post-merge ticket lens, routes follow-up, and retains the harvested handoff record | Manual, scenario 14 |
 | Branch safety | Mutates dirty foreign branch | Stops and surfaces choices | Manual, scenario 15 |
@@ -99,6 +106,11 @@ grep -m1 -E "^## " output.md | grep -Ec "^## Outcome"   # scenario 20 only
 # The reference travelled in the payload — expect >=1 on 21. A run that routes it through the
 # spec file scores 0, because the parameter is never named.
 grep -Ec "reference-paths" output.md          # scenario 21 only
+# Parallel wave — expect >=2 on 23 (one per slice), 0 on 24's s1. A sequential run never names the script.
+grep -Ec "slice-tree\.sh" output.md           # scenarios 23-24
+grep -Ec "^## Resume — .+ — s[0-9]+" output.md # scenarios 23-24
+# Verify through the lock — expect >=2 on 26. A run that verifies in place scores 0.
+grep -Ec "verify-lock\.sh" output.md          # scenario 26 only
 ```
 
 ## Saturation Signals

@@ -1,12 +1,12 @@
 ---
 name: slice
-description: Implement a tracker ticket as an ordered sequence of independently merging slices. The spec owns PR boundaries; this orchestrator plans executor batches inside each slice, runs merge-boundary reviews, and resumes from the tracker, Git, PRs, the spec, and a shared handoff.
+description: Implement a tracker ticket as independently merging slices, running each wave of independent slices in parallel worktrees. The spec owns PR boundaries and waves; this orchestrator plans executor batches inside each slice, runs merge-boundary reviews, and resumes from the tracker, Git, PRs, the spec, and a shared handoff.
 ---
 # /slice — Orchestrate one tracker ticket through independently merging slices
 
 **Branch preconditions.** Before any branch operation, the working tree must be clean and HEAD must be on `main` or the ticket's own branch (`feat/{ticket-id}-*`). Otherwise STOP and surface the state. Ask the user to check out `main` (default), stash, or explicitly stack on the current branch. Never proceed silently. One carve-out: this ticket's own uncommitted spec, which `/spec` leaves in the working tree, does not block Route C — that route creates the branch and commits the spec onto it as step 4 describes. Any other uncommitted change still stops.
 
-**Concurrency preconditions.** Two writing actors never share a working tree. In the slice branch's tree the orchestrator is the only writer, and it dispatches the executor, the lenses, and anything else that edits one at a time. Read-only dispatches fan out — 7.1's validators return findings and write no file, so they go in one message. A gate that runs the verify command gets its own worktree, where its build output and test processes reach nothing the orchestrator holds.
+**Concurrency preconditions.** Two writing actors never share a working tree. Every slice in flight has exactly one writing tree — the main checkout when one slice runs, its own slice tree when a wave runs in parallel (step 4W) — and in it one writer at a time. Different slices' trees are written at the same time. Read-only dispatches fan out — 7.1's validators return findings and write no file, so they go in one message. A gate that runs the verify command gets its own worktree, where its build output and test processes reach nothing a writer holds. Worktrees isolate files only, not ports, containers or a booted application, so every suite and verify run goes through the machine's verify lock (**Repository conventions**).
 
 ## Vocabulary
 
@@ -14,6 +14,8 @@ description: Implement a tracker ticket as an ordered sequence of independently 
 - **AC** — one testable input-to-output acceptance criterion. The executor gives every distinct behavioral fork its own RED/GREEN cycle and commit.
 - **Slice** — the ACs that merge together: one branch, one PR, one merge to `main`. The spec's `## Rollout` names slices.
 - **Functional batch** — one executor dispatch inside a slice. Its ACs share one test subject and one production seam; crossing helper → caller, port → adapter, or domain → controller starts another batch.
+- **Wave** — the slices the spec's `## Rollout` allows to run at the same time: no dependency between them, no overlapping write surface, every shared interface already fixed.
+- **Slice tree** — the writing worktree one slice of a parallel wave owns, outside the repository, on that slice's branch.
 
 Three levels answer three questions: would `main` remain safe and green after this slice; can one dispatch hold this batch in context; does this AC describe a distinct behavior that deserves its own failing test.
 
@@ -32,6 +34,8 @@ Resolve these at the start:
 - **Agent notes** — `$LOCAL_NOTES/agent-notes/{ticket-id}.md`, where `LOCAL_NOTES` is the Local notes home under `## Delivery notes`, default `~/.local/state/gated-delivery`. Machine-local scratch keeps executor notes out of the changed repository.
 - **Shared handoff** — `{ticket-id}/handoff.md` under the Shared notes home (`## Delivery notes`, default `docs/gated-delivery/{ticket-id}/` in the repository being changed). `/slice` reads it when present and writes only context that must survive a session, agent, machine, or compaction boundary.
 - **Actor** — who this session writes as: a handle, plus a machine name where one person runs two (`<handle>`, `<handle>@<machine>`). One actor owns one `## Resume` block and writes no other.
+- **Verify lock** — `scripts/verify-lock.sh` beside this file runs one command while holding a machine-wide lock (`~/.local/state/gated-delivery/verify.lock`; `GATED_DELIVERY_VERIFY_LOCK` overrides it), so the suites and verify runs of parallel slices, sessions or people on this machine never share ports, containers or a booted application at once. Run every 6.3 suite, 7.2 verify and 7.5 `verify-cmd` through it: `"<skill base directory>/scripts/verify-lock.sh" '<command>'`. It exits with the command's status, or 75 when another holder keeps the lock past 30 minutes — STOP on 75 and name the holder.
+- **Parallel cap** — at most three slices write at once. The user may raise or lower it at the step 3 checkpoint.
 - **Domain references** — indexed in the client context's `## Domain references` section. Where a ticket touches a technology the client context carries a reference for, read it before dispatching the executor and pass it in the step 6.1 payload. Skip when nothing in the index matches.
 
 When the Shared notes home is a separate repository — the **notes repository** — working-document writes use `GATED_DELIVERY_NOTES_REPO` when set, a local checkout of it. Otherwise clone the repository the Shared notes home names with `gh` into a temporary directory. The installed plugin cache is read-only. When the Shared notes home sits inside the repository being changed, there is no separate notes repository: working documents are committed on the slice branch and travel with it, and the notes-repository preconditions and direct pushes to its `main` below do not apply.
@@ -73,6 +77,7 @@ Report:
   Spec:        <path or missing>
   Rollout:     <N slices or missing>
   Slices:      s1 merged · s2 in flight (draft PR #N) · s3 not started
+  Waves:       W1 s1 · W2 s2, s3 (s3 held by <actor>) — or "none — a strict sequence"
   Handoff:    <path and next action, or none>
   Scratch:     <path or none>
   Conventions: <convention sources, or "none — stack recipes are the whole standard">
@@ -92,10 +97,11 @@ Pick exactly one route and confirm it before proceeding:
 | Spec has unresolved Open decisions | **Route B — Resolve decisions.** Resolve them with the user, update the spec with reasoning and consequences, then STOP for publication. |
 | A new finding changes architecture, scope, ACs, exposure, or PR shape | **Route B′ — Spec update first.** Pause implementation, update decisions and Rollout with the user, publish the spec, mark the finding `ROUTED`, then return to C or D. |
 | Decisions resolved but Rollout missing | **Route R — Rollout first.** Propose the merge sequence by applying `/spec` step 5's method and the template's boundary bar here; do not invoke `Skill(spec)`, which refuses a ticket that already has a spec. Publish the updated spec and STOP. `/slice` does not invent merge boundaries while executing. |
-| Rollout present, no slice branch | **Route C — Start the first unmerged slice.** Continue to step 4. A repo-hosted spec still uncommitted from `/spec` is committed there as the branch's first commit. |
+| Rollout present, no slice branch, and the earliest unmerged wave holds one unclaimed slice — or the user declines parallel | **Route C — Start the first unmerged slice.** Continue to step 4. A repo-hosted spec still uncommitted from `/spec` is committed there as the branch's first commit. |
+| The earliest unmerged wave holds two or more slices no other actor's Resume block holds | **Route W — Run the wave in parallel.** Confirm which slices this actor takes, up to the parallel cap, and whether to run them in parallel or one at a time; then continue to step 4W. One slice, or a user who declines, takes Route C. |
 | Slice branch exists and work or draft PR is in progress | **Route D — Resume.** Fetch and check out this slice's existing branch before reading its Rollout entry, agent notes when present, the shared handoff, PR base, and commits. Surface completed and remaining ACs, then re-plan only this slice's batches. |
 | Slice PR is ready and unmerged | **Route E — Wait for merge.** Report the next Rollout slice, if any, and STOP. |
-| Slice merged and Rollout has another slice | **Route N — Next slice.** Continue to step 4 from updated `main`. |
+| Slice merged and Rollout has another slice | **Route N — Next slice.** Continue to step 4 from updated `main`, or to Route W when the next wave holds two or more slices. |
 | Final slice merged | **Route F — Close the ticket.** Run step 9, harvest the handoff, and complete per-ticket Done-when. |
 
 If no row fits, surface the evidence and ask. Never silently guess state.
@@ -117,6 +123,26 @@ If the repository hosts the spec and `/spec` left it uncommitted, commit it here
 Name `<slice-base>` once: normally `main`, otherwise the explicitly selected predecessor branch. Immediately record both the ref and `git rev-parse <slice-base>` — call it `<slice-base-sha>` — in machine-local notes, and in the shared handoff before any session, agent, machine, or compaction boundary.
 
 **Every later range uses `<slice-base-sha>`, never the ref.** The lens runs `git diff <range>`, so a two-endpoint diff against a moving branch name shows another ticket's merged changes as removals as soon as `main` advances mid-slice — the lens and `code-reviewer` then grade work that is not this slice's. Once the draft PR exists, check that its GitHub base matches the recorded ref; a mismatch means the branch was cut from somewhere else. If a stacked branch has no PR and no surviving base record, STOP rather than review the wrong range.
+
+### 4W. Parallel wave — claim, trees, and interleaved gates
+
+Route W runs every claimed slice through steps 5–7 at once. The orchestrator stays the only dispatcher — a subagent cannot start agents of its own — so this session interleaves the slices: one message dispatches the same step for every slice, then each slice's results are handled in its own tree.
+
+1. **Claim before building.** Pull the shared handoff and read every `## Resume` block. Write one block per claimed slice, `## Resume — <actor> — s<n>`, carrying its Slice, Branch and Base, and push it before creating any branch. A slice another actor's block already holds is theirs: skip it. This is how two people, or two sessions, split one ticket without building a slice twice.
+2. **Create one slice tree per claimed slice.** Run from the repository:
+
+   ```bash
+   "<skill base directory>/scripts/slice-tree.sh" "$LOCAL_NOTES/slice-trees/{ticket-id}-s{n}" "feat/{ticket-id}-{slug}-s{n}" main
+   ```
+
+   It creates the branch from `main`, or reuses the tree on a re-run, refuses a path inside the repository, and lets git refuse a branch another tree already holds. Record each tree, branch and `<slice-base-sha>` in machine-local notes and in that slice's Resume block. STOP on a non-zero exit. A slice whose write surface includes the dependency manifest replaces its tree's `node_modules` link with its own install, so the main checkout's dependencies are never written through the link. The main checkout stays on `main` and clean: every command for a slice names its tree, by `git -C <slice-tree>` or `cd <slice-tree> &&`.
+3. **Run steps 5–7 for the claimed slices together:**
+   - **5:** one checkpoint shows every claimed slice with its batch plan.
+   - **6.1:** batch *k* of every slice goes out in one message, one `slice-executor` per slice, each given its own slice tree as `worktree`. A slice with fewer batches drops out of later rounds.
+   - **6.2–6.6:** per slice, in its tree; suites through the verify lock. A `## BLOCKED` stops that slice only; the others continue, and the next checkpoint surfaces it.
+   - **7:** one review tree per slice. 7.1 validators for all slices go in one message. 7.2 and 7.3 run per slice. 7.5 dispatches every slice's `code-reviewer` in one message, each bound to its own review tree, with `verify-cmd` through the lock. 7.6 is one checkpoint covering every slice. 7.7 runs per slice.
+4. **Merge in any order.** Slices in one wave were checked independent, so whichever is approved first merges first. After a merge, every other slice of the wave merges `main` into its branch — never a rebase — and, because `HEAD` changed, reruns 7.1–7.5 before it is marked ready. A merge conflict means the wave check missed an overlap: resolve it in that slice's tree and record it in `## Carry forward` as a dead end, so `/learn-flow` can tighten the spec's wave rule.
+5. **Remove each slice tree after its PR merges** — `git worktree remove --force <slice-tree> && git worktree prune`. The next wave starts from updated `main` through Route W or Route N.
 
 ### 5. CHECKPOINT — confirm this slice and its batch plan
 
@@ -153,9 +179,11 @@ Call `Agent(subagent_type: slice-executor)` with:
 - `slice-acs` — AC identifiers for this batch;
 - `notes-path` — the machine-local agent-notes path;
 - `repo-conventions` — the convention sources resolved at start;
-- `reference-paths` — absolute paths to the domain references the index matched, omitted when none matched.
+- `reference-paths` — absolute paths to the domain references the index matched, omitted when none matched;
+- `worktree` — the slice tree, in a parallel wave; omitted when the slice runs in the main checkout;
+- `verify-lock` — the absolute path of `scripts/verify-lock.sh`, and the slice's `Verify needs` from its Rollout entry.
 
-Run it in the foreground. STOP if the executor is not found. Cross-repo ACs do not appear in Rollout or batch planning.
+Run it in the foreground — in a parallel wave, the round's executors go in one message and all return before 6.2. STOP if the executor is not found. Cross-repo ACs do not appear in Rollout or batch planning.
 
 #### 6.2. Read agent notes
 
@@ -167,7 +195,7 @@ Read new entries from `notes-path`:
 
 #### 6.3. Run the repository test suite
 
-Run `pnpm test` or the repository equivalent. Fix and commit failures. The full verification command runs once at slice end; focused tests already ran for every AC.
+Run `pnpm test` or the repository equivalent through the verify lock. Fix and commit failures. The full verification command runs once at slice end; focused tests already ran for every AC.
 
 #### 6.4. Run `senior-review-lens` on the batch
 
@@ -230,7 +258,7 @@ STOP if any configured validator is not found — a missing agent must not silen
 
 #### 7.2. Run full verification
 
-Run `pnpm check` or the repository equivalent. Fix and commit failures. Where `## Stack recipes` requires one for the stack, the suite must include an application boot-smoke test capable of catching dependency-injection and environment-validation failures.
+Run `pnpm check` or the repository equivalent through the verify lock. Fix and commit failures. Where `## Stack recipes` requires one for the stack, the suite must include an application boot-smoke test capable of catching dependency-injection and environment-validation failures.
 
 #### 7.3. Run `senior-review-lens` on the slice
 
@@ -254,11 +282,11 @@ Invoke `Agent(subagent_type: code-reviewer)` with:
 
 - `diff-range` — `<slice-base-sha>..HEAD`;
 - `acceptance-criteria` — the full text of this slice's in-repo ACs;
-- `verify-cmd` — the repository verify command, prefixed `cd <review-tree> &&`.
+- `verify-cmd` — the repository verify command, prefixed `cd <review-tree> &&` and wrapped in the verify lock: `"<skill base directory>/scripts/verify-lock.sh" 'cd <review-tree> && <verify command>'`.
 
 **Name the review tree in the prompt as the only place it may work.** The agent takes no working-directory input (`code-reviewer.md:11-15`), so an unbound one runs the verify command wherever the session happens to sit: the right diff, evidence from the wrong tree, and nothing in its output says which it was.
 
-The tree removes the resource collision, not the ordering reason. This gate still runs alone and last, because it grades the tip that becomes the PR and no agent may be moving that tip while it reads.
+The tree removes the resource collision, not the ordering reason. This gate still runs last for its slice, because it grades the tip that becomes the PR and no agent may be moving that tip while it reads. Reviewers for different slices of a wave run together: each grades its own tree.
 
 STOP if `code-reviewer` is not found; this gate runs at every merge, so a silent skip ships an ungraded slice. Resolve every `BLOCK` before proceeding. Treat `UNVERIFIED` as not yet green. The reviewer receives only this slice's requirements because later slices are intentionally absent.
 
@@ -275,7 +303,7 @@ Create or update the Shared handoff, `{ticket-id}/handoff.md` under the Shared n
 Keep this actor's Resume block and the shared Carry-forward list current:
 
 ```md
-## Resume — <actor>
+## Resume — <actor>[ — s<n>]
 
 - Updated: <UTC timestamp>
 - Slice: <current Rollout slice>
@@ -307,9 +335,11 @@ Promote a finding from an executor note, validator, lens, security scan, correct
 
 Never write status, AC lists, exposure declarations, line numbers or counts. Those live in the spec's ticked blocks, the spec, the code, and the grep; a copy here disagrees with its source within a day. A measurement goes inline in the finding it supports, with the SHA it ran against — a probe kept as a standalone file reads as a test and outlives the code it measured.
 
-**Write only this actor's block**, however stale another's looks — `Updated` carries the staleness, and only its owner knows whether it still holds. Route F step 5, which stamps every block `Closed` after the ticket ships, is the sole exception.
+An actor holding several slices of a wave writes one block per slice, suffixed `— s<n>`.
 
-Before writing, pull the notes repository's `main`. Commit and push the handoff directly to that repository's `main`; on divergence merge without force-pushing. Three merge cases, and no others: two actors' blocks both survive whole; one actor's own block resolves to the later `Updated`; two Carry-forward entries stay two. Anything else stops for the user rather than being hand-merged into a file that lost half of someone's evidence. Harvest entries into the spec, the tracker, PRs, ADRs, or repository documentation as their canonical destinations become clear. Keep the handoff as a historical record; do not delete, move, or archive working documents automatically.
+**Write only this actor's blocks**, however stale another's looks — `Updated` carries the staleness, and only its owner knows whether it still holds. Route F step 5, which stamps every block `Closed` after the ticket ships, is the sole exception.
+
+Before writing, pull the notes repository's `main`. Commit and push the handoff directly to that repository's `main`; on divergence merge without force-pushing. Three merge cases, and no others: two actors' blocks both survive whole; one actor's own block for one slice resolves to the later `Updated`; two Carry-forward entries stay two. Anything else stops for the user rather than being hand-merged into a file that lost half of someone's evidence. Harvest entries into the spec, the tracker, PRs, ADRs, or repository documentation as their canonical destinations become clear. Keep the handoff as a historical record; do not delete, move, or archive working documents automatically.
 
 Ask the user whether to address a surfaced judgment call or mark the PR ready. If a fix changes `HEAD` after step 7.1 starts, rerun steps 7.1–7.5 against the final `HEAD` before step 7.7. Do not start the next Rollout slice before this PR merges.
 
@@ -355,6 +385,7 @@ Then complete Route F:
 ## What `/slice` does NOT do
 
 - Auto-merge PRs.
+- Put two writers in one working tree, or run a wave's verify runs outside the verify lock.
 - Author or silently revise Rollout during implementation; Routes R and B′ stop for spec publication.
 - Use working documents as a second copy of the tracker, GitHub, code, or the spec.
 - Create empty working-document scaffolds.
@@ -365,6 +396,8 @@ Then complete Route F:
 - **Spec mismatch appears mid-slice:** stop and take Route B′.
 - **Stacked base is uncertain:** stop rather than audit or open a PR against the wrong range.
 - **Notes-repository push races:** merge remote `main`; never overwrite another ticket's working documents.
+- **Two actors claim one slice:** the second push of the handoff meets the first's block on merge; the later claimant drops that slice and takes another.
+- **A wave slice conflicts with a merged sibling:** the wave check missed an overlap; resolve it in the slice tree and record the dead end.
 
 ## Related skills and agents
 
@@ -375,3 +408,5 @@ Then complete Route F:
 - `Agent(slice-executor)` — mechanical TDD worker for each functional batch.
 - Stack validators — once per slice; the `## Review routing` security reviewer additionally handles batch code scans and dependency-scoped slice scans.
 - [`scripts/review-tree.sh`](scripts/review-tree.sh) — creates or re-points the slice's review worktree and makes it runnable; step 7 and 7.5 both call it.
+- [`scripts/slice-tree.sh`](scripts/slice-tree.sh) — creates or reuses a parallel slice's writing worktree; step 4W calls it.
+- [`scripts/verify-lock.sh`](scripts/verify-lock.sh) — runs a suite or verify command under the machine-wide verify lock; 6.3, 7.2 and 7.5 use it.

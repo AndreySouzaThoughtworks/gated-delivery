@@ -34,6 +34,9 @@ The autonomous eval stays before the write checkpoint. Judge the drafted spec in
 | 16 | "Spec PROJ-216: admins download every order as CSV." | ACs cover columns and filters only; a tenant can hold several hundred thousand orders and the export endpoint is public to admins. | The non-functional scan raises data volume (streaming or paging) and abuse (rate limit) as an AC, an Edge or an Open decision, because each changes the design. |
 | 17 | "Spec PROJ-217: slugify a title." | Pure string function, no I/O, no new surface. | The non-functional scan finds nothing material and adds no observability, rate-limit, concurrency or localization item. |
 | 18 | "Spec PROJ-218." | The repository's conventions document, imported by its `CLAUDE.md`, forbids an `it()` title starting with "should", which the test-code stack recipe requires. | Writes the spec's test expectations against the repository's rule and names the deviation. Fails if any AC or Done-when item holds the executor to the recipe's "should" form. |
+| 19 | "Spec PROJ-219 so two of us can build it at once." | Three slices: S1 adds a `GET /reports` endpoint in `src/reports/`, S2 adds a CSV formatter in `src/export/` used by nothing yet, S3 wires the formatter into the endpoint. S1 and S2 share no file, config key or manifest change. | Puts S1 and S2 in wave 1 and S3 in wave 2, gives every slice its lane fields, and states the pairwise collision check for wave 1. Fails if S3 shares a wave with either, or if any slice lacks `Depends on` or `Write surface`. |
+| 20 | "Spec PROJ-220 and run as much in parallel as you can." | Two slices touch unrelated modules, but both add a dependency to `package.json`. | Keeps them in separate waves, naming the manifest and lockfile as the overlap. Fails if both land in one wave. |
+| 21 | "Spec PROJ-221; slices 2 and 3 both call the new pricing port." | S1 defines the `PricingPort` interface; S2 and S3 each consume it in different modules. The interface is not on `main` and not written in the spec. | Either writes the port verbatim in `## Interface` and lets S2 and S3 share a wave, or puts S1 in an earlier wave. Fails if S2 and S3 run in parallel against an interface that is nowhere fixed. |
 
 ## Agent Prompt Templates
 
@@ -69,6 +72,7 @@ CONTEXT: {{PERSONA}}
 | Draft discipline | Writes before approval | Holds the complete draft until sign-off | No spec-file changes |
 | Single spec | Copies into both repositories | Selects one evidence-backed destination | Manual, scenario 12 |
 | Repository-owned context | Assumes fixed document paths | Starts from repository instructions and follows their canonical references without creating context files | Manual, scenario 13 |
+| Wave planning | Runs dependent or overlapping slices together, or never plans parallel work | Waves only from independent, non-overlapping slices with fixed interfaces; the collision check is stated | Deterministic below plus **Manual**, scenarios 19–21 |
 | Material non-functional scan | Ignores volume and abuse, or pads every spec with generic NFRs | Raises only the qualities that change an AC, an Edge or the Rollout | Deterministic, scenarios 16–17 |
 
 **Pass threshold:** skill wins at least two thirds of applicable signals and has no unsafe Rollout boundary.
@@ -87,6 +91,12 @@ grep -Ec "reference-graph|Domain references" output.md   # scenario 14 only
 grep -iEc "stream|pagina|page size|batch" output.md   # scenario 16: volume
 grep -iEc "rate.?limit|throttl|429|quota" output.md   # scenario 16: abuse
 grep -iEc "observab|metric|alert|rate.?limit|throttl|concurren|locali|i18n|stream|pagina" output.md   # scenario 17
+# Every slice carries its lane fields — expect one of each per slice (3 on 19). A spec written to the
+# old template scores 0 on both.
+grep -Ec "^- Depends on:" output.md   # scenarios 19-21
+grep -Ec "^- Write surface:" output.md   # scenarios 19-21
+# The overlap is named — expect >=1 on 20. A run that splits the waves without saying why scores 0.
+grep -iEc "lockfile|package\.json|manifest" output.md   # scenario 20 only
 ```
 
 ## Saturation Signals

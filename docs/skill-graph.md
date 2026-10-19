@@ -6,8 +6,8 @@
 
 | Skill | Purpose | Invoke when |
 |-------|---------|-------------|
-| `/slice` | Orchestrate a ticket through independently merging Rollout slices. Each slice gets one branch and PR; functional batches dispatch `slice-executor`; merge-boundary gates run before every PR becomes ready; a shared handoff in the client's shared notes home preserves resume context and records harvested outcomes. | Start or resume ticket implementation. Pass an ID such as `PROJ-123`. |
-| `/spec` | Turn a ticket into one signed-off spec using the plugin change template. Adds architecture, domain, and threat lenses plus an ordered Rollout of safe PR-sized slices and an optional dependency graph when topology adds information. | Before `/slice`, normally through Route A; may run standalone. |
+| `/slice` | Orchestrate a ticket through independently merging Rollout slices, running each wave of independent slices in parallel worktrees (Route W). Each slice gets one branch and PR; functional batches dispatch `slice-executor`; merge-boundary gates run before every PR becomes ready; a shared handoff in the client's shared notes home preserves resume context and records harvested outcomes. | Start or resume ticket implementation. Pass an ID such as `PROJ-123`. |
+| `/spec` | Turn a ticket into one signed-off spec using the plugin change template. Adds architecture, domain, and threat lenses plus an ordered Rollout of safe PR-sized slices grouped into parallel waves, and an optional dependency graph when topology adds information. | Before `/slice`, normally through Route A; may run standalone. |
 | `/prod-support` | Directed diagnosis of a production incident ticket — intake from the tracker's fields, ranked hypotheses, cheapest probe, fix, local findings corpus. | Production issue or customer-reported regression. |
 | `/renovate-shepherd` | Triage every open Renovate PR (categorise, analyse, verdict, merge per the repo's merge profile). | Renovate dependency cleanup sessions. |
 | `/repo-forensics` | Inspect-first pass **before** a change exists. Quick posture (default): verified / inferred / uncertain / where surfaces disagree / files-and-checks / blast radius / questions for the human, then the smallest safe next step. Full pass adds a surface budget, staleness, a disposition per finding, and deepens disagreement into a cross-surface ledger. Never ends in code; the full pass also ends in an explicit `PROCEED`/`ADJUST`/`STOP`. | `/slice` step 0 (gates the trivial-change exit); `/spec` step 3 (full pass); or standalone before touching existing code. |
@@ -66,14 +66,15 @@ Named per client in its CLAUDE.md (`## Stack recipes`, `## Review routing`, `## 
 /slice
   ├── step 0  Skill(repo-forensics) quick posture
   ├── /spec                                               (Route A)
+  ├── scripts/slice-tree.sh, one tree per wave slice      (4W, Route W)
   ├── Agent(slice-executor)                               (6.1, per functional batch)
-  ├── repository test command                             (6.3, per batch)
+  ├── repository test command, under verify-lock.sh       (6.3, per batch)
   ├── Skill(senior-review-lens)                           (6.4, multi-batch slices)
   ├── security reviewer from Review routing, code scope   (6.5, conditional per batch)
   ├── draft PR                                            (6.6, after first batch)
   ├── stack validators from Review routing                (7.1, once per slice)
   ├── security reviewer, supply-chain scope               (7.1, manifest changes)
-  ├── full repository verification                        (7.2, once per slice)
+  ├── full repository verification, under verify-lock.sh  (7.2, once per slice)
   ├── Skill(senior-review-lens)                           (7.3, complete slice)
   ├── Agent(code-reviewer)                                (7.5, current slice ACs)
   ├── slice review + shared handoff → ready PR → merge → Route N    (7.6–8)
@@ -85,7 +86,7 @@ Named per client in its CLAUDE.md (`## Stack recipes`, `## Review routing`, `## 
   ├── architecture flow-sketch                            (3, when triggered)
   ├── domain-model lens                                   (3d)
   ├── security/threat STRIDE                              (3e)
-  ├── ordered Rollout + optional PR dependency graph      (5)
+  ├── ordered Rollout, waves + optional PR graph          (5)
   ├── Skill(senior-review-lens) Lens H                    (6, open decisions)
   └── Skill(issue-writing)                                (10, link comment scan and reconcile)
 

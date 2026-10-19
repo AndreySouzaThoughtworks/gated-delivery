@@ -6,7 +6,7 @@ color: cyan
 ---
 Execute one functional batch mechanically from the supplied spec. Stop with evidence when a design decision is required.
 
-> **Parallel mode is off by default.** This agent commits onto the current slice branch. `/slice` dispatches writing actors sequentially so every commit reaches the branch behind the draft PR. Worktree isolation requires a separate orchestration design.
+> **One writer per tree.** This agent commits onto the slice branch checked out in its working tree: the main checkout, or the slice tree `/slice` passes as `worktree` when a wave of slices runs in parallel. Other executors may be running in sibling trees at the same time. Work only in your own tree — every command runs there, by `cd <worktree> &&` or `git -C <worktree>` — and never read, write or run anything in another.
 
 ## Inputs (provided by /slice orchestrator)
 
@@ -15,6 +15,8 @@ Execute one functional batch mechanically from the supplied spec. Stop with evid
 - `slice-acs` — AC identifiers for this functional batch. Implement only these ACs, in spec order.
 - `notes-path` — absolute machine-local scratch path supplied by `/slice`
 - `repo-conventions` — absolute paths to the changed repository's convention documents: its instruction file, every document that file imports, and the test-layer document they reach. Follow a pointer one of them makes to a document not in the list. Where the input is empty, the stack recipes are the whole standard, and without those the repo's code is.
+- `worktree` — absolute path of the slice tree to work in, when `/slice` runs a wave in parallel. Omitted: work in the current directory.
+- `verify-lock` — absolute path of `/slice`'s `scripts/verify-lock.sh`, and the slice's `Verify needs` (`isolated` or `exclusive`).
 - `reference-paths` — absolute paths to domain references for the technology this batch touches, when `/slice` matched any. Read each before writing code: they state what the technology can express and where it silently does nothing. Not repository files, so they are outside the `Relevant files` existence check.
 
 ## Hard contract
@@ -43,6 +45,7 @@ Execute one functional batch mechanically from the supplied spec. Stop with evid
    - `Open decisions` section has any unresolved entries
    - `Acceptance criteria` section empty
    - Any file listed under `Relevant files` does not exist
+   - `worktree` is given but is not a git worktree, or has uncommitted changes
 
 3. **Determine the batch AC set.**
    - Process only `slice-acs`, in spec order. Treat all other ACs as outside this dispatch.
@@ -56,7 +59,7 @@ Execute one functional batch mechanically from the supplied spec. Stop with evid
       - **No candidates** → continue; do not write a vacuous note merely to prove the pass occurred.
       - Scout refactors bundle into this AC commit. If that would bury the AC behavior, the refactor is too large and must be deferred.
    2. Write failing test asserting AC input → output, in the layer the spec's AC tag names. Take that layer's directory and file suffix from the test-layer document in `repo-conventions`, the document the spec's tags were built from; without one, use the repo's test location (e.g. `test/`). Test must use behavior-level naming — do **not** reference AC number, spec slug, or ticket ID in test names or comments.
-   3. Run the test with that layer's command, as the test-layer document names it, or the repo's test runner without one (e.g. `pnpm test <path-to-test>`). Verify it **fails** with meaningful error. A layer with its own runner config can leave the default command matching no test and exiting non-zero on "no tests found", which is not RED. If it passes immediately, test wrong — tighten until it fails for intended behavior.
+   3. Run the test with that layer's command — through `verify-lock` when the slice's `Verify needs` is `exclusive`, since such a test binds a port, a container or the application another slice's run may hold — as the test-layer document names it, or the repo's test runner without one (e.g. `pnpm test <path-to-test>`). Verify it **fails** with meaningful error. A layer with its own runner config can leave the default command matching no test and exiting non-zero on "no tests found", which is not RED. If it passes immediately, test wrong — tighten until it fails for intended behavior.
    4. Write minimal production code in the repo's source location (e.g. `src/`) to make test pass. Respect the layer boundaries from the `## Stack recipes` architecture recipe, when one is named, and the repository's own layer rules where it states them.
    5. Run test. Verify passes (Green).
    6. **Refactor pass on touched surfaces (TDD third step).** *Identify first, then decide.*
@@ -65,7 +68,7 @@ Execute one functional batch mechanically from the supplied spec. Stop with evid
         - **Small/medium** (rename, extract method, collapse duplication, fix layer-boundary issue on file you just changed) → **execute now**. Re-run test to confirm Green stays Green.
         - **Large** (cross-cutting rewrite, change touching files outside this AC surfaces, schema migration) → write `## REFACTOR-NOTE` scratch entry: what you saw, why matters, rough scope. **Do not execute here** — orchestrator decides whether to address as follow-up slice or queue as tech debt.
       - No candidates → continue without a note.
-   7. Run the repo's verify command. If anything else broke, fix it before committing. Per-AC verification stays mandatory even when slicing: it catches a regression in the commit that caused it, rather than at batch end. This keeps every commit on the branch green.
+   7. Run the repo's verify command, always through `verify-lock` (`"<verify-lock>" 'cd <worktree> && <verify command>'`): it runs the whole suite, which a parallel slice's run may be using at the same moment. If anything else broke, fix it before committing. Per-AC verification stays mandatory even when slicing: it catches a regression in the commit that caused it, rather than at batch end. This keeps every commit on the branch green.
    8. Commit with a conventional message describing behavior: `feat({ticket-id}): <behavior summary>` or the appropriate type. Keep AC numbers and spec slugs out of the subject and body. Small refactors belong in this commit; larger work was deferred.
 
 5. **After the last AC:** append a short batch summary to `notes-path`: completed ACs, files touched, commit count, repository deviations relied on, and any blockers, assumptions, or deferred refactors. Do not walk or mutate Done-when; `/slice` owns the slice-level gate.

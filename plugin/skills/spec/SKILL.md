@@ -176,9 +176,17 @@ When a slice is too large, narrow behavior before cutting horizontally:
 
 Once a surface is reachable, its safety envelope belongs in the same slice. Rollout names merge units, not executor batches; `/slice` decides batch boundaries from implementation seams.
 
+**Plan the parallelism.** Group the slices into waves so independent work runs at the same time, by subagents or by people. For each slice record what the template's lane fields ask: the slices it depends on, its write surface, any interface it shares with a slice in the same wave, and what its verify run needs. A slice joins the earliest wave whose predecessors all merge before it. Two slices share a wave only when:
+
+1. neither depends on the other;
+2. their write surfaces do not overlap — count the shared hotspots as overlap: a dependency manifest or lockfile, migration numbering, a module or route registry, generated code, a changelog;
+3. every interface both touch is already fixed: on `main`, outside this repository, or written out verbatim in the spec's `## Interface` before the wave starts. A slice that defines an interface the others consume goes in an earlier wave.
+
+Then apply the laziest-wrong test to the wave itself: for each pair in a wave, name the cheapest way the two could still collide — the same file, the same config key, the same seed data. A collision you can name moves one slice to the next wave. Parallelism is worth its cost only with two or more slices in a wave; a strict chain stays a list, and saying so is a valid answer.
+
 **Ordering note.** Adding a capability on the exposure axis buys smaller reviews and deployment decoupled from release. Fixing a defect buys only the smaller reviews — the first slice of a fix carries no value on `main` until the last one lands. That affects which slice you would rather land first, and whether slicing the ticket is worth its overhead at all; it does not change what is allowed.
 
-Add the template's optional PR dependency graph when there are at least three slices or the required-before relationships are not obvious. Nodes describe PR outcomes and arrows mean “must merge before.” The Rollout entries remain authoritative; omit a graph that only redraws a simple one- or two-PR list.
+Add the template's optional PR dependency graph when there are at least three slices, the required-before relationships are not obvious, or a wave holds more than one slice. Nodes describe PR outcomes and arrows mean “must merge before.” The Rollout entries remain authoritative; omit a graph that only redraws a simple one- or two-PR list.
 
 If any check fails, return to step 4 and revise.
 
@@ -210,6 +218,7 @@ Before showing final draft to user, re-read entire spec from executor's perspect
 - **Rollout covers ACs exactly once** — every `in-repo` AC appears in exactly one slice; cross-repo ACs appear in none. Every slice declares exposure, satisfies the three-part boundary bar, and every `flagged` slice includes a removal condition.
 - **Done-when matches Rollout** — exactly one slice block per Rollout entry, in the same order, containing only checks that apply to this repository.
 - **Optional PR graph agrees with Rollout** — when present, every node maps to one slice, every dependency points forward in the chosen sequence, and no graph-only requirement contradicts a Rollout boundary.
+- **Waves hold up** — every slice carries its lane fields; no two slices in one wave depend on each other, overlap in write surface or a shared hotspot, or touch an interface that is not yet fixed; the wave table and the graph agree.
 
 Fix everything found _before_ user see final draft. User catching these fine; you catching them first better.
 

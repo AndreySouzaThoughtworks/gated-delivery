@@ -163,11 +163,23 @@ flowchart LR
 ```
 
 
+Waves group slices that may run at the same time, by subagents or by people. A slice joins the earliest wave after every slice it depends on. Slices share a wave only when neither depends on the other, their write surfaces do not overlap (a manifest or lockfile, migration numbering, a registry, generated code and a changelog count as overlap), and every interface both touch is already fixed. Within a wave, slices merge in any order.
+
+| Wave | Slices | Why they cannot collide |
+|---|---|---|
+| 1 | S1, S2 | <the pairwise collision check, in one line> |
+
 ### Slice N — AC list — exposure: complete | unwired | flagged
 
 What becomes true on `main` when this merges.
 
 Boundary: why these ACs belong in one reviewable merge.
+
+- Wave: <n>
+- Depends on: <slices that must merge first, or none>
+- Write surface: <directories, modules or files it changes>
+- Shared interface: <interface a same-wave slice also touches, and where it is fixed — or none>
+- Verify needs: isolated | exclusive — `exclusive` when its tests bind fixed ports, start containers, or boot the application
 
 - (single slice, or the ordered sequence)
 

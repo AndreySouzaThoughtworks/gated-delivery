@@ -26,3 +26,5 @@ jobs:
         run: node scripts/eval/run-checks.mjs --lint
       - name: Leak guard self-test
         run: bash tests/leak-guard.test.sh
+      - name: Slice worktree and verify-lock tests
+        run: bash tests/slice-scripts.test.sh

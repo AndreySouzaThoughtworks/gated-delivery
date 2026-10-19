@@ -14,7 +14,7 @@ The core plugin never names a client. Everything client-specific comes from sect
 | | Incident tracker | Project or board that holds production incidents; read by `prod-support` | The project the ticket lives in |
 | `## Commit convention` | Applies to, Subject, Ticket key, Branch, Remote, PR title | See `/gated-delivery:commit` | Plain Conventional Commits |
 | `## Delivery notes` | Shared notes home | Per-ticket handoff, progress, findings and spec files shared across machines and people, and how they are published | `docs/gated-delivery/{ticket-id}/` in the repo being changed |
-| | Local notes home | Machine-local scratch: agent notes, review worktrees, batch state | `~/.local/state/gated-delivery/` — allow it once per profile in `permissions.additionalDirectories` (see onboarding) |
+| | Local notes home | Machine-local scratch: agent notes, review worktrees, parallel slice worktrees, batch state. The verify lock (`verify.lock`) stays at the default path whatever this says, so every client on the machine shares one | `~/.local/state/gated-delivery/` — allow it once per profile in `permissions.additionalDirectories` (see onboarding) |
 | | Spec placement | Per-repo rule for whether specs live in the repo | Ask on first spec in a repo, then record the answer here |
 | | `GATED_DELIVERY_NOTES_REPO` (env var, not a CLAUDE.md key) | Local checkout of the notes repository when the Shared notes home lives in a separate repo | Clone it with `gh` |
 | `## Stack recipes` | per stack | Skills or docs to load when writing or reviewing code in that stack | None; use the repo's own conventions |

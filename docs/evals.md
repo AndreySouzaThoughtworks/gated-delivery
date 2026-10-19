@@ -32,6 +32,8 @@ One directory per run holds the fixture: the persona, any client `CLAUDE.md`, a 
 
 A scenario that needs more than that gets a directory `evals/fixtures/<skill>/<id>/` at the repository root, outside the plugin so installs do not carry it. The runner copies it over the run directory, so a `persona.md` or `CLAUDE.md` there replaces the one built from `evals.md`. Two names are not copied: `setup.sh` runs in the run directory with the fixture directory as `$1`, to build what cannot be committed, such as a git repository or `node_modules`; `allowed-tools` adds one `--allowedTools` rule per line. A `bin/` directory in the run is put first on `PATH`, for stubs such as `gh`. The response line is left out, because a fixture is reachable. Keep fixtures free of client names and secrets: this repository is public.
 
+A fixture that installs `node_modules` commits a `package-lock.json` and installs with `npm ci`, which checks every `"integrity": "sha512-…"` value against the tarball it downloads from the registry and stops with `EINTEGRITY` on any mismatch, so a planted value cannot survive a run. That is why `scripts/leak-guard.sh` may skip those values, and only in `package-lock.json` files under `evals/fixtures/`, logging each skip.
+
 Fill the scenario's prompt into the Skill Agent template and run from that directory:
 
 ```bash

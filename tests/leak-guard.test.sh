@@ -76,19 +76,34 @@ expect_report() {
   echo "ok   $name"
 }
 
-hashed_term='"integrity": "sha512-q0AcMe9+/Zx=="'
+sha512_base64_chars=86
+hashed_term="\"integrity\": \"sha512-q0AcMe$(printf "%0$((sha512_base64_chars - 6))d" 0)==\""
+short_hashed_term='"integrity": "sha512-q0AcMe9+/Zx=="'
+fixture_dir="evals/fixtures/scenario"
+integrity_line=4
 
-mkdir -p "$work/lock-hash"
-printf '{\n  "packages": {\n    "node_modules/x": {\n      %s\n    }\n  }\n}\n' "$hashed_term" > "$work/lock-hash/package-lock.json"
-expect_report "a client term inside a package-lock integrity hash is skipped" 0 "" "" env GATED_DELIVERY_DENYLIST="$work/denylist" "$guard" "$work/lock-hash"
+write_lockfile() {
+  local path="$1" package="$2" integrity="$3"
+  mkdir -p "$(dirname "$path")"
+  printf '{\n  "packages": {\n    "node_modules/%s": {\n      %s\n    }\n  }\n}\n' "$package" "$integrity" > "$path"
+}
 
-mkdir -p "$work/lock-elsewhere"
-printf '{\n  "packages": {\n    "node_modules/acme": {\n      %s\n    }\n  }\n}\n' "$hashed_term" > "$work/lock-elsewhere/package-lock.json"
-expect_report "a client term elsewhere in package-lock.json is still caught" 1 '"node_modules/acme"' "sha512-" env GATED_DELIVERY_DENYLIST="$work/denylist" "$guard" "$work/lock-elsewhere"
+write_lockfile "$work/lock-hash/$fixture_dir/package-lock.json" x "$hashed_term"
+expect_report "a client term inside a fixture lockfile integrity hash is skipped" 0 "" "" env GATED_DELIVERY_DENYLIST="$work/denylist" "$guard" "$work/lock-hash"
+expect_report "a skipped integrity hash is reported with its file and line" 0 "leak-guard: skipped lockfile integrity hash at $fixture_dir/package-lock.json:$integrity_line" "" env GATED_DELIVERY_DENYLIST="$work/denylist" "$guard" "$work/lock-hash"
 
-mkdir -p "$work/not-lock"
-printf '{\n  %s\n}\n' "$hashed_term" > "$work/not-lock/notes.json"
-cp "$work/lock-hash/package-lock.json" "$work/not-lock/package-lock.json"
-expect_report "an integrity key outside package-lock.json is still scanned" 1 "notes.json" "package-lock.json" env GATED_DELIVERY_DENYLIST="$work/denylist" "$guard" "$work/not-lock"
+write_lockfile "$work/lock-elsewhere/$fixture_dir/package-lock.json" acme "$hashed_term"
+expect_report "a client term elsewhere in a fixture lockfile is still caught" 1 '"node_modules/acme"' "sha512-" env GATED_DELIVERY_DENYLIST="$work/denylist" "$guard" "$work/lock-elsewhere"
+
+mkdir -p "$work/not-lock/$fixture_dir"
+printf '{\n  %s\n}\n' "$hashed_term" > "$work/not-lock/$fixture_dir/notes.json"
+write_lockfile "$work/not-lock/$fixture_dir/package-lock.json" x "$hashed_term"
+expect_report "an integrity key outside package-lock.json is still scanned" 1 "notes.json" "package-lock.json:$integrity_line:" env GATED_DELIVERY_DENYLIST="$work/denylist" "$guard" "$work/not-lock"
+
+write_lockfile "$work/lock-outside/package-lock.json" x "$hashed_term"
+expect_report "a client term in a lockfile integrity hash outside evals/fixtures is caught" 1 "package-lock.json:$integrity_line:" "" env GATED_DELIVERY_DENYLIST="$work/denylist" "$guard" "$work/lock-outside"
+
+write_lockfile "$work/lock-short/$fixture_dir/package-lock.json" x "$short_hashed_term"
+expect_report "a client term in a malformed or short integrity hash is caught" 1 "package-lock.json:$integrity_line:" "" env GATED_DELIVERY_DENYLIST="$work/denylist" "$guard" "$work/lock-short"
 
 exit "$failures"

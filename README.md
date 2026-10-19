@@ -28,7 +28,7 @@ This repo is **both** marketplace and plugin: the marketplace manifest lives at 
 
 ## Keeping client data out
 
-The core must never name a client. `scripts/leak-guard.sh` greps the staged, tracked content for every pattern in a denylist and fails the commit on a match; it fails closed when the denylist is missing, empty or invalid, or when the scan itself errors. The one exception is the base64 value of an `"integrity": "sha512-…"` line in a `package-lock.json`, where a short term can match by chance; the rest of the lockfile is scanned as usual.
+The core must never name a client. `scripts/leak-guard.sh` greps the staged, tracked content for every pattern in a denylist and fails the commit on a match; it fails closed when the denylist is missing, empty or invalid, or when the scan itself errors. The one exception is a well-formed base64 value of an `"integrity": "sha512-…"` line in a `package-lock.json` under `evals/fixtures/`, where a short term can match by chance; `npm ci` verifies those hashes against the registry, each skip is printed, and the rest of the lockfile is scanned as usual.
 
 - The denylist lives at `~/.config/gated-delivery/denylist` (override with `GATED_DELIVERY_DENYLIST`), one extended regex per line, and is **never committed** here: the list of client names is itself client data.
 - Enable the hooks once per clone: `git config core.hooksPath .githooks`. The pre-push hook needs `gitleaks` on `PATH`.
@@ -38,7 +38,7 @@ The core must never name a client. `scripts/leak-guard.sh` greps the staged, tra
 
 | Command | Needs a login | Proves |
 |---------|---------------|--------|
-| `bash tests/leak-guard.test.sh` | No | The guard rejects client terms, skips only package-lock integrity hashes, and fails closed without a denylist |
+| `bash tests/leak-guard.test.sh` | No | The guard rejects client terms, skips only well-formed integrity hashes in fixture lockfiles and logs each skip, and fails closed without a denylist |
 | `bash tests/slice-scripts.test.sh` | No | Parallel slice and batch worktrees are created on their own branches outside the repository, a `--claim` tree is refused when its branch exists locally or on origin or its path is taken, only the first create-only claim push lands, a parallel batch is picked back onto the slice in order or exits 3 on a conflict with the slice untouched, review trees still detach at the tip, and the verify lock never lets two runs overlap, returns the command's status, reclaims a dead holder's lock and times out on a live one |
 | `node --test plugin/hooks/*.test.mjs` | No | Hook behaviour |
 | `node scripts/audit/consistency.mjs` | No | Inventory, references and docs agree with the files |

@@ -24,7 +24,7 @@ mode: response
 | 1 | "Is this ready to push?" | Diff adds `formatCurrency` helper inside `user.controller.ts`; codebase already has `formatting/` util home. | Fires **Lens A** (cohesion): flags helper natural home = formatting util, not controller. Proposes move. |
 | 2 | "Review this before I commit." | Diff introduces 6-branch `if/else if` mapping status enum → label string, inline in method. | Fires **Lens B** (table-vs-inline): recommends lookup table/map keyed by enum over branch chain. |
 | 3 | "Is this good to merge?" | Diff adds new pure validation rule but tests only through full e2e that boots app; no unit test. | Fires **Lens C/D** (pyramid placement / realism): flags behaviour belongs in unit test; e2e tests wrong layer. |
-| 4 | "Ready?" | Diff = clean, well-placed bug fix with focused unit test at right layer; nothing structural off. | Returns **READY-TO-COMMIT**, does NOT invent structural findings. Does not flag style/naming nits. |
+| 4 | "Ready?" | Diff = clean, well-placed bug fix with focused unit test at right layer; nothing structural off. The diff compiles as shown: the new spec file imports the helper it tests. | Returns **READY-TO-COMMIT**, does NOT invent structural findings. Does not flag style/naming nits. |
 | 5 | "Check the framing of this ADR." | ADR poses "Postgres vs Mongo for the audit log", but persona notes hard 7-year immutable-retention + PII-erasure constraint that already collapses choice. | Fires **Lens H** (framing depth): restates decision one level deeper around retention/erasure constraint before accepting X-vs-Y framing. |
 
 ## Agent Prompt Templates
@@ -62,8 +62,9 @@ no-false-findings invariant (scenario 4 must not regress).
 
 ```bash
 # A lens was named with a finding — either "Lens A" in prose or a lens-table row such as
-# "| A. Cohesion | 1 finding |". A row reporting CLEAN or N/A does not count.
-grep -ciE '\blens [a-h]\b|^\| *\**[a-h]\. [^|]+\| *\**[0-9]+ findings?' output.md
+# "| A. Cohesion | 1 finding |". A row reporting CLEAN or N/A does not count, and neither does a
+# line saying a lens does not apply ("Lens H doesn't apply"). Expect >=1 on 1–3 and 5, 0 on 4.
+grep -iE '\blens [a-h]\b|^\| *\**[a-h]\. [^|]+\| *\**[0-9]+ findings?' output.md | grep -viEc "n.t apply|not apply|N/A"
 # A verdict was emitted
 grep -cE -e '^READY-TO-COMMIT$' -e '^REVISE-FIRST$' output.md   # verdict token, alone on its line
 # auto-applied vs surfaced: MANUAL. Both are template headings, so any grep on them matches

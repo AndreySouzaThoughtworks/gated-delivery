@@ -25,4 +25,4 @@ rmdir drafted
 git add -A
 git commit -q -m "fix(SUP-1680): auto-scroll the transcript panel to the newest message"
 
-npm install --registry "$NPM_REGISTRY" --no-package-lock --no-audit --no-fund --loglevel=error
+npm ci --registry "$NPM_REGISTRY" --no-audit --no-fund --loglevel=error

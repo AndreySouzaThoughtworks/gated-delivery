@@ -35,9 +35,9 @@ Dependency on another team's interface = one finding legitimately in more than o
 
 > **🛑 Stop — where each finding lands.** Table: finding, proposed home, one line of why. Include what you propose to cut, what you propose to send out of ticket. Misfiling fails quietly: well-cited fact still lands wrong place if it states rule and sits in Technical Notes, because nothing tests it there.
 
-**5. Write the ACs.** Grouped, generic Givens for shared behaviour, no undecided rules. Then Technical Notes, then References.
+**5. Write the ACs.** Grouped, generic Givens for shared behaviour, no undecided rules. Then merge pass: every pair of ACs asserting same rule on different inputs becomes one, per template's tie-breaker. Then Technical Notes, then References.
 
-**6. Review it cold, hostile.** Separate pass, after it already looks finished — run the best-practice rules below, the template's own rules, and the shared policy in `../SKILL.md` against it as if someone else wrote it. Trim as one of lenses: stories die carrying info that distracts from core, so cut changelog detail and negative space. Return proposals, not edits.
+**6. Review it cold, hostile.** Separate pass, after it already looks finished — run the best-practice rules below, the template's own rules, and the shared policy in `../SKILL.md` against it as if someone else wrote it. Trim as one of lenses: stories die carrying info that distracts from core, so cut changelog detail and negative space. Count ACs as another: past roughly fifteen, name the merges, then the split. Read each Technical Note against specific, necessary, decided — build steps, rollout order and reasoning go to spec. Return proposals, not edits.
 
 **7. Deliver.** Ticket keeps only what someone needs to build it. Where it goes to the tracker, that is *Publishing to the tracker* in `../SKILL.md` — never a write before user signed off on text.
 

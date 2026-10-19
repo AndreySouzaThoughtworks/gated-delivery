@@ -142,7 +142,7 @@ A slice that no longer meets its documented safety boundary requires Route B′ 
 
 Run 6.1–6.6 for every batch in the current slice. `## BLOCKED` still stops immediately; there is no human checkpoint between healthy batches.
 
-**Parallel batches in worktrees still run every per-batch gate.** After cherry-picking each batch, run 6.4 `senior-review-lens` and 6.5 security review on that batch's range — background dispatch is not a reason to skip them. `cd` into the repository before an `isolation: worktree` dispatch; from a multi-repository parent folder it fails with "not in a git repository".
+**Batches run one after another, never in parallel.** Each batch builds on the commits of the one before it, and the orchestrator is the only writer in the slice branch's tree (see Concurrency preconditions). Writing batches in parallel would need a worktree per batch and separate ports and containers per tree; worktrees isolate files only, and no step here provides the rest.
 
 #### 6.1. Dispatch `slice-executor`
 

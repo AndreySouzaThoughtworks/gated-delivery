@@ -60,6 +60,12 @@ Example: In STORY-123 we added price-rule definitions to bundles. Applying a bun
 
 *No AC may contain TBD, TO CONFIRM, or undecided rule. If rule open, AC cannot be written, story not Ready.*
 
+*One AC per rule, not per input that exercises it. Each field a validator refuses, each place a reference can sit, one field changed then two then three — same rule, one AC. Name the set in Given, or point at the contract rule list in Technical Notes. Enumerating them is the spec's test matrix, not the story's job.*
+
+*Separate AC only where the code branches: none versus some, create versus reuse where outcomes differ, a case an implementation plausibly gets wrong. **Tie-breaker: could an implementation pass the other AC's demo and fail this one?** No = merge. Yes = keep, and the merged AC's demo must include that case.*
+
+*Past roughly fifteen ACs, look for merges first, then a split. Forty ACs is a test plan or two stories, not an agreement about behaviour.*
+
 *Placeholder standing for several values keeps table readable — allowed only where every value behaves identically. Name full set in Given — "any scalar type (string, number, integer, boolean)" — never in note above table. Where values differ in behaviour, separate ACs.*
 
 *Group ACs by logical behaviour, for readability. Succeeds and fails usual split.*
@@ -90,7 +96,11 @@ Example: In STORY-123 we added price-rule definitions to bundles. Applying a bun
 
 * *Signposts for the pair, one claim each: a surface to build, a service to integrate with, a
   standard that guides the work.*
-* *Not implementation — how belongs to pair who will build it.*
+* *A note passes three tests at once: specific to this story, necessary to build it, and decided.
+  Fails any one = cut it, or move it to the spec.*
+* *Not implementation — how belongs to pair who will build it. No build steps, no rollout or slice
+  order, no traversal or algorithm, no reasoning behind a decision. State the decision; the spec
+  carries why, the alternatives, and the detail, and References links it.*
 * *Rejected alternative earns a bullet only where the rejection would otherwise be relitigated.
   Decision needing its own record is an ADR, not a note.*
 * *Never only place constraint appears — if violating bullet here would fail review, it
@@ -109,7 +119,8 @@ Example: In STORY-123 we added price-rule definitions to bundles. Applying a bun
   notices, while spec sits beside code and moves with it. Design stated at right altitude survives
   rename: "audience visibility inherited, listing outside caller's scope indistinguishable from one
   that does not exist". Carve-out: interface shape this story proposes, or another team agreed,
-  stays with its link — that contract is theirs to sign off, and not our code to rename.*
+  stays with its link — that contract is theirs to sign off, and not our code to rename. The
+  shape stays; the reasoning behind each field and bound goes to the spec.*
 
 ## References
 

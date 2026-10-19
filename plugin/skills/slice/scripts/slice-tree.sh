@@ -24,6 +24,17 @@ if is_registered_worktree "$SLICE_TREE"; then
     exit 1
   fi
 elif git show-ref --verify --quiet "refs/heads/$BRANCH"; then
+  # Another machine may have pushed more of this slice since the local branch
+  # was last touched: continue from the newer tip, and stop rather than pick a
+  # side when the two diverged.
+  if git show-ref --verify --quiet "refs/remotes/origin/$BRANCH"; then
+    if git merge-base --is-ancestor "$BRANCH" "origin/$BRANCH"; then
+      git branch -f "$BRANCH" "origin/$BRANCH"
+    elif ! git merge-base --is-ancestor "origin/$BRANCH" "$BRANCH"; then
+      echo "$BRANCH and origin/$BRANCH diverged; reconcile them before resuming" >&2
+      exit 1
+    fi
+  fi
   # git refuses a branch already checked out in another tree, which is the
   # guard against two writers on one slice.
   git worktree add "$SLICE_TREE" "$BRANCH"

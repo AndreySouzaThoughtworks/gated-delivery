@@ -82,6 +82,29 @@ remote_tree="$work/trees/remote"
 (cd "$plain" && "$scripts/slice-tree.sh" "$remote_tree" feat/T-2-b-s2 origin/main) >/dev/null 2>&1
 check "a branch only on the remote is resumed at its pushed tip" '[ "$(git -C "$remote_tree" rev-parse HEAD 2>/dev/null)" = "$pushed" ]'
 
+# slice-tree.sh fast-forwards a stale local branch, and refuses a diverged one
+git -C "$plain" worktree remove --force "$remote_tree"
+git -C "$remote_tree" status >/dev/null 2>&1
+other="$work/other-machine"
+git clone -q --template= "$remote" "$other"
+git -C "$other" checkout -q feat/T-2-b-s2
+git -C "$other" -c user.email=t@t -c user.name=t commit -q --allow-empty -m "more s2 work"
+git -C "$other" push -q origin feat/T-2-b-s2
+newer="$(git -C "$other" rev-parse HEAD)"
+git -C "$plain" fetch -q origin
+stale_tree="$work/trees/stale"
+(cd "$plain" && "$scripts/slice-tree.sh" "$stale_tree" feat/T-2-b-s2 origin/main) >/dev/null 2>&1
+check "a stale local branch is fast-forwarded to origin" '[ "$(git -C "$stale_tree" rev-parse HEAD 2>/dev/null)" = "$newer" ]'
+
+git -C "$plain" worktree remove --force "$stale_tree"
+git -C "$plain" branch -q -f feat/T-2-b-s2 "$pushed"
+git -C "$plain" checkout -q feat/T-2-b-s2
+git -C "$plain" -c user.email=t@t -c user.name=t commit -q --allow-empty -m "local-only work"
+git -C "$plain" checkout -q main
+diverged_tree="$work/trees/diverged"
+(cd "$plain" && "$scripts/slice-tree.sh" "$diverged_tree" feat/T-2-b-s2 origin/main) >/dev/null 2>&1
+check "a local branch diverged from origin is refused" '[ $? -ne 0 ] && [ ! -d "$diverged_tree/.git" ] && [ ! -f "$diverged_tree/.git" ]'
+
 # verify-lock.sh
 lock="$work/verify.lock"
 log="$work/lock.log"

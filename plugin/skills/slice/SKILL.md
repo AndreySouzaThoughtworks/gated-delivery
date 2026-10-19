@@ -4,7 +4,7 @@ description: Implement a tracker ticket as independently merging slices, running
 ---
 # /slice — Orchestrate one tracker ticket through independently merging slices
 
-**Branch preconditions.** Before any branch operation, the working tree must be clean and HEAD must be on `main` or the ticket's own branch (`feat/{ticket-id}-*`). Otherwise STOP and surface the state. Ask the user to check out `main` (default), stash, or explicitly stack on the current branch. Never proceed silently. One carve-out: this ticket's own uncommitted spec, which `/spec` leaves in the working tree, does not block Route C — that route creates the branch and commits the spec onto it as step 4 describes. Any other uncommitted change still stops.
+**Branch preconditions.** Before any branch operation, the working tree must be clean and HEAD must be on `main` or the ticket's own branch (`feat/{ticket-id}-*`). Otherwise STOP and surface the state. Ask the user to check out `main` (default), stash, or explicitly stack on the current branch. Never proceed silently. One carve-out: this ticket's own uncommitted spec, which `/spec` leaves in the working tree, does not block Route C or Route W — Route C commits it onto the slice branch as step 4 describes, and Route W lands it through its own PR first (step 4W.2). Any other uncommitted change still stops.
 
 **Concurrency preconditions.** Two writing actors never share a working tree. Every slice in flight has exactly one writing tree — the main checkout when one slice runs, its own slice tree when a wave runs in parallel (step 4W) — and in it one writer at a time. Different slices' trees are written at the same time. Read-only dispatches fan out — 7.1's validators return findings and write no file, so they go in one message. A gate that runs the verify command gets its own worktree, where its build output and test processes reach nothing a writer holds. Worktrees isolate files only, not ports, containers or a booted application, so every suite and verify run goes through the machine's verify lock (**Repository conventions**).
 
@@ -34,7 +34,7 @@ Resolve these at the start:
 - **Agent notes** — `$LOCAL_NOTES/agent-notes/{ticket-id}.md`, where `LOCAL_NOTES` is the Local notes home under `## Delivery notes`, default `~/.local/state/gated-delivery`. Machine-local scratch keeps executor notes out of the changed repository.
 - **Shared handoff** — `{ticket-id}/handoff.md` under the Shared notes home (`## Delivery notes`, default `docs/gated-delivery/{ticket-id}/` in the repository being changed). `/slice` reads it when present and writes only context that must survive a session, agent, machine, or compaction boundary.
 - **Actor** — who this session writes as: a handle, plus a machine name where one person runs two (`<handle>`, `<handle>@<machine>`). An actor owns one `## Resume` block per slice it holds and writes no other.
-- **Verify lock** — `scripts/verify-lock.sh` beside this file runs one command while holding a machine-wide lock (`~/.local/state/gated-delivery/verify.lock`; `GATED_DELIVERY_VERIFY_LOCK` overrides it), so the suites and verify runs of parallel slices, sessions or people on this machine never share ports, containers or a booted application at once. Run every 6.3 suite, 7.2 verify and 7.5 `verify-cmd` through it: `"<skill base directory>/scripts/verify-lock.sh" '<command>'`. It exits with the command's status, or 75 when another holder keeps the lock past its timeout (`GATED_DELIVERY_VERIFY_LOCK_TIMEOUT_S`, default 1800 seconds). A queued run can wait longer than a foreground Bash call lives — 2 minutes by default, 10 at most — so this session runs locked commands with `run_in_background: true` and acts on their completion notice. An agent runs them in the foreground with the Bash timeout at 600000 ms and `GATED_DELIVERY_VERIFY_LOCK_TIMEOUT_S=300` in front, so a long queue ends in 75 inside the call; on 75 it retries once, then reports the wait. STOP on a 75 here and say which slice's run held the lock.
+- **Verify lock** — `scripts/verify-lock.sh` beside this file runs one command while holding a machine-wide lock (`~/.local/state/gated-delivery/verify.lock`; `GATED_DELIVERY_VERIFY_LOCK` overrides it), so the suites and verify runs of parallel slices, sessions or people on this machine never share ports, containers or a booted application at once. Run every 6.3 suite, 7.2 verify and 7.5 `verify-cmd` through it: `"<skill base directory>/scripts/verify-lock.sh" '<command>'`. It exits with the command's status, or 75 when another holder keeps the lock past its timeout (`GATED_DELIVERY_VERIFY_LOCK_TIMEOUT_S`, default 1800 seconds). A queued run can wait longer than a foreground Bash call lives — 2 minutes by default, 10 at most — so this session runs locked commands with `run_in_background: true` and acts on their completion notice. An agent runs them in the foreground with the Bash timeout at 600000 ms and `GATED_DELIVERY_VERIFY_LOCK_TIMEOUT_S=300` in front, so a long queue ends in 75 inside the call; on 75 it retries once, then reports the wait. STOP on a 75 here and say which slice's run held the lock. Anything a locked command leaves running keeps the lock until it exits — a shell `&` daemon started by a verify script wedges every later run into 75 — so a verify command must not leave background processes behind. A repository whose verify takes longer than five minutes lowers the agent timeout so wait plus run still fit the 10-minute call.
 - **Parallel cap** — at most three slices write at once. The user may raise or lower it at the step 3 checkpoint.
 - **Domain references** — indexed in the client context's `## Domain references` section. Where a ticket touches a technology the client context carries a reference for, read it before dispatching the executor and pass it in the step 6.1 payload. Skip when nothing in the index matches.
 
@@ -62,7 +62,7 @@ Inspect:
 - the single repo-hosted or external spec;
 - whether the spec has `## Rollout` and how many slices it names;
 - local and remote branches matching `feat/{ticket-id}-*-s*`;
-- merged, open, and draft PRs for the ticket;
+- merged, open, and draft PRs for the ticket, including a spec PR from `docs/{ticket-id}-spec`;
 - machine-local agent notes, if present;
 - shared handoff, if present.
 
@@ -93,6 +93,7 @@ Read the rows top to bottom and take the **first** that matches; confirm it befo
 
 | State | Route |
 |---|---|
+| The spec's own PR (`docs/{ticket-id}-spec`) is open and unmerged | **Route E — Wait for merge.** The spec lands on `main` before any slice starts; report its PR and STOP. |
 | No spec, no branch | **Route A — Spec first.** Invoke `Skill(spec)`, then STOP. The spec must be signed off before implementation. |
 | Spec has unresolved Open decisions | **Route B — Resolve decisions.** Resolve them with the user, update the spec with reasoning and consequences, then STOP for publication. |
 | A new finding changes architecture, scope, ACs, exposure, or PR shape | **Route B′ — Spec update first.** Pause implementation, update decisions and Rollout with the user, publish the spec, mark the finding `ROUTED`, then return to the route this table gives. |
@@ -117,6 +118,8 @@ git checkout -b feat/{ticket-id}-{slug}-s{n}
 
 Every slice normally branches from updated `main`, which already contains earlier slices. A genuinely dependent slice may stack on the previous slice branch only with explicit user confirmation; first check whether that dependency means the Rollout boundary is invalid.
 
+Push the new branch at once — `git push -u origin feat/{ticket-id}-{slug}-s{n}` — even before it has a commit of its own: the branch on `origin` is the claim another actor's `/slice` reads as held.
+
 If the repository hosts the spec and `/spec` left it uncommitted, commit it here as this branch's first commit — `docs(specs): add spec for {ticket-id}` — so it is reviewed with the slice and reaches `main` through this PR.
 
 Name `<slice-base>` once: normally `main`, otherwise the explicitly selected predecessor branch. Immediately record both the ref and `git rev-parse <slice-base>` — call it `<slice-base-sha>` — in machine-local notes, and in the shared handoff before any session, agent, machine, or compaction boundary.
@@ -127,12 +130,12 @@ Name `<slice-base>` once: normally `main`, otherwise the explicitly selected pre
 
 Route W runs every claimed slice through steps 5–7 at once. The orchestrator stays the only dispatcher — a subagent cannot start agents of its own — so this session interleaves the slices: one message dispatches the same step for every slice, then each slice's results are handled in its own tree.
 
-1. **Start from the current `origin/main`.** Run `git fetch origin`. Every slice tree branches from `origin/main`, so a stale local `main` never becomes a wave's base. Record `git rev-parse origin/main` as the wave base.
-2. **Land the spec once, for the whole wave.** When the repository hosts the spec and `/spec` left it uncommitted, it must reach every slice without two branches adding it separately. Create the first claimed slice's tree (step 3 below), move the spec file from the main checkout into it, and commit it there as that branch's first commit — `docs(specs): add spec for {ticket-id}`. That commit is the **spec base**: the other slices of the wave branch from it instead of from `origin/main`. Each sibling's `<slice-base-sha>` is the spec commit, so its lens and reviewer ranges exclude the spec; its PR shows the spec until the first slice of the wave merges, after which every sibling merges `main` and the identical spec merges clean. Without a repo-hosted uncommitted spec, every slice branches from `origin/main`.
+1. **Start from the current `origin/main`.** Run `git fetch origin`. Every slice tree branches from `origin/main`, so a stale local `main` never becomes a wave's base. Each slice's `<slice-base>` is `main` and its `<slice-base-sha>` is `git rev-parse origin/main` at the moment its tree is created.
+2. **Land an uncommitted spec before the wave.** When the repository hosts the spec and `/spec` left it uncommitted, every slice of the wave needs it, and so does any other actor reading `main`. Put it on `main` first through its own small PR: create a tree for it with `slice-tree.sh "$LOCAL_NOTES/slice-trees/{ticket-id}-spec" "docs/{ticket-id}-spec" origin/main`, copy the spec there, commit it — `docs(specs): add spec for {ticket-id}` — push, open the PR, and only then delete the copy from the main checkout. STOP for its merge, as Route E would; the next `/slice` finds the spec on `main` and takes Route W. A spec that lives in a separate notes repository is already shared and skips this step.
 3. **Claim each slice by creating and pushing its branch.** For each slice this actor takes, in Rollout order, skip it when `origin` already has its branch or another actor's Resume block names it: someone holds it. Otherwise create its tree from the repository:
 
    ```bash
-   "<skill base directory>/scripts/slice-tree.sh" "$LOCAL_NOTES/slice-trees/{ticket-id}-s{n}" "feat/{ticket-id}-{slug}-s{n}" <origin/main, or the spec base>
+   "<skill base directory>/scripts/slice-tree.sh" "$LOCAL_NOTES/slice-trees/{ticket-id}-s{n}" "feat/{ticket-id}-{slug}-s{n}" origin/main
    ```
 
    and push the branch at once — `git -C <slice-tree> push -u origin <branch>`. The pushed branch is the claim: a second actor's push of the same branch is rejected, and their Route E or W then sees it held. On a rejected push, remove that tree and its local branch and leave the slice to its holder. When the Shared notes home is a separate notes repository, also write this actor's `## Resume — <actor> — s<n>` block there and push it. Record each tree, branch and `<slice-base-sha>` in machine-local notes. STOP on any non-zero exit from the script.
@@ -144,7 +147,7 @@ Route W runs every claimed slice through steps 5–7 at once. The orchestrator s
    - **6.1:** batch *k* of every slice goes out in one message, one `slice-executor` per slice, each given its own slice tree as `worktree`. A slice with fewer batches drops out of later rounds.
    - **6.2–6.6:** per slice, in its tree; suites through the verify lock. A `## BLOCKED` stops that slice only; the others continue, and the next checkpoint surfaces it.
    - **7:** one review tree per slice, created by running `review-tree.sh` **from that slice's tree**, so it detaches at the slice tip and uses the slice's dependencies. 7.1 validators for all slices go in one message. 7.2 and 7.3 run per slice. 7.5 dispatches every slice's `code-reviewer` in one message, each bound to its own review tree, with `verify-cmd` through the lock. 7.6 is one checkpoint covering every slice. 7.7 runs per slice.
-6. **Merge in any order.** Slices in one wave were checked independent, so whichever is approved first merges first. After a merge, every other slice of the wave merges `main` into its branch — never a rebase — and, because `HEAD` changed, reruns 7.1–7.5 before it is marked ready. A merge conflict means the wave check missed an overlap: resolve it in that slice's tree and record it in `## Carry forward` as a dead end, so `/learn-flow` can tighten the spec's wave rule.
+6. **Merge in any order.** Slices in one wave were checked independent, so whichever is approved first merges first. After a merge, every other slice of the wave merges `main` into its branch — never a rebase — and, because `HEAD` changed, reruns 7.1–7.5 before it is marked ready. Before that rerun, re-record its `<slice-base-sha>` as the `origin/main` commit it just merged: the old base would put the sibling's merged work inside `<slice-base-sha>..HEAD`, and the lens and reviewer would grade it as this slice's. From the merged commit, the range is exactly this slice's net change. A merge conflict means the wave check missed an overlap: resolve it in that slice's tree and record it in `## Carry forward` as a dead end, so `/learn-flow` can tighten the spec's wave rule.
 7. **Remove each slice tree after its PR merges** — `git worktree remove --force <slice-tree> && git worktree prune`. The next wave starts through Route W or Route C once every slice of this one has merged.
 
 ### 5. CHECKPOINT — confirm this slice and its batch plan
@@ -184,7 +187,7 @@ Call `Agent(subagent_type: slice-executor)` with:
 - `repo-conventions` — the convention sources resolved at start;
 - `reference-paths` — absolute paths to the domain references the index matched, omitted when none matched;
 - `worktree` — the slice tree, in a parallel wave; omitted when the slice runs in the main checkout;
-- `verify-lock` — the absolute path of `scripts/verify-lock.sh`, and the slice's `Verify needs` from its Rollout entry.
+- `verify-lock` — the absolute path of `scripts/verify-lock.sh`, and the slice's `Verify needs` from its Rollout entry. The executor runs locked commands with `GATED_DELIVERY_VERIFY_LOCK_TIMEOUT_S=300` in front and the Bash timeout at 600000 ms.
 
 Run it in the foreground — in a parallel wave, the round's executors go in one message and all return before 6.2. STOP if the executor is not found. Cross-repo ACs do not appear in Rollout or batch planning.
 
@@ -241,7 +244,7 @@ Four guarantees, each of which fails silently or fatally without it:
 - **Detached at the tip.** The slice branch is checked out in the orchestrator's tree, and git refuses to hand the same branch to a second worktree. Detaching also pins the commit the gate's evidence names.
 - **Outside the repository.** A worktree nested inside one carrying a `pnpm-workspace.yaml` is captured by that workspace, and `pnpm install` then exits 0 having installed nothing. `LOCAL_NOTES` defaults to `~/.local/state/gated-delivery` and a client may move it, so the path is asserted rather than trusted.
 - **Re-runnable.** Every STOP in step 7 leaves the tree registered, and `git worktree add` answers an existing path with `fatal: ... already exists`. An existing tree is re-pointed at the tip, which is what carries a slice that stopped at a gate.
-- **`node_modules` is the repository's.** A fresh worktree has none, and a reused one can hold a real directory or a link to a tree that has moved — either would have the gate verify against dependencies the orchestrator does not have. The link's target is compared, not its existence.
+- **`node_modules` is the writing tree's.** A fresh worktree has none, and a reused one can hold a real directory or a link to a tree that has moved — either would have the gate verify against dependencies the slice was not built with. The review tree links whatever the writing tree uses: the main checkout's install, or a wave slice's own install when it changed the manifest. The link's target is compared, not its existence.
 
 Then confirm the tree runs the suite — `cd <review-tree>` and the repository's test command — before any gate trusts it. A tree whose tests cannot run turns a gate's verdict into a claim nobody can check.
 
@@ -400,7 +403,7 @@ Then complete Route F:
 - **Spec mismatch appears mid-slice:** stop and take Route B′.
 - **Stacked base is uncertain:** stop rather than audit or open a PR against the wrong range.
 - **Notes-repository push races:** merge remote `main`; never overwrite another ticket's working documents.
-- **Two actors claim one slice:** the second push of the handoff meets the first's block on merge; the later claimant drops that slice and takes another.
+- **Two actors claim one slice:** the second push of the slice branch is rejected; that actor removes its tree and local branch and takes another slice.
 - **A wave slice conflicts with a merged sibling:** the wave check missed an overlap; resolve it in the slice tree and record the dead end.
 
 ## Related skills and agents

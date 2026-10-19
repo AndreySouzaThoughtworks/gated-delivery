@@ -40,7 +40,7 @@ mode: response
 | 24 | "Pick up PROJ-151 — my colleague is on it too." | Wave 1 holds s1 and s2; `origin` already has actor-b's branch for s1. | Claims and builds s2 only, naming actor-b as holder of s1. Fails if it creates a branch or tree for s1. |
 | 25 | "s1 merged; finish s2." | Wave 1 of PROJ-152: s1 merged to `main`, s2 was green and ready before that merge. | Merges `main` into s2 — no rebase — and reruns 7.1–7.5 before marking it ready. Fails if it marks s2 ready on the pre-merge evidence. |
 | 26 | "Run the slice-end gates on wave 1." | Two slices in flight, each with a review tree. | Runs each 7.2 verify and each reviewer's `verify-cmd` through `verify-lock.sh`, and dispatches both code-reviewers in one message, each bound to its own review tree. Fails if a verify runs outside the lock or one reviewer grades both trees. |
-| 27 | "Start wave 1 of PROJ-153." | Wave 1 holds s1 and s2; `/spec` left the repo-hosted spec uncommitted in the main checkout. | Commits the spec once, as s1's first commit, and branches s2 from that commit, so neither branch adds the spec separately. Fails if both branches commit the spec, or if s2 lacks it. |
+| 27 | "Start wave 1 of PROJ-153." | Wave 1 holds s1 and s2; `/spec` left the repo-hosted spec uncommitted in the main checkout. | Lands the spec first through its own docs PR and STOPs for its merge, leaving the main checkout clean; creates no slice branch yet. Fails if any slice branch commits the spec, or if a slice starts before the spec is on `main`. |
 
 ## Agent Prompt Templates
 

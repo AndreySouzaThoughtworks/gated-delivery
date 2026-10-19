@@ -8,11 +8,25 @@
 
 | # | Prompt | Persona | Pass Criteria |
 |---|--------|---------|---------------|
-| 1 | "Make me a primer on how our config compile→sync chain works." | Engineer; sources in repos + docs-workspace RFC. Won't answer follow-ups. | Research, then present **section outline + claims labelled Verified/Inferred**, STOP for sign-off. No HTML written before sign-off prompt. |
+| 1 | "Make me a primer on how our config compile→sync chain works." | Engineer, personal primer. Sources sit in the run directory: the `config-compiler` and `config-sync` repositories under `repos/`, and the docs-workspace RFC "Config distribution v2" (Status Proposed) exported to `docs/rfc-config-distribution-v2.md`. The code pushes bundles; the RFC proposes runtimes pull them; `CODEOWNERS` names a team. Won't answer follow-ups. | Reads the sources, then presents a section outline with every claim labelled Verified (citing the file) or Inferred, and STOPS for sign-off. Code behaviour read from the repos is Verified; the RFC's pull model is not presented as live; ownership read from `CODEOWNERS` is Inferred. Fails if any HTML is written before sign-off. |
 | 2 | "Primer on prebuilt agent templates — who owns it and status." (after sign-off) | Personal primer. The signed-off outline lists the sections (core idea, ownership and status table, glossary) without labels. Ownership is only readable off the tracker: epic reporter and assignee team, status In Progress; no org chart. | Renders the page. Ownership/status labelled **Inferred** (not verified org chart); rendered banner carry that caveat. |
 | 3 | "Give me a one-pager fact sheet on the routing service." | User want dense single-page reference. | **Refuse genre**: name difference, offer as different artifact, no silent primer emit. |
 | 4 | "Make me a primer on the order lifecycle." (after sign-off) | CLAUDE.md `## Artifact style` names `Template: docs/brand/primer.html` and a `Disclosure` footer wording. | Renders from the client template, not the neutral one; footer carries the client's disclosure wording. |
 | 5 | "Make me a primer on PROJ-42 for the team." (after sign-off) | CLAUDE.md `## Artifact style` names a `Team primer home` repo and folder. | Asks personal or team in step 1; writes `PROJ-42/{slug}.html` under that folder, not `./{slug}-primer.html`. With no `Team primer home`, asks for a path instead of guessing a repo; when it cannot ask (5b), writes no file anywhere and names the missing key. |
+
+## Agent Prompt Templates
+
+### Skill Agent
+
+```
+MANDATORY FIRST STEP: Invoke Skill("gated-delivery:primer"). Then follow it.
+The user will not answer follow-ups unless the context says the outline is signed off.
+USER: {{PROMPT}}
+CONTEXT: {{PERSONA}}
+```
+
+"Use the context to decide yourself" in place of the second line reads as sign-off: with the sources
+present, both scenario 1 runs rendered HTML without an outline checkpoint.
 
 ## Deterministic Checks
 

@@ -86,7 +86,7 @@ Report:
 
 An expected convention source missing from the `Conventions` line means source resolution failed.
 
-**Clean up merged slices before routing.** The user merges PRs, so no `/slice` step runs after a merge. For every slice tree (`$LOCAL_NOTES/slice-trees/{ticket-id}-*-{actor}`) and local slice branch of this actor, run `gh pr view <branch> --json state`; on `MERGED`, run `git worktree remove --force <tree> && git worktree prune`, then `git branch -D <branch>` for the slice branch and its batch branches. Never touch another actor's tree or branch.
+**Clean up merged slices before routing.** The user merges PRs, so no `/slice` step runs after a merge. For every slice tree (`$LOCAL_NOTES/slice-trees/{ticket-id}-*-{actor}`) and local slice branch of this actor, run `gh pr view <branch> --json state`; on `MERGED`, run `git worktree remove --force <tree> && git worktree prune`, then `git branch -D <branch>` for the slice branch and its batch branches. This cleanup runs on every route, close-out included, and never waits for approval: the PR's merge was the approval. Never touch another actor's tree or local branch — Route F step 9 is the one exception, for merged branches on `origin`.
 
 Surface tracker blockers before routing. A missing `## Rollout` selects Route R.
 
@@ -366,7 +366,7 @@ Then complete Route F. **Every tracker write waits for approval:** each edit and
 6. **Lead the handoff with its outcome.** Write `## Outcome` as the file's **first** section — what shipped, where each harvested item landed, and the dead ends and assumptions a later reader would otherwise re-derive — then stamp each `## Resume — <actor>` block `Closed: <UTC timestamp, from `date -u +%Y-%m-%dT%H:%MZ`>` so no spent position reads as live. Nothing is deleted, moved or archived. Stamping other actors' blocks is the one exception to the Actor rule.
 7. Set the spec's frontmatter `status: Shipped`.
 8. Recommend `/learn-flow` before closing out, while the machine-local notes still exist.
-9. Leave the main checkout on `main`, clean and pulled, and delete every merged branch this ticket created — slice branches, the spec branch and the close-out branch — locally and on `origin` (`git push origin --delete <branch>`), unless the host already deleted it on merge. When close-out goes through a PR, this step runs on the next `/slice` after that PR merges; do not hand it to the user.
+9. Leave the main checkout on `main`, clean and pulled, and delete every merged branch this ticket created — slice branches, the spec branch and the close-out branch — locally and on `origin` (`git push origin --delete <branch>`), unless the host already deleted it on merge. This covers every actor's merged branches on `origin`, the one exception to never touching another actor's branch, because no slice is live once the ticket has shipped; another actor's local trees stay theirs. When close-out goes through a PR, this step runs on the next `/slice` after that PR merges; do not hand it to the user or hold it for approval.
 10. Leave the machine-local notes in place; pruning them is the user's call.
 
 ## What `/slice` does NOT do

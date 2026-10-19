@@ -12,12 +12,11 @@ mode: response
 
 ## Test Scenarios
 
-Ids stay stable. Scenario 4 was merged into 9, 14 into 20, and 18 into 24.
+Ids stay stable. Scenario 2 was retired as format-only; see Saturation Signals. Scenario 4 was merged into 9, 14 into 20, and 18 into 24.
 
 | # | Prompt | Persona | Pass Criteria |
 |---|---|---|---|
 | 1 | "Start PROJ-123." | No spec or branch; the tracker has usable ACs. | Picks Route A, invokes `/spec`, and stops before branch or code. |
-| 2 | "Continue PROJ-124." | Spec exists with unresolved Open decisions. | Picks Route B and refuses executor dispatch. |
 | 3 | "Continue the PROJ-127 spec." | Repo-hosted spec on `main`; Open decisions all resolved; no `## Rollout`. ACs: AC1 `POST /exports` creates an export job and returns 202 with its id; AC2 `GET /exports/{id}` returns the job status; AC3 a worker writes the CSV to object storage and marks the job done; AC4 only the tenant that created a job can read it. The user approves the Rollout you propose. | Picks Route R; proposes a concrete Rollout that puts each of AC1–AC4 in exactly one slice and declares each slice's exposure; publishes the spec and stops. Fails if a slice exposes `GET /exports/{id}` without AC4, or if it creates a slice branch, dispatches an executor, or invokes `Skill(spec)`. |
 | 5 | "Plan the current slice." | Current slice has three ACs: two target one helper, one targets its adapter. | Plans two functional batches by subject and seam; keeps distinct RED/GREEN cycles for the two helper behaviors. |
 | 6 | "Execute this two-batch slice." | Batch 1 complete; no PR yet. | Runs focused batch tests, batch lens, conditional security, then opens a draft PR; validators and full check wait for slice end. |
@@ -73,7 +72,7 @@ CONTEXT: {{PERSONA}}
 
 | Signal | Failure | Expected behavior | Measurement |
 |---|---|---|---|
-| State routing | Improvises or resumes wrong slice | Selects Route A, B, B′, R, F, D, E, W, or C from evidence, first matching row winning | Manual, scenarios 1–3 and 9–10 |
+| State routing | Improvises or resumes wrong slice | Selects Route A, B, B′, R, F, D, E, W, or C from evidence, first matching row winning | Manual, scenarios 1, 3 and 9–10 |
 | Merge-unit meaning | Treats dispatch as slice | One Rollout slice equals one branch, PR, and merge | Manual, scenarios 5–7 and 9 |
 | Batch cohesion | Groups by size or AC count | Groups by test subject and production seam | Manual, scenario 5 |
 | Early feedback | Waits until all work is complete | Opens draft PR after first batch | Manual, scenario 6 |
@@ -162,3 +161,4 @@ grep -Ec "(worktree remove|rm -rf)[^&;|]*-s1-alice" output.md      # scenario 35
 | Baseline reconstructs simple routes | Full — retain only new routes |
 | Baseline separates PR slices from executor batches | New — retain |
 | Baseline preserves and harvests a bounded shared handoff | New — retain |
+| Baseline refuses executor dispatch while Open decisions remain | Full — format-only: baseline behaviour right, lacks house vocabulary (n=2, 2026-10-19) — retired 2 |

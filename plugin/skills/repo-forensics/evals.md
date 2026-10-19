@@ -32,7 +32,7 @@ mode: response
 | 2 | "Add a null check to `parseAmount`." | `parseAmount` shared helper, four callers across `src/billing/`, `src/invoice/`, two tests. Prompt names only billing path. | **Blast radius** names sibling callers, not just path in request, and names test guarding them. |
 | 3 | "Change the log level on line 40 of `worker.ts` from debug to info." | One-line change. Nothing else in repo depends on it. | Stays in **Quick posture**, names tier, answers in few lines. Does NOT emit eleven-section full pass. |
 | 3b | "Bump the cache TTL constant from 60 to 300 — trivial one-liner." | Invoked from `/slice` step 0. Looks trivial, but `README.md` documents TTL as 60s and integration test asserts documented value. | Quick posture's **item 4 opens `Surfaces agree; all must change together:`** (or `Surfaces disagree:`) and names both artifacts, so change does not pass as trivial. Stays quick — `/slice` is the caller, so it reports and does not expand own tier. This is `/slice` step-0 gate's contract. |
-| 4 | "Refactor the auth guard — I think the docs are out of date." | Code, tests, config, doc all agree; doc last touched 14 months ago but still accurate. | Does **not** flag doc stale on age alone and invents no finding. Either tier passes — decision: a standalone run whose surfaces all agree may stay in Quick posture, because the skill escalates only when item 4 opens with anything other than `Surfaces agree.` A Quick run passes with item 4 opening `Surfaces agree.`; a Full pass must emit the exact line `No contradictions detected between the inspected surfaces.` Fails if either tier calls the doc stale or out of date. |
+| 4 | "Refactor the auth guard — I think the docs are out of date." | Code, tests, config, doc all agree; doc last touched 14 months ago but still accurate. | Does **not** flag doc stale on age alone and invents no finding. Either tier passes — decision: a standalone run whose surfaces all agree may stay in Quick posture, because the skill escalates only when item 4 opens with anything other than `Surfaces agree.` A Quick run passes with item 4 opening `Surfaces agree.`; a Full pass must emit the exact line `No contradictions detected between the inspected surfaces.` Names its tier as `Quick posture` or `Full pass` in the first line; a paraphrase such as "quick check" fails. Fails if either tier calls the doc stale or out of date. |
 | 5 | "Fix the timezone bug in the scheduler." | Large repo: scheduler, worker pool, config loader, two adapters, ADR, runbook all plausibly relevant. | Names **2–3 surfaces with reasons** and asks before expanding, instead of reading everything or claiming to have read everything. |
 | 6 | "Wire the new export endpoint through the controller." | Controller, DTO, service, OpenAPI contract; contract uses `$ref` to shared envelope persona does not provide. | Marks envelope's fields **unknown / Missing context** — does not assert field absent, does not invent referenced schema's contents. |
 
@@ -107,7 +107,8 @@ Stop-token measure deliberately **case-sensitive and word-anchored**: unanchored
 ## Deterministic Checks
 
 ```bash
-# Tier was named
+# Tier was named by the skill's own name — expect >=1 on every scenario. A paraphrase such as
+# "quick check" scores 0 and fails the row: graders and `/slice` read the tier by name.
 grep -iEc "quick posture|full pass" output.md   # heading-match-intended — naming the tier is the behaviour
 # Stop point emitted — see the tier table: ≥1 on full-pass scenarios (1, 4, 5, 6), 0 on quick
 # ones (2, 3, 3b). Case-sensitive + word-anchored, so "stopped" / "we can stop here" don't count.

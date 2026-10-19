@@ -13,7 +13,7 @@ visible.
 
 ## Two depths
 
-**Name tier in first line**, one clause on why. Two-tier skills fail by silently picking wrong tier;
+**Name tier in first line** by its name, `Quick posture` or `Full pass`, one clause on why. Two-tier skills fail by silently picking wrong tier;
 naming it makes misfire visible at glance instead of after eleven sections.
 
 | Tier | When |
@@ -206,7 +206,7 @@ different surface. Neither replaces other.
 
 After running this skill, check:
 
-- Tier named in first line.
+- Tier named in first line, as `Quick posture` or `Full pass`.
 - Every Verified claim carries a real file locator, none approximated. Nothing sourced from the task
   context sits under Verified.
 - Full pass: Contradictions either populated ledger or explicit no-contradictions sentence.

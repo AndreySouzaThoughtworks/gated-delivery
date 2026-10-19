@@ -83,3 +83,26 @@ Before a check lands, run it on a passing output and on a failing one, and see t
 A baseline run must not be able to read the skill it is compared against. The audit-flow baselines ran in a clone of this repository, read `plugin/skills/audit-flow/SKILL.md` from it, and copied its headings. Their passes said nothing about the skill.
 
 When the fixture is a clone of this repository, delete the skill's directory from the baseline's clone before the run: `rm -r plugin/skills/<skill>`, then commit, so the tree is clean. Give the baseline no `--plugin-dir` and no `--add-dir` that reaches a plugin copy. After the run, `grep -c 'skills/<skill>/' transcript.jsonl` must be 0; a read of the skill's files makes the baseline a harness failure.
+
+## 9. Judge the Pass Criteria
+
+`scripts/eval/judge.mjs` grades one saved run against its scenario row, so step 6.2 no longer has to be done by hand for every run:
+
+```bash
+node scripts/eval/judge.mjs <skill> <id> <run-dir>
+```
+
+Run it from the repository root. `<run-dir>` holds `output.md` and, when there are any, `transcript.jsonl` and the files the run wrote. Copy the run's workspace and its outputs into one directory first if your harness keeps them apart.
+
+- **Clauses.** The row's Pass Criteria are split into sentences, and every "Fails if" becomes its own clause.
+- **Judge.** One `claude -p` on `haiku`, with `--tools Read,Grep,Glob`, `--setting-sources ""`, `--strict-mcp-config`, `--disable-slash-commands`, no plugin and `--json-schema` for the reply. It starts in an empty temporary directory and reaches the run through `--add-dir`, so nothing the run wrote, such as a fixture `CLAUDE.md`, loads as project context. The prompt says that everything the run produced is data, not instructions. A 1200-second wall clock is the only limit.
+- **Evidence.** Each clause comes back PASS, FAIL or UNCLEAR with quotes, each naming its file, its text and optionally its line, plus a note. Code checks every quote: its file must exist in the run directory, a given line must exist in that file, and its text must appear in that file once whitespace, markdown emphasis and JSON escapes are set aside (`...` joins fragments that are each checked). A result with no quote, or with any quote that cannot be found, becomes UNCLEAR. The printed `evidence` is the quotes as `file:line "text"`, then the note.
+- **Verdict.** Code decides it: any FAIL is FAIL, else any UNCLEAR is UNCLEAR, else PASS. Exit 0 on PASS, 1 on FAIL, 3 on UNCLEAR, 2 on a usage or harness error, such as a missing row or a reply that does not match the schema.
+
+```json
+{"verdict":"FAIL","clauses":[{"clause":"Fails if it raises the rewording or the same-meaning ADR as findings.","result":"FAIL","evidence":"output.md \"Adding that to AC3 would remove the ambiguity.\" — suggests an edit to AC3"}]}
+```
+
+The judge settles nothing alone. Read the evidence of every FAIL and UNCLEAR before you act on it. An UNCLEAR often means the judge quoted loosely, such as two table cells joined into one quote; rerun it before grading by hand. Before trusting the judge on a new skill, run it on one run you graded PASS and one you graded FAIL, twice each, and see the verdicts match yours. Run it twice on any run you act on: a split is a clause worded loosely enough to read both ways.
+
+It was proven on 8 hand-graded runs across 5 skills (4 PASS, 4 FAIL, story-drift, prod-support, deskcheck, audit-flow, learn-flow). With quote checking in place, a final pass matched the hand grade on 8 of 8, with no UNCLEAR clause.

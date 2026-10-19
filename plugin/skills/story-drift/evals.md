@@ -58,7 +58,7 @@ CONTEXT: {{PERSONA}}
 
 ### Skill Agent
 ```
-MANDATORY FIRST STEP: Invoke Skill("aifsd-core:story-drift"). Then follow it.
+MANDATORY FIRST STEP: Invoke Skill("gated-delivery:story-drift"). Then follow it.
 You have no tracker, GitHub or repository access; everything you need is in the context.
 The user will not answer follow-ups — when you would ask, write the question and stop.
 USER: {{PROMPT}}

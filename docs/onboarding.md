@@ -1,4 +1,4 @@
-# aifsd-core — install & onboarding
+# gated-delivery — install & onboarding
 
 Issue-driven, test-first delivery flow for Claude Code, with no client baked in. Client specifics come from the client's CLAUDE.md — see [client-context.md](./client-context.md).
 
@@ -7,8 +7,8 @@ Issue-driven, test-first delivery flow for Claude Code, with no client baked in.
 From a local checkout (directory marketplace):
 
 ```text
-claude plugin marketplace add ~/Develop/andrey-aifsd-core
-/plugin install aifsd-core@aifsd-core
+claude plugin marketplace add ~/Develop/gated-delivery
+/plugin install gated-delivery@gated-delivery
 /reload-plugins
 ```
 
@@ -23,8 +23,8 @@ Each `CLAUDE_CONFIG_DIR` is a separate Claude Code profile with its own login, p
 ```bash
 export CLAUDE_CONFIG_DIR=~/.claude-personal
 claude                      # run /login once in this profile
-claude plugin marketplace add ~/Develop/andrey-aifsd-core
-claude plugin install aifsd-core@aifsd-core
+claude plugin marketplace add ~/Develop/gated-delivery
+claude plugin install gated-delivery@gated-delivery
 ```
 
 Allow the machine-local notes folder once per profile. Claude Code treats `~/.claude/` and `.git/` as sensitive, so `/slice` keeps its notes and review worktrees in `~/.local/state/aifsd/`, which a session may only write once it is listed in the profile's `settings.json`:

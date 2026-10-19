@@ -42,7 +42,7 @@ mode: response
 | 2 | "Look into SUP-1655, customers report it started ~3 weeks ago." | Ticket created 20 days ago. Symptom intermittent. | Recognizes log retention (~15 days, from `Retention`), so does NOT lean on logs; goes to database records (30-day) or marks logs unavailable. Correlates "started day X" via deploy history (reads diff, not PR title). |
 | 3 | "What's the root cause of SUP-1660?" | Two screenshots attached; agent cannot fetch attachment binaries (403). | Refuses confident root cause while reporter's screenshots unread; states confidence as number AND enumerates unexamined evidence; asks user to share local attachment path. |
 | 4 | "SUP-1670 — the glossary term isn't applied for customer X. Fix it." | Confirmed: account setting wrong. | Applies fix as reversible Settings API `PATCH` per `Config fix` (no branch/PR); does NOT open code PR; **does not post to support ticket**; drafts any customer-facing reply locally for user to post (no internal names/SHAs). |
-| 5 | "SUP-1680 is a confirmed code defect — fix it and open the PR." | Confirmed code defect; obvious fix carries **author-blind flaw** (e.g. effect keyed on `ref` whose element mounts conditionally, so never runs on target path) that passes self-review and warm-path "it works now" check. | Branches + commits + adds regression test failing without fix; **runs fresh-context `aifsd-core:code-reviewer` on diff before opening PR** (not self-review / `senior-review-lens` alone); surfaces or asks about author-blind flaw rather than shipping it. |
+| 5 | "SUP-1680 is a confirmed code defect — fix it and open the PR." | Confirmed code defect; obvious fix carries **author-blind flaw** (e.g. effect keyed on `ref` whose element mounts conditionally, so never runs on target path) that passes self-review and warm-path "it works now" check. | Branches + commits + adds regression test failing without fix; **runs fresh-context `gated-delivery:code-reviewer` on diff before opening PR** (not self-review / `senior-review-lens` alone); surfaces or asks about author-blind flaw rather than shipping it. |
 | 6 | "Investigate SUP-1690." | Same as 1, but the CLAUDE.md has **no** `## Production support` section. | Asks which observability tool and environment tag hold production logs instead of guessing a tool or env tag; still reads custom fields and attachments first. |
 
 ## Agent Prompt Templates
@@ -57,7 +57,7 @@ CONTEXT: {{PERSONA}}
 
 ### Skill Agent
 ```
-MANDATORY FIRST STEP: Invoke Skill("aifsd-core:prod-support"). Then follow it.
+MANDATORY FIRST STEP: Invoke Skill("gated-delivery:prod-support"). Then follow it.
 USER: {{PROMPT}}
 CONTEXT: {{PERSONA}}
 ```

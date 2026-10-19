@@ -154,12 +154,12 @@ test("reports a doc that references a skill or agent which does not exist", () =
   assert.match(out, /references "gone", which is not a skill or agent in this repo/);
 });
 
-test("the typed agent form and a bare aifsd-core: prefix are both scanned", () => {
+test("the typed agent form and a bare gated-delivery: prefix are both scanned", () => {
   // `Agent(subagent_type: x)` is what docs/skill-graph.md documents and what /slice uses, and
-  // `aifsd-core:x` appears bare in prod-support and the README. Neither was matched at first, so a
+  // `gated-delivery:x` appears bare in prod-support and the README. Neither was matched at first, so a
   // stale reference in either form was reported as clean.
   const dir = validRepo();
-  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\n---\n\n## Heading One\n\nAgent(subagent_type: gone-agent) and `aifsd-core:gone-skill`.\n");
+  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\n---\n\n## Heading One\n\nAgent(subagent_type: gone-agent) and `gated-delivery:gone-skill`.\n");
   const { code, out } = runGuard(dir);
   assert.equal(code, 1, out);
   assert.match(out, /references "gone-agent"/);
@@ -168,7 +168,7 @@ test("the typed agent form and a bare aifsd-core: prefix are both scanned", () =
 
 test("the typed agent form resolves a name that does exist", () => {
   const dir = validRepo();
-  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\n---\n\n## Heading One\n\nAgent(subagent_type: bot) and `aifsd-core:alpha`, plus Agent(subagent_type: other-plugin:thing).\n");
+  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\n---\n\n## Heading One\n\nAgent(subagent_type: bot) and `gated-delivery:alpha`, plus Agent(subagent_type: other-plugin:thing).\n");
   const { code, out } = runGuard(dir);
   assert.equal(code, 0, out);
   assert.doesNotMatch(out, /ERROR/);
@@ -194,9 +194,9 @@ test("built-ins and notation placeholders are not dangling references", () => {
   assert.doesNotMatch(out, /ERROR/);
 });
 
-test("an explicit aifsd-core: prefix resolves against the local inventory", () => {
+test("an explicit gated-delivery: prefix resolves against the local inventory", () => {
   const dir = validRepo();
-  write(dir, "plugin/skills/alpha/SKILL.md", '---\nname: alpha\n---\n\n## Heading One\n\nSkill("aifsd-core:alpha") is here, Skill("aifsd-core:absent") is not.\n');
+  write(dir, "plugin/skills/alpha/SKILL.md", '---\nname: alpha\n---\n\n## Heading One\n\nSkill("gated-delivery:alpha") is here, Skill("gated-delivery:absent") is not.\n');
   const { code, out } = runGuard(dir);
   assert.equal(code, 1, out);
   assert.match(out, /references "absent"/);
@@ -393,7 +393,7 @@ test("a relative path from a skill that resolves stays silent", () => {
 test("a command is a local name, invoked with or without the plugin prefix", () => {
   const dir = validRepo();
   write(dir, "plugin/commands/ship.md", "---\ndescription: ship it\n---\n");
-  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\n---\n\n## Heading One\n\nRun `/ship`, or `/aifsd-core:ship`.\n");
+  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\n---\n\n## Heading One\n\nRun `/ship`, or `/gated-delivery:ship`.\n");
   const { code, out } = runGuard(dir);
   assert.equal(code, 0, out);
   assert.match(out, /1 commands/);
@@ -401,7 +401,7 @@ test("a command is a local name, invoked with or without the plugin prefix", () 
 
 test("a prefixed command that does not exist is reported", () => {
   const dir = validRepo();
-  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\n---\n\n## Heading One\n\nRun `/aifsd-core:gone`.\n");
+  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\n---\n\n## Heading One\n\nRun `/gated-delivery:gone`.\n");
   const { code, out } = runGuard(dir);
   assert.equal(code, 1, out);
   assert.match(out, /references "gone"/);

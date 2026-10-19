@@ -39,7 +39,7 @@ CONTEXT: {{PERSONA}}
 
 ### Skill Agent
 ```
-MANDATORY FIRST STEP: Invoke Skill("aifsd-core:senior-review-lens"). Then follow it.
+MANDATORY FIRST STEP: Invoke Skill("gated-delivery:senior-review-lens"). Then follow it.
 The user will not answer follow-ups — use the context to decide yourself.
 USER: {{PROMPT}}
 CONTEXT: {{PERSONA}}

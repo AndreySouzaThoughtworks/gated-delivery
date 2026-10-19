@@ -50,7 +50,7 @@ CONTEXT: {{PERSONA}}
 ### Skill Agent
 
 ```text
-MANDATORY FIRST STEP: Invoke Skill("aifsd-core:slice"). Then follow it.
+MANDATORY FIRST STEP: Invoke Skill("gated-delivery:slice"). Then follow it.
 The user will not answer follow-ups; use the supplied state.
 USER: {{PROMPT}}
 CONTEXT: {{PERSONA}}

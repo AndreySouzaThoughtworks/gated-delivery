@@ -31,7 +31,7 @@ CONTEXT: {{PERSONA}}
 
 ### Skill Agent
 ```
-MANDATORY FIRST STEP: Invoke Skill("aifsd-core:audit-flow"). Then follow it.
+MANDATORY FIRST STEP: Invoke Skill("gated-delivery:audit-flow"). Then follow it.
 The user will not answer follow-ups — use the context to decide yourself.
 USER: {{PROMPT}}
 CONTEXT: {{PERSONA}}
@@ -41,7 +41,7 @@ CONTEXT: {{PERSONA}}
 
 | Quality Signal | Without Skill | With Skill | How to Measure |
 |----------------|---------------|------------|----------------|
-| Mechanical-first | Jumps to opinions | Runs consistency guard before judgment | `grep -c "aifsd-core audit:" output` — guard's own stdout signature, present only if it ran. "consistency" and "scripts/audit" both appear in this skill's output template, so they matched runs that skipped guard entirely. |
+| Mechanical-first | Jumps to opinions | Runs consistency guard before judgment | `grep -c "gated-delivery audit:" output` — guard's own stdout signature, present only if it ran. "consistency" and "scripts/audit" both appear in this skill's output template, so they matched runs that skipped guard entirely. |
 | Trims, doesn't grow | Suggests new rules | Leads with overlap/trim/merge | Manual: net proposals reduce surface |
 | Honest on usage | Invents usage stats | Says no telemetry; asks team | `grep -iE -e "no .*telemetry" -e "ask the team" output` |
 | Propose-don't-write | Edits/deletes rules inline | Proposes; routes flow changes as PR | Presence of sign-off ask + PR routing |
@@ -53,7 +53,7 @@ CONTEXT: {{PERSONA}}
 ```bash
 # Guard actually ran — its summary line must be quoted verbatim. "Refers to" is not enough;
 # a reported result with no quoted output is indistinguishable from a guessed one.
-grep -c "aifsd-core audit:" output.md                            # the guard's summary line, quoted as evidence
+grep -c "gated-delivery audit:" output.md                            # the guard's summary line, quoted as evidence
 # Honest about usage telemetry
 grep -iEc "no .*telemetry|ask the team|can't measure" output.md
 ```

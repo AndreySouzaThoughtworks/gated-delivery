@@ -48,7 +48,7 @@ CONTEXT: {{PERSONA}}
 ### Skill Agent
 
 ```text
-MANDATORY FIRST STEP: Invoke Skill("aifsd-core:spec"). Then follow it.
+MANDATORY FIRST STEP: Invoke Skill("gated-delivery:spec"). Then follow it.
 The user will not answer follow-ups; decide from context.
 USER: {{PROMPT}}
 CONTEXT: {{PERSONA}}

@@ -1,12 +1,12 @@
-# aifsd-core
+# gated-delivery
 
 Claude Code plugin for issue-driven, test-first delivery, with no client baked in. Specs define independently merging PR slices; implementation runs focused batches and applies verification, structural review and fresh-context correctness gates at every merge boundary. Everything client-specific — tracker, commit convention, notes homes, stack recipes, reviewers — comes from the client's CLAUDE.md: [docs/client-context.md](docs/client-context.md).
 
 ## Install
 
 ```text
-claude plugin marketplace add ~/Develop/andrey-aifsd-core
-/plugin install aifsd-core@aifsd-core
+claude plugin marketplace add ~/Develop/gated-delivery
+/plugin install gated-delivery@gated-delivery
 /reload-plugins
 ```
 
@@ -41,7 +41,7 @@ The core must never name a client. `scripts/leak-guard.sh` greps the staged, tra
 | `node --test plugin/hooks/*.test.mjs` | No | Hook behaviour |
 | `node scripts/audit/consistency.mjs` | No | Inventory, references and docs agree with the files |
 | `bash tests/profile-isolation.test.sh [project-dir]` | No | A fresh profile installs the core, loads no client plugin or MCP server, has its own login, and no CLAUDE.md above `project-dir` carries client terms |
-| `bash tests/commit-convention.test.sh` | Yes | `/aifsd-core:commit` falls back to Conventional Commits, applies a matching convention, and refuses a missing ticket key |
+| `bash tests/commit-convention.test.sh` | Yes | `/gated-delivery:commit` falls back to Conventional Commits, applies a matching convention, and refuses a missing ticket key |
 | `bash tests/issue-writing.test.sh` | Yes | `issue-writing` refines and creates Stories in the full template, keeps implementation detail out of the behavioural sections and secrets out of the tracker |
 | `bash tests/issue-writing.test.sh --control` | Yes | Same scenarios with every skill disabled; expected to fail the checks the skill is responsible for |
 

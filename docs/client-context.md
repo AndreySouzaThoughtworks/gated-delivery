@@ -12,7 +12,7 @@ The core plugin never names a client. Everything client-specific comes from sect
 | | Spike convention | How a Spike is filed when the tracker has no Spike type | Ask |
 | | Bug fields | Dedicated fields for environment, steps, expected and actual result | Put them in the description |
 | | Incident tracker | Project or board that holds production incidents; read by `prod-support` | The project the ticket lives in |
-| `## Commit convention` | Applies to, Subject, Ticket key, Branch, Remote, PR title | See `/aifsd-core:commit` | Plain Conventional Commits |
+| `## Commit convention` | Applies to, Subject, Ticket key, Branch, Remote, PR title | See `/gated-delivery:commit` | Plain Conventional Commits |
 | `## Delivery notes` | Shared notes home | Per-ticket handoff, progress, findings and spec files shared across machines and people, and how they are published | `docs/aifsd/{ticket-id}/` in the repo being changed |
 | | Local notes home | Machine-local scratch: agent notes, review worktrees, batch state | `~/.local/state/aifsd/` — allow it once per profile in `permissions.additionalDirectories` (see onboarding) |
 | | Spec placement | Per-repo rule for whether specs live in the repo | Ask on first spec in a repo, then record the answer here |

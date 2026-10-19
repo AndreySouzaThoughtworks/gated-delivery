@@ -18,7 +18,7 @@ Work through these steps in order. Stop at the checkpoint.
 
 **1. Branch.** If on the default branch, create a feature branch. Use the **Branch** template from the `## Commit convention` section of the nearest CLAUDE.md when the origin matches its **Applies to**; otherwise `<type>/<short-desc>`. If already on a feature branch, use it. When the convention requires a ticket key and none can be derived, ask which ticket this belongs to.
 
-**2. Commit.** Follow `/aifsd-core:commit`.
+**2. Commit.** Follow `/gated-delivery:commit`.
 
 **3. Sync before pushing.** The remote branch may be ahead of your local copy — a teammate's push, or a bot that merges the default branch in. Do not push blind:
 

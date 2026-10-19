@@ -63,7 +63,7 @@ EOF
 g add -A && g commit -qm "feat: add slugify"
 
 output="$work/review.out"
-(cd "$repo" && claude -p "Use the aifsd-core:code-reviewer agent with diff-range HEAD~1..HEAD, verify-cmd 'npm test', and acceptance-criteria: 'AC1: slugify(text) lowercases, trims, drops non-alphanumerics and joins words with single hyphens.' Do not read or write the agent's memory for this review. Print the agent's full report verbatim." \
+(cd "$repo" && claude -p "Use the gated-delivery:code-reviewer agent with diff-range HEAD~1..HEAD, verify-cmd 'npm test', and acceptance-criteria: 'AC1: slugify(text) lowercases, trims, drops non-alphanumerics and joins words with single hyphens.' Do not read or write the agent's memory for this review. Print the agent's full report verbatim." \
   --plugin-dir "$core/plugin" --setting-sources project,local --permission-mode acceptEdits \
   --allowedTools "Bash(git:*)" "Bash(npm:*)" "Bash(node:*)" </dev/null >"$output" 2>&1)
 

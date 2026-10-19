@@ -34,12 +34,12 @@ ancestor_instructions() {
 }
 
 claude plugin marketplace add "$core" >/dev/null 2>&1
-claude plugin install aifsd-core@aifsd-core >/dev/null 2>&1
+claude plugin install gated-delivery@gated-delivery >/dev/null 2>&1
 
 plugins="$(claude plugin list 2>&1)"
 servers="$(claude mcp list 2>&1)"
 
-check "core plugin installs into a fresh profile" grep -q 'aifsd-core@aifsd-core' <<<"$plugins"
+check "core plugin installs into a fresh profile" grep -q 'gated-delivery@gated-delivery' <<<"$plugins"
 check "fresh profile loads no client plugin" free_of_client_terms <<<"$plugins"
 check "fresh profile has no client MCP server" free_of_client_terms <<<"$servers"
 check "CLAUDE.md files above $project carry no client terms" free_of_client_terms < <(ancestor_instructions "$project")

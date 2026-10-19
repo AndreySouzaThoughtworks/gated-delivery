@@ -1,4 +1,4 @@
-# aifsd-core — domain references
+# gated-delivery — domain references
 
 The index of domain references, beneath [`docs/skill-graph.md`](../../docs/skill-graph.md), which
 inventories everything this plugin ships. Skills link here, not to a reference directly, so a skill

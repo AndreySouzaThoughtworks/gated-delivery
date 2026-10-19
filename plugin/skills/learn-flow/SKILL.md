@@ -1,10 +1,10 @@
 ---
 name: learn-flow
-description: Reflect at a session break and route each lesson by scope: flow-level to an aifsd-core change proposal, client-level to the client's CLAUDE.md, repo-level to that repo's CLAUDE.md, personal to the global CLAUDE.md, recurring mistakes to a lint rule. Use on /learn-flow, "what did we learn", "lessons learned", "let's capture this", or after a /slice or /spec session with friction. Propose, never silently write.
+description: Reflect at a session break and route each lesson by scope: flow-level to an gated-delivery change proposal, client-level to the client's CLAUDE.md, repo-level to that repo's CLAUDE.md, personal to the global CLAUDE.md, recurring mistakes to a lint rule. Use on /learn-flow, "what did we learn", "lessons learned", "let's capture this", or after a /slice or /spec session with friction. Propose, never silently write.
 ---
 # learn-flow — capture lessons and improve the flow
 
-Flow improve only if usage feed back. This skill = **capture** half of loop: reflect on session, decide what worth keeping, route each lesson where it propagate. Plugin installed read-only and shared, so flow-level improvement cannot be local edit — go to **aifsd-core repo**, reach every install.
+Flow improve only if usage feed back. This skill = **capture** half of loop: reflect on session, decide what worth keeping, route each lesson where it propagate. Plugin installed read-only and shared, so flow-level improvement cannot be local edit — go to **gated-delivery repo**, reach every install.
 
 Default to **drop**. Each candidate _presumed dropped_ until it clear keep-bar below. Expected outcome of clean session = _nothing captured_ — not one filler item to look useful.
 
@@ -37,7 +37,7 @@ Each candidate **presumed dropped**. Survive only if clear **both** gates — na
 - **Evidence.** Point to concrete moment it happened — exact correction, agent-notes or `handoff.md` line, error/stack, command that failed. No pointer → vibe → drop.
 - **Mechanism.** Name _why this bite again_ — structural cause in tool/repo/flow, not accident of this session. Test: _"would next person on same path hit same wall, because of how things are built?"_ If depend on this session specifics (transient flake, one-time bad merge, config that happened to sit somewhere odd) → drop. Prior sighting (matching agent-notes entry, memory file, "second time I hit this") = _strongest_ corroboration mechanism real — bonus, not requirement.
 
-**Flow-level clear third gate.** To route to aifsd-core repo — where it ship to every install — you must **state the `evals.md` scenario it would add**: failing-before / passing-after test, in shape of that skill existing scenarios. Cannot write that test → lesson not property of flow — downgrade to repo/personal, or drop. Articulating test = bar for "worth packing into shared plugin."
+**Flow-level clear third gate.** To route to gated-delivery repo — where it ship to every install — you must **state the `evals.md` scenario it would add**: failing-before / passing-after test, in shape of that skill existing scenarios. Cannot write that test → lesson not property of flow — downgrade to repo/personal, or drop. Articulating test = bar for "worth packing into shared plugin."
 
 This gate asks about skill behaviour. A lesson about a *technology* — a field the platform discards, a setting with no effect, a shape that parses clean and does nothing — has no skill scenario to add, and belongs in a domain reference rather than being downgraded. Step 3 routes it.
 
@@ -45,8 +45,8 @@ This gate asks about skill behaviour. A lesson about a *technology* — a field 
 
 For each candidate, pick exactly one destination. Pick by _who benefits_:
 
-- **Flow-level → aifsd-core repo.** Lesson about how aifsd-core skill/agent/hook/recipe behave, or convention applying to **everyone** using flow (not one client, not one codebase). Cannot be local edit — installed plugin read-only and shared. Capture as **change proposal against the aifsd-core repo — a local branch with the diff (default), or an issue or draft PR once the repo has a remote**. Only path that improve flow for every install.
-- **Domain reference → `plugin/references/`.** Constraint belonging to a *technology* rather than to the flow or to one codebase, which a competent engineer would not guess and would otherwise find by shipping something that silently does nothing. Same change-proposal route against the aifsd-core repo as flow-level, and the `evals.md` gate above does not apply. Admission test is in `references/reference-graph.md`; an existing reference takes an edit, a new subject takes a row and a file.
+- **Flow-level → gated-delivery repo.** Lesson about how gated-delivery skill/agent/hook/recipe behave, or convention applying to **everyone** using flow (not one client, not one codebase). Cannot be local edit — installed plugin read-only and shared. Capture as **change proposal against the gated-delivery repo — a local branch with the diff (default), or an issue or draft PR once the repo has a remote**. Only path that improve flow for every install.
+- **Domain reference → `plugin/references/`.** Constraint belonging to a *technology* rather than to the flow or to one codebase, which a competent engineer would not guess and would otherwise find by shipping something that silently does nothing. Same change-proposal route against the gated-delivery repo as flow-level, and the `evals.md` gate above does not apply. Admission test is in `references/reference-graph.md`; an existing reference takes an edit, a new subject takes a row and a file.
 - **Client-level → client's CLAUDE.md overlay.** Lesson true across one client's repos — its tracker, conventions, internal tooling, review routing — but not for other clients. Edit the client folder's CLAUDE.md, in the section `docs/client-context.md` names for it (`## Issue tracking`, `## Commit convention`, `## Delivery notes`, `## Stack recipes`, `## Review routing`, `## Domain references`, `## Verification`). Never route it into the core plugin.
 - **Repo-level → `<repo>/CLAUDE.md`.** Lesson specific to _this_ codebase (build quirks, layout, in-repo command). Edit that repo CLAUDE.md.
 - **Personal → `~/CLAUDE.md`.** Preference about how _you_ like work, not flow or repo.
@@ -68,7 +68,7 @@ No empty headings — blank template invite padding. Render section only for des
 ```
 ## Session learnings
 
-### Flow-level → aifsd-core repo
+### Flow-level → gated-delivery repo
 - <lesson> — proposed as: <issue title / one-line PR change>
   Why: <one sentence>
   evals test: <failing-before / passing-after, one line>
@@ -97,7 +97,7 @@ No empty headings — blank template invite padding. Render section only for des
 
 ## Step 5 — Apply approved items
 
-- **Flow-level** → in the aifsd-core repo, create a local branch carrying the drafted change and show its diff (default). Once the repo has a remote: `gh issue create` with drafted title/body, or open draft PR if change small and concrete. **Never edit installed plugin copy in place** — versioned; changes reach users through repo and re-install. Report branch name or issue/PR URL.
+- **Flow-level** → in the gated-delivery repo, create a local branch carrying the drafted change and show its diff (default). Once the repo has a remote: `gh issue create` with drafted title/body, or open draft PR if change small and concrete. **Never edit installed plugin copy in place** — versioned; changes reach users through repo and re-install. Report branch name or issue/PR URL.
 - **Domain reference** → same route as flow-level, against `plugin/references/`: edit the matching reference, or add a row to `reference-graph.md` and the file beside it. The guard fails CI on a row without a file or a file without a row.
 - **Client-level / Repo-level / Personal** → `Edit` target CLAUDE.md on exact section. Show one-line diff.
 - **Lint rule** → name eslint rule + config it belong in; route as PR to repo `eslint.config.mjs` (or each repo config if flow-wide). No hand-rolled bespoke checker — prefer standard eslint/tseslint rule or plugin.

@@ -32,13 +32,13 @@ A ticket drifts when something decided or delivered after grooming makes its tex
 
 An **unclear criterion** is a finding too, but only when it blocks kickoff: it depends on a rule
 nobody has decided, it cannot be tested as written, it contradicts another criterion, or it uses a
-term no source defines. Judge it against the kind's template in `aifsd-core:issue-writing`
+term no source defines. Judge it against the kind's template in `gated-delivery:issue-writing`
 (`templates/story.md`, `templates/task.md`).
 
 ## What is not a finding
 
 - **Wording, style and template shape** that leave what gets built unchanged. That is
-  `aifsd-core:issue-writing` Review mode; say so in one line if the ticket reads badly overall.
+  `gated-delivery:issue-writing` Review mode; say so in one line if the ticket reads badly overall.
 - **Implementation detail.** How it gets built is the implementer's call and the spec's content.
 - **A claim with no source.** An inference stays out unless it would change a criterion, and then it
   goes to the user as a question, never as a proposed edit.
@@ -64,7 +64,7 @@ reports it as complete, so on a ticket with sprint, rank or status churn the cri
 off it silently. Where the full history is out of reach, name the baseline as partial in the report
 and compare every source against the current text, not only the ones dated after an edit.
 
-- **Kind.** Decide it by `aifsd-core:issue-writing`'s *Pick the work kind first*, all of it: explicit
+- **Kind.** Decide it by `gated-delivery:issue-writing`'s *Pick the work kind first*, all of it: explicit
   instruction, then the semantic markers in the content — a `Spike:` prefix, a `spike` label, a
   research question with a timebox, expected-versus-actual behaviour with a reproduction — then the
   issue type, and its one clarification question when those signals conflict. Some projects file a
@@ -158,7 +158,7 @@ After the last finding, show:
 - the tracker comment that goes with it, naming for each change the source that revealed it, and
   carrying the AI disclosure the client's instructions require.
 
-Ask whether to write. On yes, write through `Skill(aifsd-core:issue-writing)` and its publishing
+Ask whether to write. On yes, write through `Skill(gated-delivery:issue-writing)` and its publishing
 section: guardrail scan, write, re-fetch, then confirm the text landed word for word.
 Definition of Ready boxes, assignee, sprint and points stay as they are.
 

@@ -79,7 +79,7 @@ run_claude() {
     --allowedTools "Bash($tracker:*)" "Bash(mkdir:*)" "Bash(grep:*)" "Bash(cat:*)" "Bash(ls:*)")
   if [ "$mode" = "skill" ]; then
     args+=(--plugin-dir "$core/plugin" --add-dir "$core/plugin" --allowedTools "Read")
-    request="/aifsd-core:issue-writing $request"
+    request="/gated-delivery:issue-writing $request"
   else
     args+=(--disable-slash-commands)
   fi

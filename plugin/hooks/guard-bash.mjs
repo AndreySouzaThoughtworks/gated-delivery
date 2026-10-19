@@ -83,7 +83,7 @@ const main = () => {
   for (const { pattern, why } of CATASTROPHIC) {
     if (pattern.test(command)) {
       deny(
-        `Blocked by aifsd-core guard: ${why}. If this is genuinely intended, run it outside the agent or adjust the command.`,
+        `Blocked by gated-delivery guard: ${why}. If this is genuinely intended, run it outside the agent or adjust the command.`,
       );
     }
   }

@@ -1,5 +1,5 @@
 {
-  "name": "aifsd-core",
+  "name": "gated-delivery",
   "description": "Issue-driven, test-first delivery flow with no client baked in. /spec turns a ticket into one signed-off spec with an ordered Rollout of independently safe PR slices. /slice implements each slice through focused executor batches, opens an early draft PR, and runs validators, full verification, structural review and fresh-context correctness review at every merge boundary. A shared handoff preserves evidence and resume context. Includes issue writing across Story, Task, Bug and Spike, a quick behavioural story rewrite, a pre-kickoff drift check, a writing pass for durable prose, repository forensics, production support, Renovate triage, primers, flow learning and audit, commit commands, plus format, command-guard and verification hooks. Client specifics come from the client's CLAUDE.md.",
   "author": {
     "name": "Andrey Souza"

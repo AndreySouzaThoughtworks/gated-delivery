@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Deterministic consistency guard for the aifsd-core plugin repo.
+// Deterministic consistency guard for the gated-delivery plugin repo.
 // Catches the mechanical drift class: missing files, name/dir mismatches, dangling
 // hook references, doc-vs-reality inventory drift, and wrong counts in the README.
 // Zero dependencies (Node built-ins only). Exits non-zero on any ERROR.
@@ -120,7 +120,7 @@ for (const agent of agents) {
 // the rest of that release, and a later rename left the same reference in the same file. Same rot
 // class as the onboarding.md drift, on the other side of the equality.
 // Only names that must resolve locally are checked: a bare `Skill(x)` / `Agent(x)` / `/x`, or an
-// explicit `aifsd-core:` prefix. A name carrying another plugin's prefix lives outside this repo and
+// explicit `gated-delivery:` prefix. A name carrying another plugin's prefix lives outside this repo and
 // cannot be verified from here.
 const NOT_LOCAL_NAMES = new Set([
   // Claude Code built-ins.
@@ -145,13 +145,13 @@ for (const file of docFiles) {
     // form /slice actually uses; without the optional prefix the extractor matched none of them.
     ...body.matchAll(/(?:Skill|Agent)\(\s*"?(?:subagent_type:\s*)?([\w:-]+)"?\s*\)/g),
     ...body.matchAll(/`\/([a-zA-Z][\w-]*)`/g),
-    // A bare `aifsd-core:x` or `/aifsd-core:x` outside a Skill()/Agent() call — how prod-support and
+    // A bare `gated-delivery:x` or `/gated-delivery:x` outside a Skill()/Agent() call — how prod-support and
     // the README name the reviewer agent, and how commands are invoked.
-    ...body.matchAll(/`\/?aifsd-core:([\w-]+)`/g),
+    ...body.matchAll(/`\/?gated-delivery:([\w-]+)`/g),
   ].map((m) => m[1]);
   const unresolved = new Set(
     referenced
-      .map((raw) => (raw.startsWith("aifsd-core:") ? raw.slice("aifsd-core:".length) : raw))
+      .map((raw) => (raw.startsWith("gated-delivery:") ? raw.slice("gated-delivery:".length) : raw))
       .filter((n) => !n.includes(":") && !NOT_LOCAL_NAMES.has(n) && !localNames.has(n)),
   );
   for (const name of unresolved) {
@@ -309,7 +309,7 @@ for (const skill of skills) {
 
 // --- report ---
 console.log(
-  `aifsd-core audit: ${skills.length} skills, ${agents.length} agents, ${hookFiles.size} hooks` +
+  `gated-delivery audit: ${skills.length} skills, ${agents.length} agents, ${hookFiles.size} hooks` +
     (commands.length ? `, ${commands.length} commands` : "") +
     (referenceFiles.length ? `, ${referenceFiles.length} references` : ""),
 );

@@ -1,6 +1,6 @@
 ---
 name: audit-flow
-description: Periodic health audit of the aifsd-core flow itself (skills, agents, hooks), not of user code: runs the consistency guard, then a judgment pass for overlap, conflict, gaps and bloat, and proposes trims. Use before an aifsd-core release, when the flow feels bloated, after adding skills or rules, or on "audit the flow", "is the flow still coherent", "trim the flow". Propose, never silently write.
+description: Periodic health audit of the gated-delivery flow itself (skills, agents, hooks), not of user code: runs the consistency guard, then a judgment pass for overlap, conflict, gaps and bloat, and proposes trims. Use before an gated-delivery release, when the flow feels bloated, after adding skills or rules, or on "audit the flow", "is the flow still coherent", "trim the flow". Propose, never silently write.
 ---
 # audit-flow — keep the flow coherent and trim
 
@@ -10,13 +10,13 @@ Default to **trim**: win come from removing redundancy and resolving conflicts, 
 
 ## When to invoke
 
-- Before cutting aifsd-core release.
+- Before cutting gated-delivery release.
 - After several skills / hooks landed.
 - When flow feel bloated, or user say "audit the flow" / "is this still coherent" / "trim it".
 
 ## Step 1 — Deterministic guard (the mechanical floor)
 
-Run consistency checker, report findings, **quote its summary line verbatim** (the `aifsd-core audit: N skills, N agents, N hooks` line) as proof it ran. Reported result with no quoted output indistinguishable from guessed one. Same gate CI runs:
+Run consistency checker, report findings, **quote its summary line verbatim** (the `gated-delivery audit: N skills, N agents, N hooks` line) as proof it ran. Reported result with no quoted output indistinguishable from guessed one. Same gate CI runs:
 
 ```bash
 node scripts/audit/consistency.mjs
@@ -63,7 +63,7 @@ Emit:
 - <thing> — why it stays
 ```
 
-**Propose, never silently write.** Mechanical drift fixes can apply directly (not judgment). Every trim/merge/retire of rule or doc is proposal: get sign-off, then route flow-level changes to the aifsd-core repo — local branch, or PR once the repo has a remote — same repo→release path `learn-flow` use, so change reach every install.
+**Propose, never silently write.** Mechanical drift fixes can apply directly (not judgment). Every trim/merge/retire of rule or doc is proposal: get sign-off, then route flow-level changes to the gated-delivery repo — local branch, or PR once the repo has a remote — same repo→release path `learn-flow` use, so change reach every install.
 
 ## Anti-patterns
 

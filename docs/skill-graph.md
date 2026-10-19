@@ -1,6 +1,6 @@
-# aifsd-core — skills, agents & hooks
+# gated-delivery — skills, agents & hooks
 
-**The** inventory of what the `aifsd-core` plugin ships and how the pieces call each other — other docs link here, not restate. `scripts/audit/consistency.mjs` fails CI if a skill or agent is missing below. Skills are invoked by `/skill-name` or `Skill(name)`; agents by `Agent(subagent_type: name)`; hooks fire automatically on lifecycle events. Client specifics — tracker, notes homes, stack recipes, reviewers — come from the client's CLAUDE.md as described in [client-context.md](./client-context.md).
+**The** inventory of what the `gated-delivery` plugin ships and how the pieces call each other — other docs link here, not restate. `scripts/audit/consistency.mjs` fails CI if a skill or agent is missing below. Skills are invoked by `/skill-name` or `Skill(name)`; agents by `Agent(subagent_type: name)`; hooks fire automatically on lifecycle events. Client specifics — tracker, notes homes, stack recipes, reviewers — come from the client's CLAUDE.md as described in [client-context.md](./client-context.md).
 
 ## Workflow skills
 
@@ -23,8 +23,8 @@
 
 | Command | Purpose |
 |---------|---------|
-| `/aifsd-core:commit` | One commit following the client's `## Commit convention`, else plain Conventional Commits; explicit per-path staging. Covered by `tests/commit-convention.test.sh`. |
-| `/aifsd-core:commit-push-pr` | Commit, sync with the remote tip, checkpoint, push to an explicit refspec, open the PR. |
+| `/gated-delivery:commit` | One commit following the client's `## Commit convention`, else plain Conventional Commits; explicit per-path staging. Covered by `tests/commit-convention.test.sh`. |
+| `/gated-delivery:commit-push-pr` | Commit, sync with the remote tip, checkpoint, push to an explicit refspec, open the PR. |
 
 ## Agents
 

@@ -35,7 +35,7 @@ CONTEXT: {{PERSONA}}
 
 ### Skill Agent
 ```
-MANDATORY FIRST STEP: Invoke Skill("aifsd-core:renovate-shepherd"). Then follow it.
+MANDATORY FIRST STEP: Invoke Skill("gated-delivery:renovate-shepherd"). Then follow it.
 USER: {{PROMPT}}
 CONTEXT: {{PERSONA}}
 ```

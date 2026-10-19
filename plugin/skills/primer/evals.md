@@ -20,13 +20,10 @@
 
 ```
 MANDATORY FIRST STEP: Invoke Skill("gated-delivery:primer"). Then follow it.
-The user will not answer follow-ups unless the context says the outline is signed off.
+The user will not answer follow-ups — use the context to decide yourself.
 USER: {{PROMPT}}
 CONTEXT: {{PERSONA}}
 ```
-
-"Use the context to decide yourself" in place of the second line reads as sign-off: with the sources
-present, both scenario 1 runs rendered HTML without an outline checkpoint.
 
 ## Deterministic Checks
 

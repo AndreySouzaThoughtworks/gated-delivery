@@ -88,6 +88,8 @@ Present outline as: section list (with component each will use) + key claims und
 
 Show outline. Ask: _"Is this the right shape and are these the right claims to render?"_ Revise until user signs off. **Do not write HTML before this.**
 
+Sign-off is explicit: the user approves this outline, or the context says in so many words that the outline is signed off. Nothing else counts — not "use your judgement", "decide yourself", "don't ask", "the user won't answer follow-ups", nor a deadline. User cannot answer? Present the outline and stop, with no file written.
+
 This is gate before *first* render — but scope not set-once. Topic narrows or shifts after sign-off (user refocuses, cuts branch, sharpens audience)? **Re-open outline and prune to new scope before touching file again.** Every section must serve the *current* question, not the one you started with. Section that made sense under original framing but no longer serves narrowed one is dangling — cut it, don't carry forward because already written. State plainly what you dropping and why. When re-scoping, also re-check surviving sections don't assert reader relationships or ownership narrowed framing no longer supports.
 
 ### 5. Render into the template

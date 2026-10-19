@@ -29,32 +29,32 @@ CONTEXT: {{PERSONA}}
 
 ```bash
 OUT=out.html
-# Contrast: no pure black — expect no output.
+# Page: Contrast: no pure black — expect no output.
 # expect: ==0 on 2,4,5
 grep -iE '#000(000)?\b|rgba?\(0,[[:space:]]*0,[[:space:]]*0' "$OUT"
-# Contrast: no Muted text — expect no output.
+# Page: Contrast: no Muted text — expect no output.
 # expect: ==0 on 2,4,5
 grep -nE 'color:[[:space:]]*#9AA3AF|fill:#9AA3AF' "$OUT"
-# Contrast: no accent text — expect no output.
+# Page: Contrast: no accent text — expect no output.
 # expect: ==0 on 2,4,5
 grep -nE 'color:[[:space:]]*#7AA7D6' "$OUT"
-# Spacing off the 4/8/12/16/24/32/48/64/96 scale — expect no output.
+# Page: Spacing off the 4/8/12/16/24/32/48/64/96 scale — expect no output.
 # expect: ==0 on 2,4,5
 grep -hoE '\b(padding|margin|gap)[a-z-]*:[^;}"]+' "$OUT" | grep -oE '\b[0-9]+px\b' | grep -vE '^(0|4|8|12|16|24|32|48|64|96)px$'
-# Ink present — expect >=1.
+# Page: Ink present — expect >=1.
 # expect: >=1 on 2,5
 grep -c '#1C1E21' "$OUT"
-# One Highlight moment — expect 1, advisory. Counts the elements and rules that paint the highlight,
+# Page: One Highlight moment — expect 1, advisory. Counts the elements and rules that paint the highlight,
 # skipping the template's own token definition, its header comment and the .accent-bar rule.
 # expect: ==1 on 2,5
 grep -vE -- '--highlight:|^[[:space:]]*\.accent-bar\{|Highlight #E8590C moment' "$OUT" | grep -ioE '#E8590C|var\(--highlight\)|class="accent-bar"' | wc -l
-# Internal-only banner — expect >=1.
+# Page: Internal-only banner — expect >=1.
 # expect: >=1 on 2,5
 grep -c 'Internal only' "$OUT"
-# Disclosure footer — expect >=1.
+# Page: Disclosure footer — expect >=1.
 # expect: >=1 on 2,5
 grep -c 'Generated with Claude AI' "$OUT"
-# One self-contained file — expect exactly 1.
+# Page: One self-contained file — expect exactly 1.
 # expect: ==1 on 2,4,5
 test -f "$OUT" && grep -c '</html>' "$OUT"
 ```

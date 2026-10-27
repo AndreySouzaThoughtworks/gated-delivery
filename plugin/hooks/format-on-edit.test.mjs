@@ -180,6 +180,6 @@ test("fails open on unusable stdin", () => {
   for (const input of ["", "not json"]) {
     resetInvocations();
     assert.equal(run(workdir(), input), "", `expected silence for stdin: ${input || "<empty>"}`);
-    assert.equal(invocations(), "", "unparseable stdin must not reach prettier");
+    assert.equal(invocations(), "", "unparsable stdin must not reach prettier");
   }
 });

@@ -3,12 +3,13 @@ import { readFileSync } from "node:fs";
 const STDIN_FD = 0;
 
 export const readHookInput = () => {
-  console.assert(Number.isInteger(STDIN_FD), `stdin must be addressed by an integer file descriptor, got ${STDIN_FD}`);
   try {
-    const parsed = JSON.parse(readFileSync(STDIN_FD, "utf8"));
+    const raw = readFileSync(STDIN_FD, "utf8");
+    console.assert(raw.trim().length > 0, `a hook sends its payload on stdin, got ${raw.length} characters`);
+    const parsed = JSON.parse(raw);
     const isObject = typeof parsed === "object" && parsed !== null && !Array.isArray(parsed);
+    console.assert(isObject, `a hook payload is a JSON object, got ${Array.isArray(parsed) ? "an array" : typeof parsed}`);
     const payload = isObject ? parsed : {};
-    console.assert(typeof payload === "object" && !Array.isArray(payload), `a hook payload is always an object, got ${typeof payload}`);
     return payload;
   } catch {
     return {};

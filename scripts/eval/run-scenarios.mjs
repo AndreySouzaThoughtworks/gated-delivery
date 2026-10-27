@@ -16,8 +16,8 @@ import {
   renameSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { constants, tmpdir } from "node:os";
+import { basename, join, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const ROOT = process.cwd();
@@ -93,20 +93,13 @@ const RUN_TEMP_DIR = "run-tmp";
 
 const SUMMARY_COLUMNS = ["skill", "id", "arm", "run", "harness", "checks", "judge", "cost", "secs"];
 
-const lines = (text) => {
-  assert(typeof text === "string", "lines needs text to be a string");
-  const split = text.replace(/\r/g, "").split("\n");
-  assert(split.length >= 1, `splitting always yields at least one line: ${JSON.stringify([split.length])}`);
-  return split;
-};
+const LINE_BREAK = /\r?\n/;
+const FENCE_BODY = /```[a-z]*\n([\s\S]*?)```/;
+const ROW_CELLS = 4;
 
 const sectionBody = (markdown, headingPrefix) => {
-  assert(typeof markdown === "string", "sectionBody needs markdown to be a string");
-  assert(
-    /^#+ /.test(headingPrefix),
-    `sectionBody needs headingPrefix to start with hashes and a space: ${JSON.stringify([headingPrefix])}`,
-  );
-  const all = lines(markdown);
+  assert(/^#+ /.test(headingPrefix), `a section heading starts with # marks and a space, got ${JSON.stringify(headingPrefix)}`);
+  const all = markdown.split(LINE_BREAK);
   const start = all.findIndex((l) => l.startsWith(headingPrefix));
   if (start === -1) return null;
   const level = headingPrefix.match(/^#+ /)[0];
@@ -118,38 +111,13 @@ const sectionBody = (markdown, headingPrefix) => {
     body.push(line);
   }
   const joined = body.join("\n");
-  assert(typeof joined === "string", "sectionBody returns the joined body text");
+  assert(!joined.startsWith(headingPrefix), `the body of ${headingPrefix} must exclude its own heading, got ${JSON.stringify(joined.slice(0, 40))}`);
   return joined;
 };
 
-const firstFence = (body) => {
-  assert(body === null || body === undefined || typeof body === "string", "firstFence needs body to be text or absent");
-  const fence = body?.match(/```[a-z]*\n([\s\S]*?)```/)?.[1] ?? null;
-  assert(fence === null || typeof fence === "string", "firstFence returns the fence text or null");
-  return fence;
-};
-
-const splitRow = (line) => {
-  assert(typeof line === "string", "splitRow needs line to be a string");
-  const cells = line
-    .replace(/^\|/, "")
-    .replace(/\|\s*$/, "")
-    .split(/\s\|\s/)
-    .map((cell) => cell.trim());
-  assert(cells.length >= 1, `splitRow returns at least one cell: ${JSON.stringify([cells.length])}`);
-  return cells;
-};
-
-const ROW_CELLS = 4;
-const isHeaderOrRule = (line, cells) => {
-  assert(typeof line === "string", "isHeaderOrRule needs line to be a string");
-  assert(Array.isArray(cells), `isHeaderOrRule needs cells to be an array: ${JSON.stringify([cells])}`);
-  return cells[0] === "#" || /^[\s|:-]+$/.test(line);
-};
-
 export function parseEvals(markdown) {
-  assert(typeof markdown === "string", "parseEvals needs markdown to be a string");
-  const all = lines(markdown);
+  assert(markdown.length > 0, `an evals file must not be empty, got ${markdown.length} characters`);
+  const all = markdown.split(LINE_BREAK);
   const rows = [];
   let inScenarios = false;
   let inFence = false;
@@ -157,8 +125,12 @@ export function parseEvals(markdown) {
     if (line.startsWith("```")) inFence = !inFence;
     if (!inFence && line.startsWith("## ")) inScenarios = line.startsWith("## Test Scenarios");
     if (!inScenarios || !line.startsWith("|")) continue;
-    const cells = splitRow(line);
-    if (isHeaderOrRule(line, cells)) continue;
+    const cells = line
+      .replace(/^\|/, "")
+      .replace(/\|\s*$/, "")
+      .split(/\s\|\s/)
+      .map((cell) => cell.trim());
+    if (cells[0] === "#" || /^[\s|:-]+$/.test(line)) continue;
     const [id, prompt, persona, pass] = cells;
     rows.push({
       id,
@@ -168,35 +140,29 @@ export function parseEvals(markdown) {
       cells: cells.length,
     });
   }
-  const template = (heading) => {
-    assert(heading.startsWith("### "), "template needs a level three heading");
-    const found = firstFence(sectionBody(markdown, heading))?.trimEnd() ?? null;
-    assert(found === null || typeof found === "string", "template returns the fence text or null");
-    return found;
-  };
   const parsed = {
     rows,
-    skillTemplate: template("### Skill Agent"),
-    baselineTemplate: template("### Baseline Agent"),
-    clientContext: firstFence(sectionBody(markdown, "## Client context")),
+    skillTemplate: sectionBody(markdown, "### Skill Agent")?.match(FENCE_BODY)?.[1]?.trimEnd() ?? null,
+    baselineTemplate: sectionBody(markdown, "### Baseline Agent")?.match(FENCE_BODY)?.[1]?.trimEnd() ?? null,
+    clientContext: sectionBody(markdown, "## Client context")?.match(FENCE_BODY)?.[1] ?? null,
     responseMode: /^mode:\s*response\b/m.test(sectionBody(markdown, "## Execution Model") ?? ""),
   };
-  assert(Array.isArray(parsed.rows), `parseEvals returns rows as an array: ${JSON.stringify([parsed.rows])}`);
+  assert(parsed.rows.every((row) => row.id), `every scenario row needs an id, got ${JSON.stringify(parsed.rows.map((row) => row.id))}`);
   return parsed;
 }
 
 export const fillTemplate = (template, prompt, persona) => {
-  assert(typeof template === "string", "fillTemplate needs template to be a string");
-  assert(typeof prompt === "string" && typeof persona === "string", "fillTemplate needs prompt and persona strings");
+  assert(template.includes(PROMPT_PLACEHOLDER), `an agent template must carry ${PROMPT_PLACEHOLDER} or the prompt is dropped, got ${JSON.stringify(template.slice(0, 60))}`);
   const filled = template.replaceAll(PROMPT_PLACEHOLDER, () => prompt).replaceAll(PERSONA_PLACEHOLDER, () => persona);
-  assert(typeof filled === "string", "fillTemplate returns the filled text");
+  assert(prompt.includes(PROMPT_PLACEHOLDER) || !filled.includes(PROMPT_PLACEHOLDER), `${PROMPT_PLACEHOLDER} must be filled, got ${JSON.stringify(filled.slice(0, 60))}`);
   return filled;
 };
 
 const resultOf = (transcript) => {
-  assert(typeof transcript === "string", "resultOf needs transcript to be a string");
+  assert(typeof transcript === "string", `a transcript is utf8 text, a Buffer would split into nothing, got ${typeof transcript}`);
   const result =
-    lines(transcript)
+    transcript
+      .split(LINE_BREAK)
       .filter(Boolean)
       .map((line) => {
         try {
@@ -206,13 +172,13 @@ const resultOf = (transcript) => {
         }
       })
       .findLast((event) => event?.type === "result") ?? null;
-  assert(result === null || result.type === "result", "resultOf returns a result event or null");
+  assert(result === null || result.type === "result", `resultOf must return the result event, got ${JSON.stringify(result?.type)}`);
   return result;
 };
 
 export function harnessFlags({ transcript, arm, skill, timedOut }) {
-  assert(typeof transcript === "string", "harnessFlags needs transcript to be a string");
-  assert(arm === ARM_SKILL || arm === ARM_BASELINE, "harnessFlags needs arm to be skill or baseline");
+  assert([ARM_SKILL, ARM_BASELINE].includes(arm), `arm must be ${ARM_SKILL} or ${ARM_BASELINE}, got ${arm}`);
+  assert(skill.length > 0, `a skill name is needed to spot reads of its pages, got ${JSON.stringify(skill)}`);
   const result = resultOf(transcript);
   const flags = [];
   if (arm === ARM_SKILL && !transcript.includes('"name":"Skill"')) flags.push("no-skill");
@@ -220,24 +186,21 @@ export function harnessFlags({ transcript, arm, skill, timedOut }) {
   if (!result) flags.push("no-result");
   if (result?.permission_denials?.length) flags.push(`${DENIED_NOTE}${result.permission_denials.length}`);
   if (timedOut) flags.push("timeout");
-  assert(
-    flags.every((flag) => typeof flag === "string"),
-    "harnessFlags returns only string flags",
-  );
+  assert(new Set(flags).size === flags.length, `a harness flag is raised once, got ${flags}`);
   return flags;
 }
 
 export const summaryTsv = (rows) => {
-  assert(Array.isArray(rows), `summaryTsv needs rows to be an array: ${JSON.stringify([rows])}`);
+  assert(rows.every((row) => SUMMARY_COLUMNS.every((column) => row[column] !== undefined)), `every summary row needs ${SUMMARY_COLUMNS}, got ${JSON.stringify(rows)}`);
   const tsv = [SUMMARY_COLUMNS, ...rows.map((row) => SUMMARY_COLUMNS.map((column) => row[column]))]
     .map((cells) => `${cells.join("\t")}\n`)
     .join("");
-  assert(tsv.endsWith("\n"), "summaryTsv ends with the header or a row terminator");
+  assert(tsv.split("\n").length === rows.length + 2, `the summary holds a header and one line per row, got ${JSON.stringify(tsv)}`);
   return tsv;
 };
 
 export function disagreements(rows) {
-  assert(Array.isArray(rows), `disagreements needs rows to be an array: ${JSON.stringify([rows])}`);
+  assert(rows.every((row) => row.skill && row.id && row.arm), `every row names its skill, id and arm, got ${JSON.stringify(rows)}`);
   const groups = new Map();
   for (const row of rows) {
     const key = `${row.skill}\t${row.id}\t${row.arm}`;
@@ -251,40 +214,31 @@ export function disagreements(rows) {
     groups.get(key).outcomes.push(`checks ${row.checks} judge ${row.judge}`);
   }
   const disagreeing = [...groups.values()].filter((group) => new Set(group.outcomes).size > 1);
-  assert(
-    disagreeing.every((group) => group.outcomes.length > 1),
-    "a disagreement needs at least two outcomes",
-  );
+  assert(disagreeing.every((group) => group.outcomes.length > 1), `a disagreement needs two runs, got ${JSON.stringify(disagreeing)}`);
   return disagreeing;
 }
 
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g;
 
 const usage = (message) => {
+  assert(String(message).length > 0, `a usage error must say what is wrong, got ${JSON.stringify(message)}`);
   const readable = String(message).replace(CONTROL_CHARACTERS, " ");
-  assert(
-    !CONTROL_CHARACTERS.test(readable),
-    `a usage message cannot carry line breaks or control characters: ${JSON.stringify([readable])}`,
-  );
-  assert(
-    Number.isInteger(EXIT_USAGE) && EXIT_USAGE !== EXIT_OK,
-    `a usage error must exit non-zero: ${JSON.stringify([EXIT_USAGE, EXIT_OK])}`,
-  );
+  assert(readable.search(CONTROL_CHARACTERS) === -1, `usage text must carry no control characters, got ${JSON.stringify(readable)}`);
   console.error(readable);
   console.error("usage: run-scenarios.mjs <skill> [--scenario <id>…] [--repeat 2] [--jobs N] [--baseline] [--out DIR]");
   process.exit(EXIT_USAGE);
 };
 
 const positiveInteger = (flag, value) => {
-  assert(flag.startsWith("--"), "positiveInteger needs flag to be a long option");
+  assert(flag.startsWith("--"), `a numeric option is a --flag, got ${flag}`);
   const n = Number(value);
   if (!Number.isInteger(n) || n < 1) usage(`${flag} needs a positive integer, got "${value}"`);
-  assert(n >= 1, `positiveInteger returns a number of at least one: ${JSON.stringify([n])}`);
+  assert(n >= 1, `${flag} must end up a positive integer, got ${n}`);
   return n;
 };
 
 function parseArgs(argv) {
-  assert(Array.isArray(argv), `parseArgs needs argv to be an array: ${JSON.stringify([argv])}`);
+  assert(!argv.includes(undefined), `an argument list holds no holes, got ${JSON.stringify(argv)}`);
   const options = {
     skill: null,
     ids: [],
@@ -305,47 +259,31 @@ function parseArgs(argv) {
     else usage(`Unknown argument: ${arg}`);
   }
   if (!options.skill) usage("No skill given.");
-  assert(
-    options.repeat >= 1 && options.jobs >= 1,
-    `parseArgs returns positive repeat and jobs: ${JSON.stringify([options.repeat, options.jobs])}`,
-  );
+  assert(options.ids.every((id) => !id.startsWith("--")), `a scenario id is not a flag, got ${options.ids}`);
   return options;
 }
 
-const snapshotPlugin = (target) => {
-  assert(
-    typeof target === "string" && target.length > 0,
-    `snapshotPlugin needs a target directory: ${JSON.stringify([target, target.length])}`,
-  );
-  assert(existsSync(PLUGIN_DIR), `snapshotPlugin needs the plugin directory to exist: ${JSON.stringify([PLUGIN_DIR])}`);
-  cpSync(PLUGIN_DIR, target, {
-    recursive: true,
-    filter: (source) => basename(source) !== "evals.md",
-  });
-};
-
 const pagesIn = (dir) => {
-  assert(typeof dir === "string", "pagesIn needs dir to be a string");
+  assert(existsSync(dir), `pages are listed from a folder that exists, got ${dir}`);
   const pages = readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     if (entry.isDirectory()) return SKIPPED_DIRS.has(entry.name) ? [] : pagesIn(join(dir, entry.name));
     return entry.name.endsWith(PAGE_EXTENSION) ? [join(dir, entry.name)] : [];
   });
-  assert(
-    pages.every((page) => page.endsWith(PAGE_EXTENSION)),
-    `pagesIn returns only page files: ${JSON.stringify([PAGE_EXTENSION])}`,
-  );
+  assert(pages.every((page) => page.startsWith(dir) && page.endsWith(PAGE_EXTENSION)), `every page lies under ${dir} and ends ${PAGE_EXTENSION}, got ${pages}`);
   return pages;
 };
 
 const worst = (verdicts) => {
-  assert(verdicts.length > 0, `worst needs at least one verdict: ${JSON.stringify([verdicts.length])}`);
+  assert(verdicts.length > 0, `at least one verdict is needed to find the worst, got ${verdicts.length}`);
+  assert(verdicts.every((verdict) => VERDICT_SEVERITY.includes(verdict)), `verdicts must be ranked, got ${verdicts}`);
   const severest = verdicts.reduce((a, b) => (VERDICT_SEVERITY.indexOf(b) > VERDICT_SEVERITY.indexOf(a) ? b : a));
-  assert(VERDICT_SEVERITY.includes(severest), `worst returns a known verdict: ${JSON.stringify([severest])}`);
+  assert(verdicts.includes(severest), `the worst verdict comes from the list, got ${severest} from ${verdicts}`);
   return severest;
 };
 
 function gradeChecks(skill, id, runDir) {
-  assert(typeof skill === "string" && typeof id === "string", "gradeChecks needs skill and id strings");
+  assert(id.length > 0 && !id.includes(sep), `a scenario id names one folder, got ${JSON.stringify(id)}`);
+  assert(existsSync(runDir), `a run folder must exist to be graded, got ${runDir}`);
   if (!existsSync(RUN_CHECKS)) return NOT_AVAILABLE;
   const scratch = join(runDir, RUN_TEMP_DIR, "");
   const files = [join(runDir, "output.md"), ...pagesIn(runDir).filter((page) => !page.startsWith(scratch))];
@@ -360,31 +298,26 @@ function gradeChecks(skill, id, runDir) {
   });
   writeFileSync(join(runDir, "checks.txt"), log.join("\n"));
   const verdict = worst(verdicts);
-  assert(log.length === files.length, "gradeChecks logs one entry per graded file");
+  assert([...VERDICT_SEVERITY, NOT_AVAILABLE].includes(verdict), `the checks verdict must be a known one, got ${verdict}`);
   return verdict;
 }
 
 function gradeJudge(skill, id, runDir) {
-  assert(typeof skill === "string" && typeof id === "string", "gradeJudge needs skill and id strings");
+  assert(id.length > 0 && !id.includes(sep), `a scenario id names one folder, got ${JSON.stringify(id)}`);
+  assert(existsSync(runDir), `a run folder must exist to be judged, got ${runDir}`);
   if (!existsSync(JUDGE)) return NOT_AVAILABLE;
   const { status, stdout, stderr } = spawnSync("node", [JUDGE, skill, id, runDir], { cwd: ROOT, encoding: "utf8" });
   writeFileSync(join(runDir, "judge.json"), stdout || stderr);
   const verdict = JUDGE_VERDICTS[status] ?? GRADER_ERROR;
-  assert(
-    verdict === GRADER_ERROR || Object.values(JUDGE_VERDICTS).includes(verdict),
-    `gradeJudge returns a known verdict: ${JSON.stringify([verdict, GRADER_ERROR])}`,
-  );
+  assert([...Object.values(JUDGE_VERDICTS), GRADER_ERROR].includes(verdict), `the judge verdict must be a known one, got ${verdict}`);
   return verdict;
 }
 
 const NO_SUCH_PROCESS = "ESRCH";
 const liveGroups = new Set();
 const signalGroup = (pid, name) => {
-  assert(Number.isInteger(pid) && pid > 0, `signalGroup needs a positive process id: ${JSON.stringify([pid])}`);
-  assert(
-    typeof name === "string" && name.startsWith("SIG"),
-    `signalGroup needs a signal name: ${JSON.stringify([name])}`,
-  );
+  assert(Number.isInteger(pid) && pid > 0, `a process group is signalled by its leader's pid, got ${pid}`);
+  assert(name in constants.signals, `${name} must be a signal this platform knows`);
   try {
     process.kill(-pid, name);
   } catch (error) {
@@ -399,8 +332,9 @@ for (const name of ["SIGINT", "SIGTERM"]) {
 }
 
 const runClaude = (args, { cwd, env, transcriptPath, stderrPath }) => {
-  assert(Array.isArray(args), `runClaude needs args to be an array: ${JSON.stringify([args])}`);
-  assert(typeof transcriptPath === "string" && typeof stderrPath === "string", "runClaude needs output paths");
+  assert(args[0] === "-p", `claude must run non-interactively with -p first, got ${args[0]}`);
+  assert(existsSync(cwd), `the run folder must exist before claude starts in it, got ${cwd}`);
+  assert(transcriptPath !== stderrPath, `the transcript and stderr need separate files, got ${transcriptPath}`);
   return new Promise((resolve) => {
     const out = openSync(transcriptPath, "w");
     const err = openSync(stderrPath, "w");
@@ -410,43 +344,35 @@ const runClaude = (args, { cwd, env, transcriptPath, stderrPath }) => {
       stdio: ["ignore", out, err],
       detached: true,
     });
-    liveGroups.add(child.pid);
+    if (child.pid !== undefined) liveGroups.add(child.pid);
     let timedOut = false;
-    const signal = (name) => {
-      assert(typeof name === "string", "signal needs a signal name");
-      assert(child.pid > 0, `signal needs a spawned child: ${JSON.stringify([child.pid])}`);
-      signalGroup(child.pid, name);
-    };
     const timer = setTimeout(() => {
       timedOut = true;
       if (child.pid === undefined) return;
-      signal("SIGTERM");
-      setTimeout(() => signal("SIGKILL"), KILL_GRACE_MS).unref();
+      signalGroup(child.pid, "SIGTERM");
+      setTimeout(() => signalGroup(child.pid, "SIGKILL"), KILL_GRACE_MS).unref();
     }, RUN_TIMEOUT_SECONDS * MS_PER_SECOND);
     let finished = false;
-    const finish = () => {
-      if (finished) return;
-      finished = true;
-      assert(liveGroups.has(child.pid), `finish runs once per live process group: ${JSON.stringify([child.pid])}`);
-      assert(typeof timedOut === "boolean", "finish reports whether the run timed out");
-      liveGroups.delete(child.pid);
-      clearTimeout(timer);
-      closeSync(out);
-      closeSync(err);
-      resolve({ timedOut });
-    };
-    child.on("close", finish);
-    child.on("error", (error) => {
-      writeFileSync(stderrPath, String(error));
-      finish();
-    });
+    for (const event of ["close", "error"]) {
+      child.on(event, (reason) => {
+        if (event === "error") writeFileSync(stderrPath, String(reason));
+        if (finished) return;
+        finished = true;
+        liveGroups.delete(child.pid);
+        clearTimeout(timer);
+        closeSync(out);
+        closeSync(err);
+        resolve({ timedOut });
+      });
+    }
   });
 };
 
 const stageFixture = ({ skill, row, runDir }) => {
-  assert(typeof skill === "string" && typeof row?.id === "string", "stageFixture needs a skill and a scenario row");
-  assert(typeof runDir === "string", "stageFixture needs a run directory");
+  assert(row.id.length > 0 && !row.id.includes(sep), `a scenario id names one folder, got ${JSON.stringify(row.id)}`);
+  assert(existsSync(runDir), `the run folder must exist before a fixture is staged, got ${runDir}`);
   const fixture = join(FIXTURES_DIR, skill, row.id);
+  assert(fixture.startsWith(FIXTURES_DIR + sep), `a fixture must stay under ${FIXTURES_DIR}, got ${fixture}`);
   const hasFixture = existsSync(fixture);
   const setup = join(fixture, FIXTURE_SETUP);
   const allowedToolsFile = join(fixture, FIXTURE_ALLOWED_TOOLS);
@@ -465,8 +391,8 @@ const stageFixture = ({ skill, row, runDir }) => {
 };
 
 const claudeArgs = ({ arm, prompt, snapshot, tempDir, extraRules }) => {
-  assert(arm === ARM_SKILL || arm === ARM_BASELINE, "claudeArgs needs arm to be skill or baseline");
-  assert(Array.isArray(extraRules), `claudeArgs needs extraRules to be an array: ${JSON.stringify([extraRules])}`);
+  assert(prompt.length > 0, `claude needs a prompt, got ${prompt.length} characters`);
+  assert(extraRules.every((rule) => rule.trim()), `a fixture tool rule must not be blank, got ${JSON.stringify(extraRules)}`);
   const args = [
     "-p",
     prompt,
@@ -485,13 +411,13 @@ const claudeArgs = ({ arm, prompt, snapshot, tempDir, extraRules }) => {
     "stream-json",
     "--verbose",
   ];
-  assert(args[1] === prompt, "claudeArgs puts the prompt right after -p");
+  assert(args.includes(tempDir) && (arm === ARM_BASELINE || args.includes(snapshot)), `the run's folders must reach claude, got ${tempDir} and ${snapshot}`);
   return args;
 };
 
 async function runOne({ skill, evals, arm, row, n, out, snapshot }) {
-  assert(typeof skill === "string" && typeof row?.id === "string", "runOne needs a skill and a scenario row");
-  assert(Number.isInteger(n) && n >= 1, `runOne needs a one-based run number: ${JSON.stringify([n])}`);
+  assert(Number.isInteger(n) && n >= 1, `a repetition is counted from 1, got ${n}`);
+  assert([ARM_SKILL, ARM_BASELINE].includes(arm), `arm must be ${ARM_SKILL} or ${ARM_BASELINE}, got ${arm}`);
   const runDir = join(out, skill, row.id, `${arm}-${n}`);
   const base = {
     skill,
@@ -515,7 +441,7 @@ async function runOne({ skill, evals, arm, row, n, out, snapshot }) {
   if (setupFailed) return { ...base, harness: SETUP_FAILED, failed: true };
   const tempDir = `${runDir}.${RUN_TEMP_DIR}`;
   mkdirSync(tempDir, { recursive: true });
-  const extraRules = existsSync(allowedToolsFile) ? lines(readFileSync(allowedToolsFile, "utf8")).filter(Boolean) : [];
+  const extraRules = existsSync(allowedToolsFile) ? readFileSync(allowedToolsFile, "utf8").split(LINE_BREAK).filter(Boolean) : [];
 
   const persona = readFileSync(join(runDir, "persona.md"), "utf8").trimEnd();
   const template = arm === ARM_BASELINE ? evals.baselineTemplate : evals.skillTemplate;
@@ -539,13 +465,14 @@ async function runOne({ skill, evals, arm, row, n, out, snapshot }) {
   renameSync(transcriptPath, join(runDir, "transcript.jsonl"));
   renameSync(stderrPath, join(runDir, "stderr.txt"));
   renameSync(tempDir, join(runDir, RUN_TEMP_DIR));
+  assert(existsSync(join(runDir, "transcript.jsonl")), `a finished run leaves its transcript in ${runDir}`);
 
   return gradeRun({ base, skill, arm, row, runDir, prompt, timedOut, secs });
 }
 
 const gradeRun = ({ base, skill, arm, row, runDir, prompt, timedOut, secs }) => {
-  assert(typeof prompt === "string", "gradeRun needs the prompt text");
-  assert(typeof runDir === "string", "gradeRun needs a run directory");
+  assert(existsSync(join(runDir, "transcript.jsonl")), `a run is graded from its transcript in ${runDir}`);
+  assert(Number.isFinite(secs) && secs >= 0, `a run lasts a finite, non-negative time, got ${secs}`);
   const transcript = readFileSync(join(runDir, "transcript.jsonl"), "utf8");
   const result = resultOf(transcript);
   writeFileSync(join(runDir, "prompt.txt"), prompt);
@@ -553,8 +480,7 @@ const gradeRun = ({ base, skill, arm, row, runDir, prompt, timedOut, secs }) => 
   const flags = harnessFlags({ transcript, arm, skill, timedOut });
   const notes = flags.filter((flag) => flag.startsWith(DENIED_NOTE));
   const failures = flags.filter((flag) => !notes.includes(flag));
-  assert(failures.length + notes.length === flags.length, "every flag is either a failure or a note");
-  return {
+  const graded = {
     ...base,
     harness: [...(failures.length ? failures : [HARNESS_OK]), ...notes].join(","),
     failed: failures.length > 0,
@@ -563,10 +489,12 @@ const gradeRun = ({ base, skill, arm, row, runDir, prompt, timedOut, secs }) => 
     cost: (result?.total_cost_usd ?? 0).toFixed(2),
     secs,
   };
+  assert(graded.failed === !graded.harness.split(",").includes(HARNESS_OK), `a run fails exactly when the harness is not ${HARNESS_OK}, got ${graded.harness}`);
+  return graded;
 };
 
 const table = (rows) => {
-  assert(Array.isArray(rows), `table needs rows to be an array: ${JSON.stringify([rows])}`);
+  assert(rows.every((row) => SUMMARY_COLUMNS.every((column) => row[column] !== undefined)), `every row needs ${SUMMARY_COLUMNS}, got ${JSON.stringify(rows)}`);
   const cells = [SUMMARY_COLUMNS, ...rows.map((row) => SUMMARY_COLUMNS.map((column) => String(row[column])))];
   const widths = SUMMARY_COLUMNS.map((_, i) => Math.max(...cells.map((r) => r[i].length)));
   const rendered = cells
@@ -577,16 +505,13 @@ const table = (rows) => {
         .trimEnd(),
     )
     .join("\n");
-  assert(
-    rendered.split("\n").length >= rows.length + 1,
-    `table renders a header and a line per row: ${JSON.stringify([rendered, rows.length])}`,
-  );
+  assert(rendered.split("\n").length === rows.length + 1, `the table holds a header and one line per row, got ${JSON.stringify(rendered)}`);
   return rendered;
 };
 
 const selectScenarios = (options, evals, arm) => {
-  assert(Array.isArray(evals.rows), `selectScenarios needs parsed rows: ${JSON.stringify([evals.rows])}`);
-  assert(arm === ARM_SKILL || arm === ARM_BASELINE, "selectScenarios needs arm to be skill or baseline");
+  assert([ARM_SKILL, ARM_BASELINE].includes(arm), `arm must be ${ARM_SKILL} or ${ARM_BASELINE}, got ${arm}`);
+  assert(options.skill.length > 0, `scenarios are chosen for a named skill, got ${JSON.stringify(options.skill)}`);
   if (arm === ARM_BASELINE && !evals.baselineTemplate) usage(`${options.skill} has no ### Baseline Agent template.`);
   if (arm === ARM_SKILL && !evals.skillTemplate) usage(`${options.skill} has no ### Skill Agent template.`);
   const unknown = options.ids.filter((id) => !evals.rows.some((row) => row.id === id));
@@ -594,23 +519,28 @@ const selectScenarios = (options, evals, arm) => {
   const selected = options.ids.length ? evals.rows.filter((row) => options.ids.includes(row.id)) : evals.rows;
   const malformed = selected.filter((row) => row.cells !== ROW_CELLS);
   if (malformed.length) usage(`Rows without ${ROW_CELLS} cells: ${malformed.map((row) => row.id).join(", ")}`);
+  assert(selected.every((row) => row.cells === ROW_CELLS), `every chosen row has ${ROW_CELLS} cells, got ${JSON.stringify(selected.map((row) => row.cells))}`);
   return selected;
 };
 
 async function main() {
-  assert(Array.isArray(process.argv), `main needs process arguments: ${JSON.stringify([process.argv])}`);
-  assert(existsSync(SKILLS_DIR), `main needs the skills directory to exist: ${JSON.stringify([SKILLS_DIR])}`);
   const options = parseArgs(process.argv.slice(2));
   const evalsPath = join(SKILLS_DIR, options.skill, "evals.md");
   if (!existsSync(evalsPath)) usage(`No such skill with evals: ${options.skill}`);
   const evals = parseEvals(readFileSync(evalsPath, "utf8"));
   const arm = options.baseline ? ARM_BASELINE : ARM_SKILL;
   const selected = selectScenarios(options, evals, arm);
+  assert(options.repeat >= 1 && options.jobs >= 1, `repeat and jobs are positive, got ${options.repeat} and ${options.jobs}`);
 
   const out = options.out ?? join(tmpdir(), `gated-delivery-evals-${options.skill}-${Date.now()}`);
   const snapshot = join(out, "plugin");
   mkdirSync(out, { recursive: true });
-  if (arm === ARM_SKILL) snapshotPlugin(snapshot);
+  if (arm === ARM_SKILL) {
+    cpSync(PLUGIN_DIR, snapshot, {
+      recursive: true,
+      filter: (source) => basename(source) !== "evals.md",
+    });
+  }
 
   const queue = selected.flatMap((row) =>
     Array.from({ length: options.repeat }, (_, i) => ({
@@ -623,20 +553,15 @@ async function main() {
       snapshot,
     })),
   );
-  const order = (row) => {
-    assert(typeof row.id === "string", "order needs a result with a scenario id");
-    const position = selected.findIndex((r) => r.id === row.id) * (options.repeat + 1) + row.run;
-    assert(Number.isInteger(position), `order returns an integer position: ${JSON.stringify([position])}`);
-    return position;
-  };
+  const rank = new Map(selected.map((row, index) => [row.id, index]));
   const results = [];
-  const worker = async () => {
-    assert(Array.isArray(queue), `worker needs the shared queue: ${JSON.stringify([queue])}`);
-    while (queue.length) results.push(await runOne(queue.shift()));
-    assert(queue.length === 0, "a worker stops only when the queue is empty");
-  };
-  await Promise.all(Array.from({ length: Math.min(options.jobs, queue.length) }, worker));
-  results.sort((a, b) => order(a) - order(b));
+  await Promise.all(
+    Array.from({ length: Math.min(options.jobs, queue.length) }, async () => {
+      while (queue.length) results.push(await runOne(queue.shift()));
+    }),
+  );
+  results.sort((a, b) => rank.get(a.id) - rank.get(b.id) || a.run - b.run);
+  assert(results.length === selected.length * options.repeat, `every chosen scenario runs ${options.repeat} times, got ${results.length} results for ${selected.length} scenarios`);
 
   writeFileSync(join(out, "summary.tsv"), summaryTsv(results));
   console.log(table(results));

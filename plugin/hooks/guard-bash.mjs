@@ -60,44 +60,29 @@ const CATASTROPHIC = [
 
 const EXIT_OK = 0;
 
-const allow = () => {
-  console.assert(Number.isInteger(EXIT_OK), `an exit code is an integer, got ${EXIT_OK}`);
-  console.assert(EXIT_OK === 0, `allow is signalled by a clean exit, got ${EXIT_OK}`);
-  process.exit(EXIT_OK);
-};
-const deny = (reason) => {
-  console.assert(typeof reason === "string", "a denial carries its reason as text");
-  console.assert(reason.length > 0, `a denial must say why, got ${reason.length} characters`);
-  process.stdout.write(
-    JSON.stringify({
-      hookSpecificOutput: {
-        hookEventName: "PreToolUse",
-        permissionDecision: "deny",
-        permissionDecisionReason: reason,
-      },
-    }),
-  );
-  process.exit(0);
-};
-
 const main = () => {
-  console.assert(CATASTROPHIC.length > 0, `the guard must hold at least one rule, got ${CATASTROPHIC.length}`);
-  console.assert(CATASTROPHIC.every(({ pattern }) => pattern instanceof RegExp), `every rule pairs a RegExp pattern with a reason, got ${CATASTROPHIC.map(({ pattern }) => typeof pattern)}`);
   let input = {};
   try {
     input = JSON.parse(readFileSync(0, "utf8"));
   } catch {
-    allow();
+    process.exit(EXIT_OK);
   }
+  console.assert(typeof input === "object" && input !== null, `a hook payload is a JSON object, got ${input === null ? "null" : typeof input}`);
   const command = input?.tool_input?.command ?? "";
-  for (const { pattern, why } of CATASTROPHIC) {
-    if (pattern.test(command)) {
-      deny(
-        `Blocked by gated-delivery guard: ${why}. If this is genuinely intended, run it outside the agent or adjust the command.`,
-      );
-    }
+  console.assert(typeof command === "string", `a Bash payload carries its command as text, got ${typeof command}`);
+  const blocked = CATASTROPHIC.find(({ pattern }) => pattern.test(command));
+  if (blocked) {
+    process.stdout.write(
+      JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: "PreToolUse",
+          permissionDecision: "deny",
+          permissionDecisionReason: `Blocked by gated-delivery guard: ${blocked.why}. If this is genuinely intended, run it outside the agent or adjust the command.`,
+        },
+      }),
+    );
   }
-  allow();
+  process.exit(EXIT_OK);
 };
 
 main();

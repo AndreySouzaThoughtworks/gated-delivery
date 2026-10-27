@@ -28,12 +28,6 @@ const FORMATTABLE = new Set([
 const FORMAT_TIMEOUT_MS = 30_000;
 const EXIT_OK = 0;
 
-const done = () => {
-  console.assert(Number.isInteger(EXIT_OK), `an exit code is an integer, got ${EXIT_OK}`);
-  console.assert(EXIT_OK === 0, `the hook must never block the edit, so it only ever exits 0, got ${EXIT_OK}`);
-  process.exit(EXIT_OK);
-};
-
 /**
  * The installed prettier's CLI entry, taken from its own manifest rather than a hard-coded path:
  * prettier 3 ships `bin/prettier.cjs`, prettier 2 ships `bin-prettier.js` at the package root, and
@@ -46,9 +40,9 @@ const prettierCli = () => {
     );
     const { bin } = JSON.parse(readFileSync(manifest, "utf8"));
     const declared = typeof bin === "string" ? bin : bin?.prettier;
+    console.assert(declared === undefined || typeof declared === "string", `a prettier manifest names its CLI as text, got ${typeof declared}`);
     const cli = declared ? join(dirname(manifest), declared) : null;
-    console.assert(typeof manifest === "string", "require.resolve yields a path string");
-    console.assert(cli === null || typeof cli === "string", "the CLI is a path or absent");
+    console.assert(cli === null || existsSync(cli), `the declared prettier CLI must exist on disk, got ${cli}`);
     return cli;
   } catch {
     return null;
@@ -56,17 +50,17 @@ const prettierCli = () => {
 };
 
 const main = () => {
-  console.assert(FORMATTABLE.size > 0, `the hook must format at least one extension, got ${FORMATTABLE.size}`);
-  console.assert(Number.isInteger(FORMAT_TIMEOUT_MS), `the formatter timeout is whole milliseconds, got ${FORMAT_TIMEOUT_MS}`);
   const input = readHookInput();
+  console.assert(input?.tool_input === undefined || typeof input.tool_input === "object", `a tool call carries its input as an object, got ${typeof input?.tool_input}`);
   const filePath = input?.tool_input?.file_path;
-  if (!filePath || !FORMATTABLE.has(extname(filePath))) done();
-  if (!existsSync(resolve(process.cwd(), filePath))) done();
+  console.assert(filePath === undefined || typeof filePath === "string", `an edited file path is text when present, got ${typeof filePath}`);
+  if (!filePath || !FORMATTABLE.has(extname(filePath))) process.exit(EXIT_OK);
+  if (!existsSync(resolve(process.cwd(), filePath))) process.exit(EXIT_OK);
 
   // Resolved from the edited repo, so it picks up that repo's prettier version. Absent — the common
   // case for a plugin installed everywhere — is a silent no-op, same as before.
   const cli = prettierCli();
-  if (!cli) done();
+  if (!cli) process.exit(EXIT_OK);
 
   try {
     // execFileSync, not execSync: passing args as an array means no shell parses them. The string
@@ -80,7 +74,7 @@ const main = () => {
   } catch {
     // prettier absent, not configured, or failed — never block on formatting
   }
-  done();
+  process.exit(EXIT_OK);
 };
 
 main();

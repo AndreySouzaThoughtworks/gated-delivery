@@ -1,6 +1,6 @@
 #!/bin/sh
 path="$*"
-case "$path" in
+case "${path}" in
   *issue/PROJ-123/comment*)
     echo '{"comments":[],"total":0}' ;;
   *issue/PROJ-123*expand=*names*)

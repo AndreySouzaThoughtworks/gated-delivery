@@ -9,12 +9,13 @@ if ! command -v gitleaks >/dev/null 2>&1; then
 fi
 
 remote="$1"
-leak_guard="$(git rev-parse --show-toplevel)/scripts/leak-guard.sh"
+repo_root="$(git rev-parse --show-toplevel)"
+leak_guard="${repo_root}/scripts/leak-guard.sh"
 while read -r _local_ref local_sha remote_ref _remote_sha; do
-  [[ "$local_sha" =~ $DELETED_REF ]] && continue
-  echo "pre-push: scanning commits for $remote_ref that $remote does not have yet"
-  gitleaks git --redact --no-banner --log-opts="$local_sha --not --remotes=$remote" .
-  for commit in $(git rev-list "$local_sha" --not --remotes="$remote"); do
-    "$leak_guard" "$(git rev-parse --show-toplevel)" "$commit"
+  [[ "${local_sha}" =~ ${DELETED_REF} ]] && continue
+  echo "pre-push: scanning commits for ${remote_ref} that ${remote} does not have yet"
+  gitleaks git --redact --no-banner --log-opts="${local_sha} --not --remotes=${remote}" .
+  for commit in $(git rev-list "${local_sha}" --not --remotes="${remote}"); do
+    "${leak_guard}" "${repo_root}" "${commit}"
   done
 done

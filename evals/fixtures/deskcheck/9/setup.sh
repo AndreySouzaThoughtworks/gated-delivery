@@ -14,6 +14,6 @@ git commit -q --allow-empty -m init
 
 printf '# orders-api\n\nSource omitted from this evaluation checkout.\n' > README.md
 printf 'evidence/\nnotes-checkout/\n' > .gitignore
-git checkout -q -b "$FEATURE_BRANCH"
+git checkout -q -b "${FEATURE_BRANCH}"
 git add -A
 git commit -q -m "feat(PROJ-209): delivered change (source omitted)"

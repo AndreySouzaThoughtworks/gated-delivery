@@ -10,42 +10,42 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 failures=0
 
-if [ -n "${GATED_DELIVERY_TEST_PROFILE:-}" ]; then export CLAUDE_CONFIG_DIR="$GATED_DELIVERY_TEST_PROFILE"; fi
-if (cd "$work" && claude -p ping </dev/null 2>&1) | grep -q 'Not logged in'; then
+if [[ -n "${GATED_DELIVERY_TEST_PROFILE:-}" ]]; then export CLAUDE_CONFIG_DIR="${GATED_DELIVERY_TEST_PROFILE}"; fi
+if (cd "${work}" && claude -p ping </dev/null 2>&1) | grep -q 'Not logged in'; then
   echo "skip: profile ${CLAUDE_CONFIG_DIR:-~/.claude} is not logged in" >&2
-  exit "$EXIT_NOT_LOGGED_IN"
+  exit "${EXIT_NOT_LOGGED_IN}"
 fi
 
 check() {
-  local name="$1"; shift
-  if "$@"; then echo "ok   $name"; else echo "FAIL $name"; failures=$((failures + 1)); fi
+  local name="$1" status="$2"
+  if [[ "${status}" -eq 0 ]]; then echo "ok   ${name}"; else echo "FAIL ${name}"; failures=$((failures + 1)); fi
 }
 
 new_repo() {
-  local dir="$work/$1" origin="$2" branch="$3"
-  git init -q -b main "$dir"
-  git -C "$dir" remote add origin "$origin"
-  echo "hello" > "$dir/greeting.txt"
-  git -C "$dir" add greeting.txt
-  git -C "$dir" -c user.name=test -c user.email=test@example.com commit -q -m "chore: seed"
-  git -C "$dir" switch -q -c "$branch"
-  echo "hello, world" > "$dir/greeting.txt"
-  git -C "$dir" config user.name test
-  git -C "$dir" config user.email test@example.com
-  echo "$dir"
+  local dir="${work}/$1" origin="$2" branch="$3"
+  git init -q -b main "${dir}"
+  git -C "${dir}" remote add origin "${origin}"
+  echo "hello" > "${dir}/greeting.txt"
+  git -C "${dir}" add greeting.txt
+  git -C "${dir}" -c user.name=test -c user.email=test@example.com commit -q -m "chore: seed"
+  git -C "${dir}" switch -q -c "${branch}"
+  echo "hello, world" > "${dir}/greeting.txt"
+  git -C "${dir}" config user.name test
+  git -C "${dir}" config user.email test@example.com
+  echo "${dir}"
 }
 
 run_commit() {
-  (cd "$1" && claude -p "/gated-delivery:commit" --plugin-dir "$plugin" \
+  (cd "$1" && claude -p "/gated-delivery:commit" --plugin-dir "${plugin}" \
     --allowedTools "Bash(git status:*)" "Bash(git diff:*)" "Bash(git branch:*)" "Bash(git log:*)" \
     "Bash(git add:*)" "Bash(git commit:*)" "Bash(git config:*)" </dev/null >"$1.out" 2>&1)
 }
 
 last_subject() { git -C "$1" log -1 --format=%s; }
 commit_count() { git -C "$1" rev-list --count HEAD; }
-committed_since() { [ "$(commit_count "$1")" -gt "$2" ]; }
-subject_matches() { grep -qE "$2" <<<"$(last_subject "$1")"; }
-subject_lacks() { ! grep -qE "$2" <<<"$(last_subject "$1")"; }
+committed_since() { local count; count="$(commit_count "$1")"; [[ "${count}" -gt "$2" ]]; }
+subject_matches() { local subject; subject="$(last_subject "$1")"; grep -qE "$2" <<<"${subject}"; }
+subject_lacks() { local subject; subject="$(last_subject "$1")"; ! grep -qE "$2" <<<"${subject}"; }
 asks_for_ticket() { grep -qiE '(ticket|key)' "$1" && grep -q '?' "$1"; }
 
 add_acme_convention() {
@@ -62,31 +62,42 @@ EOF
 }
 
 plain="$(new_repo plain git@github.com:someone/demo.git feat/greeting)"
-before="$(commit_count "$plain")"
-run_commit "$plain"
-check "no convention: a commit is made" committed_since "$plain" "$before"
-check "no convention: plain Conventional Commits subject" subject_matches "$plain" "$CONVENTIONAL_SUBJECT"
-check "no convention: no ticket key invented" subject_lacks "$plain" "$TICKET_KEY"
+before="$(commit_count "${plain}")"
+run_commit "${plain}"
+committed_since "${plain}" "${before}"
+check "no convention: a commit is made" "$?"
+subject_matches "${plain}" "${CONVENTIONAL_SUBJECT}"
+check "no convention: plain Conventional Commits subject" "$?"
+subject_lacks "${plain}" "${TICKET_KEY}"
+check "no convention: no ticket key invented" "$?"
 
 keyed="$(new_repo keyed git@github.com:acme/demo.git feat/ACME-7-greeting)"
-add_acme_convention "$keyed"
-before="$(commit_count "$keyed")"
-run_commit "$keyed"
-check "matching convention: a commit is made" committed_since "$keyed" "$before"
-check "matching convention: subject carries the branch key" subject_matches "$keyed" '^feat\(ACME-7\): ' 
+add_acme_convention "${keyed}"
+before="$(commit_count "${keyed}")"
+run_commit "${keyed}"
+committed_since "${keyed}" "${before}"
+check "matching convention: a commit is made" "$?"
+subject_matches "${keyed}" '^feat\(ACME-7\): '
+check "matching convention: subject carries the branch key" "$?"
 
 keyless="$(new_repo keyless git@github.com:acme/demo.git feat/greeting)"
-add_acme_convention "$keyless"
-before="$(commit_count "$keyless")"
-run_commit "$keyless"
-check "matching convention, no key on branch: no commit made" test "$(commit_count "$keyless")" = "$before"
-check "matching convention, no key on branch: asks which ticket" asks_for_ticket "$keyless.out"
+add_acme_convention "${keyless}"
+before="$(commit_count "${keyless}")"
+run_commit "${keyless}"
+keyless_count="$(commit_count "${keyless}")"
+keyless_status=0
+[[ "${keyless_count}" = "${before}" ]] || keyless_status=1
+check "matching convention, no key on branch: no commit made" "${keyless_status}"
+asks_for_ticket "${keyless}.out"
+check "matching convention, no key on branch: asks which ticket" "$?"
 
 other="$(new_repo other git@github.com:someone/demo.git feat/greeting)"
-add_acme_convention "$other"
-before="$(commit_count "$other")"
-run_commit "$other"
-check "convention for another origin: a commit is made" committed_since "$other" "$before"
-check "convention for another origin: no ticket key" subject_lacks "$other" "$TICKET_KEY"
+add_acme_convention "${other}"
+before="$(commit_count "${other}")"
+run_commit "${other}"
+committed_since "${other}" "${before}"
+check "convention for another origin: a commit is made" "$?"
+subject_lacks "${other}" "${TICKET_KEY}"
+check "convention for another origin: no ticket key" "$?"
 
-exit "$failures"
+exit "${failures}"

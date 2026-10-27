@@ -14,19 +14,22 @@ REVIEW_TREE="$(physical_path "${1:?usage: review-tree.sh <review-tree> [<sha>]}"
 WRITING_TREE="$(git rev-parse --show-toplevel)"
 SHA="$(git rev-parse "${2:-HEAD}")"
 
-assert_outside_repo "$REVIEW_TREE" "$(main_checkout)"
-assert_outside_repo "$REVIEW_TREE" "$WRITING_TREE"
+MAIN_CHECKOUT="$(main_checkout)"
+assert_outside_repo "${REVIEW_TREE}" "${MAIN_CHECKOUT}"
+assert_outside_repo "${REVIEW_TREE}" "${WRITING_TREE}"
 
 # Detached, because the slice branch is checked out in the writing tree and
 # git refuses to hand the same branch to a second worktree. Re-point rather
 # than add: every STOP in step 7 leaves the tree registered.
-if is_registered_worktree "$REVIEW_TREE"; then
-  git -C "$REVIEW_TREE" checkout --detach "$SHA" >&2
+WORKTREES="$(git worktree list --porcelain)"
+if grep -qxF "worktree ${REVIEW_TREE}" <<<"${WORKTREES}"; then
+  git -C "${REVIEW_TREE}" checkout --detach "${SHA}" >&2
 else
-  git worktree add --detach "$REVIEW_TREE" "$SHA" >&2
+  git worktree add --detach "${REVIEW_TREE}" "${SHA}" >&2
 fi
 
 # The writing tree's dependencies, so a slice that installed its own is
 # graded against them.
-link_node_modules "$REVIEW_TREE" "$(deps_of "$WRITING_TREE")"
-echo "$REVIEW_TREE"
+WRITING_DEPS="$(deps_of "${WRITING_TREE}")"
+link_node_modules "${REVIEW_TREE}" "${WRITING_DEPS}"
+echo "${REVIEW_TREE}"

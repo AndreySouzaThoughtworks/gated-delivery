@@ -24,7 +24,7 @@ The core plugin never names a client. Everything client-specific comes from sect
 | `## Verification` | Verify command | The one verify command for the turn-end gate, `/slice` and the code-reviewer. Resolution: `GATED_DELIVERY_VERIFY_CMD`, else this key from the nearest CLAUDE.md in a folder above the repo and inside the home folder — never the repo's own CLAUDE.md, never an `@`-imported file, never a folder above or outside home | Gate: `pnpm lint`. `/slice` and code-reviewer: `pnpm check`, else `pnpm lint`, else `pnpm test` |
 | `## Production support` | Observability | Tool that holds production logs, and how to drive it | Ask which tool holds production logs |
 | | Log query | Log query for the service | Ask |
-| | Environment | Environment tag, and look-alikes that return nothing | Ask; never guess an environment name |
+| | Environment | Environment tag, and lookalikes that return nothing | Ask; never guess an environment name |
 | | Auth errors | Where auth and streaming 401s surface | Backend logs, then front-end monitoring where the tool has it |
 | | Retention | Log retention, and the longer-lived source past it | Check the tool's retention before querying |
 | | Runbook index | Symptom-to-runbook index | The index the repo's instructions name; else ask |

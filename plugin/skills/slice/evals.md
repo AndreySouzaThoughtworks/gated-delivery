@@ -127,7 +127,7 @@ grep -Ec "^- Closed:" output.md               # scenario 20 only
 # The outcome leads the printed handoff — expect 1: of the handoff's own headings, `## Outcome` comes
 # first. A handoff that keeps a Resume block or Carry forward above it scores 0.
 # expect: ==1 on 20
-grep -m1 -E "^## (Outcome|Resume|Carry forward)" output.md | grep -Ec "^## Outcome"   # scenario 20 only
+grep -m1 -E "^## (Outcome|Resume|Carry forward)" output.md | grep -Ec "^## Outcome"   # scenario 20 only # heading-match-intended
 # The per-slice file stays, marked folded — expect 1 on 20. A run that deletes it prints no such line.
 # expect: ==1 on 20
 grep -Ec "^Folded into handoff\.md:" output.md      # scenario 20 only

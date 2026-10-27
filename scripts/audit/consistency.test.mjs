@@ -620,3 +620,14 @@ test("rejects manifests that carry different versions", () => {
   write(dir, ".claude-plugin/marketplace.json", JSON.stringify({ metadata: { version: "1.0.0" }, plugins: [{ name: "p", source: "plugin" }] }));
   assert.equal(runGuard(dir).code, 0);
 });
+
+test("a GATED_DELIVERY_ variable the code reads must be named in the docs", () => {
+  const dir = validRepo();
+  write(dir, "plugin/hooks/h.mjs", "process.exit(Number(process.env.GATED_DELIVERY_SECRET_KNOB) || 0);\n");
+  const undocumented = runGuard(dir);
+  assert.equal(undocumented.code, 1);
+  assert.match(undocumented.out, /plugin\/hooks\/h\.mjs reads GATED_DELIVERY_SECRET_KNOB/);
+  write(dir, "docs/knobs.md", "| `GATED_DELIVERY_SECRET_KNOB` | `0` | tunes the hook |\n");
+  const documented = runGuard(dir);
+  assert.equal(documented.code, 0, documented.out);
+});

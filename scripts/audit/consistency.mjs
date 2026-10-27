@@ -532,6 +532,27 @@ if (new Set(manifestVersions.map(([, version]) => version)).size > 1) {
   errors.push(`manifest versions disagree: ${manifestVersions.map(([file, version]) => `${file} says ${version}`).join(", ")}. Hint: bump both in the same commit.`);
 }
 
+// --- 16. Every GATED_DELIVERY_ variable the code reads is documented ---
+// A knob nobody can find is not a knob: verify-on-stop and run-scenarios each read a variable that
+// no markdown named until this check existed.
+const ENV_VAR = /GATED_DELIVERY_[A-Z0-9_]+/g;
+const SOURCE_EXTENSIONS = [".mjs", ".sh"];
+const sourceFiles = [PLUGIN, join(ROOT, "scripts")]
+  .filter((dir) => existsSync(dir))
+  .flatMap((dir) =>
+    readdirSync(dir, { recursive: true })
+      .filter((name) => SOURCE_EXTENSIONS.some((extension) => name.endsWith(extension)) && !name.endsWith(".test.mjs"))
+      .map((name) => join(dir, name)),
+  );
+const documentedVars = new Set(docFiles.flatMap((file) => read(file).match(ENV_VAR) ?? []));
+for (const file of sourceFiles) {
+  for (const name of new Set(read(file).match(ENV_VAR) ?? [])) {
+    if (!documentedVars.has(name)) {
+      errors.push(`${file.slice(ROOT.length + 1)} reads ${name}, which no markdown names. Hint: add it to the knobs table in docs/onboarding.md.`);
+    }
+  }
+}
+
 // --- report ---
 console.log(
   `gated-delivery audit: ${skills.length} skills, ${agents.length} agents, ${hookFiles.size} hooks` +

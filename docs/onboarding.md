@@ -43,6 +43,8 @@ The verify gate (`verify-on-stop`) runs `GATED_DELIVERY_VERIFY_CMD` if set, else
 |----------|---------|--------|
 | `GATED_DELIVERY_VERIFY_CMD` | `pnpm lint` | Command the Stop verify-hook runs when the working tree is dirty. Point it at a different gate (e.g. `pnpm check`) to override. |
 | `GATED_DELIVERY_VERIFY_MAX_BLOCKS` | `3` | How many turns in a row the Stop hook may block before it gives up — stops a stuck loop when the gate can't go green. |
+| `GATED_DELIVERY_VERIFY_TIMEOUT_MS` | `600000` | How long the Stop hook lets the verify command run before it kills the command's whole process group and blocks with a timeout message. Zero, negative and non-numeric values fall back to the default. |
+| `GATED_DELIVERY_RUN_TIMEOUT_SECONDS` | `1200` | Wall-clock budget for one eval run in `scripts/eval/run-scenarios.mjs`; a run past it is stopped and flagged as a harness failure. |
 
 ## What runs automatically (hooks — zero setup)
 

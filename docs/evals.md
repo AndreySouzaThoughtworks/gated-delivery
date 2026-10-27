@@ -55,7 +55,7 @@ tail -1 transcript.jsonl | jq -r '.result' > output.md
 | `--output-format stream-json --verbose` | Records every tool call. The last line carries the result, cost, turn count and `permission_denials`. |
 | `< /dev/null` | Stops the session waiting on stdin. |
 
-Run under a profile that is logged in. Set a wall-clock budget per run and stop runs that pass it; a hung run is a harness failure, not a result. The runner's budget is 1200 seconds.
+Run under a profile that is logged in. Set a wall-clock budget per run and stop runs that pass it; a hung run is a harness failure, not a result. The runner's budget is 1200 seconds, set with `GATED_DELIVERY_RUN_TIMEOUT_SECONDS`.
 
 ## 3. Allow what the skill runs
 

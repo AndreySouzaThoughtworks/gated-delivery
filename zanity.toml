@@ -27,6 +27,8 @@ threshold = 0.8
 # to this file). For example, end-to-end tests are meant to start processes and read files:
 # [paths."tests/e2e/"]
 # disable = ["process-in-test", "filesystem-in-test", "network-in-test"]
+[paths."**/*.test.mjs"]
+disable = ["assertion-density", "filesystem-in-test", "process-in-test"]
 
 # The project's words for things. Names that use a banned word, or an alias of a word the
 # project settled on, are reported. Domains and contexts carry their own words; a context

@@ -8,7 +8,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -23,26 +23,29 @@ const write = (dir, relPath, body) => {
   writeFileSync(full, body);
 };
 
-const STRICT_ZANITY_CONFIG = 'exclude = ["tests/fixtures/", "evals/fixtures/"]\n[rules]\nselect = ["all"]\ndisable = [\n]\n';
+const TEST_FILES_TABLE = 'paths."**/*.test.mjs"';
+const RELAXED_TEST_RULES = '["assertion-density", "filesystem-in-test", "process-in-test"]';
+const STRICT_ZANITY_CONFIG = `exclude = ["tests/fixtures/", "evals/fixtures/"]\n[rules]\nselect = ["all"]\ndisable = [\n]\n[${TEST_FILES_TABLE}]\ndisable = ${RELAXED_TEST_RULES}\n`;
 
 /** A fixture the guard must accept: 1 skill, 1 agent, 1 hook, all documented. */
 const validRepo = () => {
   const dir = mkdtempSync(join(tmpdir(), "gated-delivery-guard-test-"));
   assert(typeof dir === "string" && dir.length > 0, `mkdtemp must yield a directory, got ${dir}`);
-  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\n---\n\n## Heading One\n");
+  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\n\n## Heading One\n");
   write(
     dir,
     "plugin/skills/alpha/evals.md",
     "| Signal | How to Measure |\n|---|---|\n| x | `grep -c foo out` |\n\n## Deterministic Checks\n\n```bash\n# expect: manual\ngrep -c foo output.md\n```\n",
   );
-  write(dir, "plugin/agents/bot.md", "---\nname: bot\n---\n");
+  write(dir, "plugin/agents/bot.md", "---\nname: bot\ndescription: x\n---\n");
   write(dir, "plugin/hooks/h.mjs", "process.exit(0);\n");
+  write(dir, "plugin/hooks/h.test.mjs", "process.exit(0);\n");
   write(dir, "plugin/hooks/hooks.json", JSON.stringify({ hooks: [{ command: "node hooks/h.mjs" }] }));
   write(dir, "plugin/.claude-plugin/plugin.json", JSON.stringify({ name: "p" }));
   write(dir, ".claude-plugin/marketplace.json", JSON.stringify({ plugins: [{ name: "p", source: "plugin" }] }));
   write(dir, "README.md", "The plugin — 1 skills, 1 agents, 1 hooks.\n");
   write(dir, "plugin/README.md", "| `/alpha` | a skill |\n| `bot` | an agent |\n");
-  write(dir, "docs/skill-graph.md", "| `/alpha` | a skill |\n| `bot` | an agent |\n");
+  write(dir, "docs/skill-graph.md", "| `/alpha` | a skill |\n| `bot` | an agent |\n| `h.mjs` | a hook |\n");
   write(dir, "zanity.toml", STRICT_ZANITY_CONFIG);
   assert(dir.startsWith(tmpdir()), `${dir} must be a throwaway under ${tmpdir()}`);
   return dir;
@@ -91,11 +94,11 @@ test("a missing SKILL.md reports rather than crashing", () => {
 
 test("reports a frontmatter name that disagrees with its directory or filename", () => {
   const dirSkill = validRepo();
-  write(dirSkill, "plugin/skills/alpha/SKILL.md", "---\nname: not-alpha\n---\n");
+  write(dirSkill, "plugin/skills/alpha/SKILL.md", "---\nname: not-alpha\ndescription: x\n---\n");
   assert.match(runGuard(dirSkill).out, /frontmatter name "not-alpha" != dir name/);
 
   const dirAgent = validRepo();
-  write(dirAgent, "plugin/agents/bot.md", "---\nname: not-bot\n---\n");
+  write(dirAgent, "plugin/agents/bot.md", "---\nname: not-bot\ndescription: x\n---\n");
   assert.match(runGuard(dirAgent).out, /frontmatter name "not-bot" != filename/);
 });
 
@@ -158,7 +161,7 @@ test("reports a doc that references a skill or agent which does not exist", () =
   // The absence side of the check above. A reference SURVIVING a deletion used to be invisible:
   // presence was enforced, absence was not.
   const dir = validRepo();
-  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\n---\n\n## Heading One\n\nSee `/removed-skill` and Agent(gone).\n");
+  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\n\n## Heading One\n\nSee `/removed-skill` and Agent(gone).\n");
   const { code, out } = runGuard(dir);
   assert.equal(code, 1, out);
   assert.match(out, /references "removed-skill", which is not a skill or agent in this repo/);
@@ -170,7 +173,7 @@ test("the typed agent form and a bare gated-delivery: prefix are both scanned", 
   // `gated-delivery:x` appears bare in prod-support and the README. Neither was matched at first, so a
   // stale reference in either form was reported as clean.
   const dir = validRepo();
-  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\n---\n\n## Heading One\n\nAgent(subagent_type: gone-agent) and `gated-delivery:gone-skill`.\n");
+  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\n\n## Heading One\n\nAgent(subagent_type: gone-agent) and `gated-delivery:gone-skill`.\n");
   const { code, out } = runGuard(dir);
   assert.equal(code, 1, out);
   assert.match(out, /references "gone-agent"/);
@@ -179,7 +182,7 @@ test("the typed agent form and a bare gated-delivery: prefix are both scanned", 
 
 test("the typed agent form resolves a name that does exist", () => {
   const dir = validRepo();
-  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\n---\n\n## Heading One\n\nAgent(subagent_type: bot) and `gated-delivery:alpha`, plus Agent(subagent_type: other-plugin:thing).\n");
+  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\n\n## Heading One\n\nAgent(subagent_type: bot) and `gated-delivery:alpha`, plus Agent(subagent_type: other-plugin:thing).\n");
   const { code, out } = runGuard(dir);
   assert.equal(code, 0, out);
   assert.doesNotMatch(out, /ERROR/);
@@ -189,7 +192,7 @@ test("another plugin's namespaced skill is not treated as a dangling reference",
   // `stack-plugin:architecture-recipe` and friends live outside this repo, so the
   // guard cannot resolve them and must not pretend to.
   const dir = validRepo();
-  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\n---\n\n## Heading One\n\nSkill(stack-plugin:architecture-recipe) and Agent(security-plugin:threat-modeler).\n");
+  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\n\n## Heading One\n\nSkill(stack-plugin:architecture-recipe) and Agent(security-plugin:threat-modeler).\n");
   const { code, out } = runGuard(dir);
   assert.equal(code, 0, out);
   assert.doesNotMatch(out, /ERROR/);
@@ -199,7 +202,7 @@ test("built-ins and notation placeholders are not dangling references", () => {
   // `/compact` is Claude Code's, and `Skill(name)` is how skill-graph.md explains the notation.
   // Both would otherwise fail a check that assumes every slash-name is a local skill.
   const dir = validRepo();
-  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\n---\n\n## Heading One\n\nRun `/compact`, invoke `Skill(name)`, see `/skill-name`.\n");
+  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\n\n## Heading One\n\nRun `/compact`, invoke `Skill(name)`, see `/skill-name`.\n");
   const { code, out } = runGuard(dir);
   assert.equal(code, 0, out);
   assert.doesNotMatch(out, /ERROR/);
@@ -207,7 +210,7 @@ test("built-ins and notation placeholders are not dangling references", () => {
 
 test("an explicit gated-delivery: prefix resolves against the local inventory", () => {
   const dir = validRepo();
-  write(dir, "plugin/skills/alpha/SKILL.md", '---\nname: alpha\n---\n\n## Heading One\n\nSkill("gated-delivery:alpha") is here, Skill("gated-delivery:absent") is not.\n');
+  write(dir, "plugin/skills/alpha/SKILL.md", '---\nname: alpha\ndescription: x\n---\n\n## Heading One\n\nSkill("gated-delivery:alpha") is here, Skill("gated-delivery:absent") is not.\n');
   const { code, out } = runGuard(dir);
   assert.equal(code, 1, out);
   assert.match(out, /references "absent"/);
@@ -325,7 +328,8 @@ const withReference = (dir) => {
   assert(typeof dir === "string", `a fixture is a directory path, got ${typeof dir}`);
   write(dir, "plugin/references/reference-graph.md", "| [`thing.md`](./thing.md) | a technology | when it matters |\n");
   write(dir, "plugin/references/thing.md", "# Thing\n");
-  write(dir, "docs/skill-graph.md", "| `/alpha` | a skill |\n| `bot` | an agent |\n| `reference-graph.md` | the references |\n");
+  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\n\n## Heading One\n\nRead `../../references/thing.md`.\n");
+  write(dir, "docs/skill-graph.md", "| `/alpha` | a skill |\n| `bot` | an agent |\n| `h.mjs` | a hook |\n| `reference-graph.md` | the references |\n");
   assert(typeof dir === "string", `the fixture must come back as its path, got ${typeof dir}`);
   return dir;
 };
@@ -392,7 +396,7 @@ test("a path to another document is not read as a reference beside the index", (
 
 test("deleting the references directory is reported while a doc still points at the index", () => {
   const dir = withReference(validRepo());
-  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\n---\n\nIndexed in reference-graph.md.\n");
+  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\n\nIndexed in reference-graph.md.\n");
   rmSync(join(dir, "plugin/references"), { recursive: true });
   const { code, out } = runGuard(dir);
   assert.equal(code, 1);
@@ -401,7 +405,7 @@ test("deleting the references directory is reported while a doc still points at 
 
 test("a relative path from a skill that does not resolve is reported", () => {
   const dir = validRepo();
-  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\n---\n\nFill `../../templates/gone.md`.\n");
+  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\n\nFill `../../templates/gone.md`.\n");
   const { code, out } = runGuard(dir);
   assert.equal(code, 1);
   assert.match(out, /points at "\.\.\/\.\.\/templates\/gone\.md", which does not resolve/);
@@ -410,7 +414,7 @@ test("a relative path from a skill that does not resolve is reported", () => {
 test("a relative path from a skill that resolves stays silent", () => {
   const dir = validRepo();
   write(dir, "plugin/templates/story.md", "# Story\n");
-  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\n---\n\nFill `../../templates/story.md`.\n");
+  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\n\nFill `../../templates/story.md`.\n");
   const { code, out } = runGuard(dir);
   assert.equal(code, 0);
   assert.doesNotMatch(out, /ERROR/);
@@ -419,7 +423,7 @@ test("a relative path from a skill that resolves stays silent", () => {
 test("a command is a local name, invoked with or without the plugin prefix", () => {
   const dir = validRepo();
   write(dir, "plugin/commands/ship.md", "---\ndescription: ship it\n---\n");
-  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\n---\n\n## Heading One\n\nRun `/ship`, or `/gated-delivery:ship`.\n");
+  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\n\n## Heading One\n\nRun `/ship`, or `/gated-delivery:ship`.\n");
   const { code, out } = runGuard(dir);
   assert.equal(code, 0, out);
   assert.match(out, /1 commands/);
@@ -427,7 +431,7 @@ test("a command is a local name, invoked with or without the plugin prefix", () 
 
 test("a prefixed command that does not exist is reported", () => {
   const dir = validRepo();
-  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\n---\n\n## Heading One\n\nRun `/gated-delivery:gone`.\n");
+  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\n\n## Heading One\n\nRun `/gated-delivery:gone`.\n");
   const { code, out } = runGuard(dir);
   assert.equal(code, 1, out);
   assert.match(out, /references "gone"/);
@@ -443,7 +447,7 @@ test("a command without a frontmatter description is reported", () => {
 
 test("built-in review commands are not dangling references", () => {
   const dir = validRepo();
-  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\n---\n\n## Heading One\n\nFall back to `/security-review` and `/code-review`.\n");
+  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\n\n## Heading One\n\nFall back to `/security-review` and `/code-review`.\n");
   const { code, out } = runGuard(dir);
   assert.equal(code, 0, out);
 });
@@ -490,33 +494,46 @@ test("a manifest description naming only real skills, commands and paths stays s
 
 test("warns when a skill or agent file uses a phrase banned by the writing rules", () => {
   const skill = validRepo();
-  write(skill, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\n---\n\n## Heading One\n\nThis step earns its place.\n");
+  write(skill, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\n\n## Heading One\n\nThis step earns its place.\n");
   const skillRun = runGuard(skill);
   assert.equal(skillRun.code, 0, "style drift is a WARN, never an ERROR");
-  assert.match(skillRun.out, /WARN.*plugin\/skills\/alpha\/SKILL\.md:7 uses banned phrase "earns its place"/);
+  assert.match(skillRun.out, /WARN.*plugin\/skills\/alpha\/SKILL\.md:8 uses banned phrase "earns its place"/);
 
   const agent = validRepo();
-  write(agent, "plugin/agents/bot.md", "---\nname: bot\n---\n\nThe Load-Bearing check.\n");
-  assert.match(runGuard(agent).out, /WARN.*plugin\/agents\/bot\.md:5 uses banned phrase "load-bearing"/);
+  write(agent, "plugin/agents/bot.md", "---\nname: bot\ndescription: x\n---\n\nThe Load-Bearing check.\n");
+  assert.match(runGuard(agent).out, /WARN.*plugin\/agents\/bot\.md:6 uses banned phrase "load-bearing"/);
 });
 
 test("the prose-writing skill may name the phrases it bans", () => {
   const dir = validRepo();
-  write(dir, "plugin/skills/prose-writing/SKILL.md", "---\nname: prose-writing\n---\n\ngrep 'earns its place|load-bearing'\n");
+  write(dir, "plugin/skills/prose-writing/SKILL.md", "---\nname: prose-writing\ndescription: x\n---\n\ngrep 'earns its place|load-bearing'\n");
   write(dir, "plugin/skills/prose-writing/evals.md", "## Deterministic Checks\n\n```bash\ngrep -c foo output.md\n```\n");
   write(dir, "plugin/skills/prose-writing/writing.md", "- the phrases \"earns its place\" and \"load-bearing\"\n");
   write(dir, "README.md", "The plugin — 2 skills, 1 agents, 1 hooks.\n");
-  write(dir, "docs/skill-graph.md", "| `/alpha` | a skill |\n| `/prose-writing` | prose |\n| `bot` | an agent |\n");
+  write(dir, "docs/skill-graph.md", "| `/alpha` | a skill |\n| `/prose-writing` | prose |\n| `bot` | an agent |\n| `h.mjs` | a hook |\n");
   const { code, out } = runGuard(dir);
   assert.equal(code, 0, out);
   assert.doesNotMatch(out, /banned phrase/);
+});
+
+test("zanity config with the one allowed test-file table passes the guard", () => {
+  const { code, out } = runGuard(validRepo());
+  assert.equal(code, 0, out);
+  assert.doesNotMatch(out, /zanity/);
 });
 
 test("zanity is a required check and its config cannot be loosened", () => {
   const loosened = {
     "a missing config": null,
     "a narrowed select": STRICT_ZANITY_CONFIG.replace('["all"]', '["correctness"]'),
-    "a disabled rule": STRICT_ZANITY_CONFIG.replace("disable = [\n]", 'disable = ["assertion-density"]'),
+    "a disable under [rules]": STRICT_ZANITY_CONFIG.replace("disable = [\n]", 'disable = ["assertion-density"]'),
+    "a disable at the top level": `disable = ["assertion-density"]\n${STRICT_ZANITY_CONFIG}`,
+    "an extra rule in the test-file table": STRICT_ZANITY_CONFIG.replace(RELAXED_TEST_RULES, `${RELAXED_TEST_RULES.slice(0, -1)}, "hollow-test"]`),
+    "a rule missing from the test-file table": STRICT_ZANITY_CONFIG.replace(RELAXED_TEST_RULES, '["assertion-density", "filesystem-in-test"]'),
+    "the table on a non-test glob": STRICT_ZANITY_CONFIG.replace("**/*.test.mjs", "**/*.mjs"),
+    "a second paths table": `${STRICT_ZANITY_CONFIG}[paths."tests/e2e/"]\ndisable = ["process-in-test"]\n`,
+    "a dotted paths key at the top level": `paths."plugin/".disable = ["assertion-density"]\n${STRICT_ZANITY_CONFIG}`,
+    "a single-quoted rule the guard cannot read": STRICT_ZANITY_CONFIG.replace("disable = [\n]", "disable = ['assertion-density']"),
     "an extra excluded path": STRICT_ZANITY_CONFIG.replace('"evals/fixtures/"', '"evals/fixtures/", "plugin/"'),
   };
   for (const [label, config] of Object.entries(loosened)) {
@@ -524,7 +541,82 @@ test("zanity is a required check and its config cannot be loosened", () => {
     if (config === null) rmSync(join(dir, "zanity.toml"));
     else write(dir, "zanity.toml", config);
     const { code, out } = runGuard(dir);
-    assert.equal(code, 1, `expected failure for ${label}`);
+    assert.notEqual(code, 0, `expected failure for ${label}, got ${out}`);
     assert.match(out, /zanity\.toml/, `the error for ${label} must name the config`);
   }
+});
+
+const mustReject = (dir, pattern) => {
+  const { code, out } = runGuard(dir);
+  assert.equal(code, 1, `expected the guard to fail, got ${out}`);
+  assert.match(out, pattern);
+};
+
+test("rejects a skill or agent with a blank description", () => {
+  const skill = validRepo();
+  write(skill, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription:\n---\n");
+  mustReject(skill, /skill "alpha" has no frontmatter description\. Hint:/);
+
+  const agent = validRepo();
+  write(agent, "plugin/agents/bot.md", "---\nname: bot\ndescription:   \n---\n");
+  mustReject(agent, /agent "bot" has no frontmatter description\. Hint:/);
+
+  const described = validRepo();
+  write(described, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: Does a thing.\n---\n");
+  assert.equal(runGuard(described).code, 0);
+});
+
+test("rejects a repeated scenario id", () => {
+  const dir = validRepo();
+  const rows = "| # | Prompt |\n|---|---|\n| 1 | a |\n| 3 | b |\n| 3 | c |\n";
+  write(dir, "plugin/skills/alpha/evals.md", `## Test Scenarios\n\n${rows}\n## Deterministic Checks\n\n\`\`\`bash\n# expect: manual\ngrep -c foo output.md\n\`\`\`\n`);
+  mustReject(dir, /alpha\/evals\.md repeats scenario id 3\. Hint:/);
+});
+
+test("rejects a script path that does not resolve, and a skill script that is not executable", () => {
+  const dangling = validRepo();
+  write(dangling, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\nRun `scripts/gone.sh`.\n");
+  mustReject(dangling, /names scripts\/gone\.sh, which exists under no skill/);
+
+  const flat = validRepo();
+  write(flat, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\nRun `scripts/run.sh`.\n");
+  write(flat, "plugin/skills/alpha/scripts/run.sh", "#!/bin/sh\n");
+  chmodSync(join(flat, "plugin/skills/alpha/scripts/run.sh"), 0o644);
+  mustReject(flat, /plugin\/skills\/alpha\/scripts\/run\.sh, which is not executable/);
+
+  chmodSync(join(flat, "plugin/skills/alpha/scripts/run.sh"), 0o755);
+  assert.equal(runGuard(flat).code, 0);
+});
+
+test("rejects a reference that nothing reads", () => {
+  const dir = validRepo();
+  write(dir, "plugin/references/reference-graph.md", "| `lonely.md` | a reference |\n");
+  write(dir, "plugin/references/lonely.md", "text\n");
+  write(dir, "docs/skill-graph.md", "| `/alpha` | a skill |\n| `bot` | an agent |\n| `h.mjs` | a hook |\n`reference-graph.md`\n");
+  mustReject(dir, /reference "lonely\.md" is read by no skill, agent or command\. Hint:/);
+
+  write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\nRead `../../references/lonely.md`.\n");
+  assert.equal(runGuard(dir).code, 0);
+});
+
+test("rejects a hook with no colocated test", () => {
+  const dir = validRepo();
+  rmSync(join(dir, "plugin/hooks/h.test.mjs"));
+  mustReject(dir, /hook "h\.mjs" has no colocated h\.test\.mjs\. Hint:/);
+});
+
+test("rejects a hook missing from the skill graph", () => {
+  const dir = validRepo();
+  write(dir, "docs/skill-graph.md", "| `/alpha` | a skill |\n| `bot` | an agent |\n");
+  mustReject(dir, /hook "h\.mjs" is not documented in docs\/skill-graph\.md\. Hint:/);
+});
+
+test("rejects manifests that carry different versions", () => {
+  const dir = validRepo();
+  write(dir, "plugin/.claude-plugin/plugin.json", JSON.stringify({ name: "p", version: "1.0.0" }));
+  write(dir, ".claude-plugin/marketplace.json", JSON.stringify({ metadata: { version: "1.0.1" }, plugins: [{ name: "p", source: "plugin" }] }));
+  mustReject(dir, /manifest versions disagree: .*plugin\.json says 1\.0\.0, .*marketplace\.json says 1\.0\.1\. Hint:/);
+
+  write(dir, ".claude-plugin/marketplace.json", JSON.stringify({ metadata: { version: "1.0.0" }, plugins: [{ name: "p", source: "plugin" }] }));
+  assert.equal(runGuard(dir).code, 0);
 });

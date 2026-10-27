@@ -11,33 +11,34 @@ import { parseChecks } from "../eval/run-checks.mjs";
 
 const ROOT = process.cwd();
 const PLUGIN = join(ROOT, "plugin");
+const NOT_UTF8 = "\uFFFD";
 const errors = [];
 const warnings = [];
 
 const read = (p) => {
   const inside = resolve(p);
-  assert(inside.startsWith(ROOT + sep), `${p} lies outside the repo root ${ROOT}`);
+  assert(inside.startsWith(ROOT + sep), `${p} must resolve inside ${ROOT}, got ${inside}; read only repo files`);
   const body = readFileSync(inside, "utf8");
-  assert(typeof body === "string", `${p} did not read as text`);
+  assert(!body.includes(NOT_UTF8), `${inside} must be valid UTF-8, got a replacement character; re-save it as UTF-8`);
   return body;
 };
 const dirs = (p) => {
-  assert(existsSync(p), `${p} must exist to list its subdirectories`);
+  assert(existsSync(p), `${p} must exist before its folders are listed; create it or fix the path`);
   const names = readdirSync(p).filter((d) => statSync(join(p, d)).isDirectory());
-  assert(Array.isArray(names), `${p} must list as an array`);
+  assert(names.length > 0, `${p} must hold at least one folder, got none; restore the folders it lists`);
   return names;
 };
 
 function frontmatterName(file) {
   // Callers reach here for files they have already reported as missing; reading one threw ENOENT and
   // killed the process before the report block could print the error it had just recorded.
-  assert(typeof file === "string", "frontmatterName needs a file path");
+  assert(file.endsWith(".md"), `${file} must be a markdown file to carry frontmatter; pass a SKILL.md or agent file`);
   if (!existsSync(file)) return null;
   const block = read(file).match(/^---\n([\s\S]*?)\n---/);
   if (!block) return null;
   const line = block[1].match(/^name:\s*(.+)$/m);
   const name = line ? line[1].trim() : null;
-  assert(name === null || typeof name === "string", `${file} yielded a non-string frontmatter name`);
+  assert(name === null || name.length > 0, `${file} declares a blank name; give it a frontmatter name`);
   return name;
 }
 
@@ -141,22 +142,16 @@ const NOT_LOCAL_NAMES = new Set([
   "name", "skill-name",
 ]);
 const markdownFiles = (dir) => {
-  assert(typeof dir === "string", "markdownFiles needs a directory path");
+  assert(dir.startsWith(ROOT + sep), `${dir} must sit inside ${ROOT}; list only repo folders`);
   const found = readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
     e.isDirectory() ? markdownFiles(join(dir, e.name)) : e.name.endsWith(".md") ? [join(dir, e.name)] : [],
   );
-  assert(found.every((file) => file.endsWith(".md")), `${dir} yielded a non-markdown file`);
+  assert(found.every((file) => file.startsWith(dir + sep)), `every markdown file must sit under ${dir}, got ${found.find((file) => !file.startsWith(dir + sep))}; fix the walk`);
   return found;
 };
 const localNames = new Set([...skills, ...agents, ...commands]);
-const LOCAL_PREFIX = "gated-delivery:";
-const isDangling = (raw) => {
-  assert(typeof raw === "string", "isDangling needs a referenced name");
-  const name = raw.startsWith(LOCAL_PREFIX) ? raw.slice(LOCAL_PREFIX.length) : raw;
-  const dangling = !name.includes(":") && !NOT_LOCAL_NAMES.has(name) && !localNames.has(name);
-  assert(!dangling || !localNames.has(name), `${name} is both dangling and a local name`);
-  return dangling;
-};
+const LOCAL_PREFIX_PATTERN = /^gated-delivery:/;
+const RESOLVABLE_NAMES = new Set([...NOT_LOCAL_NAMES, ...localNames]);
 const docFiles = [
   ...markdownFiles(PLUGIN),
   ...markdownFiles(join(ROOT, "docs")),
@@ -174,7 +169,7 @@ for (const file of docFiles) {
     ...body.matchAll(/`\/?gated-delivery:([\w-]+)`/g),
   ].map((m) => m[1]);
   const unresolved = new Set(
-    referenced.filter(isDangling).map((raw) => (raw.startsWith(LOCAL_PREFIX) ? raw.slice(LOCAL_PREFIX.length) : raw)),
+    referenced.map((raw) => raw.replace(LOCAL_PREFIX_PATTERN, "")).filter((name) => !name.includes(":") && !RESOLVABLE_NAMES.has(name)),
   );
   for (const name of unresolved) {
     errors.push(`${file.slice(ROOT.length + 1)} references "${name}", which is not a skill or agent in this repo`);
@@ -193,7 +188,8 @@ const manifestDescriptions = [
 for (const [manifest, descriptions] of manifestDescriptions) {
   for (const description of descriptions.filter(Boolean)) {
     for (const [, raw] of description.matchAll(/(?<![\w./])\/([a-z][\w:-]*)/g)) {
-      if (isDangling(raw)) errors.push(`${manifest} description names "/${raw}", which is not a skill or command in this repo`);
+      const name = raw.replace(LOCAL_PREFIX_PATTERN, "");
+      if (!name.includes(":") && !RESOLVABLE_NAMES.has(name)) errors.push(`${manifest} description names "/${raw}", which is not a skill or command in this repo`);
     }
   }
 }
@@ -377,40 +373,164 @@ for (const skill of skills) {
 
 // --- 8. zanity stays at its strictest: the rules about the rules ---
 // A red zanity run is fixed in code. Narrowing `select`, adding a `disable`, or excluding a path
-// is the escape hatch an agent reaches for, so the guard fails on each one.
+// is the escape hatch an agent reaches for, so the guard fails on each one. The single exception is
+// the test-file table: tests state intent with node:assert, spawn processes and use temp folders.
 const ZANITY_CONFIG = "zanity.toml";
 const ZANITY_ALLOWED_EXCLUDES = ["tests/fixtures/", "evals/fixtures/"];
+const ZANITY_TEST_FILES_TABLE = 'paths."**/*.test.mjs"';
+const ZANITY_TEST_FILES_RELAXED_RULES = ["assertion-density", "filesystem-in-test", "process-in-test"];
 const QUOTED_ITEM = /"([^"]*)"/g;
+const LIST_FILLER = /[\s,]/g;
+const TOML_TABLE_HEADER = /^\[([^\]]+)\]\s*$/m;
+const DISABLE_LIST = /^\s*disable\s*=\s*\[([^\]]*)\]/gm;
+const PATHS_KEY = /^\s*paths\b/m;
+const BYTE_ORDER_MARK = "\uFEFF";
 
 const quotedItems = (list) => {
-  assert(typeof list === "string", `a TOML list body is text, got ${typeof list}`);
+  assert(list.replace(QUOTED_ITEM, "").replace(LIST_FILLER, "") === "", `${ZANITY_CONFIG} lists must hold only double-quoted strings, got ${list.trim()}; quote each item with double quotes`);
   const items = [...list.matchAll(QUOTED_ITEM)].map((match) => match[1]);
-  assert(items.every((item) => typeof item === "string"), `every quoted item is text, got ${items.map((item) => typeof item)}`);
+  assert(items.every((item) => item.length > 0), `${ZANITY_CONFIG} lists must not hold blank items, got ${JSON.stringify(items)}; remove the empty string`);
   return items;
 };
 
+const zanityTableProblem = (header, body) => {
+  assert(header === header.trim() && !TOML_TABLE_HEADER.test(body), `a table body must be the text between two headers, got header ${JSON.stringify(header)}; split the config on its table headers`);
+  const scopesPaths = header === "paths" || header.startsWith("paths.");
+  const expected = header === ZANITY_TEST_FILES_TABLE ? ZANITY_TEST_FILES_RELAXED_RULES : [];
+  const disabled = [...body.matchAll(DISABLE_LIST)].flatMap(([, list]) => quotedItems(list));
+  let problem;
+  if (scopesPaths && !expected.length) {
+    problem = `${ZANITY_CONFIG} scopes rules off in [${header}]. Hint: only [${ZANITY_TEST_FILES_TABLE}] may do that, so fix the findings in code instead.`;
+  } else if (!scopesPaths && PATHS_KEY.test(body)) {
+    problem = `${ZANITY_CONFIG} sets a paths key outside a [paths...] table. Hint: only [${ZANITY_TEST_FILES_TABLE}] may scope rules off, written as its own table.`;
+  } else if (disabled.length !== expected.length || !expected.every((rule) => disabled.includes(rule))) {
+    problem = `${ZANITY_CONFIG} disables ${disabled.join(", ") || "nothing"} under [${header || "top level"}]. Hint: only [${ZANITY_TEST_FILES_TABLE}] may disable, and exactly ${ZANITY_TEST_FILES_RELAXED_RULES.join(", ")}; fix the findings in code instead.`;
+  }
+  assert(problem === undefined || problem.includes("Hint:"), `a table problem must carry a hint, got ${problem}; fix the message`);
+  return problem;
+};
+
 function zanityConfigErrors(text) {
-  assert(typeof text === "string", `${ZANITY_CONFIG} must be read as text, got ${typeof text}`);
+  assert(!text.startsWith(BYTE_ORDER_MARK), `${ZANITY_CONFIG} must not start with a byte order mark, which hides its first line from the guard; re-save it without one`);
   const config = text.replace(/#.*$/gm, "");
   const found = [];
   if (!/^select\s*=\s*\["all"\]/m.test(config)) {
     found.push(`${ZANITY_CONFIG} must keep select = ["all"] under [rules]. Hint: restore it and fix the findings in code.`);
   }
-  for (const [, list] of config.matchAll(/^\s*disable\s*=\s*\[([^\]]*)\]/gm)) {
-    const rules = quotedItems(list);
-    if (rules.length) found.push(`${ZANITY_CONFIG} disables ${rules.join(", ")}. Hint: fix the findings in code instead of turning the rule off.`);
-  }
+  const [topLevel, ...headersAndBodies] = config.split(TOML_TABLE_HEADER);
+  const tables = [{ header: "", body: topLevel }];
+  for (let i = 0; i < headersAndBodies.length; i += 2) tables.push({ header: headersAndBodies[i].trim(), body: headersAndBodies[i + 1] });
+  found.push(...tables.map(({ header, body }) => zanityTableProblem(header, body)).filter(Boolean));
   const excluded = quotedItems(config.match(/^exclude\s*=\s*\[([^\]]*)\]/m)?.[1] ?? "");
   for (const path of excluded.filter((p) => !ZANITY_ALLOWED_EXCLUDES.includes(p))) {
     found.push(`${ZANITY_CONFIG} excludes ${path}, which hides it from every check. Hint: only ${ZANITY_ALLOWED_EXCLUDES.join(", ")} may be excluded.`);
   }
-  assert(Array.isArray(found), `the config problems must collect as an array, got ${typeof found}`);
+  assert(found.every((message) => message.startsWith(ZANITY_CONFIG) && message.includes("Hint:")), `every config problem must name ${ZANITY_CONFIG} and carry a hint, got ${JSON.stringify(found)}; fix the message`);
   return found;
 }
 
 const zanityConfigPath = join(ROOT, ZANITY_CONFIG);
 if (existsSync(zanityConfigPath)) errors.push(...zanityConfigErrors(read(zanityConfigPath)));
 else errors.push(`${ZANITY_CONFIG} is missing. Hint: zanity is a required check, so the repo must configure it.`);
+
+// --- 9. Skills and agents state what they are for: a non-empty frontmatter description ---
+// The description is the only text a model sees before it decides to load a skill or call an agent,
+// so a blank one hides the asset. Commands got this check in 2a; skills and agents never did.
+const DESCRIPTION_LINE = /^description:[ \t]*\S/m;
+const FRONTMATTER_BLOCK = /^---\n([\s\S]*?)\n---/;
+const describedAssets = [
+  ...skills.map((skill) => ({ label: `skill "${skill}"`, file: join(skillsDir, skill, "SKILL.md") })),
+  ...agents.map((agent) => ({ label: `agent "${agent}"`, file: join(agentsDir, `${agent}.md`) })),
+];
+for (const { label, file } of describedAssets.filter(({ file }) => existsSync(file))) {
+  const block = read(file).match(FRONTMATTER_BLOCK);
+  if (!block || !DESCRIPTION_LINE.test(block[1])) {
+    errors.push(`${label} has no frontmatter description. Hint: add a "description:" line saying what it does and when to use it.`);
+  }
+}
+
+// --- 10. Scenario ids in an evals.md are unique ---
+// run-scenarios.mjs and `# expect: ... on <id>` address a scenario by its id; scenarioIds() returns a
+// Set, so a repeated id collapses silently and one scenario is never run or graded.
+const SCENARIOS_HEADING = "## Test Scenarios";
+const SCENARIO_ROW_ID = /^\|\s*(\d+)\s*\|/;
+for (const skill of skills) {
+  const evalsPath = join(skillsDir, skill, "evals.md");
+  if (!existsSync(evalsPath)) continue;
+  const seen = new Set();
+  let inScenarios = false;
+  for (const line of read(evalsPath).split("\n")) {
+    if (line.startsWith("## ")) inScenarios = line.startsWith(SCENARIOS_HEADING);
+    const id = inScenarios ? line.match(SCENARIO_ROW_ID)?.[1] : undefined;
+    if (id && seen.has(id)) errors.push(`${skill}/evals.md repeats scenario id ${id}. Hint: ids stay stable, so give the newer row the next unused number.`);
+    if (id) seen.add(id);
+  }
+}
+
+// --- 11. A script path in the docs resolves, and a skill script it names is executable ---
+// Skills call their scripts as "<skill base directory>/scripts/x.sh", which needs the exec bit, and
+// docs name them by the same path. A renamed script left the prose pointing at nothing, and a lost
+// mode bit fails only when an agent runs it.
+const SCRIPT_REFERENCE = /\bscripts\/([\w-]+\.(?:sh|mjs))/g;
+const EXECUTE_BITS = 0o111;
+const skillScripts = new Map(
+  skills.flatMap((skill) => {
+    const scriptsDir = join(skillsDir, skill, "scripts");
+    return existsSync(scriptsDir) ? readdirSync(scriptsDir).map((name) => [name, join(scriptsDir, name)]) : [];
+  }),
+);
+const repoScriptsDir = join(ROOT, "scripts");
+for (const file of docFiles) {
+  const shown = file.slice(ROOT.length + 1);
+  for (const name of new Set([...read(file).matchAll(SCRIPT_REFERENCE)].map((m) => m[1]))) {
+    const skillScript = skillScripts.get(name);
+    if (!skillScript && !existsSync(join(repoScriptsDir, name))) {
+      errors.push(`${shown} names scripts/${name}, which exists under no skill and not in scripts/. Hint: fix the path or restore the script.`);
+    } else if (skillScript && !(statSync(skillScript).mode & EXECUTE_BITS)) {
+      errors.push(`${shown} names ${skillScript.slice(ROOT.length + 1)}, which is not executable. Hint: chmod +x it and commit the mode.`);
+    }
+  }
+}
+
+// --- 12. Every reference is read by a skill, agent or command ---
+// The index lists a reference, but a row proves nothing reads it: a reference nothing points at is
+// dead weight a model never loads. The index itself is the entry point and is exempt.
+const readers = [
+  ...skills.flatMap((skill) => markdownFiles(join(skillsDir, skill))),
+  ...agents.map((agent) => join(agentsDir, `${agent}.md`)),
+  ...commands.map((command) => join(commandsDir, `${command}.md`)),
+].filter((file) => existsSync(file));
+const readerText = readers.map((file) => read(file)).join("\n");
+for (const file of referenceFiles) {
+  if (!readerText.includes(file)) errors.push(`reference "${file}" is read by no skill, agent or command. Hint: link it from the skill that needs it, or delete it.`);
+}
+
+// --- 13. Every hook has a colocated behaviour test ---
+// README tells contributors `node --test plugin/hooks/*.test.mjs` covers hook behaviour; a hook with
+// no test file is outside that run, so its failure mode is only ever found in a client's session.
+for (const hook of hookFiles) {
+  if (!existsSync(join(hooksDir, hook.replace(/\.mjs$/, ".test.mjs")))) {
+    errors.push(`hook "${hook}" has no colocated ${hook.replace(/\.mjs$/, ".test.mjs")}. Hint: add a test that runs the hook and asserts its decision.`);
+  }
+}
+
+// --- 14. Every hook is documented in the canonical inventory ---
+// Section 6 covers skills and agents. A hook whose file name is absent from docs/skill-graph.md ships
+// behaviour that no doc tells a user about.
+for (const hook of hookFiles) {
+  if (!skillGraph.includes(hook)) errors.push(`hook "${hook}" is not documented in docs/skill-graph.md. Hint: add a row naming it and what it does.`);
+}
+
+// --- 15. The two manifests carry one version ---
+// plugin.json and marketplace.json each state a version; a release that bumps one leaves installs
+// resolving different versions depending on the path they came through.
+const manifestVersions = [
+  ["plugin/.claude-plugin/plugin.json", existsSync(pluginManifest) ? JSON.parse(read(pluginManifest)).version : undefined],
+  [".claude-plugin/marketplace.json", marketplace.metadata?.version],
+].filter(([, version]) => version !== undefined);
+if (new Set(manifestVersions.map(([, version]) => version)).size > 1) {
+  errors.push(`manifest versions disagree: ${manifestVersions.map(([file, version]) => `${file} says ${version}`).join(", ")}. Hint: bump both in the same commit.`);
+}
 
 // --- report ---
 console.log(

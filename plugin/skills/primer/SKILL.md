@@ -52,7 +52,7 @@ Ask whether the primer is personal or for the team (see **Output location**).
 Also settle two things that silently distort research if guessed:
 
 - **Reader's relationship to subject** — building it, testing it, reviewing someone else's, ramping up? Changes which framings true (see "Frame from what you know" above). Ask when not obvious and would change section framing.
-- **Source surface** — which repos / docs spaces / tracker projects authoritative and in-scope, which to ignore. "Present on this machine" ≠ "in scope." Unsure whether repo or space belongs? Ask, don't sweep it in — swept-in irrelevant source is where dangling, mis-owned material comes from.
+- **Source surface** — which repos / docs spaces / tracker projects authoritative and in-scope, which to ignore. "Present on this machine" ≠ "in scope." Unsure whether repo or space belongs? Ask, don't sweep it in — swept-in irrelevant source is where dangling, wrongly owned material comes from.
 
 ### 2. Research with citations
 
@@ -63,7 +63,7 @@ Fan out across sources that fit topic; no over-fetch. Typical sources:
   (`docs/CONTEXT.md`), a canonical entity model (`docs/internals/domain.md`), and specs
   (`docs/specs/*`). Do not assume those paths where the repo names others. Rest of
   this flow maintains those deliberately, so curated and in-scope by construction — opposite
-  of broad sweep, which is where mis-owned and dangling material comes from. Start here,
+  of broad sweep, which is where wrongly owned and dangling material comes from. Start here,
   widen only for what they can't answer.
 - **Knowledge base** — PRDs, specs, decks and meeting notes, through the knowledge-base search the client context names.
 - **Tracker** — epics, status and ownership (reporter, assignee), through the tracker search the `## Issue tracking` Mechanics name. Roles and status read off the tracker are **Inferred**, not a verified org chart; label them so. Ownership is **Verified** only when a document names the owner (an org chart, a service catalog, a README `Owner:` line). A `CODEOWNERS` entry shows who must review, not who owns, so state it as one line under one label, such as "`CODEOWNERS` lists `@team` as reviewer; ownership **Inferred** (`CODEOWNERS:1`)": the citation stays, the label is never Verified.

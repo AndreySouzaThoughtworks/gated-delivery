@@ -1,0 +1,5 @@
+# Link checking for README.md, docs and plugin markdown. See the links job in .github/workflows/docs.yml.
+
+max_retries = 3
+timeout = 20
+include_fragments = "full"

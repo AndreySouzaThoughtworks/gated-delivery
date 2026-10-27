@@ -16,7 +16,7 @@ below hold only what a template cannot say about itself.
 
 ## Pick the work kind first
 
-A mis-routed ticket still comes out well-formed, so nothing downstream catches it — a Story skeleton
+A misrouted ticket still comes out well-formed, so nothing downstream catches it — a Story skeleton
 over a Bug invents a persona nobody has.
 
 **Ask what the ticket produces.** One question separates all four:
@@ -91,7 +91,7 @@ that shape.
 
 | Mode | What to provide | Where the flow starts |
 |------|----------------|-----------------------|
-| **Draft** | Brief: verbal description, BA notes, PRD fragment, epic, meeting notes | Route to a kind, then its workflow from the top |
+| **Draft** | Brief: verbal description, business analyst notes, PRD fragment, epic, meeting notes | Route to a kind, then its workflow from the top |
 | **Refine** | Tracker ticket key (`PROJ-123`, `#123`), optionally plus extra context | Read type, summary, labels, description and custom fields **before** routing. The fetched ticket stands in for the draft, and its claims are assumptions until checked, whoever wrote them |
 | **Review** | Ticket key or drafted ticket | *Review mode*, below — proposals only, no edits |
 | **Spike closeout** | A Spike whose research has finished | Refine mode on a Spike, filling the Closeout sections |

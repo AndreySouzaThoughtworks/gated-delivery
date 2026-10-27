@@ -4,29 +4,41 @@
 // hook references, doc-vs-reality inventory drift, and wrong counts in the README.
 // Zero dependencies (Node built-ins only). Exits non-zero on any ERROR.
 
+import assert from "node:assert";
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join, resolve, sep } from "node:path";
 import { parseChecks } from "../eval/run-checks.mjs";
 
 const ROOT = process.cwd();
 const PLUGIN = join(ROOT, "plugin");
 const errors = [];
 const warnings = [];
-const error = (m) => errors.push(m);
-const warn = (m) => warnings.push(m);
 
-const read = (p) => readFileSync(p, "utf8");
-const dirs = (p) =>
-  readdirSync(p).filter((d) => statSync(join(p, d)).isDirectory());
+const read = (p) => {
+  const inside = resolve(p);
+  assert(inside.startsWith(ROOT + sep), `${p} lies outside the repo root ${ROOT}`);
+  const body = readFileSync(inside, "utf8");
+  assert(typeof body === "string", `${p} did not read as text`);
+  return body;
+};
+const dirs = (p) => {
+  assert(existsSync(p), `${p} must exist to list its subdirectories`);
+  const names = readdirSync(p).filter((d) => statSync(join(p, d)).isDirectory());
+  assert(Array.isArray(names), `${p} must list as an array`);
+  return names;
+};
 
 function frontmatterName(file) {
   // Callers reach here for files they have already reported as missing; reading one threw ENOENT and
   // killed the process before the report block could print the error it had just recorded.
+  assert(typeof file === "string", "frontmatterName needs a file path");
   if (!existsSync(file)) return null;
   const block = read(file).match(/^---\n([\s\S]*?)\n---/);
   if (!block) return null;
   const line = block[1].match(/^name:\s*(.+)$/m);
-  return line ? line[1].trim() : null;
+  const name = line ? line[1].trim() : null;
+  assert(name === null || typeof name === "string", `${file} yielded a non-string frontmatter name`);
+  return name;
 }
 
 // --- 1. Skills: required files + frontmatter name matches dir ---
@@ -35,10 +47,10 @@ const skills = dirs(skillsDir);
 for (const skill of skills) {
   const dir = join(skillsDir, skill);
   for (const required of ["SKILL.md", "evals.md"]) {
-    if (!existsSync(join(dir, required))) error(`skill "${skill}" is missing ${required}`);
+    if (!existsSync(join(dir, required))) errors.push(`skill "${skill}" is missing ${required}`);
   }
   const name = frontmatterName(join(dir, "SKILL.md"));
-  if (name && name !== skill) error(`skill "${skill}": frontmatter name "${name}" != dir name`);
+  if (name && name !== skill) errors.push(`skill "${skill}": frontmatter name "${name}" != dir name`);
 }
 
 // --- 2. Agents: frontmatter name matches filename ---
@@ -48,7 +60,7 @@ const agents = readdirSync(agentsDir)
   .map((f) => f.replace(/\.md$/, ""));
 for (const agent of agents) {
   const name = frontmatterName(join(agentsDir, `${agent}.md`));
-  if (name && name !== agent) error(`agent "${agent}": frontmatter name "${name}" != filename`);
+  if (name && name !== agent) errors.push(`agent "${agent}": frontmatter name "${name}" != filename`);
 }
 
 // --- 2a. Commands: every command file carries a frontmatter description ---
@@ -58,7 +70,7 @@ const commands = existsSync(commandsDir)
   : [];
 for (const command of commands) {
   const block = read(join(commandsDir, `${command}.md`)).match(/^---\n([\s\S]*?)\n---/);
-  if (!block || !/^description:\s*\S/m.test(block[1])) error(`command "${command}" has no frontmatter description`);
+  if (!block || !/^description:\s*\S/m.test(block[1])) errors.push(`command "${command}" has no frontmatter description`);
 }
 
 // --- 3. Hooks: valid JSON, references resolve, no orphan hook files ---
@@ -74,20 +86,20 @@ try {
   JSON.parse(raw); // validate
   for (const m of raw.matchAll(/hooks\/([\w.-]+\.mjs)/g)) {
     referenced.add(m[1]);
-    if (!hookFiles.has(m[1])) error(`hooks.json references missing hook file "${m[1]}"`);
+    if (!hookFiles.has(m[1])) errors.push(`hooks.json references missing hook file "${m[1]}"`);
   }
 } catch (e) {
-  error(`hooks.json invalid JSON: ${e.message}`);
+  errors.push(`hooks.json invalid JSON: ${e.message}`);
 }
 for (const f of hookFiles) {
-  if (!referenced.has(f)) warn(`hook file "${f}" is not referenced in hooks.json`);
+  if (!referenced.has(f)) warnings.push(`hook file "${f}" is not referenced in hooks.json`);
 }
 
 // --- 4. Marketplace source resolves to a real plugin ---
 const marketplace = JSON.parse(read(join(ROOT, ".claude-plugin", "marketplace.json")));
 for (const p of marketplace.plugins ?? []) {
   const manifest = join(ROOT, p.source, ".claude-plugin", "plugin.json");
-  if (!existsSync(manifest)) error(`marketplace plugin "${p.name}": source "${p.source}" has no .claude-plugin/plugin.json`);
+  if (!existsSync(manifest)) errors.push(`marketplace plugin "${p.name}": source "${p.source}" has no .claude-plugin/plugin.json`);
 }
 
 // --- 5. README inventory counts match reality ---
@@ -98,7 +110,7 @@ for (const [label, actual] of [
   ["hooks", hookFiles.size],
 ]) {
   const m = readme.match(new RegExp(`(\\d+)\\s+${label}\\b`));
-  if (m && Number(m[1]) !== actual) error(`README says "${m[1]} ${label}", actual is ${actual}`);
+  if (m && Number(m[1]) !== actual) errors.push(`README says "${m[1]} ${label}", actual is ${actual}`);
 }
 
 // --- 6. Every skill/agent is documented in the canonical inventory ---
@@ -108,10 +120,10 @@ for (const [label, actual] of [
 // `pnpm exec prettier` long after the hook stopped using pnpm). The other docs now link here.
 const skillGraph = read(join(ROOT, "docs", "skill-graph.md"));
 for (const skill of skills) {
-  if (!skillGraph.includes(skill)) error(`skill "${skill}" is not documented in docs/skill-graph.md`);
+  if (!skillGraph.includes(skill)) errors.push(`skill "${skill}" is not documented in docs/skill-graph.md`);
 }
 for (const agent of agents) {
-  if (!skillGraph.includes(agent)) error(`agent "${agent}" is not documented in docs/skill-graph.md`);
+  if (!skillGraph.includes(agent)) errors.push(`agent "${agent}" is not documented in docs/skill-graph.md`);
 }
 
 // --- 6a. No doc references a skill or agent that does not exist ---
@@ -128,15 +140,22 @@ const NOT_LOCAL_NAMES = new Set([
   // Placeholders in skill-graph.md's explanation of the notation itself.
   "name", "skill-name",
 ]);
-const markdownFiles = (dir) =>
-  readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+const markdownFiles = (dir) => {
+  assert(typeof dir === "string", "markdownFiles needs a directory path");
+  const found = readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
     e.isDirectory() ? markdownFiles(join(dir, e.name)) : e.name.endsWith(".md") ? [join(dir, e.name)] : [],
   );
+  assert(found.every((file) => file.endsWith(".md")), `${dir} yielded a non-markdown file`);
+  return found;
+};
 const localNames = new Set([...skills, ...agents, ...commands]);
 const LOCAL_PREFIX = "gated-delivery:";
 const isDangling = (raw) => {
+  assert(typeof raw === "string", "isDangling needs a referenced name");
   const name = raw.startsWith(LOCAL_PREFIX) ? raw.slice(LOCAL_PREFIX.length) : raw;
-  return !name.includes(":") && !NOT_LOCAL_NAMES.has(name) && !localNames.has(name);
+  const dangling = !name.includes(":") && !NOT_LOCAL_NAMES.has(name) && !localNames.has(name);
+  assert(!dangling || !localNames.has(name), `${name} is both dangling and a local name`);
+  return dangling;
 };
 const docFiles = [
   ...markdownFiles(PLUGIN),
@@ -158,7 +177,7 @@ for (const file of docFiles) {
     referenced.filter(isDangling).map((raw) => (raw.startsWith(LOCAL_PREFIX) ? raw.slice(LOCAL_PREFIX.length) : raw)),
   );
   for (const name of unresolved) {
-    error(`${file.slice(ROOT.length + 1)} references "${name}", which is not a skill or agent in this repo`);
+    errors.push(`${file.slice(ROOT.length + 1)} references "${name}", which is not a skill or agent in this repo`);
   }
 }
 
@@ -174,7 +193,7 @@ const manifestDescriptions = [
 for (const [manifest, descriptions] of manifestDescriptions) {
   for (const description of descriptions.filter(Boolean)) {
     for (const [, raw] of description.matchAll(/(?<![\w./])\/([a-z][\w:-]*)/g)) {
-      if (isDangling(raw)) error(`${manifest} description names "/${raw}", which is not a skill or command in this repo`);
+      if (isDangling(raw)) errors.push(`${manifest} description names "/${raw}", which is not a skill or command in this repo`);
     }
   }
 }
@@ -192,11 +211,11 @@ const referenceFiles = existsSync(referencesDir)
 if (existsSync(referencesDir)) {
   const indexPath = join(referencesDir, REFERENCE_INDEX);
   if (!existsSync(indexPath)) {
-    error(`plugin/references/ has no ${REFERENCE_INDEX}`);
+    errors.push(`plugin/references/ has no ${REFERENCE_INDEX}`);
   } else {
     const index = read(indexPath);
     for (const file of referenceFiles) {
-      if (!index.includes(file)) error(`reference "${file}" is not indexed in plugin/references/${REFERENCE_INDEX}`);
+      if (!index.includes(file)) errors.push(`reference "${file}" is not indexed in plugin/references/${REFERENCE_INDEX}`);
     }
     // Every bare `.md` filename the index names, whatever notation carries it. Matching the link
     // form `](./x.md)` alone left `](x.md)` and a plain-text row green over a deleted file, while
@@ -208,17 +227,17 @@ if (existsSync(referencesDir)) {
     named.delete("CLAUDE.md");
     for (const name of named) {
       if (!existsSync(join(referencesDir, name))) {
-        error(`plugin/references/${REFERENCE_INDEX} names "${name}", which does not exist`);
+        errors.push(`plugin/references/${REFERENCE_INDEX} names "${name}", which does not exist`);
       }
     }
     if (!skillGraph.includes(REFERENCE_INDEX)) {
-      error(`docs/skill-graph.md does not document plugin/references/${REFERENCE_INDEX}`);
+      errors.push(`docs/skill-graph.md does not document plugin/references/${REFERENCE_INDEX}`);
     }
   }
 } else {
   for (const file of docFiles) {
     if (read(file).includes(REFERENCE_INDEX)) {
-      error(`${file.slice(ROOT.length + 1)} points at ${REFERENCE_INDEX}, which no longer exists`);
+      errors.push(`${file.slice(ROOT.length + 1)} points at ${REFERENCE_INDEX}, which no longer exists`);
     }
   }
 }
@@ -232,7 +251,7 @@ for (const skill of skills) {
   if (!existsSync(skillFile)) continue;
   for (const m of read(skillFile).matchAll(/`((?:\.\.\/)+[\w./-]+\.(?:md|html|json))`/g)) {
     if (!existsSync(resolve(join(skillsDir, skill), m[1]))) {
-      error(`${skill}/SKILL.md points at "${m[1]}", which does not resolve from that directory`);
+      errors.push(`${skill}/SKILL.md points at "${m[1]}", which does not resolve from that directory`);
     }
   }
 }
@@ -246,7 +265,7 @@ for (const skill of skills) {
 for (const skill of skills) {
   const evalsPath = join(skillsDir, skill, "evals.md");
   if (existsSync(evalsPath) && parseChecks(read(evalsPath)).checks.length === 0) {
-    warn(`skill "${skill}" has no runnable "## Deterministic Checks" fence — --lint measures nothing for it`);
+    warnings.push(`skill "${skill}" has no runnable "## Deterministic Checks" fence — --lint measures nothing for it`);
   }
 }
 
@@ -254,7 +273,7 @@ for (const skill of skills) {
   const evalsPath = join(skillsDir, skill, "evals.md");
   if (!existsSync(evalsPath)) continue;
   for (const check of parseChecks(read(evalsPath)).checks.filter((c) => !c.expects.length)) {
-    warn(`${skill}/evals.md: check "${check.label}" has no "# expect:" line — --scenario cannot grade it`);
+    warnings.push(`${skill}/evals.md: check "${check.label}" has no "# expect:" line — --scenario cannot grade it`);
   }
 }
 
@@ -273,7 +292,7 @@ for (const file of instructionFiles) {
   read(file).split("\n").forEach((line, i) => {
     for (const phrase of BANNED_PHRASES) {
       if (line.toLowerCase().includes(phrase)) {
-        warn(`${file.slice(ROOT.length + 1)}:${i + 1} uses banned phrase "${phrase}" (plugin/skills/prose-writing/writing.md)`);
+        warnings.push(`${file.slice(ROOT.length + 1)}:${i + 1} uses banned phrase "${phrase}" (plugin/skills/prose-writing/writing.md)`);
       }
     }
   });
@@ -322,7 +341,7 @@ for (const skill of skills) {
         if (!/^[a-z][a-z ]{3,}$/.test(term)) continue;
         const clash = headings.find((h) => h.includes(term));
         if (clash) {
-          warn(
+          warnings.push(
             `${skill}/evals.md:${lineNo + 1}: check keyed on "${term}", also in SKILL.md heading "${clash}" — it may match a failing run`,
           );
         }
@@ -339,7 +358,7 @@ for (const skill of skills) {
     //     Multiple -e flags are correct in both.
     for (const span of line.match(/`[^`]*`/g) ?? []) {
       if (span.includes("|") && !span.includes("\\|")) {
-        warn(`${at}: unescaped "|" in a table-cell code span — use repeated -e flags instead`);
+        warnings.push(`${at}: unescaped "|" in a table-cell code span — use repeated -e flags instead`);
       }
     }
 
@@ -350,11 +369,48 @@ for (const skill of skills) {
       if (term.length < 4) continue;
       const clash = headings.find((h) => h.includes(term));
       if (clash) {
-        warn(`${at}: measure "${term}" also appears in SKILL.md heading "${clash}" — it may match a failing run`);
+        warnings.push(`${at}: measure "${term}" also appears in SKILL.md heading "${clash}" — it may match a failing run`);
       }
     }
   });
 }
+
+// --- 8. zanity stays at its strictest: the rules about the rules ---
+// A red zanity run is fixed in code. Narrowing `select`, adding a `disable`, or excluding a path
+// is the escape hatch an agent reaches for, so the guard fails on each one.
+const ZANITY_CONFIG = "zanity.toml";
+const ZANITY_ALLOWED_EXCLUDES = ["tests/fixtures/", "evals/fixtures/"];
+const QUOTED_ITEM = /"([^"]*)"/g;
+
+const quotedItems = (list) => {
+  assert(typeof list === "string", `a TOML list body is text, got ${typeof list}`);
+  const items = [...list.matchAll(QUOTED_ITEM)].map((match) => match[1]);
+  assert(items.every((item) => typeof item === "string"), `every quoted item is text, got ${items.map((item) => typeof item)}`);
+  return items;
+};
+
+function zanityConfigErrors(text) {
+  assert(typeof text === "string", `${ZANITY_CONFIG} must be read as text, got ${typeof text}`);
+  const config = text.replace(/#.*$/gm, "");
+  const found = [];
+  if (!/^select\s*=\s*\["all"\]/m.test(config)) {
+    found.push(`${ZANITY_CONFIG} must keep select = ["all"] under [rules]. Hint: restore it and fix the findings in code.`);
+  }
+  for (const [, list] of config.matchAll(/^\s*disable\s*=\s*\[([^\]]*)\]/gm)) {
+    const rules = quotedItems(list);
+    if (rules.length) found.push(`${ZANITY_CONFIG} disables ${rules.join(", ")}. Hint: fix the findings in code instead of turning the rule off.`);
+  }
+  const excluded = quotedItems(config.match(/^exclude\s*=\s*\[([^\]]*)\]/m)?.[1] ?? "");
+  for (const path of excluded.filter((p) => !ZANITY_ALLOWED_EXCLUDES.includes(p))) {
+    found.push(`${ZANITY_CONFIG} excludes ${path}, which hides it from every check. Hint: only ${ZANITY_ALLOWED_EXCLUDES.join(", ")} may be excluded.`);
+  }
+  assert(Array.isArray(found), `the config problems must collect as an array, got ${typeof found}`);
+  return found;
+}
+
+const zanityConfigPath = join(ROOT, ZANITY_CONFIG);
+if (existsSync(zanityConfigPath)) errors.push(...zanityConfigErrors(read(zanityConfigPath)));
+else errors.push(`${ZANITY_CONFIG} is missing. Hint: zanity is a required check, so the repo must configure it.`);
 
 // --- report ---
 console.log(

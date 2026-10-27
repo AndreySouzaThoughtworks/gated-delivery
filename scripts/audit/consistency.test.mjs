@@ -16,14 +16,19 @@ import { fileURLToPath } from "node:url";
 const GUARD = join(dirname(fileURLToPath(import.meta.url)), "consistency.mjs");
 
 const write = (dir, relPath, body) => {
+  assert(typeof body === "string", `${relPath} needs text content, got ${typeof body}`);
   const full = join(dir, relPath);
+  assert(full.startsWith(dir), `${relPath} must stay inside ${dir}`);
   mkdirSync(dirname(full), { recursive: true });
   writeFileSync(full, body);
 };
 
+const STRICT_ZANITY_CONFIG = 'exclude = ["tests/fixtures/", "evals/fixtures/"]\n[rules]\nselect = ["all"]\ndisable = [\n]\n';
+
 /** A fixture the guard must accept: 1 skill, 1 agent, 1 hook, all documented. */
 const validRepo = () => {
   const dir = mkdtempSync(join(tmpdir(), "gated-delivery-guard-test-"));
+  assert(typeof dir === "string" && dir.length > 0, `mkdtemp must yield a directory, got ${dir}`);
   write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\n---\n\n## Heading One\n");
   write(
     dir,
@@ -38,16 +43,22 @@ const validRepo = () => {
   write(dir, "README.md", "The plugin — 1 skills, 1 agents, 1 hooks.\n");
   write(dir, "plugin/README.md", "| `/alpha` | a skill |\n| `bot` | an agent |\n");
   write(dir, "docs/skill-graph.md", "| `/alpha` | a skill |\n| `bot` | an agent |\n");
+  write(dir, "zanity.toml", STRICT_ZANITY_CONFIG);
+  assert(dir.startsWith(tmpdir()), `${dir} must be a throwaway under ${tmpdir()}`);
   return dir;
 };
 
 /** Runs the guard in `dir`. Returns { code, out } and never throws, so a red run stays assertable. */
 const runGuard = (dir) => {
+  assert(typeof dir === "string", `the guard runs in a directory, got ${typeof dir}`);
+  let result;
   try {
-    return { code: 0, out: execFileSync("node", [GUARD], { cwd: dir, encoding: "utf8" }) };
+    result = { code: 0, out: execFileSync("node", [GUARD], { cwd: dir, encoding: "utf8" }) };
   } catch (e) {
-    return { code: e.status ?? 1, out: (e.stdout ?? "") + (e.stderr ?? "") };
+    result = { code: e.status ?? 1, out: (e.stdout ?? "") + (e.stderr ?? "") };
   }
+  assert(Number.isInteger(result.code), `the guard must report an integer exit code, got ${result.code}`);
+  return result;
 };
 
 test("a valid repo passes silently", () => {
@@ -311,9 +322,11 @@ test("does not warn on a measure that avoids the skill's headings", () => {
 
 /** `validRepo()` plus one indexed domain reference, documented in the canonical inventory. */
 const withReference = (dir) => {
+  assert(typeof dir === "string", `a fixture is a directory path, got ${typeof dir}`);
   write(dir, "plugin/references/reference-graph.md", "| [`thing.md`](./thing.md) | a technology | when it matters |\n");
   write(dir, "plugin/references/thing.md", "# Thing\n");
   write(dir, "docs/skill-graph.md", "| `/alpha` | a skill |\n| `bot` | an agent |\n| `reference-graph.md` | the references |\n");
+  assert(typeof dir === "string", `the fixture must come back as its path, got ${typeof dir}`);
   return dir;
 };
 
@@ -497,4 +510,21 @@ test("the prose-writing skill may name the phrases it bans", () => {
   const { code, out } = runGuard(dir);
   assert.equal(code, 0, out);
   assert.doesNotMatch(out, /banned phrase/);
+});
+
+test("zanity is a required check and its config cannot be loosened", () => {
+  const loosened = {
+    "a missing config": null,
+    "a narrowed select": STRICT_ZANITY_CONFIG.replace('["all"]', '["correctness"]'),
+    "a disabled rule": STRICT_ZANITY_CONFIG.replace("disable = [\n]", 'disable = ["assertion-density"]'),
+    "an extra excluded path": STRICT_ZANITY_CONFIG.replace('"evals/fixtures/"', '"evals/fixtures/", "plugin/"'),
+  };
+  for (const [label, config] of Object.entries(loosened)) {
+    const dir = validRepo();
+    if (config === null) rmSync(join(dir, "zanity.toml"));
+    else write(dir, "zanity.toml", config);
+    const { code, out } = runGuard(dir);
+    assert.equal(code, 1, `expected failure for ${label}`);
+    assert.match(out, /zanity\.toml/, `the error for ${label} must name the config`);
+  }
 });

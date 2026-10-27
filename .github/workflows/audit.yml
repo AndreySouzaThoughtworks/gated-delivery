@@ -9,6 +9,17 @@ permissions:
   contents: read
 
 jobs:
+  zanity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: benomahony/zanity@97db0c56358db8ff895bbbe349d4014543df89fa # v0.1.30
+        with:
+          version: 0.1.30
+          args: check . --fail-on warning --strict
+
   consistency:
     runs-on: ubuntu-latest
     steps:

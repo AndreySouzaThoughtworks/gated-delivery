@@ -40,7 +40,7 @@ fi
 # shellcheck disable=SC2086
 if ! ERR="$(git cherry-pick --empty=drop $TO_PICK 2>&1 >/dev/null)"; then
   CONFLICTED="$(git diff --name-only --diff-filter=U)"
-  git cherry-pick --abort >/dev/null 2>&1 || true
+  git cherry-pick --abort >/dev/null 2>&1
   git reset -q --hard "$BEFORE"
   if [ -n "$CONFLICTED" ]; then
     echo "$BATCH_BRANCH conflicts with the slice at $BEFORE in: $CONFLICTED" >&2

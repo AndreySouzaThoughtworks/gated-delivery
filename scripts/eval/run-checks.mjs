@@ -9,6 +9,7 @@
 //   node scripts/eval/run-checks.mjs <skill> <file>                   one skill: report each command's result
 //   node scripts/eval/run-checks.mjs <skill> <file> --scenario <id>   grade the checks whose `# expect:` names <id>
 
+import assert from "node:assert";
 import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync, existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -34,7 +35,12 @@ const PROVIDED = { WORKTREE: process.cwd() };
  * was executed rather than read. Single quotes suppress all expansion; an embedded single quote is
  * closed, escaped, and reopened.
  */
-const shellQuote = (s) => `'${String(s).replaceAll("'", `'\\''`)}'`;
+const shellQuote = (s) => {
+  assert(s !== undefined && s !== null, `shellQuote needs a value to quote, got ${JSON.stringify(s)}`);
+  const quoted = `'${String(s).replaceAll("'", `'\\''`)}'`;
+  assert(quoted.startsWith("'") && quoted.endsWith("'"), "a shell-quoted value is wrapped in single quotes");
+  return quoted;
+};
 
 /**
  * Variables a fence references that nothing supplies. Such a reference expands to empty and the
@@ -54,55 +60,86 @@ const shellQuote = (s) => `'${String(s).replaceAll("'", `'\\''`)}'`;
  *   ${VAR+w} ${VAR:+w} ${VAR} $VAR          empty when unset       -> flag
  * The `+` forms are the trap: they look like defaults and are the exact silent-empty case.
  */
+const toggleQuote = (quote, c) => {
+  assert(typeof quote.inSingle === "boolean" && typeof quote.inDouble === "boolean", "quote state carries inSingle and inDouble flags");
+  assert(typeof c === "string", "toggleQuote reads one character");
+  let toggled = true;
+  if (c === "'" && !quote.inDouble) quote.inSingle = !quote.inSingle;
+  else if (c === '"' && !quote.inSingle) quote.inDouble = !quote.inDouble;
+  else toggled = false;
+  assert(typeof toggled === "boolean", "toggleQuote reports whether the character was a quote delimiter");
+  return toggled;
+};
+
+const enterSubstitution = (enclosing, quote) => {
+  assert(Array.isArray(enclosing), `enclosing is the stack of substitution levels, got ${JSON.stringify(enclosing)}`);
+  assert(typeof quote.inSingle === "boolean" && typeof quote.inDouble === "boolean", "quote state carries inSingle and inDouble flags");
+  enclosing.push({ inSingle: quote.inSingle, inDouble: quote.inDouble, depth: 0 });
+  quote.inSingle = false;
+  quote.inDouble = false;
+  assert(enclosing.at(-1).depth === 0, "a new substitution level starts at paren depth zero");
+};
+
+const trackParen = (enclosing, quote, c) => {
+  assert(Array.isArray(enclosing), `enclosing is the stack of substitution levels, got ${JSON.stringify(enclosing)}`);
+  assert(typeof c === "string" && typeof quote.inDouble === "boolean", "trackParen reads one character and the double-quote flag");
+  const substitution = enclosing.at(-1);
+  if (!substitution || quote.inDouble || (c !== "(" && c !== ")")) return false;
+  if (c === "(") substitution.depth++;
+  // `$(( ))` and subshells nest parens inside the substitution: only the `)` that balances the
+  // opening `$(` ends it. Restoring on the first one handed the outer quote state back early,
+  // and the apostrophe that followed then hid the variable after it.
+  else if (substitution.depth) substitution.depth--;
+  else {
+    const { inSingle, inDouble } = enclosing.pop();
+    quote.inSingle = inSingle;
+    quote.inDouble = inDouble;
+  }
+  assert(c === "(" || c === ")", `trackParen only consumes parentheses, got ${JSON.stringify(c)}`);
+  return true;
+};
+
+const variableAt = (command, at) => {
+  assert(typeof command === "string", "variableAt scans a command string");
+  assert(command[at] === "$", "variableAt starts at a dollar sign");
+  const rest = command.slice(at + 1);
+  const braced = rest.startsWith("{");
+  const body = braced ? rest.slice(1) : rest;
+  const name = body.match(/^[A-Za-z_][A-Za-z0-9_]*/)?.[0];
+  if (!name) return null;
+  return {
+    name,
+    length: name.length + (braced ? 1 : 0),
+    hasFallback: braced && /^:?[-=?]/.test(body.slice(name.length)),
+  };
+};
+
 const unresolvedVars = (command, assigned) => {
+  assert(typeof command === "string", "unresolvedVars scans a command string");
+  assert(assigned instanceof Set, "assigned is the set of names the fence assigns");
   const found = new Set();
   const enclosing = [];
-  let inSingle = false;
-  let inDouble = false;
+  const quote = { inSingle: false, inDouble: false };
   for (let i = 0; i < command.length; i++) {
     const c = command[i];
-    if (c === "\\" && !inSingle) {
+    if (c === "\\" && !quote.inSingle) {
       i++;
       continue;
     }
-    if (c === "'" && !inDouble) {
-      inSingle = !inSingle;
-      continue;
-    }
-    if (c === '"' && !inSingle) {
-      inDouble = !inDouble;
-      continue;
-    }
-    if (inSingle) continue;
+    if (toggleQuote(quote, c)) continue;
+    if (quote.inSingle) continue;
     if (c === "$" && command[i + 1] === "(") {
-      enclosing.push({ inSingle, inDouble, depth: 0 });
-      inSingle = false;
-      inDouble = false;
+      enterSubstitution(enclosing, quote);
       i++;
       continue;
     }
-    if (c === "(" && !inDouble && enclosing.length) {
-      enclosing.at(-1).depth++;
-      continue;
-    }
-    if (c === ")" && !inDouble && enclosing.length) {
-      // `$(( ))` and subshells nest parens inside the substitution: only the `)` that balances the
-      // opening `$(` ends it. Restoring on the first one handed the outer quote state back early,
-      // and the apostrophe that followed then hid the variable after it.
-      if (enclosing.at(-1).depth) enclosing.at(-1).depth--;
-      else ({ inSingle, inDouble } = enclosing.pop());
-      continue;
-    }
+    if (trackParen(enclosing, quote, c)) continue;
     if (c !== "$") continue;
 
-    const rest = command.slice(i + 1);
-    const braced = rest.startsWith("{");
-    const body = braced ? rest.slice(1) : rest;
-    const name = body.match(/^[A-Za-z_][A-Za-z0-9_]*/)?.[0];
-    if (!name) continue;
-    i += name.length + (braced ? 1 : 0);
-    if (braced && /^:?[-=?]/.test(body.slice(name.length))) continue;
-    found.add(name);
+    const variable = variableAt(command, i);
+    if (!variable) continue;
+    i += variable.length;
+    if (!variable.hasFallback) found.add(variable.name);
   }
   return [...found].filter((n) => !assigned.has(n) && PROVIDED[n] === undefined);
 };
@@ -114,6 +151,8 @@ const unresolvedVars = (command, assigned) => {
 // `^## ` truncated the section at the first one — dropping every check after it, silently.
 const SECTION_HEADING = "## Deterministic Checks";
 const sectionOf = (markdown) => {
+  assert(typeof markdown === "string", "sectionOf scans markdown string");
+  assert(!markdown.includes("\r"), "sectionOf receives carriage-return-free markdown");
   const out = [];
   let inSection = false;
   let inFence = false;
@@ -142,12 +181,16 @@ const COMPARE = {
 };
 
 export function parseExpect(text) {
-  if (EXPECT_MANUAL.test(text)) return { raw: text, manual: true };
+  assert(typeof text === "string", "parseExpect needs the expect line as a string");
   const shape = text.match(EXPECT_SHAPE);
-  if (!shape) return { raw: text, error: `malformed expect "${text}"` };
-  const ids = shape[3].split(",");
-  if (new Set(ids).size !== ids.length) return { raw: text, error: `malformed expect "${text}": repeated id` };
-  return { raw: text, op: shape[1], n: Number(shape[2]), ids };
+  const ids = shape?.[3].split(",");
+  let expect;
+  if (EXPECT_MANUAL.test(text)) expect = { raw: text, manual: true };
+  else if (!shape) expect = { raw: text, error: `malformed expect "${text}"` };
+  else if (new Set(ids).size !== ids.length) expect = { raw: text, error: `malformed expect "${text}": repeated id` };
+  else expect = { raw: text, op: shape[1], n: Number(shape[2]), ids };
+  assert(expect.raw === text, "parseExpect returns the line it was given as raw");
+  return expect;
 }
 
 const SCENARIOS_HEADING = "## Test Scenarios";
@@ -155,6 +198,8 @@ const TABLE_ROW_ID = /^\|\s*([^|]*?)\s*\|/;
 const NOT_AN_ID = /^(#|:?-+:?)?$/;
 
 export function scenarioIds(evalsMarkdown) {
+  assert(typeof evalsMarkdown === "string", "scenarioIds reads a markdown string");
+  assert(SCENARIOS_HEADING.startsWith("## "), "the scenarios heading is a level-two heading");
   const ids = new Set();
   let inSection = false;
   for (const line of evalsMarkdown.replace(/\r/g, "").split("\n")) {
@@ -177,6 +222,8 @@ export function scenarioIds(evalsMarkdown) {
  * every command runs in its own shell and would otherwise see an empty variable.
  */
 export function parseChecks(evalsMarkdown) {
+  assert(typeof evalsMarkdown === "string", "parseChecks reads a markdown string");
+  assert(FENCE.flags === "", "the fence pattern has no flags that would make it stateful");
   const fence = sectionOf(evalsMarkdown.replace(/\r/g, "")).match(FENCE);
   if (!fence) return { prelude: [], checks: [] };
   const checks = [];
@@ -208,11 +255,12 @@ export function parseChecks(evalsMarkdown) {
  * `grep` exits 1 for "no match" — that is a result, not a failure. Only >=2 is a broken command.
  */
 export function runCheck({ label, command }, outputFile, prelude = []) {
+  assert(typeof command === "string" && typeof outputFile === "string", "runCheck needs a command and an output file path");
+  assert(Array.isArray(prelude), `prelude is a list of assignments, got ${JSON.stringify(prelude)}`);
   // Substitute the `output.md` placeholder only. Substituting a bare `output` too would corrupt any
   // command legitimately containing the word — `grep -c "output format" output.md` became
   // `grep -c ""<path>" format" "<path>"` and returned a wrong count rather than an error.
   const assigned = new Set(prelude.map((a) => a.slice(0, a.indexOf("="))));
-  const setup = prelude.map((a) => a.replace(/=.*$/, `=${shellQuote(outputFile)}`)).join("; ");
   // Consume any quotes already around the placeholder — `cat "output.md"` would otherwise become
   // `cat "'/path'"`, a filename that does not exist. A replacement *callback* is required: a plain
   // replacement string interprets `$&` and `$1` in the path itself.
@@ -225,8 +273,9 @@ export function runCheck({ label, command }, outputFile, prelude = []) {
     return { label, command, ok: false, result: `unset variable(s): ${unresolved.join(", ")}` };
   }
 
-  const cmd = setup ? `${setup}; ${substituted}` : substituted;
   try {
+    const setup = prelude.map((a) => a.replace(/=.*$/, `=${shellQuote(outputFile)}`)).join("; ");
+    const cmd = setup ? `${setup}; ${substituted}` : substituted;
     const env = { ...process.env, ...PROVIDED };
     const stdout = execFileSync(SHELL.cmd, [...SHELL.args, cmd], { encoding: "utf8", env });
     return { label, command, ok: true, result: stdout.trim() };
@@ -237,10 +286,16 @@ export function runCheck({ label, command }, outputFile, prelude = []) {
   }
 }
 
-const skillNames = () =>
-  readdirSync(SKILLS_DIR).filter((s) => existsSync(join(SKILLS_DIR, s, "evals.md")));
+const skillNames = () => {
+  assert(typeof SKILLS_DIR === "string", "skills are read from a directory path");
+  const names = readdirSync(SKILLS_DIR).filter((s) => existsSync(join(SKILLS_DIR, s, "evals.md")));
+  assert(Array.isArray(names), `skill names are listed as an array, got ${JSON.stringify(names)}`);
+  return names;
+};
 
 function report(skill, outputFile) {
+  assert(typeof skill === "string", "report needs a skill name");
+  assert(typeof outputFile === "string", "report needs an output file path");
   const evalsPath = join(SKILLS_DIR, skill, "evals.md");
   if (!existsSync(evalsPath)) {
     console.error(`No such skill: ${skill}`);
@@ -263,6 +318,8 @@ function report(skill, outputFile) {
 }
 
 function expectProblems({ expects }, ids) {
+  assert(Array.isArray(expects), `expects is a list of expect entries, got ${JSON.stringify(expects)}`);
+  assert(ids instanceof Set, "ids is the set of scenario ids");
   const seen = new Set();
   const problems = [];
   for (const expect of expects) {
@@ -281,13 +338,22 @@ const PAGE_LABEL = /^Page:/i;
 const INTEGER = /^-?\d+$/;
 const LABEL_WIDTH = 100;
 
-const countOf = (result) =>
-  INTEGER.test(result) ? Number(result) : result.split("\n").filter((l) => l.trim()).length;
+const countOf = (result) => {
+  assert(typeof result === "string", "countOf reads a command result string");
+  const count = INTEGER.test(result) ? Number(result) : result.split("\n").filter((l) => l.trim()).length;
+  assert(Number.isInteger(count), `a check count is an integer, got ${JSON.stringify(count)}`);
+  return count;
+};
 
-const readsFile = (check, file, skillHasPages) =>
-  !skillHasPages || PAGE_LABEL.test(check.label) === (basename(file) !== RESPONSE_FILE);
+const readsFile = (check, file, skillHasPages) => {
+  assert(typeof check.label === "string", "a check carries a string label");
+  assert(typeof file === "string", "readsFile needs a file path");
+  return !skillHasPages || PAGE_LABEL.test(check.label) === (basename(file) !== RESPONSE_FILE);
+};
 
 function gradeScenario(skill, file, id) {
+  assert(typeof skill === "string" && typeof file === "string", "gradeScenario needs a skill name and an output file path");
+  assert(typeof id === "string", "gradeScenario needs a scenario id");
   const evalsPath = join(SKILLS_DIR, skill, "evals.md");
   if (!existsSync(evalsPath)) return usage(`No such skill: ${skill}`);
   if (!existsSync(file)) return usage(`No such output file: ${file}`);
@@ -313,15 +379,27 @@ function gradeScenario(skill, file, id) {
 const EXIT_PASS = 0;
 const EXIT_FAIL = 1;
 const EXIT_USAGE = 2;
+const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g;
+const LINE_BREAK = /\r?\n|\r/g;
+const neutraliseControlCharacters = (message) => {
+  assert(typeof message === "string", "only strings can be neutralised");
+  const neutral = message.replace(LINE_BREAK, "\\n").replace(CONTROL_CHARACTERS, "?");
+  assert(!/[\r\n]/.test(neutral), `a neutralised message holds no line break, got ${JSON.stringify(neutral)}`);
+  return neutral;
+};
 const USAGE = "usage:\n  run-checks.mjs --lint\n  run-checks.mjs <skill> <output-file>\n  run-checks.mjs <skill> <output-file> --scenario <id>";
 
 function usage(message) {
-  console.error(message);
+  assert(typeof message === "string", "usage reports a message string");
+  console.error(neutraliseControlCharacters(message));
+  assert(EXIT_USAGE !== EXIT_FAIL, `a usage error must be distinguishable from a failed check, got ${EXIT_USAGE} and ${EXIT_FAIL}`);
   return EXIT_USAGE;
 }
 
 /** Every command in every skill must at least RUN. No fixtures, no expectations — just executable. */
 function lint() {
+  assert(typeof SKILLS_DIR === "string", "lint reads skills from a directory path");
+  assert(typeof SHELL.pipelineAware === "boolean", "the shell reports whether it detects pipeline failures");
   const scratch = join(mkdtempSync(join(tmpdir(), "gated-delivery-evalcheck-")), "output.md");
   writeFileSync(scratch, "placeholder\n");
   const skills = skillNames();

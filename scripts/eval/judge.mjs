@@ -6,10 +6,11 @@
 // The model reads the run read-only and returns, per clause, PASS, FAIL or UNCLEAR with quoted
 // evidence. Code, not the model, settles the verdict, and a result with no quote becomes UNCLEAR.
 
+import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, relative, resolve } from "node:path";
+import { isAbsolute, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const SKILLS_DIR = join(process.cwd(), "plugin", "skills");
@@ -20,6 +21,7 @@ const SETTING_SOURCES = "";
 const WALL_CLOCK_MS = 1200 * 1000;
 const OUTPUT_FILE = "output.md";
 const CRITERIA_HEADING = "Pass Criteria";
+const PARENT_SEGMENT = "..";
 
 const RESULTS = ["PASS", "FAIL", "UNCLEAR"];
 const [PASS, FAIL, UNCLEAR] = RESULTS;
@@ -70,14 +72,20 @@ const SCHEMA = {
 
 class HarnessError extends Error {}
 
-const cellsOf = (line) =>
-  line
+const cellsOf = (line) => {
+  assert(typeof line === "string", `line must be a string, got ${typeof line}; pass a string from the caller`);
+  const cells = line
     .replace(/\\\|/g, "\u0000")
     .split("|")
     .slice(1, -1)
     .map((c) => c.replaceAll("\u0000", "|").trim());
+  assert(Array.isArray(cells), `cells must be an array, got ${typeof cells}; pass an array from the caller`);
+  return cells;
+};
 
 export function findRow(markdown, id) {
+  assert(typeof markdown === "string", `markdown must be a string, got ${typeof markdown}; pass a string from the caller`);
+  assert(typeof id === "string", `id must be a string, got ${typeof id}; pass a string from the caller`);
   let header = null;
   for (const line of markdown.replace(/\r/g, "").split("\n")) {
     if (!line.trimStart().startsWith("|")) {
@@ -90,13 +98,21 @@ export function findRow(markdown, id) {
       continue;
     }
     if (!header || cells[0] !== id) continue;
-    const at = (name) => cells[header.indexOf(name)] ?? "";
-    return { prompt: at("Prompt"), persona: at("Persona"), criteria: at(CRITERIA_HEADING) };
+    const at = (name) => {
+      assert(typeof name === "string", `name must be a string, got ${typeof name}; pass a string from the caller`);
+      const cell = cells[header.indexOf(name)] ?? "";
+      assert(typeof cell === "string", `cell must be a string, got ${typeof cell}; pass a string from the caller`);
+      return cell;
+    };
+    const row = { prompt: at("Prompt"), persona: at("Persona"), criteria: at(CRITERIA_HEADING) };
+    assert(Object.values(row).every((value) => typeof value === "string"), `row fields must all be strings, got ${JSON.stringify(row)}; fix the evals table cell parsing`);
+    return row;
   }
   return null;
 }
 
 const sentencesOf = (text) => {
+  assert(typeof text === "string", `text must be a string, got ${typeof text}; pass a string from the caller`);
   const out = [];
   let start = 0;
   let depth = 0;
@@ -115,49 +131,80 @@ const sentencesOf = (text) => {
     start = i + 1 + gap.length;
   }
   out.push(text.slice(start));
+  assert(out.length >= 1, `splitting must yield at least one sentence, got ${out.length}; fix the sentence splitter`);
   return out;
 };
 
-export const splitClauses = (criteria) =>
-  sentencesOf(criteria.trim())
+export const splitClauses = (criteria) => {
+  assert(typeof criteria === "string", `criteria must be a string, got ${typeof criteria}; pass a string from the caller`);
+  const clauses = sentencesOf(criteria.trim())
     .flatMap((s) => s.split(FAILS_IF_SPLIT))
     .map((s) => s.trim())
     .filter(Boolean);
-
-export const aggregate = (clauses) => {
-  if (!clauses.length) return UNCLEAR;
-  if (clauses.some((c) => c.result === FAIL)) return FAIL;
-  if (clauses.some((c) => c.result === UNCLEAR)) return UNCLEAR;
-  return PASS;
+  assert(Array.isArray(clauses), `clauses must be an array, got ${typeof clauses}; pass an array from the caller`);
+  return clauses;
 };
 
-const normalize = (text) =>
-  text
+export const aggregate = (clauses) => {
+  assert(Array.isArray(clauses), `clauses must be an array, got ${typeof clauses}; pass an array from the caller`);
+  const verdict = !clauses.length
+    ? UNCLEAR
+    : clauses.some((c) => c.result === FAIL)
+      ? FAIL
+      : clauses.some((c) => c.result === UNCLEAR)
+        ? UNCLEAR
+        : PASS;
+  assert(RESULTS.includes(verdict), `verdict must be one of ${RESULTS}, got ${verdict}; fix the aggregation branches`);
+  return verdict;
+};
+
+const normalize = (text) => {
+  assert(typeof text === "string", `text must be a string, got ${typeof text}; pass a string from the caller`);
+  const normalized = text
     .replace(/\\[nt]/g, " ")
     .replace(/\\"/g, '"')
     .replace(/[*_`]/g, "")
     .replace(/\s+/g, " ")
     .trim();
+  assert(typeof normalized === "string", `normalized must be a string, got ${typeof normalized}; pass a string from the caller`);
+  return normalized;
+};
 
-const filesUnder = (dir) =>
-  readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+const filesUnder = (dir) => {
+  assert(typeof dir === "string", `dir must be a string, got ${typeof dir}; pass a string from the caller`);
+  const files = readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) return SKIPPED_DIRS.has(entry.name) ? [] : filesUnder(path);
     return entry.isFile() ? [path] : [];
   });
+  assert(Array.isArray(files), `files must be an array, got ${typeof files}; pass an array from the caller`);
+  return files;
+};
 
 export const readRun = (runDir) => {
-  const files = filesUnder(runDir).map((path) => {
-    const body = readFileSync(path, "utf8");
-    return { path: relative(runDir, path), text: normalize(body), lines: body.split("\n").length };
+  assert(typeof runDir === "string", `runDir must be a string, got ${typeof runDir}; pass a string from the caller`);
+  const root = resolve(runDir);
+  const files = filesUnder(root).map((path) => {
+    const inside = relative(root, path);
+    assert(!isAbsolute(inside) && !inside.split("/").includes(PARENT_SEGMENT), `run file must stay inside the run directory, got ${inside} (parent segment ${PARENT_SEGMENT}); remove the escaping entry from the run directory`);
+    const body = readFileSync(join(root, inside), "utf8");
+    return { path: inside, text: normalize(body), lines: body.split("\n").length };
   });
+  assert(Array.isArray(files), `files must be an array, got ${typeof files}; pass an array from the caller`);
   return { files };
 };
 
-const fileOf = (name, run) =>
-  run.files.find((f) => f.path === name || f.path.endsWith(`/${name}`));
+const fileOf = (name, run) => {
+  assert(typeof name === "string", `name must be a string, got ${typeof name}; pass a string from the caller`);
+  assert(Array.isArray(run.files), `run.files must be an array, got ${typeof run.files}; pass an array from the caller`);
+  const found = run.files.find((f) => f.path === name || f.path.endsWith(`/${name}`));
+  assert(found === undefined || typeof found.path === "string", `found file must have a string path, got ${typeof found?.path}; fix readRun to give every file a path`);
+  return found;
+};
 
 const quoteFound = ({ file, line, text }, run) => {
+  assert(typeof file === "string", `file must be a string, got ${typeof file}; pass a string from the caller`);
+  assert(typeof text === "string", `text must be a string, got ${typeof text}; pass a string from the caller`);
   const target = fileOf(file, run);
   if (!target || (line !== undefined && (line < 1 || line > target.lines))) return false;
   const fragments = text.split(ELLIPSIS).map(normalize).filter(Boolean);
@@ -165,8 +212,10 @@ const quoteFound = ({ file, line, text }, run) => {
   return fragments.every((fragment) => target.text.includes(fragment));
 };
 
-const render = ({ quotes, note }) =>
-  [
+const render = ({ quotes, note }) => {
+  assert(Array.isArray(quotes), `quotes must be an array, got ${typeof quotes}; pass an array from the caller`);
+  assert(typeof note === "string", `note must be a string, got ${typeof note}; pass a string from the caller`);
+  const rendered = [
     quotes
       .map(({ file, line, text }) => `${file}${line ? `:${line}` : ""}${text.trim() ? ` "${text}"` : ""}`)
       .join("; "),
@@ -174,18 +223,30 @@ const render = ({ quotes, note }) =>
   ]
     .filter(Boolean)
     .join(" — ");
+  assert(typeof rendered === "string", `rendered must be a string, got ${typeof rendered}; pass a string from the caller`);
+  return rendered;
+};
 
-export const settle = (clauses, graded, run) =>
-  clauses.map((clause, index) => {
+export const settle = (clauses, graded, run) => {
+  assert(Array.isArray(clauses), `clauses must be an array, got ${typeof clauses}; pass an array from the caller`);
+  assert(Array.isArray(graded), `graded must be an array, got ${typeof graded}; pass an array from the caller`);
+  const settled = clauses.map((clause, index) => {
     const found = graded.find((g) => g.id === index + 1);
     if (!found) return { clause, result: UNCLEAR, evidence: "" };
     const proven = found.quotes.length && found.quotes.every((quote) => quoteFound(quote, run));
     return { clause, result: proven ? found.result : UNCLEAR, evidence: render(found) };
   });
+  assert(settled.length === clauses.length, `every clause needs one settled entry, got ${settled.length} for ${clauses.length}; fix the settle mapping`);
+  return settled;
+};
 
 const promptFor = ({ prompt, persona }, clauses, runDir) => {
+  assert(typeof prompt === "string", `prompt must be a string, got ${typeof prompt}; pass a string from the caller`);
+  assert(typeof persona === "string", `persona must be a string, got ${typeof persona}; pass a string from the caller`);
+  assert(Array.isArray(clauses), `clauses must be an array, got ${typeof clauses}; pass an array from the caller`);
+  assert(typeof runDir === "string", `runDir must be a string, got ${typeof runDir}; pass a string from the caller`);
   const files = readdirSync(runDir).filter((f) => f !== OUTPUT_FILE);
-  return `You grade one recorded run of an AI coding assistant against a fixed list of clauses.
+  const text = `You grade one recorded run of an AI coding assistant against a fixed list of clauses.
 
 The run is in ${runDir}; your working directory is an empty scratch directory, so use full
 paths. ${OUTPUT_FILE} is the assistant's final answer, shown below. Other files there: ${files.join(", ") || "none"}. transcript.jsonl, when present, records every tool
@@ -228,23 +289,35 @@ Return one entry per clause, with its number as id.
 <${OUTPUT_FILE}>
 ${readFileSync(join(runDir, OUTPUT_FILE), "utf8")}
 </${OUTPUT_FILE}>`;
+  assert(text.includes(runDir), `prompt must name the run directory ${runDir}; fix the prompt template`);
+  return text;
 };
 
-const isQuote = (q) =>
-  q &&
-  typeof q.file === "string" &&
-  typeof q.text === "string" &&
-  (q.line === undefined || Number.isInteger(q.line));
+const isQuote = (q) => {
+  const valid = Boolean(
+    q && typeof q.file === "string" && typeof q.text === "string" && (q.line === undefined || Number.isInteger(q.line)),
+  );
+  assert(typeof valid === "boolean", `validity must be a boolean, got ${typeof valid}; wrap the check in Boolean`);
+  assert(!valid || typeof q.file === "string", `a valid quote must name its file as a string, got ${typeof q?.file}; fix the quote check`);
+  return valid;
+};
 
-const isGraded = (g) =>
-  g &&
-  Number.isInteger(g.id) &&
-  RESULTS.includes(g.result) &&
-  Array.isArray(g.quotes) &&
-  g.quotes.every(isQuote) &&
-  typeof g.note === "string";
+const isGraded = (g) => {
+  const valid = Boolean(
+    g &&
+      Number.isInteger(g.id) &&
+      RESULTS.includes(g.result) &&
+      Array.isArray(g.quotes) &&
+      g.quotes.every(isQuote) &&
+      typeof g.note === "string",
+  );
+  assert(typeof valid === "boolean", `validity must be a boolean, got ${typeof valid}; wrap the check in Boolean`);
+  assert(!valid || Array.isArray(g.quotes), `a valid graded clause must carry a quotes array, got ${typeof g?.quotes}; fix the graded check`);
+  return valid;
+};
 
 const parseReply = (stdout) => {
+  assert(typeof stdout === "string", `stdout must be a string, got ${typeof stdout}; pass a string from the caller`);
   let reply;
   try {
     reply = JSON.parse(stdout);
@@ -256,10 +329,33 @@ const parseReply = (stdout) => {
   if (!Array.isArray(graded) || !graded.every(isGraded)) {
     throw new HarnessError("judge output does not match the clause schema");
   }
+  assert(graded.every(isGraded), `every graded clause must pass the schema check, got ${JSON.stringify(graded)}; fix the check or the reply schema`);
   return graded;
 };
 
+const judgeArgs = (runPath) => {
+  assert(typeof runPath === "string", `runPath must be a string, got ${typeof runPath}; pass a string from the caller`);
+  const args = [
+  "-p",
+  "--model", JUDGE_MODEL,
+  "--tools", JUDGE_TOOLS,
+  "--allowedTools", JUDGE_TOOLS,
+  "--setting-sources", SETTING_SOURCES,
+  "--strict-mcp-config",
+  "--disable-slash-commands",
+  "--no-session-persistence",
+  "--output-format", "json",
+  "--json-schema", JSON.stringify(SCHEMA),
+  "--add-dir", runPath,
+  ];
+  assert(args.every((arg) => typeof arg === "string"), `every judge argument must be a string, got ${JSON.stringify(args)}; pass string values to judgeArgs`);
+  return args;
+};
+
 export function judge(skill, id, runDir) {
+  assert(typeof skill === "string", `skill must be a string, got ${typeof skill}; pass a string from the caller`);
+  assert(typeof id === "string", `id must be a string, got ${typeof id}; pass a string from the caller`);
+  assert(typeof runDir === "string", `runDir must be a string, got ${typeof runDir}; pass a string from the caller`);
   const evalsPath = join(SKILLS_DIR, skill, "evals.md");
   if (!existsSync(evalsPath)) throw new HarnessError(`No such skill: ${skill}`);
   const row = findRow(readFileSync(evalsPath, "utf8"), id);
@@ -269,23 +365,10 @@ export function judge(skill, id, runDir) {
   }
   const runPath = resolve(runDir);
   const clauses = splitClauses(row.criteria);
-  const args = [
-    "-p",
-    "--model", JUDGE_MODEL,
-    "--tools", JUDGE_TOOLS,
-    "--allowedTools", JUDGE_TOOLS,
-    "--setting-sources", SETTING_SOURCES,
-    "--strict-mcp-config",
-    "--disable-slash-commands",
-    "--no-session-persistence",
-    "--output-format", "json",
-    "--json-schema", JSON.stringify(SCHEMA),
-    "--add-dir", runPath,
-  ];
   const scratch = mkdtempSync(join(tmpdir(), "gated-delivery-judge-"));
   let run;
   try {
-    run = spawnSync(CLAUDE_BIN, args, {
+    run = spawnSync(CLAUDE_BIN, judgeArgs(runPath), {
       cwd: scratch,
       input: promptFor(row, clauses, runPath),
       encoding: "utf8",
@@ -300,7 +383,9 @@ export function judge(skill, id, runDir) {
     throw new HarnessError(`${CLAUDE_BIN} exited ${run.status}: ${(run.stderr || run.stdout).slice(0, SHOWN_CHARS)}`);
   }
   const settled = settle(clauses, parseReply(run.stdout), readRun(runPath));
-  return { verdict: aggregate(settled), clauses: settled };
+  const result = { verdict: aggregate(settled), clauses: settled };
+  assert(RESULTS.includes(result.verdict), `returned verdict must be one of ${RESULTS}, got ${result.verdict}; fix the aggregation`);
+  return result;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

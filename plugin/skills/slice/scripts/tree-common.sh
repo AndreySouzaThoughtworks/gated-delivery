@@ -57,7 +57,7 @@ link_node_modules() {
     return 0
   fi
   exclude_node_modules_link
-  if [ "$(readlink "$link" 2>/dev/null || true)" != "$source" ]; then
+  if [ ! -L "$link" ] || [ "$(readlink "$link")" != "$source" ]; then
     rm -rf "${link:?}"
     ln -s "$source" "$link"
   fi

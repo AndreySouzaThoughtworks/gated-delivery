@@ -16,11 +16,51 @@ import { parseChecks, parseExpect, runCheck, scenarioIds } from "./run-checks.mj
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, "..", "..");
 
-const fence = (body) => `## Deterministic Checks\n\n\`\`\`bash\n${body}\n\`\`\`\n`;
+const fence = (body) => {
+  assert(typeof body === "string", `fence needs the fence body as a string, got ${JSON.stringify(body)}`);
+  const markdown = `## Deterministic Checks\n\n\`\`\`bash\n${body}\n\`\`\`\n`;
+  assert(markdown.includes(body), `the fence must contain its body, got ${JSON.stringify(body)}`);
+  return markdown;
+};
+
+const writeText = (path, body) => {
+  assert(typeof path === "string", `writeText needs a path string, got ${JSON.stringify(path)}`);
+  assert(typeof body === "string", `writeText needs a body string, got ${JSON.stringify(body)}`);
+  writeFileSync(path, body);
+};
+
+const withEnv = (name, value, body) => {
+  assert(typeof name === "string", `withEnv needs a variable name, got ${JSON.stringify(name)}`);
+  assert(typeof body === "function", `withEnv needs a function to run, got ${typeof body}`);
+  return runThenRestore(setEnv(name, value), body);
+};
+
+const runThenRestore = (restore, body) => {
+  assert(typeof restore === "function", `runThenRestore needs a restore function, got ${typeof restore}`);
+  assert(typeof body === "function", `runThenRestore needs a function to run, got ${typeof body}`);
+  try {
+    return body();
+  } finally {
+    restore();
+  }
+};
+
+const setEnv = (name, value) => {
+  assert(typeof name === "string", `setEnv needs a variable name, got ${JSON.stringify(name)}`);
+  assert(typeof value === "string", `setEnv needs a string value, got ${JSON.stringify(value)}`);
+  const previous = process.env[name];
+  process.env[name] = value;
+  return () => {
+    if (previous === undefined) delete process.env[name];
+    else process.env[name] = previous;
+  };
+};
 
 const outputFile = (body) => {
+  assert(typeof body === "string", `outputFile needs the file body as a string, got ${JSON.stringify(body)}`);
   const f = join(mkdtempSync(join(tmpdir(), "gated-delivery-runner-test-")), "output.md");
-  writeFileSync(f, body);
+  writeText(f, body);
+  assert(f.endsWith("output.md"), `the response file must be named output.md, got ${f}`);
   return f;
 };
 
@@ -115,7 +155,7 @@ test("a path containing shell metacharacters is read, not executed", () => {
   const nasty = join(dir, "$(id -u) `whoami` x");
   mkdirSync(nasty, { recursive: true });
   const file = join(nasty, "output.md");
-  writeFileSync(file, "hello\n");
+  writeText(file, "hello\n");
 
   const { checks } = parseChecks(fence("grep -c hello output.md"));
   const result = runCheck(checks[0], file);
@@ -128,7 +168,7 @@ test("a prelude assignment also quotes the path safely", () => {
   const nasty = join(dir, "$(id -u)");
   mkdirSync(nasty, { recursive: true });
   const file = join(nasty, "output.md");
-  writeFileSync(file, "hello\n");
+  writeText(file, "hello\n");
 
   const { prelude, checks } = parseChecks(fence('OUT=out.html\ngrep -c hello "$OUT"'));
   const result = runCheck(checks[0], file, prelude);
@@ -214,15 +254,12 @@ test("parentheses inside a command substitution do not close it early", () => {
 test("an ambient environment variable does not satisfy a fence reference", () => {
   // Otherwise --lint passes or fails on what the host happens to export, and a typo'd name is
   // waved through whenever something unrelated shares it.
-  process.env.GATED_DELIVERY_AMBIENT_PROBE = "/tmp";
-  try {
+  withEnv("GATED_DELIVERY_AMBIENT_PROBE", "/tmp", () => {
     const { checks } = parseChecks(fence('grep -c hello "$GATED_DELIVERY_AMBIENT_PROBE"'));
     const result = runCheck(checks[0], outputFile("hello\n"));
     assert.equal(result.ok, false);
     assert.match(result.result, /unset variable\(s\): GATED_DELIVERY_AMBIENT_PROBE/);
-  } finally {
-    delete process.env.GATED_DELIVERY_AMBIENT_PROBE;
-  }
+  });
 });
 
 test("an already-quoted output.md placeholder is not double-quoted", () => {
@@ -235,18 +272,7 @@ test("an already-quoted output.md placeholder is not double-quoted", () => {
 });
 
 test("--lint passes over the real skills and goes red when a check is broken", () => {
-  const run = (cwd) => {
-    try {
-      return {
-        code: 0,
-        out: execFileSync("node", [join(HERE, "run-checks.mjs"), "--lint"], { cwd, encoding: "utf8" }),
-      };
-    } catch (e) {
-      return { code: e.status ?? 1, out: (e.stdout ?? "") + (e.stderr ?? "") };
-    }
-  };
-
-  const real = run(REPO);
+  const real = cli(REPO, ["--lint"]);
   assert.equal(real.code, 0, real.out);
   assert.match(real.out, /All Deterministic Checks are runnable/);
   // The summary must state what was measured. "across N skills" alone read as coverage even when a
@@ -260,8 +286,8 @@ test("--lint passes over the real skills and goes red when a check is broken", (
   const broken = mkdtempSync(join(tmpdir(), "gated-delivery-runner-broken-"));
   const skill = join(broken, "plugin", "skills", "busted");
   mkdirSync(skill, { recursive: true });
-  writeFileSync(join(skill, "evals.md"), fence("# broken\ngrep --nonsense-flag x output.md"));
-  const red = run(broken);
+  writeText(join(skill, "evals.md"), fence("# broken\ngrep --nonsense-flag x output.md"));
+  const red = cli(broken, ["--lint"]);
   assert.equal(red.code, 1);
   assert.match(red.out, /BROKEN busted/);
 });
@@ -269,14 +295,18 @@ test("--lint passes over the real skills and goes red when a check is broken", (
 const SCENARIO_TABLE = "## Test Scenarios\n\n| # | Prompt | Persona | Pass Criteria |\n|---|---|---|---|\n| 1 | p | q | r |\n| 2b | p | q | r |\n\n";
 
 const repoWith = (skill, evalsBody) => {
+  assert(typeof skill === "string", `repoWith needs a skill name, got ${JSON.stringify(skill)}`);
+  assert(typeof evalsBody === "string", `repoWith needs the evals body as a string, got ${JSON.stringify(evalsBody)}`);
   const dir = mkdtempSync(join(tmpdir(), "gated-delivery-runner-scenario-"));
   const skillDir = join(dir, "plugin", "skills", skill);
   mkdirSync(skillDir, { recursive: true });
-  writeFileSync(join(skillDir, "evals.md"), evalsBody);
+  writeText(join(skillDir, "evals.md"), evalsBody);
   return dir;
 };
 
-const cli = (cwd, ...args) => {
+const cli = (cwd, args) => {
+  assert(typeof cwd === "string", `cli needs a working directory, got ${JSON.stringify(cwd)}`);
+  assert(Array.isArray(args), `cli needs its arguments as an array, got ${JSON.stringify(args)}`);
   try {
     return { code: 0, out: execFileSync("node", [join(HERE, "run-checks.mjs"), ...args], { cwd, encoding: "utf8" }) };
   } catch (e) {
@@ -316,14 +346,14 @@ test("scenarioIds reads every table row under Test Scenarios, across sub-tables"
 
 test("--scenario prints PASS and exits 0 when every applicable check holds", () => {
   const dir = repoWith("alpha", SCENARIO_TABLE + fence("# Has a.\n# expect: >=1 on 1\ngrep -c a output.md\n# Other scenario.\n# expect: ==5 on 2b\ngrep -c zzz output.md"));
-  const { code, out } = cli(dir, "alpha", outputFile("a\n"), "--scenario", "1");
+  const { code, out } = cli(dir, ["alpha", outputFile("a\n"), "--scenario", "1"]);
   assert.equal(code, 0, out);
   assert.equal(out.trim(), "PASS 1 >=1 Has a.");
 });
 
 test("--scenario prints FAIL and exits 1 when a check misses its expectation", () => {
   const dir = repoWith("alpha", SCENARIO_TABLE + fence("# Has a.\n# expect: >=1 on 1\ngrep -c a output.md\n# No b.\n# expect: ==0 on 1\ngrep -c b output.md"));
-  const { code, out } = cli(dir, "alpha", outputFile("b\n"), "--scenario", "1");
+  const { code, out } = cli(dir, ["alpha", outputFile("b\n"), "--scenario", "1"]);
   assert.equal(code, 1, out);
   assert.match(out, /^FAIL 0 >=1 Has a\.$/m);
   assert.match(out, /^FAIL 1 ==0 No b\.$/m);
@@ -331,15 +361,15 @@ test("--scenario prints FAIL and exits 1 when a check misses its expectation", (
 
 test("--scenario counts the lines of a check that prints matches rather than a number", () => {
   const dir = repoWith("alpha", SCENARIO_TABLE + fence("# No pure black.\n# expect: ==0 on 1\ngrep -i '#000' output.md"));
-  assert.equal(cli(dir, "alpha", outputFile("ok\n"), "--scenario", "1").code, 0);
-  const red = cli(dir, "alpha", outputFile("color: #000\nfill: #000\n"), "--scenario", "1");
+  assert.equal(cli(dir, ["alpha", outputFile("ok\n"), "--scenario", "1"]).code, 0);
+  const red = cli(dir, ["alpha", outputFile("color: #000\nfill: #000\n"), "--scenario", "1"]);
   assert.equal(red.code, 1);
   assert.match(red.out, /^FAIL 2 ==0 No pure black\.$/m);
 });
 
 test("--scenario skips manual checks and checks for other scenarios", () => {
   const dir = repoWith("alpha", SCENARIO_TABLE + fence("# Judged by hand.\n# expect: manual\ngrep -c a output.md\n# Elsewhere.\n# expect: ==9 on 2b\ngrep -c a output.md"));
-  const { code, out } = cli(dir, "alpha", outputFile("a\n"), "--scenario", "1");
+  const { code, out } = cli(dir, ["alpha", outputFile("a\n"), "--scenario", "1"]);
   assert.equal(code, 0, out);
   assert.equal(out.trim(), "");
 });
@@ -350,12 +380,12 @@ test("--scenario runs Page checks on a page and response checks on output.md", (
   const response = outputFile("hi\n");
   const pageDir = mkdtempSync(join(tmpdir(), "gated-delivery-runner-page-"));
   const page = join(pageDir, "deskcheck.html");
-  writeFileSync(page, "<pre>x</pre>\n");
+  writeText(page, "<pre>x</pre>\n");
 
-  const onResponse = cli(dir, "alpha", response, "--scenario", "1");
+  const onResponse = cli(dir, ["alpha", response, "--scenario", "1"]);
   assert.equal(onResponse.code, 0, onResponse.out);
   assert.equal(onResponse.out.trim(), "PASS 1 >=1 Response says hi.");
-  const onPage = cli(dir, "alpha", page, "--scenario", "1");
+  const onPage = cli(dir, ["alpha", page, "--scenario", "1"]);
   assert.equal(onPage.code, 0, onPage.out);
   assert.equal(onPage.out.trim(), "PASS 1 >=1 Page: has a pre block.");
 });
@@ -363,24 +393,24 @@ test("--scenario runs Page checks on a page and response checks on output.md", (
 test("--scenario exits 2 on a usage error", () => {
   const dir = repoWith("alpha", SCENARIO_TABLE + fence("# x\n# expect: >=1 on 1\ngrep -c a output.md"));
   const file = outputFile("a\n");
-  assert.equal(cli(dir, "alpha", file, "--scenario").code, 2, "missing id");
-  assert.equal(cli(dir, "alpha", file, "--scenario", "404").code, 2, "id not in the scenario table");
-  assert.equal(cli(dir, "nope", file, "--scenario", "1").code, 2, "unknown skill");
-  assert.equal(cli(dir, "alpha", join(dir, "absent.md"), "--scenario", "1").code, 2, "missing file");
+  assert.equal(cli(dir, ["alpha", file, "--scenario"]).code, 2, "missing id");
+  assert.equal(cli(dir, ["alpha", file, "--scenario", "404"]).code, 2, "id not in the scenario table");
+  assert.equal(cli(dir, ["nope", file, "--scenario", "1"]).code, 2, "unknown skill");
+  assert.equal(cli(dir, ["alpha", join(dir, "absent.md"), "--scenario", "1"]).code, 2, "missing file");
 });
 
 test("--lint rejects a malformed expect line and an unknown scenario id, and accepts manual", () => {
   const good = repoWith("alpha", SCENARIO_TABLE + fence("# a\n# expect: >=1 on 1,2b\ngrep -c a output.md\n# b\n# expect: manual\ngrep -c b output.md"));
-  const ok = cli(good, "--lint");
+  const ok = cli(good, ["--lint"]);
   assert.equal(ok.code, 0, ok.out);
 
   const malformed = repoWith("alpha", SCENARIO_TABLE + fence("# a\n# expect: at least 1 on 1\ngrep -c a output.md"));
-  const red1 = cli(malformed, "--lint");
+  const red1 = cli(malformed, ["--lint"]);
   assert.equal(red1.code, 1);
   assert.match(red1.out, /malformed expect/);
 
   const unknown = repoWith("alpha", SCENARIO_TABLE + fence("# a\n# expect: >=1 on 1,7\ngrep -c a output.md"));
-  const red2 = cli(unknown, "--lint");
+  const red2 = cli(unknown, ["--lint"]);
   assert.equal(red2.code, 1);
   assert.match(red2.out, /unknown scenario "7"/);
 });

@@ -25,18 +25,39 @@ const HOOK = join(dirname(fileURLToPath(import.meta.url)), "format-on-edit.mjs")
 
 const logDir = mkdtempSync(join(tmpdir(), "gated-delivery-format-log-"));
 const invocationLog = join(logDir, "invocations.log");
-writeFileSync(invocationLog, "");
+const putFile = (path, content) => {
+  assert(typeof content === "string", `${path} needs text content, got ${typeof content}`);
+  writeFileSync(path, content);
+  assert(readFileSync(path, "utf8") === content, `${path} must hold what was written`);
+};
+const getFile = (path) => {
+  assert(typeof path === "string", `a file is read by path, got ${typeof path}`);
+  const content = readFileSync(path, "utf8");
+  assert(typeof content === "string", `${path} must read as text`);
+  return content;
+};
+
+putFile(invocationLog, "");
 
 /** Invocations recorded since the last reset. */
-const invocations = () => readFileSync(invocationLog, "utf8").trim();
-const resetInvocations = () => writeFileSync(invocationLog, "");
+const invocations = () => {
+  assert(invocationLog.startsWith(logDir), `${invocationLog} must live in ${logDir}`);
+  const recorded = getFile(invocationLog).trim();
+  assert(!recorded.endsWith("\n"), "the recorded log must be trimmed");
+  return recorded;
+};
+const resetInvocations = () => {
+  assert(invocationLog.startsWith(logDir), `${invocationLog} must live in ${logDir}`);
+  putFile(invocationLog, "");
+  assert(invocations() === "", "a reset log must record nothing");
+};
 
-const run = (cwd, input) =>
-  execFileSync("node", [HOOK], {
-    cwd,
-    encoding: "utf8",
-    input: typeof input === "string" ? input : JSON.stringify(input),
-  });
+const run = (cwd, input) => {
+  assert(typeof cwd === "string", `the hook runs in a directory, got ${typeof cwd}`);
+  const stdin = typeof input === "string" ? input : JSON.stringify(input);
+  assert(typeof stdin === "string", `stdin must be text, got ${typeof stdin}`);
+  return execFileSync("node", [HOOK], { cwd, encoding: "utf8", input: stdin });
+};
 
 // Where each major version of prettier puts its CLI, as declared in its own package.json.
 const V3 = { bin: "./bin/prettier.cjs" };
@@ -50,6 +71,7 @@ const V2 = { bin: { prettier: "./bin-prettier.js" } };
  * state passes even with the guards deleted. Asserting on the log distinguishes them.
  */
 const workdir = (layout = V3) => {
+  assert(layout.bin, `a layout must declare its bin, got ${JSON.stringify(layout)}`);
   const dir = mkdtempSync(join(tmpdir(), "gated-delivery-format-test-"));
   const pkg = join(dir, "node_modules", "prettier");
   const rel = typeof layout.bin === "string" ? layout.bin : layout.bin.prettier;
@@ -72,6 +94,7 @@ const workdir = (layout = V3) => {
       `process.exit(1);`,
     ].join("\n"),
   );
+  assert(dir.startsWith(tmpdir()), `${dir} must be a throwaway under ${tmpdir()}`);
   return dir;
 };
 
@@ -82,11 +105,11 @@ const FORMATTED = "const x = { a: 1, b: 2 };\n";
 
 test("extension guard: never reaches prettier for a non-formattable file", () => {
   const dir = workdir();
-  writeFileSync(join(dir, "img.png"), UNFORMATTED);
+  putFile(join(dir, "img.png"), UNFORMATTED);
   resetInvocations();
   assert.equal(run(dir, { tool_input: { file_path: "img.png" } }), "");
   assert.equal(invocations(), "", "prettier must not be invoked for .png");
-  assert.equal(readFileSync(join(dir, "img.png"), "utf8"), UNFORMATTED);
+  assert.equal(getFile(join(dir, "img.png")), UNFORMATTED);
 });
 
 test("existence guard: never reaches prettier for a missing file", () => {
@@ -111,11 +134,11 @@ test("does reach prettier for a formattable file, and never blocks when it fails
   // so a hook that invoked prettier WITHOUT the flag — printing to stdout, changing nothing, the way
   // real prettier behaves — would satisfy the log assertion and fail here.
   const dir = workdir();
-  writeFileSync(join(dir, "a.ts"), UNFORMATTED);
+  putFile(join(dir, "a.ts"), UNFORMATTED);
   resetInvocations();
   assert.equal(run(dir, { tool_input: { file_path: "a.ts" } }), "", "must exit 0 despite the failure");
   assert.match(invocations(), /--write .*a\.ts/, "prettier must be invoked for .ts");
-  assert.equal(readFileSync(join(dir, "a.ts"), "utf8"), FORMATTED, "the edited file must be rewritten");
+  assert.equal(getFile(join(dir, "a.ts")), FORMATTED, "the edited file must be rewritten");
 });
 
 test("finds the CLI wherever the installed prettier declares it", () => {
@@ -123,7 +146,7 @@ test("finds the CLI wherever the installed prettier declares it", () => {
   // either path silently stops formatting every repo on the other major.
   for (const layout of [V3, V2]) {
     const dir = workdir(layout);
-    writeFileSync(join(dir, "a.ts"), UNFORMATTED);
+    putFile(join(dir, "a.ts"), UNFORMATTED);
     resetInvocations();
     assert.equal(run(dir, { tool_input: { file_path: "a.ts" } }), "");
     assert.match(invocations(), /--write .*a\.ts/, `not found for ${JSON.stringify(layout.bin)}`);
@@ -134,11 +157,11 @@ test("no prettier in the repo: silent no-op, never a crash", () => {
   // A repo without prettier is the common case for a plugin installed everywhere. Resolution fails,
   // and the hook must exit 0 having run nothing at all.
   const dir = mkdtempSync(join(tmpdir(), "gated-delivery-format-bare-"));
-  writeFileSync(join(dir, "a.ts"), UNFORMATTED);
+  putFile(join(dir, "a.ts"), UNFORMATTED);
   resetInvocations();
   assert.equal(run(dir, { tool_input: { file_path: "a.ts" } }), "");
   assert.equal(invocations(), "", "nothing must be spawned when prettier cannot be resolved");
-  assert.equal(readFileSync(join(dir, "a.ts"), "utf8"), UNFORMATTED);
+  assert.equal(getFile(join(dir, "a.ts")), UNFORMATTED);
 });
 
 test("accepts every extension it claims to format without throwing", () => {
@@ -146,7 +169,7 @@ test("accepts every extension it claims to format without throwing", () => {
   const exts = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".json", ".md", ".yaml", ".yml"];
   for (const ext of exts) {
     const name = `f${ext}`;
-    writeFileSync(join(dir, name), ext === ".json" ? '{"a":1}' : UNFORMATTED);
+    putFile(join(dir, name), ext === ".json" ? '{"a":1}' : UNFORMATTED);
     resetInvocations();
     assert.equal(run(dir, { tool_input: { file_path: name } }), "", `threw on ${ext}`);
     assert.notEqual(invocations(), "", `${ext} is claimed formattable but never reached prettier`);

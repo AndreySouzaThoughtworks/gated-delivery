@@ -58,8 +58,16 @@ const CATASTROPHIC = [
   },
 ];
 
-const allow = () => process.exit(0);
+const EXIT_OK = 0;
+
+const allow = () => {
+  console.assert(Number.isInteger(EXIT_OK), `an exit code is an integer, got ${EXIT_OK}`);
+  console.assert(EXIT_OK === 0, `allow is signalled by a clean exit, got ${EXIT_OK}`);
+  process.exit(EXIT_OK);
+};
 const deny = (reason) => {
+  console.assert(typeof reason === "string", "a denial carries its reason as text");
+  console.assert(reason.length > 0, `a denial must say why, got ${reason.length} characters`);
   process.stdout.write(
     JSON.stringify({
       hookSpecificOutput: {
@@ -73,6 +81,8 @@ const deny = (reason) => {
 };
 
 const main = () => {
+  console.assert(CATASTROPHIC.length > 0, `the guard must hold at least one rule, got ${CATASTROPHIC.length}`);
+  console.assert(CATASTROPHIC.every(({ pattern }) => pattern instanceof RegExp), `every rule pairs a RegExp pattern with a reason, got ${CATASTROPHIC.map(({ pattern }) => typeof pattern)}`);
   let input = {};
   try {
     input = JSON.parse(readFileSync(0, "utf8"));

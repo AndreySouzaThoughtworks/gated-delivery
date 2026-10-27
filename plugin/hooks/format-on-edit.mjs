@@ -11,6 +11,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, extname, join, resolve } from "node:path";
+import { readHookInput } from "./lib/read-hook-input.mjs";
 
 const FORMATTABLE = new Set([
   ".ts",
@@ -25,8 +26,13 @@ const FORMATTABLE = new Set([
   ".yml",
 ]);
 const FORMAT_TIMEOUT_MS = 30_000;
+const EXIT_OK = 0;
 
-const done = () => process.exit(0);
+const done = () => {
+  console.assert(Number.isInteger(EXIT_OK), `an exit code is an integer, got ${EXIT_OK}`);
+  console.assert(EXIT_OK === 0, `the hook must never block the edit, so it only ever exits 0, got ${EXIT_OK}`);
+  process.exit(EXIT_OK);
+};
 
 /**
  * The installed prettier's CLI entry, taken from its own manifest rather than a hard-coded path:
@@ -40,21 +46,18 @@ const prettierCli = () => {
     );
     const { bin } = JSON.parse(readFileSync(manifest, "utf8"));
     const declared = typeof bin === "string" ? bin : bin?.prettier;
-    return declared ? join(dirname(manifest), declared) : null;
+    const cli = declared ? join(dirname(manifest), declared) : null;
+    console.assert(typeof manifest === "string", "require.resolve yields a path string");
+    console.assert(cli === null || typeof cli === "string", "the CLI is a path or absent");
+    return cli;
   } catch {
     return null;
   }
 };
 
-const readHookInput = () => {
-  try {
-    return JSON.parse(readFileSync(0, "utf8"));
-  } catch {
-    return {};
-  }
-};
-
 const main = () => {
+  console.assert(FORMATTABLE.size > 0, `the hook must format at least one extension, got ${FORMATTABLE.size}`);
+  console.assert(Number.isInteger(FORMAT_TIMEOUT_MS), `the formatter timeout is whole milliseconds, got ${FORMAT_TIMEOUT_MS}`);
   const input = readHookInput();
   const filePath = input?.tool_input?.file_path;
   if (!filePath || !FORMATTABLE.has(extname(filePath))) done();

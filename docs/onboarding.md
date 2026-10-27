@@ -48,6 +48,10 @@ The verify gate (`verify-on-stop`) runs `GATED_DELIVERY_VERIFY_CMD` if set, else
 
 Three hooks fire on their own: a Bash guard, a formatter after every edit, and a verify gate at turn-end. What each does: [`skill-graph.md`](./skill-graph.md) — one inventory, so hook behaviour can't get described two different ways.
 
+## Running alongside overwatch
+
+The `overwatch` plugin is a watcher: after edits it runs zanity and the tests and feeds failures back to the agent. `verify-on-stop` gates turn-end on the client's Verify command and overwatch gates on its own watchers, so they run different commands and either can be installed alone. Both can block the same turn when both fail.
+
 ## Daily use
 
 Which skill to run when, and how they call each other: [skill-graph.md](./skill-graph.md).

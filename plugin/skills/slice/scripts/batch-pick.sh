@@ -19,34 +19,37 @@ BATCH_BASE="${2:?usage: batch-pick.sh <batch-branch> <batch-base>}"
 PICK_FAILED=1
 PICK_CONFLICT=3
 
-if [ -n "$(git status --porcelain)" ]; then
+UNCOMMITTED="$(git status --porcelain)"
+if [[ -n "${UNCOMMITTED}" ]]; then
   echo "writing tree has uncommitted changes; commit or stash them before picking" >&2
-  exit "$PICK_FAILED"
+  exit "${PICK_FAILED}"
 fi
-for ref in "$BATCH_BRANCH" "$BATCH_BASE"; do
-  if ! git rev-parse --verify -q "$ref^{commit}" >/dev/null; then
-    echo "no such commit or branch: $ref" >&2
-    exit "$PICK_FAILED"
+for ref in "${BATCH_BRANCH}" "${BATCH_BASE}"; do
+  if ! git rev-parse --verify -q "${ref}^{commit}" >/dev/null; then
+    echo "no such commit or branch: ${ref}" >&2
+    exit "${PICK_FAILED}"
   fi
 done
 
 BEFORE="$(git rev-parse HEAD)"
-TO_PICK="$(git cherry HEAD "$BATCH_BRANCH" "$BATCH_BASE" | sed -n 's/^+ //p')"
-if [ -z "$TO_PICK" ]; then
-  echo "$BEFORE..$BEFORE"
+TO_PICK="$(git cherry HEAD "${BATCH_BRANCH}" "${BATCH_BASE}" | sed -n 's/^+ //p')"
+if [[ -z "${TO_PICK}" ]]; then
+  echo "${BEFORE}..${BEFORE}"
   exit 0
 fi
 
-# shellcheck disable=SC2086
-if ! ERR="$(git cherry-pick --empty=drop $TO_PICK 2>&1 >/dev/null)"; then
+PICKS=()
+while IFS= read -r commit; do PICKS+=("${commit}"); done <<<"${TO_PICK}"
+if ! ERR="$(git cherry-pick --empty=drop "${PICKS[@]}" 2>&1 >/dev/null)"; then
   CONFLICTED="$(git diff --name-only --diff-filter=U)"
   git cherry-pick --abort >/dev/null 2>&1
-  git reset -q --hard "$BEFORE"
-  if [ -n "$CONFLICTED" ]; then
-    echo "$BATCH_BRANCH conflicts with the slice at $BEFORE in: $CONFLICTED" >&2
-    exit "$PICK_CONFLICT"
+  git reset -q --hard "${BEFORE}"
+  if [[ -n "${CONFLICTED}" ]]; then
+    echo "${BATCH_BRANCH} conflicts with the slice at ${BEFORE} in: ${CONFLICTED}" >&2
+    exit "${PICK_CONFLICT}"
   fi
-  echo "picking $BATCH_BRANCH failed: $ERR" >&2
-  exit "$PICK_FAILED"
+  echo "picking ${BATCH_BRANCH} failed: ${ERR}" >&2
+  exit "${PICK_FAILED}"
 fi
-echo "$BEFORE..$(git rev-parse HEAD)"
+AFTER="$(git rev-parse HEAD)"
+echo "${BEFORE}..${AFTER}"

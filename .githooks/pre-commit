@@ -1,2 +1,3 @@
 #!/usr/bin/env bash
-exec "$(git rev-parse --show-toplevel)/scripts/leak-guard.sh"
+repo_root="$(git rev-parse --show-toplevel)"
+exec "${repo_root}/scripts/leak-guard.sh"

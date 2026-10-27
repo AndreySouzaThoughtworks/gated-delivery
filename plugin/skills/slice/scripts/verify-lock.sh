@@ -11,11 +11,11 @@
 # command inherits it, so an orphaned test run keeps it until it really ends.
 set -uo pipefail
 
-LOCK="${GATED_DELIVERY_VERIFY_LOCK:-$HOME/.local/state/gated-delivery/verify.lock}"
+LOCK="${GATED_DELIVERY_VERIFY_LOCK:-${HOME}/.local/state/gated-delivery/verify.lock}"
 TIMEOUT_S="${GATED_DELIVERY_VERIFY_LOCK_TIMEOUT_S:-1800}"
 COMMAND="${1:?usage: verify-lock.sh '<command>'}"
 
-mkdir -p "$(dirname "$LOCK")"
+mkdir -p "$(dirname "${LOCK}")"
 
 exec perl -e '
   use Fcntl qw(:flock);
@@ -34,4 +34,4 @@ exec perl -e '
     $waited++;
   }
   exec("bash", "-c", $command) or die "cannot run bash: $!\n";
-' "$LOCK" "$TIMEOUT_S" "$COMMAND"
+' "${LOCK}" "${TIMEOUT_S}" "${COMMAND}"

@@ -1,10 +1,10 @@
 ---
 name: learn-flow
-description: Reflect at a session break and route each lesson by scope: flow-level to a gated-delivery change proposal, client-level to the client's CLAUDE.md, repo-level to that repo's CLAUDE.md, personal to the global CLAUDE.md, recurring mistakes to a lint rule. Use on /learn-flow, "what did we learn", "lessons learned", "let's capture this", or after a /slice or /spec session with friction. Propose, never silently write.
+description: Reflect at a session break and turn each mistake into a proposed deterministic check (extend an existing guard, lint rule or test, else add one wired into CI and the watcher), with a failing example proving it rejects the bad case. Only a mistake no machine can detect becomes a prose rule, routed by scope: gated-delivery change proposal, client, repo or global CLAUDE.md. Use on /learn-flow, "what did we learn", "lessons learned", "let's capture this", or after a /slice or /spec session with friction. Propose, never silently write.
 ---
-# learn-flow — capture lessons and improve the flow
+# learn-flow — turn session mistakes into checks
 
-Flow improve only if usage feed back. This skill = **capture** half of loop: reflect on session, decide what worth keeping, route each lesson where it propagate. Plugin installed read-only and shared, so flow-level improvement cannot be local edit — go to **gated-delivery repo**, reach every install.
+Prose rules drift; a check fails. Every mistake an agent makes should end as a deterministic check that rules out the whole category — the repo is the shared context, so harden the repo, not the agent. This skill = **capture** half of loop: reflect on session, keep only what survives the bar, encode each survivor as a check. Plugin installed read-only and shared, so flow-level change cannot be local edit — go to **gated-delivery repo**, reach every install.
 
 Default to **drop**. Each candidate _presumed dropped_ until it clear keep-bar below. Expected outcome of clean session = _nothing captured_ — not one filler item to look useful.
 
@@ -35,27 +35,36 @@ If nothing overturn null in 30 seconds, say so and stop. Typing `/learn-flow` do
 Each candidate **presumed dropped**. Survive only if clear **both** gates — name evidence and mechanism inline, so reader can check work:
 
 - **Evidence.** Point to concrete moment it happened — exact correction, agent-notes or `handoff.md` line, error/stack, command that failed. No pointer → vibe → drop.
-- **Mechanism.** Name _why this bite again_ — structural cause in tool/repo/flow, not accident of this session. Test: _"would next person on same path hit same wall, because of how things are built?"_ If depend on this session specifics (transient flake, one-time bad merge, config that happened to sit somewhere odd) → drop. Prior sighting (matching agent-notes entry, memory file, "second time I hit this") = _strongest_ corroboration mechanism real — bonus, not requirement.
+- **Mechanism.** Name _why this bite again_ — structural cause in tool/repo/flow, not accident of this session. Test: _"would next person on same path hit same wall, because of how things are built?"_ If depend on this session specifics (transient flake, one-time bad merge) → drop. Prior sighting (matching agent-notes entry, memory file, "second time I hit this") = _strongest_ corroboration — bonus, not requirement.
 
-**Flow-level clear third gate.** To route to gated-delivery repo — where it ship to every install — you must **state the `evals.md` scenario it would add**: failing-before / passing-after test, in shape of that skill existing scenarios. Cannot write that test → lesson not property of flow — downgrade to repo/personal, or drop. Articulating test = bar for "worth packing into shared plugin."
+## Step 3 — Encode as a check (the primary artifact)
 
-This gate asks about skill behaviour. A lesson about a *technology* — a field the platform discards, a setting with no effect, a shape that parses clean and does nothing — has no skill scenario to add, and belongs in a domain reference rather than being downgraded. Step 3 routes it.
+For each survivor, name the **category** first: the whole class of mistake, not this instance. Then pick the first rung that fits:
 
-## Step 3 — Categorize (route by scope)
+1. **Extend an existing check.** A rule, guard, lint config or test the repo already runs. Cheapest; no new surface.
+2. **New check wired into the repo's CI and watcher.** Lint rule, test, script or guard, run where failures reach the agent (watcher, pre-commit, CI) so it self-corrects from the error. Prefer a standard rule or plugin over a bespoke checker.
+3. **Prose, only when no machine can decide it** (judgment, taste, intent). Say why it cannot be a check; routed by scope in Step 4.
 
-For each candidate, pick exactly one destination. Pick by _who benefits_:
+**Failing example is the third gate.** A check proposal must include input the check rejects, and the command showing it fail. A check that cannot fail proves nothing. Cannot produce the failing example → not a check yet; drop it or fall to rung 3.
 
-- **Flow-level → gated-delivery repo.** Lesson about how gated-delivery skill/agent/hook/recipe behave, or convention applying to **everyone** using flow (not one client, not one codebase). Cannot be local edit — installed plugin read-only and shared. Capture as a **change proposal routed to the gated-delivery repo, as a PR or an issue**. Only path that improve flow for every install.
-- **Domain reference → `plugin/references/`.** Constraint belonging to a *technology* rather than to the flow or to one codebase, which a competent engineer would not guess and would otherwise find by shipping something that silently does nothing. Same change-proposal route against the gated-delivery repo as flow-level, and the `evals.md` gate above does not apply. Admission test is in `references/reference-graph.md`; an existing reference takes an edit, a new subject takes a row and a file.
-- **Client-level → client's CLAUDE.md overlay.** Lesson true across one client's repos — its tracker, conventions, internal tooling, review routing — but not for other clients. Edit the client folder's CLAUDE.md, in the section `../../references/client-context.md` (relative to this file) names for it. Never route it into the core plugin.
-- **Repo-level → `<repo>/CLAUDE.md`.** Lesson specific to _this_ codebase (build quirks, layout, in-repo command). Edit that repo CLAUDE.md.
-- **Personal → `~/CLAUDE.md`.** Preference about how _you_ like work, not flow or repo.
-- **Lint rule.** _Recurring_ mistake, deterministically detectable (AST / lint). Propose **enabling or adding eslint rule** — in repo `eslint.config.mjs` (where team lint already run on commit), or across repos if flow-wide. No rule for one-off.
-- **Drop.** Failed gate in Step 2, already documented, or too narrow. Showing what you dropped — and which gate it failed — build trust in filter.
+Rules about the rules: a change that loosens a check (disable, ignore, lowered threshold) needs its own check or reviewer, so the loosening fails too.
+
+**Flow-level prose clears a gate of its own.** To route a prose or skill edit to gated-delivery repo you must **state the `evals.md` scenario it would add**: failing-before / passing-after, in shape of that skill existing scenarios. A flow-level _check_ (audit guard, hook test) needs only its failing example. A lesson about a _technology_ (field the platform discards, setting with no effect) belongs in a domain reference, which needs neither.
+
+## Step 4 — Route what stays prose (by scope)
+
+Only rung 3 lessons land here. Pick by _who benefits_:
+
+- **Flow-level → gated-delivery repo.** Skill/agent/hook/recipe behaviour, or convention for **everyone** using flow. Route as **change proposal to the gated-delivery repo, as a PR or issue**.
+- **Domain reference → `plugin/references/`.** Constraint of a *technology* a competent engineer would not guess. Same route as flow-level. Admission test in `references/reference-graph.md`.
+- **Client-level → client's CLAUDE.md overlay.** True across one client's repos, not others. Edit the section `../../references/client-context.md` (relative to this file) names. Never into core plugin.
+- **Repo-level → `<repo>/CLAUDE.md`.** Specific to _this_ codebase.
+- **Personal → `~/CLAUDE.md`.** How _you_ like work.
+- **Drop.** Failed gate, already documented, or too narrow. Showing what you dropped, and which gate it failed, build trust in filter.
 
 Lesson fit two → pick most durable / widest-reaching (flow > reference > client > repo > personal > drop).
 
-## Step 4 — Propose
+## Step 5 — Propose
 
 **If nothing survived Step 2, print this line:**
 
@@ -63,46 +72,36 @@ Lesson fit two → pick most durable / widest-reaching (flow > reference > clien
 No learnings cleared the bar this session.
 ```
 
-Then, for each candidate you considered, one line naming the gate it failed with one of these labels verbatim: `Dropped: <candidate> — <no evidence | incidental, no mechanism | no evals test | already documented>`. A reason in your own words may follow the label. No other output.
+Then, for each candidate you considered, one line naming the gate it failed with one of these labels verbatim: `Dropped: <candidate> — <no evidence | incidental, no mechanism | no failing example | no evals test | already documented>`. A reason in your own words may follow the label. No other output.
 
-No empty headings — blank template invite padding. Render section only for destination with actual survivor. When at least one survive, print just those sections, then ask **"Approve which of these?"** (`AskUserQuestion` if 2+ items):
+No empty headings. Render section only for something that survived. Print just those sections, then ask **"Approve which of these?"** (`AskUserQuestion` if 2+ items):
 
 ```
 ## Session learnings
 
-### Flow-level → gated-delivery repo
-- <lesson> — proposed as: <issue title / one-line PR change>
-  Why: <one sentence>
-  evals test: <failing-before / passing-after, one line>
+### Check → <repo>
+- Mistake: <this instance>
+  Category: <whole class it belongs to>
+  Check: <extend <file/rule> | new <file/command>>
+  Runs in: <watcher / pre-commit / CI job>
+  Fails on: <failing example and the command that shows it rejected>
 
-### Domain reference → plugin/references/
-- <reference or new subject> — <exact rule to add, one or two lines>
-  Trap: <what ships green and does nothing without it>
-
-### Client-level → <client>/CLAUDE.md
-- Add under "<section>": > <exact line>
-
-### Repo-level → <repo>/CLAUDE.md
-- Add under "<heading>": > <exact line>
-
-### Personal → ~/CLAUDE.md
-- <exact line>
-
-### Lint rule → <repo eslint config>
-- category / what it flags / detection
+### Prose (no check possible) → <destination>
+- <exact line, or issue title / one-line PR change>
+  Why not a check: <what a machine cannot decide>
+  evals test: <flow-level only: failing-before / passing-after, one line>
 
 ### Dropped (only items you actually considered)
-- <bullet> — <gate it failed: no evidence / incidental, no mechanism / no evals test / already documented>
+- <bullet> — <gate it failed>
 ```
 
 **Hard rule: propose, don't write.** Draft every edit, issue, PR, check in conversation first. Persist only what user explicitly approve — one item rejected ≠ all rejected.
 
-## Step 5 — Apply approved items
+## Step 6 — Apply approved items
 
-- **Flow-level** → route it to the gated-delivery repo: `gh issue create` with drafted title/body, or a draft PR if the change is small and concrete. **Never edit installed plugin copy in place** — versioned; changes reach users through repo and re-install. Report the issue or PR URL.
-- **Domain reference** → same route as flow-level, against `plugin/references/`: edit the matching reference, or add a row to `reference-graph.md` and the file beside it. The guard fails CI on a row without a file or a file without a row.
-- **Client-level / Repo-level / Personal** → `Edit` target CLAUDE.md on exact section. Show one-line diff.
-- **Lint rule** → name eslint rule + config it belong in; route as PR to repo `eslint.config.mjs` (or each repo config if flow-wide). No hand-rolled bespoke checker — prefer standard eslint/tseslint rule or plugin.
+- **Check** → in the repo being worked on, edit the config or add the check, run its failing example and show it fail, then run the suite green. In another repo or flow-wide: route as PR to it, or to the gated-delivery repo. Never edit installed plugin copy in place.
+- **Flow-level / domain reference prose** → `gh issue create` with drafted title/body, or a draft PR if small and concrete, against the gated-delivery repo. Versioned; changes reach users through repo and re-install. Report the URL. A reference row needs its file: the guard fails CI otherwise.
+- **Client / Repo / Personal prose** → `Edit` target CLAUDE.md on exact section. Show one-line diff.
 
 After each action, confirm in one line: `<target> — <created/updated/filed>`.
 

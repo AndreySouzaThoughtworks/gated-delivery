@@ -1,18 +1,3 @@
-// Behaviour check for the PostToolUse formatter. Run: node --test plugin/hooks/
-// Every test works in a throwaway temp dir; nothing touches this repo.
-//
-// COVERAGE BOUNDARY: real prettier's own formatting is NOT exercised — that is prettier's test
-// suite, and this repo carries no package.json to install one from. What IS covered is the whole
-// contract that belongs to the hook: every guard clause, the CLI it resolves, the flag it passes,
-// and the invariants that matter operationally — never block an edit, never throw, never touch a
-// file it was not handed. Verified by deleting each guard in a copy: every deletion fails a test.
-//
-// Each work dir gets a fake `prettier` package that records its arguments AND honours `--write`,
-// rather than inheriting whatever the machine has installed — otherwise these tests pass here and
-// fail on any box with a resolvable prettier, for a hook that behaved correctly. Honouring the flag
-// is what makes the end-state assertion mean something: dropping `--write` leaves real prettier
-// printing to stdout and changing nothing, which an argument log alone cannot distinguish.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -23,67 +8,34 @@ import { fileURLToPath } from "node:url";
 
 const HOOK = join(dirname(fileURLToPath(import.meta.url)), "format-on-edit.mjs");
 
-const logDir = mkdtempSync(join(tmpdir(), "gated-delivery-format-log-"));
-const invocationLog = join(logDir, "invocations.log");
-const putFile = (path, content) => {
-  assert(typeof content === "string", `${path} needs text content, got ${typeof content}`);
-  writeFileSync(path, content);
-  assert(readFileSync(path, "utf8") === content, `${path} must hold what was written`);
-};
-const getFile = (path) => {
-  assert(typeof path === "string", `a file is read by path, got ${typeof path}`);
-  const content = readFileSync(path, "utf8");
-  assert(typeof content === "string", `${path} must read as text`);
-  return content;
-};
+const UNFORMATTED = "const   x={a:1,   b:2}\n";
+const FORMATTED = "const x = { a: 1, b: 2 };\n";
 
-putFile(invocationLog, "");
-
-/** Invocations recorded since the last reset. */
-const invocations = () => {
-  assert(invocationLog.startsWith(logDir), `${invocationLog} must live in ${logDir}`);
-  const recorded = getFile(invocationLog).trim();
-  assert(!recorded.endsWith("\n"), "the recorded log must be trimmed");
-  return recorded;
-};
-const resetInvocations = () => {
-  assert(invocationLog.startsWith(logDir), `${invocationLog} must live in ${logDir}`);
-  putFile(invocationLog, "");
-  assert(invocations() === "", "a reset log must record nothing");
-};
-
-const run = (cwd, input) => {
-  assert(typeof cwd === "string", `the hook runs in a directory, got ${typeof cwd}`);
-  const stdin = typeof input === "string" ? input : JSON.stringify(input);
-  assert(typeof stdin === "string", `stdin must be text, got ${typeof stdin}`);
-  return execFileSync("node", [HOOK], { cwd, encoding: "utf8", input: stdin });
-};
-
-// Where each major version of prettier puts its CLI, as declared in its own package.json.
 const V3 = { bin: "./bin/prettier.cjs" };
 const V2 = { bin: { prettier: "./bin-prettier.js" } };
 
-/**
- * A work dir holding a fake `prettier` package that records its arguments and then fails.
- *
- * Recording is the point. A fake that only fails makes "the guard skipped it" and "the hook ran it
- * and the toolchain refused" produce identical observable output — so asserting on the file's end
- * state passes even with the guards deleted. Asserting on the log distinguishes them.
- */
+const invocationLog = join(mkdtempSync(join(tmpdir(), "gated-delivery-format-log-")), "invocations.log");
+const invocations = () => readFileSync(invocationLog, "utf8").trim();
+const resetInvocations = () => writeFileSync(invocationLog, "");
+
+const run = (cwd, input) =>
+  execFileSync("node", [HOOK], {
+    cwd,
+    encoding: "utf8",
+    input: typeof input === "string" ? input : JSON.stringify(input),
+  });
+
+const tempDir = (label) => mkdtempSync(join(tmpdir(), `gated-delivery-format-${label}-`));
+
 const workdir = (layout = V3) => {
-  assert(layout.bin, `a layout must declare its bin, got ${JSON.stringify(layout)}`);
-  const dir = mkdtempSync(join(tmpdir(), "gated-delivery-format-test-"));
+  const dir = tempDir("test");
   const pkg = join(dir, "node_modules", "prettier");
-  const rel = typeof layout.bin === "string" ? layout.bin : layout.bin.prettier;
-  const cli = join(pkg, rel);
+  const cli = join(pkg, typeof layout.bin === "string" ? layout.bin : layout.bin.prettier);
   mkdirSync(dirname(cli), { recursive: true });
   writeFileSync(
     join(pkg, "package.json"),
     JSON.stringify({ name: "prettier", version: "0.0.0", exports: { "./*": "./*" }, ...layout }),
   );
-  // The fake honours `--write` the way prettier does: without it prettier prints to stdout and
-  // leaves the file alone. Recording the arguments alone could not tell those apart — a hook that
-  // dropped the flag would still "invoke prettier" while silently formatting nothing.
   writeFileSync(
     cli,
     [
@@ -94,92 +46,59 @@ const workdir = (layout = V3) => {
       `process.exit(1);`,
     ].join("\n"),
   );
-  assert(dir.startsWith(tmpdir()), `${dir} must be a throwaway under ${tmpdir()}`);
   return dir;
 };
 
-// Deliberately badly formatted, so a real prettier run would visibly change it. FORMATTED is what
-// the fake CLI writes back when it is given `--write`.
-const UNFORMATTED = "const   x={a:1,   b:2}\n";
-const FORMATTED = "const x = { a: 1, b: 2 };\n";
+const editOf = (file_path) => ({ tool_input: { file_path } });
 
-test("extension guard: never reaches prettier for a non-formattable file", () => {
+test("never reaches prettier for a non-formattable, missing or absent file path, or unusable stdin", () => {
   const dir = workdir();
-  putFile(join(dir, "img.png"), UNFORMATTED);
-  resetInvocations();
-  assert.equal(run(dir, { tool_input: { file_path: "img.png" } }), "");
-  assert.equal(invocations(), "", "prettier must not be invoked for .png");
-  assert.equal(getFile(join(dir, "img.png")), UNFORMATTED);
-});
-
-test("existence guard: never reaches prettier for a missing file", () => {
-  resetInvocations();
-  assert.equal(run(workdir(), { tool_input: { file_path: "gone.ts" } }), "");
-  assert.equal(invocations(), "", "prettier must not be invoked for a path that doesn't exist");
-});
-
-test("input guard: never reaches prettier without a file_path", () => {
-  for (const input of [{}, { tool_input: {} }, { tool_input: { file_path: "" } }]) {
+  writeFileSync(join(dir, "img.png"), UNFORMATTED);
+  const inputs = [
+    editOf("img.png"),
+    editOf("gone.ts"),
+    {},
+    { tool_input: {} },
+    editOf(""),
+    "",
+    "not json",
+  ];
+  for (const input of inputs) {
     resetInvocations();
-    assert.equal(run(workdir(), input), "", `expected silence for ${JSON.stringify(input)}`);
+    assert.equal(run(dir, input), "", `expected silence for ${JSON.stringify(input)}`);
     assert.equal(invocations(), "", `prettier must not be invoked for ${JSON.stringify(input)}`);
   }
+  assert.equal(readFileSync(join(dir, "img.png"), "utf8"), UNFORMATTED);
 });
 
-test("does reach prettier for a formattable file, and never blocks when it fails", () => {
-  // The positive half of the guard tests above: without this, deleting a guard would be invisible
-  // because "skipped" and "attempted" would both show an empty log.
-  //
-  // The file assertion is the part that matters: the fake only rewrites when `--write` is present,
-  // so a hook that invoked prettier WITHOUT the flag — printing to stdout, changing nothing, the way
-  // real prettier behaves — would satisfy the log assertion and fail here.
-  const dir = workdir();
-  putFile(join(dir, "a.ts"), UNFORMATTED);
-  resetInvocations();
-  assert.equal(run(dir, { tool_input: { file_path: "a.ts" } }), "", "must exit 0 despite the failure");
-  assert.match(invocations(), /--write .*a\.ts/, "prettier must be invoked for .ts");
-  assert.equal(getFile(join(dir, "a.ts")), FORMATTED, "the edited file must be rewritten");
-});
-
-test("finds the CLI wherever the installed prettier declares it", () => {
-  // Prettier 2 ships `bin-prettier.js` at the package root, 3 ships `bin/prettier.cjs`. Hard-coding
-  // either path silently stops formatting every repo on the other major.
+test("formats through whichever CLI the installed prettier declares, and never blocks when it fails", () => {
   for (const layout of [V3, V2]) {
     const dir = workdir(layout);
-    putFile(join(dir, "a.ts"), UNFORMATTED);
+    writeFileSync(join(dir, "a.ts"), UNFORMATTED);
     resetInvocations();
-    assert.equal(run(dir, { tool_input: { file_path: "a.ts" } }), "");
+    assert.equal(run(dir, editOf("a.ts")), "");
     assert.match(invocations(), /--write .*a\.ts/, `not found for ${JSON.stringify(layout.bin)}`);
+    assert.equal(readFileSync(join(dir, "a.ts"), "utf8"), FORMATTED);
   }
 });
 
 test("no prettier in the repo: silent no-op, never a crash", () => {
-  // A repo without prettier is the common case for a plugin installed everywhere. Resolution fails,
-  // and the hook must exit 0 having run nothing at all.
-  const dir = mkdtempSync(join(tmpdir(), "gated-delivery-format-bare-"));
-  putFile(join(dir, "a.ts"), UNFORMATTED);
+  const dir = tempDir("bare");
+  writeFileSync(join(dir, "a.ts"), UNFORMATTED);
   resetInvocations();
-  assert.equal(run(dir, { tool_input: { file_path: "a.ts" } }), "");
-  assert.equal(invocations(), "", "nothing must be spawned when prettier cannot be resolved");
-  assert.equal(getFile(join(dir, "a.ts")), UNFORMATTED);
+  assert.equal(run(dir, editOf("a.ts")), "");
+  assert.equal(invocations(), "");
+  assert.equal(readFileSync(join(dir, "a.ts"), "utf8"), UNFORMATTED);
 });
 
-test("accepts every extension it claims to format without throwing", () => {
+test("accepts every extension it claims to format", () => {
   const dir = workdir();
-  const exts = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".json", ".md", ".yaml", ".yml"];
-  for (const ext of exts) {
-    const name = `f${ext}`;
-    putFile(join(dir, name), ext === ".json" ? '{"a":1}' : UNFORMATTED);
+  const extensions = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".json", ".md", ".yaml", ".yml"];
+  for (const extension of extensions) {
+    const name = `f${extension}`;
+    writeFileSync(join(dir, name), UNFORMATTED);
     resetInvocations();
-    assert.equal(run(dir, { tool_input: { file_path: name } }), "", `threw on ${ext}`);
-    assert.notEqual(invocations(), "", `${ext} is claimed formattable but never reached prettier`);
-  }
-});
-
-test("fails open on unusable stdin", () => {
-  for (const input of ["", "not json"]) {
-    resetInvocations();
-    assert.equal(run(workdir(), input), "", `expected silence for stdin: ${input || "<empty>"}`);
-    assert.equal(invocations(), "", "unparsable stdin must not reach prettier");
+    assert.equal(run(dir, editOf(name)), "");
+    assert.notEqual(invocations(), "", `${extension} never reached prettier`);
   }
 });

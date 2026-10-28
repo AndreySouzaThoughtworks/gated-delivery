@@ -45,6 +45,8 @@ The verify gate (`verify-on-stop`) runs `GATED_DELIVERY_VERIFY_CMD` if set, else
 | `GATED_DELIVERY_VERIFY_MAX_BLOCKS` | `3` | How many turns in a row the Stop hook may block before it gives up — stops a stuck loop when the gate can't go green. |
 | `GATED_DELIVERY_VERIFY_TIMEOUT_MS` | `600000` | How long the Stop hook lets the verify command run before it kills the command's whole process group and blocks with a timeout message. Zero, negative and non-numeric values fall back to the default. |
 | `GATED_DELIVERY_RUN_TIMEOUT_SECONDS` | `1200` | Wall-clock budget for one eval run in `scripts/eval/run-scenarios.mjs`; a run past it is stopped and flagged as a harness failure. |
+| `GATED_DELIVERY_RUN_MODEL` | unset | Model passed as `--model` to each eval run in `scripts/eval/run-scenarios.mjs`. The `--model` flag wins. |
+| `GATED_DELIVERY_BASE_REF` | `origin/main` for `changed-skills.mjs`; unset for the guard | Git ref a skill change is measured against. The consistency guard checks eval stamps only when it is set; CI sets it on pull requests. |
 
 ## What runs automatically (hooks — zero setup)
 

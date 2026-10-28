@@ -16,51 +16,20 @@ import { parseChecks, parseExpect, runCheck, scenarioIds } from "./run-checks.mj
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, "..", "..");
 
-const fence = (body) => {
-  assert(typeof body === "string", `fence needs the fence body as a string, got ${JSON.stringify(body)}`);
-  const markdown = `## Deterministic Checks\n\n\`\`\`bash\n${body}\n\`\`\`\n`;
-  assert(markdown.includes(body), `the fence must contain its body, got ${JSON.stringify(body)}`);
-  return markdown;
-};
-
-const writeText = (path, body) => {
-  assert(typeof path === "string", `writeText needs a path string, got ${JSON.stringify(path)}`);
-  assert(typeof body === "string", `writeText needs a body string, got ${JSON.stringify(body)}`);
-  writeFileSync(path, body);
-};
+const fence = (body) => `## Deterministic Checks\n\n\`\`\`bash\n${body}\n\`\`\`\n`;
 
 const withEnv = (name, value, body) => {
-  assert(typeof name === "string", `withEnv needs a variable name, got ${JSON.stringify(name)}`);
-  assert(typeof body === "function", `withEnv needs a function to run, got ${typeof body}`);
-  return runThenRestore(setEnv(name, value), body);
-};
-
-const runThenRestore = (restore, body) => {
-  assert(typeof restore === "function", `runThenRestore needs a restore function, got ${typeof restore}`);
-  assert(typeof body === "function", `runThenRestore needs a function to run, got ${typeof body}`);
+  process.env[name] = value;
   try {
     return body();
   } finally {
-    restore();
+    delete process.env[name];
   }
 };
 
-const setEnv = (name, value) => {
-  assert(typeof name === "string", `setEnv needs a variable name, got ${JSON.stringify(name)}`);
-  assert(typeof value === "string", `setEnv needs a string value, got ${JSON.stringify(value)}`);
-  const previous = process.env[name];
-  process.env[name] = value;
-  return () => {
-    if (previous === undefined) delete process.env[name];
-    else process.env[name] = previous;
-  };
-};
-
 const outputFile = (body) => {
-  assert(typeof body === "string", `outputFile needs the file body as a string, got ${JSON.stringify(body)}`);
   const f = join(mkdtempSync(join(tmpdir(), "gated-delivery-runner-test-")), "output.md");
-  writeText(f, body);
-  assert(f.endsWith("output.md"), `the response file must be named output.md, got ${f}`);
+  writeFileSync(f, body);
   return f;
 };
 
@@ -93,14 +62,6 @@ test("collects leading assignments as a prelude rather than treating them as che
   assert.equal(checks.length, 1, "the assignment must not count as a check");
 });
 
-test("a prelude variable resolves to the file under test", () => {
-  const file = outputFile("hello\n");
-  const { prelude, checks } = parseChecks(fence('OUT=out.html\ngrep -c hello "$OUT"'));
-  const result = runCheck(checks[0], file, prelude);
-  assert.equal(result.ok, true);
-  assert.equal(result.result, "1");
-});
-
 test("no match is a result, not a broken command", () => {
   // grep exits 1 when it matches nothing. Treating that as breakage would flag every legitimately
   // zero-scoring check.
@@ -108,12 +69,6 @@ test("no match is a result, not a broken command", () => {
   const result = runCheck(checks[0], outputFile("hello\n"));
   assert.equal(result.ok, true);
   assert.equal(result.result, "0");
-});
-
-test("a command that cannot run is reported as broken", () => {
-  const { checks } = parseChecks(fence("grep --nonsense-flag x output.md"));
-  const result = runCheck(checks[0], outputFile("hello\n"));
-  assert.equal(result.ok, false, "a usage error must not be mistaken for a zero score");
 });
 
 test("a broken command inside a pipeline is still detected", () => {
@@ -148,32 +103,18 @@ test("$WORKTREE is supplied by the runner", () => {
   assert.equal(result.result, "ok");
 });
 
-test("a path containing shell metacharacters is read, not executed", () => {
-  // JSON.stringify wraps in double quotes, inside which $(...) still expands: a path holding
-  // `$(id -u)` was substituted and then executed, so the check read a different file entirely.
-  const dir = mkdtempSync(join(tmpdir(), "gated-delivery-runner-quote-"));
-  const nasty = join(dir, "$(id -u) `whoami` x");
-  mkdirSync(nasty, { recursive: true });
-  const file = join(nasty, "output.md");
-  writeText(file, "hello\n");
-
-  const { checks } = parseChecks(fence("grep -c hello output.md"));
-  const result = runCheck(checks[0], file);
-  assert.equal(result.ok, true, `path was not read literally: ${result.result}`);
-  assert.equal(result.result, "1");
-});
-
-test("a prelude assignment also quotes the path safely", () => {
-  const dir = mkdtempSync(join(tmpdir(), "gated-delivery-runner-quote2-"));
-  const nasty = join(dir, "$(id -u)");
-  mkdirSync(nasty, { recursive: true });
-  const file = join(nasty, "output.md");
-  writeText(file, "hello\n");
-
-  const { prelude, checks } = parseChecks(fence('OUT=out.html\ngrep -c hello "$OUT"'));
-  const result = runCheck(checks[0], file, prelude);
-  assert.equal(result.ok, true, `prelude path was not read literally: ${result.result}`);
-  assert.equal(result.result, "1");
+test("a path containing shell metacharacters is read, not executed, by the placeholder and by a prelude", () => {
+  const fences = ["grep -c hello output.md", 'OUT=out.html\ngrep -c hello "$OUT"'];
+  for (const body of fences) {
+    const nasty = join(mkdtempSync(join(tmpdir(), "gated-delivery-runner-quote-")), "$(id -u) `whoami` x");
+    mkdirSync(nasty);
+    const file = join(nasty, "output.md");
+    writeFileSync(file, "hello\n");
+    const { prelude, checks } = parseChecks(fence(body));
+    const result = runCheck(checks[0], file, prelude);
+    assert.equal(result.ok, true, `path was not read literally: ${result.result}`);
+    assert.equal(result.result, "1");
+  }
 });
 
 test("expansion forms are classified by whether an unset variable still yields something", () => {
@@ -286,7 +227,7 @@ test("--lint passes over the real skills and goes red when a check is broken", (
   const broken = mkdtempSync(join(tmpdir(), "gated-delivery-runner-broken-"));
   const skill = join(broken, "plugin", "skills", "busted");
   mkdirSync(skill, { recursive: true });
-  writeText(join(skill, "evals.md"), fence("# broken\ngrep --nonsense-flag x output.md"));
+  writeFileSync(join(skill, "evals.md"), fence("# broken\ngrep --nonsense-flag x output.md"));
   const red = cli(broken, ["--lint"]);
   assert.equal(red.code, 1);
   assert.match(red.out, /BROKEN busted/);
@@ -295,18 +236,14 @@ test("--lint passes over the real skills and goes red when a check is broken", (
 const SCENARIO_TABLE = "## Test Scenarios\n\n| # | Prompt | Persona | Pass Criteria |\n|---|---|---|---|\n| 1 | p | q | r |\n| 2b | p | q | r |\n\n";
 
 const repoWith = (skill, evalsBody) => {
-  assert(typeof skill === "string", `repoWith needs a skill name, got ${JSON.stringify(skill)}`);
-  assert(typeof evalsBody === "string", `repoWith needs the evals body as a string, got ${JSON.stringify(evalsBody)}`);
   const dir = mkdtempSync(join(tmpdir(), "gated-delivery-runner-scenario-"));
   const skillDir = join(dir, "plugin", "skills", skill);
   mkdirSync(skillDir, { recursive: true });
-  writeText(join(skillDir, "evals.md"), evalsBody);
+  writeFileSync(join(skillDir, "evals.md"), evalsBody);
   return dir;
 };
 
 const cli = (cwd, args) => {
-  assert(typeof cwd === "string", `cli needs a working directory, got ${JSON.stringify(cwd)}`);
-  assert(Array.isArray(args), `cli needs its arguments as an array, got ${JSON.stringify(args)}`);
   try {
     return { code: 0, out: execFileSync("node", [join(HERE, "run-checks.mjs"), ...args], { cwd, encoding: "utf8" }) };
   } catch (e) {
@@ -380,7 +317,7 @@ test("--scenario runs Page checks on a page and response checks on output.md", (
   const response = outputFile("hi\n");
   const pageDir = mkdtempSync(join(tmpdir(), "gated-delivery-runner-page-"));
   const page = join(pageDir, "deskcheck.html");
-  writeText(page, "<pre>x</pre>\n");
+  writeFileSync(page, "<pre>x</pre>\n");
 
   const onResponse = cli(dir, ["alpha", response, "--scenario", "1"]);
   assert.equal(onResponse.code, 0, onResponse.out);
@@ -413,4 +350,48 @@ test("--lint rejects a malformed expect line and an unknown scenario id, and acc
   const red2 = cli(unknown, ["--lint"]);
   assert.equal(red2.code, 1);
   assert.match(red2.out, /unknown scenario "7"/);
+});
+
+const TOOL_USE_WRITE = '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Write","input":{"file_path":"/x/a.html"}}]}}\n';
+const COUNT_WRITES = "grep -c '\"name\":\"Write\"' transcript.jsonl";
+
+const outputWithTranscript = (transcript) => {
+  const file = outputFile("hello\n");
+  if (transcript !== undefined) writeFileSync(join(dirname(file), "transcript.jsonl"), transcript);
+  return file;
+};
+
+test("the transcript.jsonl placeholder resolves beside the graded file, read literally whatever the path holds", () => {
+  const nasty = join(mkdtempSync(join(tmpdir(), "gated-delivery-runner-transcript-")), "$(id -u) `whoami` it's $&");
+  mkdirSync(nasty);
+  const file = join(nasty, "output.md");
+  writeFileSync(file, "hello\n");
+  writeFileSync(join(nasty, "transcript.jsonl"), TOOL_USE_WRITE);
+  for (const command of [COUNT_WRITES, 'grep -c "\\"name\\":\\"Write\\"" "transcript.jsonl"']) {
+    const result = runCheck({ label: "x", command }, file);
+    assert.equal(result.ok, true, result.result);
+    assert.equal(result.result, "1");
+  }
+});
+
+test("a check using transcript.jsonl fails when no transcript sits beside the file", () => {
+  const file = outputWithTranscript();
+  const result = runCheck({ label: "x", command: COUNT_WRITES }, file);
+  assert.equal(result.ok, false);
+  assert.equal(result.result, `no transcript.jsonl beside ${file}`);
+});
+
+test("a transcript with a Write tool_use passes the count and one without scores zero", () => {
+  assert.equal(runCheck({ label: "x", command: COUNT_WRITES }, outputWithTranscript(TOOL_USE_WRITE)).result, "1");
+  const without = runCheck({ label: "x", command: COUNT_WRITES }, outputWithTranscript('{"type":"result"}\n'));
+  assert.equal(without.ok, true);
+  assert.equal(without.result, "0");
+});
+
+test("--lint proves a command using transcript.jsonl runnable and rejects a broken one", () => {
+  const good = repoWith("alpha", SCENARIO_TABLE + fence(`# w\n${COUNT_WRITES}`));
+  const ok = cli(good, ["--lint"]);
+  assert.equal(ok.code, 0, ok.out);
+  const broken = repoWith("alpha", SCENARIO_TABLE + fence("# w\ngrep --nonsense-flag x transcript.jsonl"));
+  assert.equal(cli(broken, ["--lint"]).code, 1);
 });

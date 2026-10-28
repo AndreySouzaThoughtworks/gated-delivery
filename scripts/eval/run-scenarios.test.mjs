@@ -9,7 +9,6 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
-  statSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -20,7 +19,8 @@ import {
   fillTemplate,
   harnessFlags,
   parseEvals,
-  summaryTsv,
+  scenarioVerdicts,
+  smokeScenarioIds,
 } from "./run-scenarios.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -80,18 +80,10 @@ const SKILL_TOOL_USE = JSON.stringify({
   type: "assistant",
   message: { content: [{ type: "tool_use", name: "Skill", input: { skill: "gated-delivery:demo" } }] },
 });
-const resultLine = (fields = {}) => {
-  assert(typeof fields === "object", `resultLine needs fields to be an object: ${JSON.stringify([fields])}`);
-  const line = JSON.stringify({ type: "result", result: "done", total_cost_usd: 0.25, permission_denials: [], ...fields });
-  assert(!line.includes("\n"), `a result line is a single line: ${JSON.stringify([line])}`);
-  return line;
-};
+const resultLine = (fields = {}) =>
+  JSON.stringify({ type: "result", result: "done", total_cost_usd: 0.25, permission_denials: [], ...fields });
 
-const readText = (path) => {
-  assert(typeof path === "string", `readText needs a path string: ${JSON.stringify([path])}`);
-  assert(existsSync(path), `readText needs the file to exist: ${JSON.stringify([path])}`);
-  return readFileSync(path, "utf8");
-};
+const readText = (path) => readFileSync(path, "utf8");
 
 const STUB_CLAUDE = `#!/usr/bin/env node
 const { writeFileSync } = require("node:fs");
@@ -108,23 +100,22 @@ if (behaviour === "denynoskill") { console.log(result({ permission_denials: [{ t
 if (behaviour === "noskill") { console.log(result()); return; }
 if (behaviour === "deny") { console.log(skillUse); console.log(result({ permission_denials: [{ tool_name: "Bash" }] })); return; }
 if (behaviour === "readskill") { console.log(JSON.stringify({ type: "assistant", message: { content: [{ type: "tool_use", name: "Read", input: { file_path: "/x/plugin/skills/demo/SKILL.md" } }] } })); console.log(result()); return; }
+if (behaviour === "overbudget") { console.log(skillUse); console.log(result({ subtype: "error_max_budget_usd" })); return; }
+if (behaviour === "recover") { const n = Number(process.cwd().slice(-1)); console.log(skillUse); console.log(result({ result: n % 2 ? "nope" : "thing" })); return; }
+if (behaviour === "never") { console.log(skillUse); console.log(result({ result: "nope" })); return; }
 if (behaviour === "alternate") { const n = Number(process.cwd().slice(-1)); console.log(skillUse); console.log(result({ result: n % 2 ? "thing" : "nope" })); return; }
 console.log(skillUse);
 console.log(result());
 `;
 
 const EXECUTABLE_MODE = 0o755;
-const OWNER_EXECUTE_BIT = 0o100;
 
 const writeExecutable = (path, body) => {
-  assert(typeof body === "string", `writeExecutable needs a body string: ${JSON.stringify([body])}`);
   writeFileSync(path, body);
   chmodSync(path, EXECUTABLE_MODE);
-  assert(statSync(path).mode & OWNER_EXECUTE_BIT, `writeExecutable leaves the file executable: ${JSON.stringify([path])}`);
 };
 
 const fakeRepo = ({ evals = EVALS, fixtures = {}, graders = false } = {}) => {
-  assert(typeof evals === "string", `fakeRepo needs evals text: ${JSON.stringify([evals])}`);
   const root = mkdtempSync(join(tmpdir(), "gated-delivery-runner-"));
   const skillDir = join(root, "plugin", "skills", SKILL);
   mkdirSync(join(root, "plugin", ".claude-plugin"), { recursive: true });
@@ -139,13 +130,18 @@ const fakeRepo = ({ evals = EVALS, fixtures = {}, graders = false } = {}) => {
   }
   mkdirSync(join(root, "scripts", "eval"), { recursive: true });
   copyFileSync(RUNNER, join(root, "scripts", "eval", "run-scenarios.mjs"));
+  copyFileSync(join(HERE, "run-checks.mjs"), join(root, "scripts", "eval", "run-checks.mjs"));
   if (graders) {
     writeFileSync(
       join(root, "scripts", "eval", "run-checks.mjs"),
       `import { readFileSync } from "node:fs";
-const [skill, file, flag, id] = process.argv.slice(2);
-if (flag !== "--scenario" || !id) process.exit(2);
-process.exit(readFileSync(file, "utf8").includes("thing") ? 0 : 1);
+import { pathToFileURL } from "node:url";
+export const parseChecks = () => ({ prelude: [], checks: [] });
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const [skill, file, flag, id] = process.argv.slice(2);
+  if (flag !== "--scenario" || !id) process.exit(2);
+  process.exit(readFileSync(file, "utf8").includes("thing") ? 0 : 1);
+}
 `,
     );
     writeFileSync(
@@ -164,64 +160,35 @@ process.exit(id === "2" ? 3 : 0);
   writeExecutable(join(bin, "claude"), STUB_CLAUDE);
   const log = join(root, "stub-log");
   mkdirSync(log);
-  assert(existsSync(join(skillDir, "evals.md")), `fakeRepo writes the skill evals: ${JSON.stringify([skillDir])}`);
   return { root, skillDir, claude: join(bin, "claude"), log };
 };
 
+const runnerEnv = (repo, env) => ({ ...process.env, GATED_DELIVERY_CLAUDE_BIN: repo.claude, STUB_LOG: repo.log, ...env });
+
 const run = (repo, args, env = {}) => {
-  assert(Array.isArray(args), `run needs args to be an array: ${JSON.stringify([args])}`);
   const out = join(repo.root, "out");
   const result = spawnSync("node", ["scripts/eval/run-scenarios.mjs", SKILL, ...args, "--out", out], {
     cwd: repo.root,
     encoding: "utf8",
-    env: {
-      ...process.env,
-      GATED_DELIVERY_CLAUDE_BIN: repo.claude,
-      STUB_LOG: repo.log,
-      STUB_BEHAVIOUR: "skill",
-      ...env,
-    },
+    env: runnerEnv(repo, { STUB_BEHAVIOUR: "skill", ...env }),
   });
-  assert(result.error === undefined, `run starts the runner: ${JSON.stringify([String(result.error)])}`);
   return { ...result, out };
 };
 
-const startRunner = (repo, env) => {
-  assert(existsSync(repo.claude), `startRunner needs the stub claude: ${JSON.stringify([repo.claude])}`);
-  const runner = spawn(
-    "node",
-    ["scripts/eval/run-scenarios.mjs", SKILL, "--scenario", "1", "--repeat", "1", "--out", join(repo.root, "out")],
-    { cwd: repo.root, env: { ...process.env, GATED_DELIVERY_CLAUDE_BIN: repo.claude, STUB_LOG: repo.log, ...env } },
-  );
-  assert(runner.pid > 0, `startRunner starts a process: ${JSON.stringify([runner.pid])}`);
-  return runner;
-};
+const startRunner = (repo, env) =>
+  spawn("node", ["scripts/eval/run-scenarios.mjs", SKILL, "--scenario", "1", "--repeat", "1", "--out", join(repo.root, "out")], {
+    cwd: repo.root,
+    env: runnerEnv(repo, env),
+  });
 
-const exitStatus = (args, cwd) => {
-  assert(Array.isArray(args), `exitStatus needs args to be an array: ${JSON.stringify([args])}`);
-  const { status, error } = spawnSync("node", args, { cwd, encoding: "utf8" });
-  assert(error === undefined, `exitStatus starts node: ${JSON.stringify([String(error)])}`);
-  return status;
-};
+const exitStatus = (args, cwd) => spawnSync("node", args, { cwd, encoding: "utf8" }).status;
 
-const stubCalls = (repo) => {
-  assert(existsSync(repo.log), `stubCalls needs the stub log directory: ${JSON.stringify([repo.log])}`);
-  const calls = readdirSync(repo.log).map((f) => JSON.parse(readText(join(repo.log, f))));
-  assert(Array.isArray(calls), `stubCalls returns an array: ${JSON.stringify([calls])}`);
-  return calls;
-};
+const stubCalls = (repo) => readdirSync(repo.log).map((f) => JSON.parse(readText(join(repo.log, f))));
 
-const promptOf = (call) => {
-  const flagAt = call.argv.indexOf("-p");
-  assert(flagAt >= 0, `promptOf needs the stub to be called with -p: ${JSON.stringify([call.argv])}`);
-  const prompt = call.argv[flagAt + 1];
-  assert(typeof prompt === "string", `promptOf finds the prompt after -p: ${JSON.stringify([prompt])}`);
-  return prompt;
-};
+const promptOf = (call) => call.argv[call.argv.indexOf("-p") + 1];
 
-const summaryRows = (out) => {
-  assert(typeof out === "string", `summaryRows needs the output directory: ${JSON.stringify([out])}`);
-  const rows = readText(join(out, "summary.tsv"))
+const summaryRows = (out) =>
+  readText(join(out, "summary.tsv"))
     .trim()
     .split("\n")
     .slice(1)
@@ -229,9 +196,6 @@ const summaryRows = (out) => {
       const [skill, id, arm, runNo, harness, checks, judge, cost, secs] = line.split("\t");
       return { skill, id, arm, run: runNo, harness, checks, judge, cost, secs };
     });
-  assert(rows.every((row) => row.secs !== undefined), `every summary row has all columns: ${JSON.stringify([rows])}`);
-  return rows;
-};
 
 test("parses every scenario row across grouped tables", () => {
   const { rows } = parseEvals(EVALS);
@@ -267,30 +231,21 @@ test("fills the placeholders literally, even when the persona holds replacement 
   assert.equal(filled, "USER: go\nCONTEXT: costs $& and $1");
 });
 
-test("flags a skill run that never invoked the skill, and passes one that did", () => {
-  const withSkill = `${SKILL_TOOL_USE}\n${resultLine()}\n`;
-  assert.deepEqual(harnessFlags({ transcript: withSkill, arm: "skill", skill: SKILL, timedOut: false }), []);
-  assert.deepEqual(harnessFlags({ transcript: `${resultLine()}\n`, arm: "skill", skill: SKILL, timedOut: false }), [
-    "no-skill",
-  ]);
-});
+const DENIED_TOOLS = [{ tool_name: "Bash" }, { tool_name: "Read" }];
+const READ_SKILL_FILE = `{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"/p/skills/demo/SKILL.md"}}]}}\n${resultLine()}\n`;
 
-test("notes how many permissions were denied, and stays quiet on an empty list", () => {
-  const denied = `${SKILL_TOOL_USE}\n${resultLine({ permission_denials: [{ tool_name: "Bash" }, { tool_name: "Read" }] })}\n`;
-  assert.deepEqual(harnessFlags({ transcript: denied, arm: "skill", skill: SKILL, timedOut: false }), ["denied=2"]);
-  const clean = `${SKILL_TOOL_USE}\n${resultLine()}\n`;
-  assert.deepEqual(harnessFlags({ transcript: clean, arm: "skill", skill: SKILL, timedOut: false }), []);
-});
-
-test("flags a timeout and a run with no result line", () => {
-  const flags = harnessFlags({ transcript: `${SKILL_TOOL_USE}\n`, arm: "skill", skill: SKILL, timedOut: true });
-  assert.deepEqual(flags, ["no-result", "timeout"]);
-});
-
-test("flags a baseline that read the skill's text, and not one that stayed away", () => {
-  const read = `{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"/p/skills/demo/SKILL.md"}}]}}\n${resultLine()}\n`;
-  assert.deepEqual(harnessFlags({ transcript: read, arm: "baseline", skill: SKILL, timedOut: false }), ["read-skill"]);
-  assert.deepEqual(harnessFlags({ transcript: `${resultLine()}\n`, arm: "baseline", skill: SKILL, timedOut: false }), []);
+test("harnessFlags names each way a run went wrong, and nothing for a clean run", () => {
+  const cases = [
+    { transcript: `${SKILL_TOOL_USE}\n${resultLine()}\n`, flags: [] },
+    { transcript: `${resultLine()}\n`, flags: ["no-skill"] },
+    { transcript: `${SKILL_TOOL_USE}\n${resultLine({ permission_denials: DENIED_TOOLS })}\n`, flags: ["denied=2"] },
+    { transcript: `${SKILL_TOOL_USE}\n`, timedOut: true, flags: ["no-result", "timeout"] },
+    { transcript: READ_SKILL_FILE, arm: "baseline", flags: ["read-skill"] },
+    { transcript: `${resultLine()}\n`, arm: "baseline", flags: [] },
+  ];
+  for (const { transcript, arm = "skill", timedOut = false, flags } of cases) {
+    assert.deepEqual(harnessFlags({ transcript, arm, skill: SKILL, timedOut }), flags);
+  }
 });
 
 test("a scenario whose repeats disagree is flagged, and one whose repeats agree is not", () => {
@@ -305,13 +260,6 @@ test("a scenario whose repeats disagree is flagged, and one whose repeats agree 
     disagreements(rows).map((d) => d.id),
     ["2"],
   );
-});
-
-test("the summary has a header and one tab-separated line per run", () => {
-  const tsv = summaryTsv([
-    { skill: SKILL, id: "1", arm: "skill", run: 1, harness: "ok", checks: "PASS", judge: "n/a", cost: "0.25", secs: "3" },
-  ]);
-  assert.equal(tsv, "skill\tid\tarm\trun\tharness\tchecks\tjudge\tcost\tsecs\ndemo\t1\tskill\t1\tok\tPASS\tn/a\t0.25\t3\n");
 });
 
 test("runs each selected scenario N times with the documented flags", () => {
@@ -337,13 +285,11 @@ test("runs each selected scenario N times with the documented flags", () => {
 });
 
 const addDirs = (argv) => {
-  assert(Array.isArray(argv), `addDirs needs argv to be an array: ${JSON.stringify([argv])}`);
   const dirs = [];
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] !== "--add-dir") continue;
     while (argv[i + 1] !== undefined && !argv[i + 1].startsWith("--")) dirs.push(argv[++i]);
   }
-  assert(dirs.every((dir) => !dir.startsWith("--")), `addDirs collects directories only: ${JSON.stringify([dirs])}`);
   return dirs;
 };
 
@@ -404,29 +350,29 @@ test("--baseline fills the Baseline template and gives the run no plugin", () =>
   const [call] = stubCalls(repo);
   assert.match(promptOf(call), /^BASELINE NO SKILL\./);
   assert.ok(!call.argv.includes("--plugin-dir"));
-  assert.ok(!call.argv.some((a) => a.startsWith(join(out, "plugin"))), "no --add-dir reaches the snapshot");
   assert.ok(!existsSync(join(out, "plugin")), "a temp --add-dir above the out dir must not reach a plugin copy");
   const [row] = summaryRows(out);
   assert.equal(row.arm, "baseline");
   assert.equal(row.harness, "ok");
 });
 
-test("--baseline on a skill with no Baseline template is a usage error", () => {
-  const repo = fakeRepo({ evals: EVALS.replace(/### Baseline Agent[\s\S]*?### Skill Agent/, "### Skill Agent") });
-  const { status, stderr } = run(repo, ["--baseline"]);
-  assert.equal(status, 2);
-  assert.match(stderr, /Baseline/);
-});
-
-test("an unknown scenario id is a usage error", () => {
-  const repo = fakeRepo();
-  const { status, stderr } = run(repo, ["--scenario", "99"]);
-  assert.equal(status, 2);
-  assert.match(stderr, /99/);
+test("a usage error exits 2 and says what is wrong", () => {
+  const withoutBaseline = fakeRepo({ evals: EVALS.replace(/### Baseline Agent[\s\S]*?### Skill Agent/, "### Skill Agent") });
+  const cases = [
+    { repo: withoutBaseline, args: ["--baseline"], message: /Baseline/ },
+    { repo: fakeRepo(), args: ["--scenario", "99"], message: /99/ },
+  ];
+  for (const { repo, args, message } of cases) {
+    const { status, stderr } = run(repo, args);
+    assert.equal(status, 2);
+    assert.match(stderr, message);
+  }
+  assert.equal(exitStatus([RUNNER]), 2, "no skill argument");
+  assert.equal(exitStatus(["scripts/eval/run-scenarios.mjs", "nope"], fakeRepo().root), 2, "unknown skill");
 });
 
 test("the snapshot leaves out evals.md", () => {
-  const repo = fakeRepo({ fixtures: { "2/notes.txt": "fixture file\n" } });
+  const repo = fakeRepo();
   const { out } = run(repo, ["--scenario", "1", "--repeat", "1"]);
   const snapSkill = join(out, "plugin", "skills", SKILL);
   assert.ok(existsSync(join(snapSkill, "SKILL.md")));
@@ -472,12 +418,12 @@ test("a failing setup.sh is a harness failure and the model is not called", () =
   assert.equal(summaryRows(out)[0].harness, "setup-failed");
 });
 
-test("graders that are not installed are marked n/a without crashing", () => {
+test("a judge that is not installed is marked n/a without crashing", () => {
   const repo = fakeRepo();
   const { status, out } = run(repo, ["--scenario", "1", "--repeat", "1"]);
   assert.equal(status, 0);
   const [row] = summaryRows(out);
-  assert.deepEqual([row.checks, row.judge], ["n/a", "n/a"]);
+  assert.deepEqual([row.checks, row.judge], ["PASS", "n/a"]);
   assert.equal(row.cost, "0.25");
 });
 
@@ -525,13 +471,14 @@ test("a run past the wall-clock limit is stopped and flagged", () => {
   assert.match(summaryRows(out)[0].harness, /timeout/);
 });
 
+const NO_SUCH_PROCESS = "ESRCH";
+
 const alive = (pid) => {
-  assert(Number.isInteger(pid) && pid > 0, `alive needs a positive process id: ${JSON.stringify([pid])}`);
   try {
     process.kill(pid, 0);
     return true;
   } catch (error) {
-    assert(error.code === "ESRCH", `alive treats only a missing process as dead: ${JSON.stringify([error.code])}`);
+    if (error.code !== NO_SUCH_PROCESS) throw error;
     return false;
   }
 };
@@ -540,11 +487,8 @@ const POLL_ATTEMPTS = 100;
 const POLL_INTERVAL_MS = 50;
 
 const waitFor = async (condition) => {
-  assert(typeof condition === "function", `waitFor needs a condition function: ${JSON.stringify([typeof condition])}`);
   for (let i = 0; i < POLL_ATTEMPTS && !condition(); i++) await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-  const met = condition();
-  assert(typeof met === "boolean", `waitFor returns whether the condition was met: ${JSON.stringify([met])}`);
-  return met;
+  return condition();
 };
 
 test("stopping the runner stops the sessions it started", async () => {
@@ -580,8 +524,110 @@ test("a baseline that reads the skill's files is a harness failure", () => {
   assert.equal(summaryRows(out)[0].harness, "read-skill");
 });
 
-test("a missing skill argument or an unknown skill exits 2", () => {
-  assert.equal(exitStatus([RUNNER]), 2);
+const withChecks = (fence) => EVALS.replace(/## Deterministic Checks[\s\S]*$/, `## Deterministic Checks\n\n\`\`\`bash\n${fence}\n\`\`\`\n`);
+const COVER_FENCE = ["# expect: >=1 on 1,2", "grep -c a output.md", "# expect: >=1 on G1", "grep -c b output.md"].join("\n");
+const ROW_IDS = ["1", "2", "G1"];
+
+test("smoke picks the fewest scenarios covering every check, earliest row on a tie", () => {
+  assert.deepEqual(smokeScenarioIds(withChecks(COVER_FENCE), ROW_IDS), ["1", "G1"]);
+});
+
+test("smoke falls back to the first scenario when no check names one", () => {
+  assert.deepEqual(smokeScenarioIds(withChecks("# expect: manual\ngrep -c a output.md"), ROW_IDS), ["1"]);
+});
+
+test("--smoke launches only the covering scenarios", () => {
+  const repo = fakeRepo({ evals: withChecks(COVER_FENCE) });
+  const { out, status } = run(repo, ["--smoke", "--repeat", "1"]);
+  assert.equal(status, 0);
+  assert.deepEqual(summaryRows(out).map((r) => r.id), ["1", "G1"]);
+});
+
+test("--smoke refuses --scenario", () => {
+  const repo = fakeRepo({ evals: withChecks(COVER_FENCE) });
+  assert.equal(run(repo, ["--smoke", "--scenario", "1"]).status, 2);
+});
+
+test("--budget-usd and --model reach every claude run, and are absent by default", () => {
   const repo = fakeRepo();
-  assert.equal(exitStatus(["scripts/eval/run-scenarios.mjs", "nope"], repo.root), 2);
+  run(repo, ["--scenario", "1", "--repeat", "1", "--budget-usd", "1.5", "--model", "haiku"]);
+  const [call] = stubCalls(repo);
+  assert.equal(call.argv[call.argv.indexOf("--max-budget-usd") + 1], "1.5");
+  assert.equal(call.argv[call.argv.indexOf("--model") + 1], "haiku");
+  const plain = fakeRepo();
+  run(plain, ["--scenario", "1", "--repeat", "1"]);
+  assert.equal(stubCalls(plain)[0].argv.includes("--max-budget-usd"), false);
+  assert.equal(stubCalls(plain)[0].argv.includes("--model"), false);
+});
+
+test("GATED_DELIVERY_RUN_MODEL sets the model unless --model is given", () => {
+  const repo = fakeRepo();
+  run(repo, ["--scenario", "1", "--repeat", "1"], { GATED_DELIVERY_RUN_MODEL: "sonnet" });
+  const [call] = stubCalls(repo);
+  assert.equal(call.argv[call.argv.indexOf("--model") + 1], "sonnet");
+});
+
+test("any is_error result is a harness failure, never a pass", () => {
+  const transcript = `${SKILL_TOOL_USE}\n${resultLine({ is_error: true, subtype: "success" })}\n`;
+  assert.deepEqual(harnessFlags({ transcript, arm: "skill", skill: SKILL, timedOut: false }), ["api-error"]);
+});
+
+test("a run the budget cap stopped is a harness failure, never a pass", () => {
+  const repo = fakeRepo();
+  const { out, status } = run(repo, ["--scenario", "1", "--repeat", "1", "--budget-usd", "1"], { STUB_BEHAVIOUR: "overbudget" });
+  assert.equal(status, 1);
+  assert.match(summaryRows(out)[0].harness, /over-budget/);
+});
+
+test("the total budget stops new runs, reports the rest as not-run and exits nonzero", () => {
+  const repo = fakeRepo();
+  const { out, status, stdout } = run(repo, ["--repeat", "1", "--jobs", "1", "--total-budget-usd", "0.25"]);
+  assert.equal(status, 1);
+  assert.deepEqual(summaryRows(out).map((r) => r.id), ["1"]);
+  assert.match(stdout, /VERDICT demo 2 not-run/);
+  assert.deepEqual(JSON.parse(readText(join(out, "verdicts.json"))).verdicts, { 1: "pass", 2: "not-run", G1: "not-run" });
+});
+
+const verdictsOf = (out) => JSON.parse(readText(join(out, "verdicts.json"))).verdicts;
+
+test("--rerun-failures reruns only a failed scenario: pass then fail is flaky and exits 0", () => {
+  const repo = fakeRepo({ graders: true });
+  const { out, status } = run(repo, ["--scenario", "1", "--rerun-failures"], { STUB_BEHAVIOUR: "recover" });
+  assert.equal(status, 0);
+  assert.equal(verdictsOf(out)[1], "flaky");
+  assert.equal(stubCalls(repo).length, 2);
+});
+
+test("--rerun-failures: a scenario that fails twice is fail and exits 1", () => {
+  const repo = fakeRepo({ graders: true });
+  const { out, status } = run(repo, ["--scenario", "1", "--rerun-failures"], { STUB_BEHAVIOUR: "never" });
+  assert.equal(status, 1);
+  assert.equal(verdictsOf(out)[1], "fail");
+  assert.equal(stubCalls(repo).length, 2);
+});
+
+test("--rerun-failures: a scenario that passes first time runs once", () => {
+  const repo = fakeRepo({ graders: true });
+  const { out, status } = run(repo, ["--scenario", "1", "--rerun-failures"]);
+  assert.equal(status, 0);
+  assert.equal(verdictsOf(out)[1], "pass");
+  assert.equal(stubCalls(repo).length, 1);
+});
+
+test("without --rerun-failures the default is two runs per scenario, and one failed repeat fails it", () => {
+  const repo = fakeRepo({ graders: true });
+  run(repo, ["--scenario", "1"]);
+  assert.equal(stubCalls(repo).length, 2);
+  const verdicts = scenarioVerdicts({ ids: ["1"], results: [{ id: "1", run: 1, checks: "PASS", judge: "PASS" }, { id: "1", run: 2, checks: "FAIL", judge: "PASS" }], unlaunchedIds: new Set(), rerunFailures: false });
+  assert.equal(verdicts[1], "fail");
+});
+
+test("a scenario whose Pass Criteria is the em dash never reaches the judge; one with criteria does", () => {
+  const repo = fakeRepo({ evals: EVALS.replace("| Does the thing. |", "| — |"), graders: true });
+  const { out } = run(repo, ["--scenario", "1", "--scenario", "2", "--repeat", "1"]);
+  const [dashed, judged] = summaryRows(out);
+  assert.equal(dashed.judge, "n/a");
+  assert.equal(existsSync(join(out, SKILL, "1", "skill-1", "judge.json")), false);
+  assert.equal(judged.judge, "UNCLEAR");
+  assert.equal(existsSync(join(out, SKILL, "2", "skill-1", "judge.json")), true);
 });

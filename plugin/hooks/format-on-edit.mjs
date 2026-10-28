@@ -40,7 +40,6 @@ const prettierCli = () => {
     );
     const { bin } = JSON.parse(readFileSync(manifest, "utf8"));
     const declared = typeof bin === "string" ? bin : bin?.prettier;
-    console.assert(declared === undefined || typeof declared === "string", `a prettier manifest names its CLI as text, got ${typeof declared}`);
     const cli = declared ? join(dirname(manifest), declared) : null;
     console.assert(cli === null || existsSync(cli), `the declared prettier CLI must exist on disk, got ${cli}`);
     return cli;
@@ -51,7 +50,6 @@ const prettierCli = () => {
 
 const main = () => {
   const input = readHookInput();
-  console.assert(input?.tool_input === undefined || typeof input.tool_input === "object", `a tool call carries its input as an object, got ${typeof input?.tool_input}`);
   const filePath = input?.tool_input?.file_path;
   console.assert(filePath === undefined || typeof filePath === "string", `an edited file path is text when present, got ${typeof filePath}`);
   if (!filePath || !FORMATTABLE.has(extname(filePath))) process.exit(EXIT_OK);

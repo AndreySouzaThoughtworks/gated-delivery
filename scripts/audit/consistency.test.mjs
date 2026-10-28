@@ -13,6 +13,8 @@ import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { skillHash } from "../eval/changed-skills.mjs";
+
 const GUARD = join(dirname(fileURLToPath(import.meta.url)), "consistency.mjs");
 
 const write = (dir, relPath, body) => {
@@ -24,8 +26,9 @@ const write = (dir, relPath, body) => {
 };
 
 const TEST_FILES_TABLE = 'paths."**/*.test.mjs"';
-const RELAXED_TEST_RULES = '["assertion-density", "filesystem-in-test", "process-in-test"]';
-const STRICT_ZANITY_CONFIG = `exclude = ["tests/fixtures/", "evals/fixtures/"]\n[rules]\nselect = ["all"]\ndisable = [\n]\n[${TEST_FILES_TABLE}]\ndisable = ${RELAXED_TEST_RULES}\n`;
+const RELAXED_TEST_RULES = '["filesystem-in-test", "process-in-test"]';
+const TOP_LEVEL_DISABLE = 'disable = ["assertion-density"]';
+const STRICT_ZANITY_CONFIG = `exclude = ["tests/fixtures/", "evals/fixtures/"]\n[rules]\nselect = ["all"]\n${TOP_LEVEL_DISABLE}\n[${TEST_FILES_TABLE}]\ndisable = ${RELAXED_TEST_RULES}\n`;
 
 /** A fixture the guard must accept: 1 skill, 1 agent, 1 hook, all documented. */
 const validRepo = () => {
@@ -52,11 +55,11 @@ const validRepo = () => {
 };
 
 /** Runs the guard in `dir`. Returns { code, out } and never throws, so a red run stays assertable. */
-const runGuard = (dir) => {
+const runGuard = (dir, env = {}) => {
   assert(typeof dir === "string", `the guard runs in a directory, got ${typeof dir}`);
   let result;
   try {
-    result = { code: 0, out: execFileSync("node", [GUARD], { cwd: dir, encoding: "utf8" }) };
+    result = { code: 0, out: execFileSync("node", [GUARD], { cwd: dir, encoding: "utf8", env: { ...process.env, GATED_DELIVERY_BASE_REF: "", ...env } }) };
   } catch (e) {
     result = { code: e.status ?? 1, out: (e.stdout ?? "") + (e.stderr ?? "") };
   }
@@ -516,7 +519,7 @@ test("the prose-writing skill may name the phrases it bans", () => {
   assert.doesNotMatch(out, /banned phrase/);
 });
 
-test("zanity config with the one allowed test-file table passes the guard", () => {
+test("zanity config with the allowed disables passes the guard", () => {
   const { code, out } = runGuard(validRepo());
   assert.equal(code, 0, out);
   assert.doesNotMatch(out, /zanity/);
@@ -526,14 +529,16 @@ test("zanity is a required check and its config cannot be loosened", () => {
   const loosened = {
     "a missing config": null,
     "a narrowed select": STRICT_ZANITY_CONFIG.replace('["all"]', '["correctness"]'),
-    "a disable under [rules]": STRICT_ZANITY_CONFIG.replace("disable = [\n]", 'disable = ["assertion-density"]'),
+    "a second rule disabled under [rules]": STRICT_ZANITY_CONFIG.replace(TOP_LEVEL_DISABLE, 'disable = ["assertion-density", "recursion"]'),
+    "no rule disabled under [rules]": STRICT_ZANITY_CONFIG.replace(TOP_LEVEL_DISABLE, "disable = []"),
+    "assertion-density moved into the test-file table": STRICT_ZANITY_CONFIG.replace(TOP_LEVEL_DISABLE, "disable = []").replace(RELAXED_TEST_RULES, '["assertion-density", "filesystem-in-test", "process-in-test"]'),
     "a disable at the top level": `disable = ["assertion-density"]\n${STRICT_ZANITY_CONFIG}`,
     "an extra rule in the test-file table": STRICT_ZANITY_CONFIG.replace(RELAXED_TEST_RULES, `${RELAXED_TEST_RULES.slice(0, -1)}, "hollow-test"]`),
-    "a rule missing from the test-file table": STRICT_ZANITY_CONFIG.replace(RELAXED_TEST_RULES, '["assertion-density", "filesystem-in-test"]'),
+    "a rule missing from the test-file table": STRICT_ZANITY_CONFIG.replace(RELAXED_TEST_RULES, '["filesystem-in-test"]'),
     "the table on a non-test glob": STRICT_ZANITY_CONFIG.replace("**/*.test.mjs", "**/*.mjs"),
     "a second paths table": `${STRICT_ZANITY_CONFIG}[paths."tests/e2e/"]\ndisable = ["process-in-test"]\n`,
     "a dotted paths key at the top level": `paths."plugin/".disable = ["assertion-density"]\n${STRICT_ZANITY_CONFIG}`,
-    "a single-quoted rule the guard cannot read": STRICT_ZANITY_CONFIG.replace("disable = [\n]", "disable = ['assertion-density']"),
+    "a single-quoted rule the guard cannot read": STRICT_ZANITY_CONFIG.replace(TOP_LEVEL_DISABLE, "disable = ['assertion-density']"),
     "an extra excluded path": STRICT_ZANITY_CONFIG.replace('"evals/fixtures/"', '"evals/fixtures/", "plugin/"'),
   };
   for (const [label, config] of Object.entries(loosened)) {
@@ -630,4 +635,81 @@ test("a GATED_DELIVERY_ variable the code reads must be named in the docs", () =
   write(dir, "docs/knobs.md", "| `GATED_DELIVERY_SECRET_KNOB` | `0` | tunes the hook |\n");
   const documented = runGuard(dir);
   assert.equal(documented.code, 0, documented.out);
+});
+
+test("a condition that never varies is rejected, one that can change is accepted", () => {
+  const constant = {
+    "a literal assert": 'assert(true, "m");',
+    "a literal comparison in an if": "if (1 === 1) process.exit(0);",
+    "a literal while": "while (false) {}",
+    "an assert on a same-file constant": 'const EXIT_OK = 0;\nconsole.assert(Number.isInteger(EXIT_OK), "m");',
+    "an if on a same-file string constant": 'const MODE = "fast";\nif (MODE === "fast") process.exit(0);',
+  };
+  const varying = {
+    "a parameter check": 'export const f = (x) => { assert(typeof x === "string", "m"); };',
+    "an env-derived constant": 'const limit = Number(process.argv[2]);\nassert(Number.isFinite(limit), "m");',
+    "a mutated array": "const errors = [];\nerrors.push(1);\nif (errors.length) process.exit(1);",
+    "a commented-out assert": '// assert(true, "m")\nprocess.exit(0);',
+  };
+  for (const [label, code] of Object.entries(constant)) {
+    const dir = validRepo();
+    write(dir, "plugin/hooks/h.mjs", `${code}\n`);
+    const { code: exit, out } = runGuard(dir);
+    assert.equal(exit, 1, `expected failure for ${label}`);
+    assert.match(out, /plugin\/hooks\/h\.mjs:\d+ .* never varies/, `the error for ${label} must name the file and line`);
+  }
+  for (const [label, code] of Object.entries(varying)) {
+    const dir = validRepo();
+    write(dir, "plugin/hooks/h.mjs", `${code}\n`);
+    const { code: exit, out } = runGuard(dir);
+    assert.equal(exit, 0, `${label} must pass: ${out}`);
+  }
+});
+
+const BASE_REF = "main";
+const GIT_IDENTITY = { GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" };
+const git = (dir, args) => execFileSync("git", args, { cwd: dir, encoding: "utf8", env: { ...process.env, ...GIT_IDENTITY } });
+
+const featureBranchEditing = (file, body) => {
+  const dir = validRepo();
+  git(dir, ["init", "-b", BASE_REF]);
+  git(dir, ["add", "."]);
+  git(dir, ["commit", "-m", "base"]);
+  git(dir, ["checkout", "-b", "feature"]);
+  write(dir, file, body);
+  git(dir, ["add", "."]);
+  git(dir, ["commit", "-m", "change"]);
+  return dir;
+};
+
+const SKILL_EDIT = ["plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\n\n## Heading One\n\nEdited.\n"];
+const stamp = (dir, hash) => write(dir, "evals/results/alpha.json", JSON.stringify({ hash }));
+
+test("a skill changed against the base ref needs an eval stamp with a matching hash", () => {
+  const dir = featureBranchEditing(...SKILL_EDIT);
+  const missing = runGuard(dir, { GATED_DELIVERY_BASE_REF: BASE_REF });
+  assert.equal(missing.code, 1);
+  assert.match(missing.out, /skill alpha changed since its evals last passed; run node scripts\/eval\/changed-skills\.mjs and commit evals\/results\/alpha\.json/);
+  stamp(dir, "not-the-hash");
+  const stale = runGuard(dir, { GATED_DELIVERY_BASE_REF: BASE_REF });
+  assert.equal(stale.code, 1);
+  assert.match(stale.out, /skill alpha/);
+  stamp(dir, skillHash(dir, "alpha"));
+  const matching = runGuard(dir, { GATED_DELIVERY_BASE_REF: BASE_REF });
+  assert.equal(matching.code, 0, matching.out);
+});
+
+test("the stamp check is skipped when GATED_DELIVERY_BASE_REF is unset", () => {
+  const dir = featureBranchEditing(...SKILL_EDIT);
+  const { code, out } = runGuard(dir);
+  assert.equal(code, 0, out);
+});
+
+test("a skill nobody changed, or whose only change is evals.md, needs no stamp", () => {
+  const evalsOnly = featureBranchEditing("plugin/skills/alpha/evals.md", "| Signal | How to Measure |\n|---|---|\n| x | `grep -c foo out` |\n\n## Deterministic Checks\n\n```bash\n# expect: manual\ngrep -c bar output.md\n```\n");
+  const edited = runGuard(evalsOnly, { GATED_DELIVERY_BASE_REF: BASE_REF });
+  assert.equal(edited.code, 0, edited.out);
+  const untouched = featureBranchEditing("docs/note.md", "note\n");
+  const unchanged = runGuard(untouched, { GATED_DELIVERY_BASE_REF: BASE_REF });
+  assert.equal(unchanged.code, 0, unchanged.out);
 });

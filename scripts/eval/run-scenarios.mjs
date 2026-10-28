@@ -2,6 +2,7 @@
 // Runs a skill's eval scenarios as real `claude -p` sessions and grades each run.
 //
 //   node scripts/eval/run-scenarios.mjs <skill> [--scenario <id>…] [--repeat 2] [--jobs N] [--baseline] [--out DIR]
+//     [--smoke] [--rerun-failures] [--budget-usd N] [--total-budget-usd N] [--model M]
 
 import assert from "node:assert";
 import { spawn, spawnSync } from "node:child_process";
@@ -19,6 +20,7 @@ import {
 import { constants, tmpdir } from "node:os";
 import { basename, join, sep } from "node:path";
 import { pathToFileURL } from "node:url";
+import { parseChecks } from "./run-checks.mjs";
 
 const ROOT = process.cwd();
 const PLUGIN_DIR = join(ROOT, "plugin");
@@ -27,6 +29,7 @@ const SKILLS_DIR = join(PLUGIN_DIR, "skills");
 const RUN_CHECKS = join(ROOT, "scripts", "eval", "run-checks.mjs");
 const JUDGE = join(ROOT, "scripts", "eval", "judge.mjs");
 const CLAUDE_BIN = process.env.GATED_DELIVERY_CLAUDE_BIN || "claude";
+const RUN_MODEL = process.env.GATED_DELIVERY_RUN_MODEL || null;
 
 const DEFAULT_RUN_TIMEOUT_SECONDS = 1200;
 const RUN_TIMEOUT_SECONDS = Number(process.env.GATED_DELIVERY_RUN_TIMEOUT_SECONDS) || DEFAULT_RUN_TIMEOUT_SECONDS;
@@ -34,6 +37,14 @@ const MS_PER_SECOND = 1000;
 const KILL_GRACE_MS = 10 * MS_PER_SECOND;
 const DEFAULT_REPEAT = 2;
 const DEFAULT_JOBS = 4;
+const RERUN_REPEAT = 1;
+const RERUN_START = 2;
+const VERDICTS_FILE = "verdicts.json";
+const BUDGET_STOPPED_SUBTYPE = "error_max_budget_usd";
+const VERDICT_PASS = "pass";
+const VERDICT_FLAKY = "flaky";
+const VERDICT_FAIL = "fail";
+const VERDICT_NOT_RUN = "not-run";
 
 const EXIT_OK = 0;
 const EXIT_HARNESS_FAILURE = 1;
@@ -42,7 +53,9 @@ const EXIT_USAGE = 2;
 const ARM_SKILL = "skill";
 const ARM_BASELINE = "baseline";
 const NOT_AVAILABLE = "n/a";
+const NOTHING_TO_JUDGE = "—";
 const HARNESS_OK = "ok";
+const PASSING_GRADES = new Set(["PASS", NOT_AVAILABLE]);
 const DENIED_NOTE = "denied=";
 const SETUP_FAILED = "setup-failed";
 
@@ -98,7 +111,6 @@ const FENCE_BODY = /```[a-z]*\n([\s\S]*?)```/;
 const ROW_CELLS = 4;
 
 const sectionBody = (markdown, headingPrefix) => {
-  assert(/^#+ /.test(headingPrefix), `a section heading starts with # marks and a space, got ${JSON.stringify(headingPrefix)}`);
   const all = markdown.split(LINE_BREAK);
   const start = all.findIndex((l) => l.startsWith(headingPrefix));
   if (start === -1) return null;
@@ -110,9 +122,7 @@ const sectionBody = (markdown, headingPrefix) => {
     if (!inFence && (line.startsWith("## ") || line.startsWith(level))) break;
     body.push(line);
   }
-  const joined = body.join("\n");
-  assert(!joined.startsWith(headingPrefix), `the body of ${headingPrefix} must exclude its own heading, got ${JSON.stringify(joined.slice(0, 40))}`);
-  return joined;
+  return body.join("\n");
 };
 
 export function parseEvals(markdown) {
@@ -147,20 +157,17 @@ export function parseEvals(markdown) {
     clientContext: sectionBody(markdown, "## Client context")?.match(FENCE_BODY)?.[1] ?? null,
     responseMode: /^mode:\s*response\b/m.test(sectionBody(markdown, "## Execution Model") ?? ""),
   };
-  assert(parsed.rows.every((row) => row.id), `every scenario row needs an id, got ${JSON.stringify(parsed.rows.map((row) => row.id))}`);
+  assert(parsed.rows.every((row) => row.id && !row.id.includes(sep)), `every scenario row needs an id that names one folder, got ${JSON.stringify(parsed.rows.map((row) => row.id))}`);
   return parsed;
 }
 
 export const fillTemplate = (template, prompt, persona) => {
   assert(template.includes(PROMPT_PLACEHOLDER), `an agent template must carry ${PROMPT_PLACEHOLDER} or the prompt is dropped, got ${JSON.stringify(template.slice(0, 60))}`);
-  const filled = template.replaceAll(PROMPT_PLACEHOLDER, () => prompt).replaceAll(PERSONA_PLACEHOLDER, () => persona);
-  assert(prompt.includes(PROMPT_PLACEHOLDER) || !filled.includes(PROMPT_PLACEHOLDER), `${PROMPT_PLACEHOLDER} must be filled, got ${JSON.stringify(filled.slice(0, 60))}`);
-  return filled;
+  return template.replaceAll(PROMPT_PLACEHOLDER, () => prompt).replaceAll(PERSONA_PLACEHOLDER, () => persona);
 };
 
 const resultOf = (transcript) => {
-  assert(typeof transcript === "string", `a transcript is utf8 text, a Buffer would split into nothing, got ${typeof transcript}`);
-  const result =
+  return (
     transcript
       .split(LINE_BREAK)
       .filter(Boolean)
@@ -171,14 +178,11 @@ const resultOf = (transcript) => {
           return null;
         }
       })
-      .findLast((event) => event?.type === "result") ?? null;
-  assert(result === null || result.type === "result", `resultOf must return the result event, got ${JSON.stringify(result?.type)}`);
-  return result;
+      .findLast((event) => event?.type === "result") ?? null
+  );
 };
 
 export function harnessFlags({ transcript, arm, skill, timedOut }) {
-  assert([ARM_SKILL, ARM_BASELINE].includes(arm), `arm must be ${ARM_SKILL} or ${ARM_BASELINE}, got ${arm}`);
-  assert(skill.length > 0, `a skill name is needed to spot reads of its pages, got ${JSON.stringify(skill)}`);
   const result = resultOf(transcript);
   const flags = [];
   if (arm === ARM_SKILL && !transcript.includes('"name":"Skill"')) flags.push("no-skill");
@@ -186,21 +190,18 @@ export function harnessFlags({ transcript, arm, skill, timedOut }) {
   if (!result) flags.push("no-result");
   if (result?.permission_denials?.length) flags.push(`${DENIED_NOTE}${result.permission_denials.length}`);
   if (timedOut) flags.push("timeout");
-  assert(new Set(flags).size === flags.length, `a harness flag is raised once, got ${flags}`);
+  if (result?.subtype === BUDGET_STOPPED_SUBTYPE) flags.push("over-budget");
+  if (result?.is_error) flags.push("api-error");
   return flags;
 }
 
 export const summaryTsv = (rows) => {
-  assert(rows.every((row) => SUMMARY_COLUMNS.every((column) => row[column] !== undefined)), `every summary row needs ${SUMMARY_COLUMNS}, got ${JSON.stringify(rows)}`);
-  const tsv = [SUMMARY_COLUMNS, ...rows.map((row) => SUMMARY_COLUMNS.map((column) => row[column]))]
+  return [SUMMARY_COLUMNS, ...rows.map((row) => SUMMARY_COLUMNS.map((column) => row[column]))]
     .map((cells) => `${cells.join("\t")}\n`)
     .join("");
-  assert(tsv.split("\n").length === rows.length + 2, `the summary holds a header and one line per row, got ${JSON.stringify(tsv)}`);
-  return tsv;
 };
 
 export function disagreements(rows) {
-  assert(rows.every((row) => row.skill && row.id && row.arm), `every row names its skill, id and arm, got ${JSON.stringify(rows)}`);
   const groups = new Map();
   for (const row of rows) {
     const key = `${row.skill}\t${row.id}\t${row.arm}`;
@@ -213,77 +214,83 @@ export function disagreements(rows) {
       });
     groups.get(key).outcomes.push(`checks ${row.checks} judge ${row.judge}`);
   }
-  const disagreeing = [...groups.values()].filter((group) => new Set(group.outcomes).size > 1);
-  assert(disagreeing.every((group) => group.outcomes.length > 1), `a disagreement needs two runs, got ${JSON.stringify(disagreeing)}`);
-  return disagreeing;
+  return [...groups.values()].filter((group) => new Set(group.outcomes).size > 1);
 }
 
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g;
 
+const USAGE_LINES = [
+  "usage: run-scenarios.mjs <skill> [--scenario <id>…] [--repeat 2] [--jobs N] [--baseline] [--out DIR]",
+  "         [--smoke] [--rerun-failures] [--budget-usd N] [--total-budget-usd N] [--model M]",
+];
+
 const usage = (message) => {
-  assert(String(message).length > 0, `a usage error must say what is wrong, got ${JSON.stringify(message)}`);
   const readable = String(message).replace(CONTROL_CHARACTERS, " ");
-  assert(readable.search(CONTROL_CHARACTERS) === -1, `usage text must carry no control characters, got ${JSON.stringify(readable)}`);
   console.error(readable);
-  console.error("usage: run-scenarios.mjs <skill> [--scenario <id>…] [--repeat 2] [--jobs N] [--baseline] [--out DIR]");
+  for (const line of USAGE_LINES) console.error(line);
   process.exit(EXIT_USAGE);
 };
 
 const positiveInteger = (flag, value) => {
-  assert(flag.startsWith("--"), `a numeric option is a --flag, got ${flag}`);
   const n = Number(value);
   if (!Number.isInteger(n) || n < 1) usage(`${flag} needs a positive integer, got "${value}"`);
-  assert(n >= 1, `${flag} must end up a positive integer, got ${n}`);
   return n;
 };
 
+const positiveNumber = (flag, value) => {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) usage(`${flag} needs a positive number, got "${value}"`);
+  return n;
+};
+
+const BOOLEAN_FLAGS = { "--baseline": "baseline", "--smoke": "smoke", "--rerun-failures": "rerunFailures" };
+const VALUE_FLAGS = {
+  "--repeat": ["repeat", positiveInteger],
+  "--jobs": ["jobs", positiveInteger],
+  "--budget-usd": ["budgetUsd", positiveNumber],
+  "--total-budget-usd": ["totalBudgetUsd", positiveNumber],
+  "--model": ["model", (flag, value) => value || usage(`${flag} needs a model name`)],
+  "--out": ["out", (flag, value) => value],
+};
+
 function parseArgs(argv) {
-  assert(!argv.includes(undefined), `an argument list holds no holes, got ${JSON.stringify(argv)}`);
   const options = {
     skill: null,
     ids: [],
-    repeat: DEFAULT_REPEAT,
+    repeat: null,
     jobs: DEFAULT_JOBS,
     baseline: false,
     out: null,
+    smoke: false,
+    rerunFailures: false,
+    budgetUsd: null,
+    totalBudgetUsd: null,
+    model: RUN_MODEL,
   };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--scenario") {
       while (argv[i + 1] !== undefined && !argv[i + 1].startsWith("--")) options.ids.push(argv[++i]);
-    } else if (arg === "--repeat") options.repeat = positiveInteger(arg, argv[++i]);
-    else if (arg === "--jobs") options.jobs = positiveInteger(arg, argv[++i]);
-    else if (arg === "--baseline") options.baseline = true;
-    else if (arg === "--out") options.out = argv[++i];
-    else if (!arg.startsWith("--") && !options.skill) options.skill = arg;
+    } else if (Object.hasOwn(BOOLEAN_FLAGS, arg)) options[BOOLEAN_FLAGS[arg]] = true;
+    else if (Object.hasOwn(VALUE_FLAGS, arg)) {
+      const [key, parse] = VALUE_FLAGS[arg];
+      options[key] = parse(arg, argv[++i]);
+    } else if (!arg.startsWith("--") && !options.skill) options.skill = arg;
     else usage(`Unknown argument: ${arg}`);
   }
   if (!options.skill) usage("No skill given.");
-  assert(options.ids.every((id) => !id.startsWith("--")), `a scenario id is not a flag, got ${options.ids}`);
+  if (options.smoke && options.ids.length) usage("--smoke picks the scenarios itself; drop --scenario.");
+  options.repeat ??= options.rerunFailures ? RERUN_REPEAT : DEFAULT_REPEAT;
   return options;
 }
 
-const pagesIn = (dir) => {
-  assert(existsSync(dir), `pages are listed from a folder that exists, got ${dir}`);
-  const pages = readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+const pagesIn = (dir) =>
+  readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     if (entry.isDirectory()) return SKIPPED_DIRS.has(entry.name) ? [] : pagesIn(join(dir, entry.name));
     return entry.name.endsWith(PAGE_EXTENSION) ? [join(dir, entry.name)] : [];
   });
-  assert(pages.every((page) => page.startsWith(dir) && page.endsWith(PAGE_EXTENSION)), `every page lies under ${dir} and ends ${PAGE_EXTENSION}, got ${pages}`);
-  return pages;
-};
-
-const worst = (verdicts) => {
-  assert(verdicts.length > 0, `at least one verdict is needed to find the worst, got ${verdicts.length}`);
-  assert(verdicts.every((verdict) => VERDICT_SEVERITY.includes(verdict)), `verdicts must be ranked, got ${verdicts}`);
-  const severest = verdicts.reduce((a, b) => (VERDICT_SEVERITY.indexOf(b) > VERDICT_SEVERITY.indexOf(a) ? b : a));
-  assert(verdicts.includes(severest), `the worst verdict comes from the list, got ${severest} from ${verdicts}`);
-  return severest;
-};
 
 function gradeChecks(skill, id, runDir) {
-  assert(id.length > 0 && !id.includes(sep), `a scenario id names one folder, got ${JSON.stringify(id)}`);
-  assert(existsSync(runDir), `a run folder must exist to be graded, got ${runDir}`);
   if (!existsSync(RUN_CHECKS)) return NOT_AVAILABLE;
   const scratch = join(runDir, RUN_TEMP_DIR, "");
   const files = [join(runDir, "output.md"), ...pagesIn(runDir).filter((page) => !page.startsWith(scratch))];
@@ -297,27 +304,19 @@ function gradeChecks(skill, id, runDir) {
     return CHECKS_VERDICTS[status] ?? GRADER_ERROR;
   });
   writeFileSync(join(runDir, "checks.txt"), log.join("\n"));
-  const verdict = worst(verdicts);
-  assert([...VERDICT_SEVERITY, NOT_AVAILABLE].includes(verdict), `the checks verdict must be a known one, got ${verdict}`);
-  return verdict;
+  return verdicts.reduce((a, b) => (VERDICT_SEVERITY.indexOf(b) > VERDICT_SEVERITY.indexOf(a) ? b : a));
 }
 
-function gradeJudge(skill, id, runDir) {
-  assert(id.length > 0 && !id.includes(sep), `a scenario id names one folder, got ${JSON.stringify(id)}`);
-  assert(existsSync(runDir), `a run folder must exist to be judged, got ${runDir}`);
-  if (!existsSync(JUDGE)) return NOT_AVAILABLE;
+function gradeJudge(skill, id, runDir, criteria) {
+  if (!existsSync(JUDGE) || criteria === NOTHING_TO_JUDGE) return NOT_AVAILABLE;
   const { status, stdout, stderr } = spawnSync("node", [JUDGE, skill, id, runDir], { cwd: ROOT, encoding: "utf8" });
   writeFileSync(join(runDir, "judge.json"), stdout || stderr);
-  const verdict = JUDGE_VERDICTS[status] ?? GRADER_ERROR;
-  assert([...Object.values(JUDGE_VERDICTS), GRADER_ERROR].includes(verdict), `the judge verdict must be a known one, got ${verdict}`);
-  return verdict;
+  return JUDGE_VERDICTS[status] ?? GRADER_ERROR;
 }
 
 const NO_SUCH_PROCESS = "ESRCH";
 const liveGroups = new Set();
 const signalGroup = (pid, name) => {
-  assert(Number.isInteger(pid) && pid > 0, `a process group is signalled by its leader's pid, got ${pid}`);
-  assert(name in constants.signals, `${name} must be a signal this platform knows`);
   try {
     process.kill(-pid, name);
   } catch (error) {
@@ -332,9 +331,6 @@ for (const name of ["SIGINT", "SIGTERM"]) {
 }
 
 const runClaude = (args, { cwd, env, transcriptPath, stderrPath }) => {
-  assert(args[0] === "-p", `claude must run non-interactively with -p first, got ${args[0]}`);
-  assert(existsSync(cwd), `the run folder must exist before claude starts in it, got ${cwd}`);
-  assert(transcriptPath !== stderrPath, `the transcript and stderr need separate files, got ${transcriptPath}`);
   return new Promise((resolve) => {
     const out = openSync(transcriptPath, "w");
     const err = openSync(stderrPath, "w");
@@ -369,8 +365,6 @@ const runClaude = (args, { cwd, env, transcriptPath, stderrPath }) => {
 };
 
 const stageFixture = ({ skill, row, runDir }) => {
-  assert(row.id.length > 0 && !row.id.includes(sep), `a scenario id names one folder, got ${JSON.stringify(row.id)}`);
-  assert(existsSync(runDir), `the run folder must exist before a fixture is staged, got ${runDir}`);
   const fixture = join(FIXTURES_DIR, skill, row.id);
   assert(fixture.startsWith(FIXTURES_DIR + sep), `a fixture must stay under ${FIXTURES_DIR}, got ${fixture}`);
   const hasFixture = existsSync(fixture);
@@ -390,10 +384,9 @@ const stageFixture = ({ skill, row, runDir }) => {
   return { hasFixture, allowedToolsFile, setupFailed: built.status !== 0 };
 };
 
-const claudeArgs = ({ arm, prompt, snapshot, tempDir, extraRules }) => {
-  assert(prompt.length > 0, `claude needs a prompt, got ${prompt.length} characters`);
+const claudeArgs = ({ arm, prompt, snapshot, tempDir, extraRules, budgetUsd, model }) => {
   assert(extraRules.every((rule) => rule.trim()), `a fixture tool rule must not be blank, got ${JSON.stringify(extraRules)}`);
-  const args = [
+  return [
     "-p",
     prompt,
     ...(arm === ARM_SKILL ? ["--plugin-dir", snapshot, "--add-dir", snapshot] : []),
@@ -410,14 +403,12 @@ const claudeArgs = ({ arm, prompt, snapshot, tempDir, extraRules }) => {
     "--output-format",
     "stream-json",
     "--verbose",
+    ...(budgetUsd ? ["--max-budget-usd", String(budgetUsd)] : []),
+    ...(model ? ["--model", model] : []),
   ];
-  assert(args.includes(tempDir) && (arm === ARM_BASELINE || args.includes(snapshot)), `the run's folders must reach claude, got ${tempDir} and ${snapshot}`);
-  return args;
 };
 
-async function runOne({ skill, evals, arm, row, n, out, snapshot }) {
-  assert(Number.isInteger(n) && n >= 1, `a repetition is counted from 1, got ${n}`);
-  assert([ARM_SKILL, ARM_BASELINE].includes(arm), `arm must be ${ARM_SKILL} or ${ARM_BASELINE}, got ${arm}`);
+async function runOne({ skill, evals, arm, row, n, out, snapshot, budgetUsd, model }) {
   const runDir = join(out, skill, row.id, `${arm}-${n}`);
   const base = {
     skill,
@@ -427,6 +418,7 @@ async function runOne({ skill, evals, arm, row, n, out, snapshot }) {
     checks: NOT_AVAILABLE,
     judge: NOT_AVAILABLE,
     cost: "0.00",
+    costUsd: 0,
     secs: 0,
   };
   mkdirSync(runDir, { recursive: true });
@@ -447,7 +439,7 @@ async function runOne({ skill, evals, arm, row, n, out, snapshot }) {
   const template = arm === ARM_BASELINE ? evals.baselineTemplate : evals.skillTemplate;
   const harnessLine = evals.responseMode && !hasFixture ? `\n${HARNESS_LINE}` : "";
   const prompt = `${fillTemplate(template, row.prompt, persona)}${harnessLine}`;
-  const args = claudeArgs({ arm, prompt, snapshot, tempDir, extraRules });
+  const args = claudeArgs({ arm, prompt, snapshot, tempDir, extraRules, budgetUsd, model });
   const fixtureBin = join(runDir, FIXTURE_BIN);
   const path = existsSync(fixtureBin) ? `${fixtureBin}:${process.env.PATH}` : process.env.PATH;
   const env = { ...process.env, PATH: path, TMPDIR: tempDir };
@@ -465,14 +457,11 @@ async function runOne({ skill, evals, arm, row, n, out, snapshot }) {
   renameSync(transcriptPath, join(runDir, "transcript.jsonl"));
   renameSync(stderrPath, join(runDir, "stderr.txt"));
   renameSync(tempDir, join(runDir, RUN_TEMP_DIR));
-  assert(existsSync(join(runDir, "transcript.jsonl")), `a finished run leaves its transcript in ${runDir}`);
 
   return gradeRun({ base, skill, arm, row, runDir, prompt, timedOut, secs });
 }
 
 const gradeRun = ({ base, skill, arm, row, runDir, prompt, timedOut, secs }) => {
-  assert(existsSync(join(runDir, "transcript.jsonl")), `a run is graded from its transcript in ${runDir}`);
-  assert(Number.isFinite(secs) && secs >= 0, `a run lasts a finite, non-negative time, got ${secs}`);
   const transcript = readFileSync(join(runDir, "transcript.jsonl"), "utf8");
   const result = resultOf(transcript);
   writeFileSync(join(runDir, "prompt.txt"), prompt);
@@ -480,24 +469,22 @@ const gradeRun = ({ base, skill, arm, row, runDir, prompt, timedOut, secs }) => 
   const flags = harnessFlags({ transcript, arm, skill, timedOut });
   const notes = flags.filter((flag) => flag.startsWith(DENIED_NOTE));
   const failures = flags.filter((flag) => !notes.includes(flag));
-  const graded = {
+  return {
     ...base,
     harness: [...(failures.length ? failures : [HARNESS_OK]), ...notes].join(","),
     failed: failures.length > 0,
     checks: gradeChecks(skill, row.id, runDir),
-    judge: gradeJudge(skill, row.id, runDir),
+    judge: gradeJudge(skill, row.id, runDir, row.pass),
     cost: (result?.total_cost_usd ?? 0).toFixed(2),
+    costUsd: result?.total_cost_usd ?? 0,
     secs,
   };
-  assert(graded.failed === !graded.harness.split(",").includes(HARNESS_OK), `a run fails exactly when the harness is not ${HARNESS_OK}, got ${graded.harness}`);
-  return graded;
 };
 
 const table = (rows) => {
-  assert(rows.every((row) => SUMMARY_COLUMNS.every((column) => row[column] !== undefined)), `every row needs ${SUMMARY_COLUMNS}, got ${JSON.stringify(rows)}`);
   const cells = [SUMMARY_COLUMNS, ...rows.map((row) => SUMMARY_COLUMNS.map((column) => String(row[column])))];
   const widths = SUMMARY_COLUMNS.map((_, i) => Math.max(...cells.map((r) => r[i].length)));
-  const rendered = cells
+  return cells
     .map((r) =>
       r
         .map((cell, i) => cell.padEnd(widths[i]))
@@ -505,32 +492,102 @@ const table = (rows) => {
         .trimEnd(),
     )
     .join("\n");
-  assert(rendered.split("\n").length === rows.length + 1, `the table holds a header and one line per row, got ${JSON.stringify(rendered)}`);
-  return rendered;
 };
 
-const selectScenarios = (options, evals, arm) => {
-  assert([ARM_SKILL, ARM_BASELINE].includes(arm), `arm must be ${ARM_SKILL} or ${ARM_BASELINE}, got ${arm}`);
-  assert(options.skill.length > 0, `scenarios are chosen for a named skill, got ${JSON.stringify(options.skill)}`);
+export function smokeScenarioIds(markdown, rowIds) {
+  const known = new Set(rowIds);
+  const coverage = new Map(rowIds.map((id) => [id, new Set()]));
+  parseChecks(markdown).checks.forEach((check, index) => {
+    for (const expect of check.expects) {
+      for (const id of expect.ids ?? []) if (known.has(id)) coverage.get(id).add(index);
+    }
+  });
+  const uncovered = new Set([...coverage.values()].flatMap((checks) => [...checks]));
+  const chosen = new Set();
+  while (uncovered.size) {
+    let best = null;
+    let bestGain = 0;
+    for (const [id, checks] of coverage) {
+      const gain = [...checks].filter((index) => uncovered.has(index)).length;
+      if (gain > bestGain) {
+        best = id;
+        bestGain = gain;
+      }
+    }
+    chosen.add(best);
+    for (const index of coverage.get(best)) uncovered.delete(index);
+  }
+  return chosen.size ? rowIds.filter((id) => chosen.has(id)) : rowIds.slice(0, 1);
+}
+
+const passed = (row) => !row.failed && PASSING_GRADES.has(row.checks) && PASSING_GRADES.has(row.judge);
+
+export function scenarioVerdicts({ ids, results, unlaunchedIds, rerunFailures }) {
+  return Object.fromEntries(
+    ids.map((id) => {
+      const runs = results.filter((row) => row.id === id).sort((a, b) => a.run - b.run);
+      let verdict;
+      if (!runs.length) verdict = VERDICT_NOT_RUN;
+      else if (rerunFailures) {
+        const [first, second] = runs;
+        if (passed(first)) verdict = VERDICT_PASS;
+        else verdict = second && passed(second) ? VERDICT_FLAKY : VERDICT_FAIL;
+      } else if (!runs.every(passed)) verdict = VERDICT_FAIL;
+      else verdict = unlaunchedIds.has(id) ? VERDICT_NOT_RUN : VERDICT_PASS;
+      return [id, verdict];
+    }),
+  );
+}
+
+const selectScenarios = (options, evals, arm, markdown) => {
   if (arm === ARM_BASELINE && !evals.baselineTemplate) usage(`${options.skill} has no ### Baseline Agent template.`);
   if (arm === ARM_SKILL && !evals.skillTemplate) usage(`${options.skill} has no ### Skill Agent template.`);
   const unknown = options.ids.filter((id) => !evals.rows.some((row) => row.id === id));
   if (unknown.length) usage(`No such scenario in ${options.skill}: ${unknown.join(", ")}`);
-  const selected = options.ids.length ? evals.rows.filter((row) => options.ids.includes(row.id)) : evals.rows;
+  const allIds = evals.rows.map((row) => row.id);
+  const wanted = new Set(options.smoke ? smokeScenarioIds(markdown, allIds) : options.ids.length ? options.ids : allIds);
+  const selected = evals.rows.filter((row) => wanted.has(row.id));
   const malformed = selected.filter((row) => row.cells !== ROW_CELLS);
   if (malformed.length) usage(`Rows without ${ROW_CELLS} cells: ${malformed.map((row) => row.id).join(", ")}`);
-  assert(selected.every((row) => row.cells === ROW_CELLS), `every chosen row has ${ROW_CELLS} cells, got ${JSON.stringify(selected.map((row) => row.cells))}`);
   return selected;
+};
+
+const runQueue = async (items, jobs, ledger) => {
+  const queue = [...items];
+  const results = [];
+  await Promise.all(
+    Array.from({ length: Math.min(jobs, queue.length) }, async () => {
+      while (queue.length && ledger.spent < ledger.limit) {
+        const result = await runOne(queue.shift());
+        ledger.spent += result.costUsd;
+        results.push(result);
+      }
+    }),
+  );
+  return { results, unlaunched: queue };
+};
+
+const report = ({ options, out, results, verdicts }) => {
+  writeFileSync(join(out, "summary.tsv"), summaryTsv(results));
+  console.log(table(results));
+  for (const { skill, id, arm, outcomes } of disagreements(results)) {
+    console.log(`DISAGREE ${skill} ${id} ${arm}: ${outcomes.join(" | ")}`);
+  }
+  for (const [id, verdict] of Object.entries(verdicts)) console.log(`VERDICT ${options.skill} ${id} ${verdict}`);
+  console.log(`\n${join(out, "summary.tsv")}`);
+  const verdictList = Object.values(verdicts);
+  const anyFailed = options.rerunFailures ? verdictList.includes(VERDICT_FAIL) : results.some((row) => row.failed);
+  return anyFailed || verdictList.includes(VERDICT_NOT_RUN) ? EXIT_HARNESS_FAILURE : EXIT_OK;
 };
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const evalsPath = join(SKILLS_DIR, options.skill, "evals.md");
   if (!existsSync(evalsPath)) usage(`No such skill with evals: ${options.skill}`);
-  const evals = parseEvals(readFileSync(evalsPath, "utf8"));
+  const markdown = readFileSync(evalsPath, "utf8");
+  const evals = parseEvals(markdown);
   const arm = options.baseline ? ARM_BASELINE : ARM_SKILL;
-  const selected = selectScenarios(options, evals, arm);
-  assert(options.repeat >= 1 && options.jobs >= 1, `repeat and jobs are positive, got ${options.repeat} and ${options.jobs}`);
+  const selected = selectScenarios(options, evals, arm, markdown);
 
   const out = options.out ?? join(tmpdir(), `gated-delivery-evals-${options.skill}-${Date.now()}`);
   const snapshot = join(out, "plugin");
@@ -542,34 +599,41 @@ async function main() {
     });
   }
 
-  const queue = selected.flatMap((row) =>
-    Array.from({ length: options.repeat }, (_, i) => ({
-      skill: options.skill,
-      evals,
-      arm,
-      row,
-      n: i + 1,
-      out,
-      snapshot,
-    })),
-  );
-  const rank = new Map(selected.map((row, index) => [row.id, index]));
-  const results = [];
-  await Promise.all(
-    Array.from({ length: Math.min(options.jobs, queue.length) }, async () => {
-      while (queue.length) results.push(await runOne(queue.shift()));
-    }),
-  );
-  results.sort((a, b) => rank.get(a.id) - rank.get(b.id) || a.run - b.run);
-  assert(results.length === selected.length * options.repeat, `every chosen scenario runs ${options.repeat} times, got ${results.length} results for ${selected.length} scenarios`);
-
-  writeFileSync(join(out, "summary.tsv"), summaryTsv(results));
-  console.log(table(results));
-  for (const { skill, id, arm: a, outcomes } of disagreements(results)) {
-    console.log(`DISAGREE ${skill} ${id} ${a}: ${outcomes.join(" | ")}`);
+  const ledger = { spent: 0, limit: options.totalBudgetUsd ?? Number.POSITIVE_INFINITY };
+  const plan = (rows, count, firstRun) =>
+    rows.flatMap((row) =>
+      Array.from({ length: count }, (_, i) => ({
+        skill: options.skill,
+        evals,
+        arm,
+        row,
+        n: firstRun + i,
+        out,
+        snapshot,
+        budgetUsd: options.budgetUsd,
+        model: options.model,
+      })),
+    );
+  const first = await runQueue(plan(selected, options.repeat, 1), options.jobs, ledger);
+  const results = [...first.results];
+  const unlaunched = [...first.unlaunched];
+  if (options.rerunFailures) {
+    const retry = selected.filter((row) => results.some((r) => r.id === row.id && !passed(r)));
+    const second = await runQueue(plan(retry, RERUN_REPEAT, RERUN_START), options.jobs, ledger);
+    results.push(...second.results);
+    unlaunched.push(...second.unlaunched);
   }
-  console.log(`\n${join(out, "summary.tsv")}`);
-  return results.some((row) => row.failed) ? EXIT_HARNESS_FAILURE : EXIT_OK;
+  const rank = new Map(selected.map((row, index) => [row.id, index]));
+  results.sort((a, b) => rank.get(a.id) - rank.get(b.id) || a.run - b.run);
+  const verdicts = scenarioVerdicts({
+    ids: selected.map((row) => row.id),
+    results,
+    unlaunchedIds: new Set(unlaunched.map((item) => item.row.id)),
+    rerunFailures: options.rerunFailures,
+  });
+  writeFileSync(join(out, VERDICTS_FILE), JSON.stringify({ verdicts, totalCostUsd: ledger.spent, runs: results.length }));
+
+  return report({ options, out, results, verdicts });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

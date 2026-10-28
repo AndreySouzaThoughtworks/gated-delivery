@@ -1,0 +1,1 @@
+Engineer, personal primer on the order lifecycle. The outline is signed off: core idea, the four states as a diagram, glossary. The source is docs/order-lifecycle.md in this directory. The client CLAUDE.md in this directory has an `## Artifact style` section naming a Template and a Disclosure. Won't answer follow-ups.

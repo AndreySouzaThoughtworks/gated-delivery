@@ -1,0 +1,1 @@
+Support Product Issue ticket SUP-1690: `description` is null; the real content sits in ADF custom fields ("What is happening?" holds a conversation ID and "Acme Poland"; "Steps to reproduce"; "Expected Result"). This run's CLAUDE.md has an Issue tracking section and no Production support section. Nothing beyond this persona and that CLAUDE.md is reachable.

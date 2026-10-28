@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<!--
+  PRIMER TEMPLATE — Orders Platform brand, WCAG-AA. Token rules: the neutral template's, unchanged.
+  Fill the {{PLACEHOLDERS}} and the marked section slots; keep the <style> block verbatim.
+  Genre: a "primer" = an explainer you can also skim. Top-to-bottom teaching doc, not a one-pager.
+  Rules baked in (do not regress — see the primer skill's Verification table):
+    - Ink: #1C1E21. Secondary text: Ink 2 #5A6270. NEVER pure black, NEVER Muted #9AA3AF for text.
+    - Accent #7AA7D6 is NON-TEXT ONLY (borders, SVG strokes/arrowheads, the key-box left rule).
+    - Exactly ONE Highlight #E8590C moment (the header accent bar). Don't add a second.
+    - Spacing on the 4/8/12/16/24/32/48/64/96 scale. Card/container radius 8px, chips 4px (no full pills).
+    - Internal-only banner up top; the client disclosure footer.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}} — Primer</title>
+<style>
+  :root{
+    /* Neutral house-style tokens */
+    --paper:#FFFFFF; --surface:#F4F5F7; --subtle:#E9EBEF; --line:#D5D9E0;
+    --muted:#9AA3AF; --ink2:#5A6270; --ink:#1C1E21;
+    --accent-soft:#DCE9F7; --accent:#7AA7D6; --highlight:#E8590C;
+    --success:#2F9E44; --warning:#E0A800; --error:#C92A2A;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0; background:var(--surface); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-weight:400; font-size:16px; line-height:1.5; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1000px; margin:0 auto; padding:48px 24px 96px}
+  .accent-bar{width:48px; height:4px; background:var(--highlight); border-radius:4px; margin-bottom:16px}
+  header.doc{border-bottom:1px solid var(--line); padding-bottom:24px}
+  h1{font-family:Georgia,"Times New Roman",serif;
+     font-weight:400;
+     font-size:40px; margin:0 0 8px; letter-spacing:-.5px; color:var(--ink)}
+  .brand-mark{color:var(--ink2); font-size:13px; margin-bottom:8px}
+  .sub{color:var(--ink2); font-size:15px}
+  .banner{margin:24px 0; padding:12px 16px; border-radius:8px; font-size:13.5px;
+    background:var(--accent-soft); border:1px solid var(--accent); color:var(--ink)}
+  .banner.warn{background:var(--subtle); border:1px solid var(--line); border-left:4px solid var(--warning); color:var(--ink)}
+  h2{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; font-weight:600; font-size:24px; margin:48px 0 12px; letter-spacing:-.2px; padding-top:8px; color:var(--ink)}
+  h2 .num{color:var(--ink2); font-variant-numeric:tabular-nums; margin-right:8px}
+  h3{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; font-weight:600; font-size:18px; margin:24px 0 8px; color:var(--ink)}
+  p{margin:8px 0}
+  .lead{font-size:18px; color:var(--ink)}
+  code{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:12.5px;
+    background:var(--subtle); border:1px solid var(--line); border-radius:4px; padding:0 4px; color:var(--ink2)}
+  .key{background:var(--paper); border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:8px; padding:24px}
+  .key h3{margin-top:0; color:var(--ink)}
+  .panel{background:var(--paper); border:1px solid var(--line); border-radius:8px; padding:16px 24px; margin:16px 0}
+  .tag{display:inline-block; font-size:10.5px; font-weight:600; letter-spacing:.3px; text-transform:uppercase;
+    padding:4px 8px; border-radius:4px; vertical-align:middle; margin-left:8px;
+    background:var(--subtle); color:var(--ink); border:1px solid var(--line)}
+  .tag.live{border-color:var(--success)}
+  .tag.wip{border-color:var(--warning)}
+  .tag.todo{border-color:var(--error)}
+  ol.steps{counter-reset:s; list-style:none; padding:0; margin:16px 0}
+  ol.steps>li{position:relative; padding:12px 12px 12px 48px; margin:8px 0; background:var(--paper); border:1px solid var(--line); border-radius:8px}
+  ol.steps>li::before{counter-increment:s; content:counter(s); position:absolute; left:16px; top:12px; width:24px; height:24px; border-radius:4px;
+    background:var(--accent); color:var(--paper); font-weight:600; font-size:13px; display:flex; align-items:center; justify-content:center}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:13.5px}
+  th,td{text-align:left; padding:8px 12px; border-bottom:1px solid var(--line); vertical-align:top}
+  th{color:var(--ink2); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.4px}
+  ul.clean{margin:8px 0; padding-left:24px}
+  ul.clean li{margin:8px 0}
+  .two{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:16px 0}
+  .two .card{background:var(--paper); border:1px solid var(--line); border-radius:8px; padding:16px}
+  .two .card h4{margin:0 0 8px; font-size:14px; font-weight:600; color:var(--ink)}
+  .two .card .who{font-size:11px; color:var(--ink2); text-transform:uppercase; letter-spacing:.4px; margin-bottom:8px}
+  .fig{margin:24px 0}
+  .fig svg{width:100%; height:auto; background:var(--surface); border:1px solid var(--line); border-radius:8px; display:block}
+  .fig figcaption{color:var(--ink2); font-size:12.5px; margin-top:8px; line-height:1.5}
+  .three{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin:16px 0}
+  .three .card{background:var(--paper); border:1px solid var(--line); border-radius:8px; padding:16px}
+  .three .card h4{margin:0 0 8px; font-size:14px; font-weight:600; color:var(--ink)}
+  .three .card .who{font-size:11px; color:var(--ink2); text-transform:uppercase; letter-spacing:.4px; margin-bottom:8px}
+  @media (max-width:680px){.three{grid-template-columns:1fr}}
+  .toc{font-size:13.5px; color:var(--ink2); margin:16px 0 0; line-height:2}
+  .toc a{margin-right:16px; white-space:nowrap; color:var(--ink); text-decoration:underline; text-underline-offset:2px}
+  a{color:var(--ink); text-underline-offset:2px}
+  footer.doc{margin-top:64px; padding-top:24px; border-top:1px solid var(--line); color:var(--ink2); font-size:13px}
+  @media (max-width:680px){.two{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="doc">
+  <div class="accent-bar"></div>
+  <div class="brand-mark">Orders Platform</div>
+  <h1>{{TITLE}} — Primer</h1>
+  <div class="sub">{{ONE_LINE_SUBTITLE — what this explains and for whom}}</div>
+  <div class="toc">
+    <!-- One anchor per section, numbered ①②③… -->
+    <a href="#core">① Core idea</a>
+    <a href="#glossary">⑦ Glossary</a>
+  </div>
+</header>
+
+<div class="banner warn">
+  <strong>Internal only.</strong> {{Sensitivity note — what's in here, do-not-distribute, and any "inferred not verified" caveat.}}
+</div>
+
+<!-- ============ SECTION SLOTS — keep numbering sequential ============ -->
+
+<h2 id="core"><span class="num">①</span>The core idea</h2>
+<div class="key">
+  <h3>{{The single load-bearing sentence — the mental model in one line.}}</h3>
+  <p>{{Why it's true / where it comes from — cite a source.}}</p>
+  <p style="margin-bottom:0">{{The reframe — "think of it as X, not Y".}}</p>
+</div>
+
+<!-- Example: two-column contrast card (duplicate/remove as needed) -->
+<h2 id="example"><span class="num">②</span>{{Section heading}}</h2>
+<p class="lead">{{Lead sentence for the section.}}</p>
+<div class="two">
+  <div class="card">
+    <div class="who">{{Eyebrow label}}</div>
+    <h4>{{Card title}}</h4>
+    <p style="font-size:13.5px;margin-bottom:0">{{Body.}} <span class="tag live">shipped</span></p>
+  </div>
+  <div class="card">
+    <div class="who">{{Eyebrow label}}</div>
+    <h4>{{Card title}}</h4>
+    <p style="font-size:13.5px;margin-bottom:0">{{Body.}} <span class="tag todo">not started</span></p>
+  </div>
+</div>
+
+<!-- Example: a flow diagram. Box fills: #FFFFFF default, #E9EBEF neutral-highlight, #DCE9F7 accent-highlight.
+     Box title = .dt (Ink). Secondary line = .dm (Ink 2). Arrows/strokes = Accent (non-text). -->
+<figure class="fig">
+<svg viewBox="0 0 980 150" role="img" aria-label="{{describe the diagram}}">
+  <defs>
+    <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#7AA7D6"/></marker>
+  </defs>
+  <style>
+    .db{fill:#FFFFFF;stroke:#D5D9E0}
+    .dbh{fill:#DCE9F7;stroke:#7AA7D6}
+    .dt{fill:#1C1E21;font:600 13px -apple-system,Segoe UI,Roboto,sans-serif}
+    .dm{fill:#5A6270;font:400 10.5px -apple-system,Segoe UI,Roboto,sans-serif}
+    .dl{stroke:#7AA7D6;stroke-width:1.6;fill:none}
+    .dlab{fill:#5A6270;font:600 10px ui-monospace,Menlo,monospace}
+  </style>
+  <rect class="db" x="20" y="50" width="170" height="56" rx="8"/><text class="dt" x="105" y="74" text-anchor="middle">{{Step A}}</text><text class="dm" x="105" y="92" text-anchor="middle">{{detail}}</text>
+  <rect class="dbh" x="280" y="50" width="170" height="56" rx="8"/><text class="dt" x="365" y="74" text-anchor="middle">{{Step B}}</text><text class="dm" x="365" y="92" text-anchor="middle">{{detail}}</text>
+  <path class="dl" d="M190,78 L278,78" marker-end="url(#ar)"/><text class="dlab" x="210" y="70">{{label}}</text>
+</svg>
+<figcaption>{{Caption — a verbatim source quote works well here.}}</figcaption>
+</figure>
+
+<h2 id="glossary"><span class="num">⑦</span>Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Meaning</th></tr>
+  <tr><td><strong>{{Term}}</strong></td><td>{{Definition.}}</td></tr>
+</table>
+
+<footer class="doc">
+  {{Title}} — Primer · {{provenance line.}}<br>
+  Sources: {{cited docs, ticket keys, repos.}}<br>
+  <em>Prepared with AI assistance by the Orders Platform team. Review before sharing outside it.</em>
+</footer>
+
+</div>
+</body>
+</html>

@@ -137,9 +137,11 @@ Then filter:
 and a check both find the verdict without parsing a paraphrase. Then list each kind of source read with its count, plus anything that
 could not be read and why, and any follow-ups on other sources as step 6 describes them, then stop.
 
-A clean report proposes no text at all: no rewording, no "for example" criterion, no tightened
-version of an awkward line. Wording is not drift. At most one line may say the wording is out of
-scope and that `gated-delivery:issue-writing` Review mode covers it, with no suggested text.
+A clean report proposes no text for this ticket: no rewording, no "for example" criterion, no
+tightened version of an awkward line. Wording is not drift. At most one line may say the wording is
+out of scope and that `gated-delivery:issue-writing` Review mode covers it, with no suggested text.
+A follow-up on another source is not a proposal for this ticket: it still carries its source and
+proposed text, as step 6 says.
 
 **Findings.** One line first: how many, and of which kind. Then one finding at a time, in this
 order — contradicted by a decision, dependency changed, superseded, resolved elsewhere, unclear.

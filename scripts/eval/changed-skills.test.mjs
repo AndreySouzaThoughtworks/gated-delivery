@@ -5,7 +5,7 @@ import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSy
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { changedSkills, skillHash } from "./changed-skills.mjs";
+import { changedSkills, skillHash, stampStatus } from "./changed-skills.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SCRIPT_NAMES = ["changed-skills.mjs", "run-scenarios.mjs", "run-checks.mjs"];
@@ -250,4 +250,52 @@ test("--budget-usd overrides the smoke default", () => {
   const [call] = claudeCalls(root);
   assert.equal(call[call.indexOf("--max-budget-usd") + 1], "7");
   assert.deepEqual(readdirSync(join(root, "evals", "results")), ["demo.json"]);
+});
+
+const writeStamp = (root, stamp) => write(root, "evals/results/demo.json", JSON.stringify(stamp));
+
+test("stampStatus: a waiver with the current hash is waived, a stale or blank one is not", () => {
+  const root = fakeRepo();
+  const hash = skillHash(root, "demo");
+  assert.equal(stampStatus(root, "demo"), "missing");
+  writeStamp(root, { hash });
+  assert.equal(stampStatus(root, "demo"), "ok");
+  writeStamp(root, { hash, waived: "no credentials" });
+  assert.equal(stampStatus(root, "demo"), "waived");
+  writeStamp(root, { hash: "old", waived: "no credentials" });
+  assert.equal(stampStatus(root, "demo"), "stale");
+  for (const waived of ["", "   ", 7, null]) {
+    writeStamp(root, { hash, waived });
+    assert.equal(stampStatus(root, "demo"), "blank-waiver");
+  }
+});
+
+test("--waive writes the waiver for the current hash and exits 0 without running claude", () => {
+  const root = fakeRepo();
+  const result = runChangedSkills(root, ["--waive", "demo", "--reason", "no credentials"]);
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  const stamp = stampOf(root);
+  assert.equal(stamp.hash, skillHash(root, "demo"));
+  assert.equal(stamp.waived, "no credentials");
+  assert.ok(!Number.isNaN(Date.parse(stamp.ranAt)));
+  assert.equal(stampStatus(root, "demo"), "waived");
+  assert.deepEqual(claudeCalls(root), []);
+  assert.deepEqual(probeCalls(root), []);
+});
+
+test("--waive rejects a missing or blank reason, an unknown skill and extra arguments, and writes nothing", () => {
+  const root = fakeRepo();
+  const bad = [
+    ["--waive", "demo"],
+    ["--waive", "demo", "--reason", "  "],
+    ["--waive", "ghost", "--reason", "x"],
+    ["--waive", "demo", "--reason", "x", "other"],
+    ["--waive", "demo", "--reason", "x", "--full"],
+    ["--reason", "x"],
+  ];
+  for (const args of bad) {
+    const result = runChangedSkills(root, args);
+    assert.equal(result.status, 2, args.join(" "));
+  }
+  assert.equal(existsSync(join(root, "evals", "results")), false);
 });

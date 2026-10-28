@@ -37,6 +37,8 @@ It finds the skills that changed against `GATED_DELIVERY_BASE_REF` (default `ori
 
 **Stamp.** Each skill that passes gets `evals/results/<skill>.json`: `hash`, `tier`, `scenarios`, `verdicts`, `totalCostUsd` and `ranAt`. Commit it with the change. The hash is a sha256 over every file under `plugin/skills/<skill>/` and every `plugin/agents/*.md` file the skill's `SKILL.md` names. Each file contributes its repository-relative path and its bytes, in sorted path order. `evals.md` and test files under `scripts/` are left out.
 
+**Waiver.** When no working credentials exist, record an exception: `node scripts/eval/changed-skills.mjs --waive <skill> --reason "<why>"`. It writes `evals/results/<skill>.json` with the hash, the reason and `ranAt`, and runs nothing. The guard accepts a waiver only for the exact current hash, so any later edit to the skill makes it stale. It shows as a warning, not a pass. `/evals/results/` is in CODEOWNERS, so the owner reviews each one.
+
 **Guard.** When `GATED_DELIVERY_BASE_REF` is set, the consistency guard (check 18) requires a stamp with a matching hash for every skill changed against that ref. CI sets it on pull requests. Locally it is unset and the check is skipped. A skill nobody changed needs no stamp. `.github/workflows/evals.yml` runs the same script in CI when the repository has a `CLAUDE_CODE_OAUTH_TOKEN` secret. It is not a required check.
 
 **Cost levers.**

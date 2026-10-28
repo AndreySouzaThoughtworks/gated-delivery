@@ -39,7 +39,11 @@ const CREDENTIAL_HINT = "runs ignore the user settings source, so set a working 
 const VERDICTS_FILE = "verdicts.json";
 const RUNNER = join("scripts", "eval", "run-scenarios.mjs");
 
-const USAGE = "usage: changed-skills.mjs [skill…] [--full] [--budget-usd N] [--total-budget-usd N] [--model M] [--jobs N]";
+const USAGE = [
+  "usage: changed-skills.mjs [skill…] [--full] [--budget-usd N] [--total-budget-usd N] [--model M] [--jobs N]",
+  '       changed-skills.mjs --waive <skill> --reason "<text>"',
+].join("\n");
+const WAIVER_KEY = "waived";
 const VALUE_FLAGS = ["--budget-usd", "--total-budget-usd", "--model", "--jobs"];
 
 const isHashedSkillFile = (pathInsideSkill) => {
@@ -105,20 +109,29 @@ export const changedSkills = (root, baseRef) => {
 
 const stampPath = (root, skill) => join(root, RESULTS_DIR, `${skill}.json`);
 
+const readStamp = (root, skill) => JSON.parse(readFileSync(stampPath(root, skill), "utf8"));
+
+const isBlank = (value) => typeof value !== "string" || value.trim() === "";
+
+export const waiverReason = (root, skill) => readStamp(root, skill).waived;
+
 export const stampStatus = (root, skill) => {
-  const path = stampPath(root, skill);
-  if (!existsSync(path)) return "missing";
-  const stamp = JSON.parse(readFileSync(path, "utf8"));
-  return stamp.hash === skillHash(root, skill) ? "ok" : "stale";
+  if (!existsSync(stampPath(root, skill))) return "missing";
+  const stamp = readStamp(root, skill);
+  if (Object.hasOwn(stamp, WAIVER_KEY) && isBlank(stamp[WAIVER_KEY])) return "blank-waiver";
+  if (stamp.hash !== skillHash(root, skill)) return "stale";
+  return Object.hasOwn(stamp, WAIVER_KEY) ? "waived" : "ok";
 };
 
 export const baseRefFromEnv = () => process.env[BASE_REF_ENV] || null;
 
 const parseArgs = (argv) => {
-  const options = { skills: [], full: false, passthrough: [] };
+  const options = { skills: [], full: false, passthrough: [], waive: null, reason: null };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--full") options.full = true;
+    else if (arg === "--waive" && argv[i + 1] !== undefined) options.waive = argv[++i];
+    else if (arg === "--reason" && argv[i + 1] !== undefined) options.reason = argv[++i];
     else if (VALUE_FLAGS.includes(arg) && argv[i + 1] !== undefined) options.passthrough.push(arg, argv[++i]);
     else if (!arg.startsWith("--")) options.skills.push(arg);
     else return { error: `Unknown or incomplete argument: ${arg}` };
@@ -200,32 +213,54 @@ const writeStamp = (root, { skill, hash, report }, tier) => {
   writeFileSync(path, `${JSON.stringify(stamp, null, 2)}\n`);
 };
 
+const waiveProblem = (options, root) => {
+  if (options.waive === null) return options.reason === null ? null : "--reason belongs to --waive";
+  if (options.skills.length || options.full || options.passthrough.length) return "--waive takes no other skills or flags";
+  if (isBlank(options.reason)) return "--waive needs a non-blank --reason";
+  if (!existsSync(join(root, SKILLS_PREFIX, options.waive, SKILL_FILE))) return `no such skill: ${options.waive}`;
+  return null;
+};
+
+const writeWaiver = (root, skill, reason) => {
+  const path = stampPath(root, skill);
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, `${JSON.stringify({ hash: skillHash(root, skill), [WAIVER_KEY]: reason, ranAt: new Date().toISOString() }, null, 2)}\n`);
+};
+
+const reportOutcome = (root, outcome, tier) => {
+  for (const [id, verdict] of Object.entries(outcome.report?.verdicts ?? {})) {
+    if (verdict === VERDICT_FLAKY) console.log(`FLAKY ${outcome.skill} ${id}: failed once, passed on rerun`);
+  }
+  if (outcome.passed) writeStamp(root, outcome, tier);
+  console.log(`${outcome.passed ? "PASSED" : "FAILED"} ${outcome.skill} (${tier})`);
+};
+
 const main = (argv, root = process.cwd()) => {
   const options = parseArgs(argv);
-  if (options.error) {
-    console.error(`${options.error}\n${USAGE}`);
+  const problem = options.error ?? waiveProblem(options, root);
+  if (problem) {
+    console.error(`${problem}\n${USAGE}`);
     return EXIT_USAGE;
+  }
+  if (options.waive !== null) {
+    writeWaiver(root, options.waive, options.reason);
+    console.log(`WAIVED ${options.waive}: ${options.reason}`);
+    return EXIT_PASSED;
   }
   const skills = options.skills.length ? options.skills : changedSkills(root, baseRefFromEnv() || DEFAULT_BASE_REF);
   if (!skills.length) {
     console.log("No skill changed: nothing to run.");
     return EXIT_PASSED;
   }
-  const problem = probeProblem(options.passthrough);
-  if (problem !== null) {
-    console.log(`SKIPPED: claude cannot run with the eval flags: ${problem.slice(0, PROBE_DETAIL_CHARS)}`);
+  const probeFailure = probeProblem(options.passthrough);
+  if (probeFailure !== null) {
+    console.log(`SKIPPED: claude cannot run with the eval flags: ${probeFailure.slice(0, PROBE_DETAIL_CHARS)}`);
     console.log(`No eval ran for ${skills.join(", ")}; this is not a pass. Hint: ${CREDENTIAL_HINT}`);
     return EXIT_NOTHING_RUN;
   }
   const tier = options.full ? TIER_FULL : TIER_SMOKE;
   const outcomes = skills.map((skill) => runSkill(root, skill, options));
-  for (const outcome of outcomes) {
-    for (const [id, verdict] of Object.entries(outcome.report?.verdicts ?? {})) {
-      if (verdict === VERDICT_FLAKY) console.log(`FLAKY ${outcome.skill} ${id}: failed once, passed on rerun`);
-    }
-    if (outcome.passed) writeStamp(root, outcome, tier);
-    console.log(`${outcome.passed ? "PASSED" : "FAILED"} ${outcome.skill} (${tier})`);
-  }
+  outcomes.forEach((outcome) => reportOutcome(root, outcome, tier));
   return outcomes.every((outcome) => outcome.passed) ? EXIT_PASSED : EXIT_FAILED;
 };
 

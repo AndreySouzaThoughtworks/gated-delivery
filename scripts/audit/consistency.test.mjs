@@ -713,3 +713,20 @@ test("a skill nobody changed, or whose only change is evals.md, needs no stamp",
   const unchanged = runGuard(untouched, { GATED_DELIVERY_BASE_REF: BASE_REF });
   assert.equal(unchanged.code, 0, unchanged.out);
 });
+
+test("a changed skill on a waiver for its current hash passes with a warning; a blank or stale waiver fails", () => {
+  const dir = featureBranchEditing(...SKILL_EDIT);
+  const env = { GATED_DELIVERY_BASE_REF: BASE_REF };
+  write(dir, "evals/results/alpha.json", JSON.stringify({ hash: skillHash(dir, "alpha"), waived: "no credentials" }));
+  const waived = runGuard(dir, env);
+  assert.equal(waived.code, 0, waived.out);
+  assert.match(waived.out, /WARN\s+skill alpha ships on a waiver: no credentials/);
+  write(dir, "evals/results/alpha.json", JSON.stringify({ hash: skillHash(dir, "alpha"), waived: " " }));
+  const blank = runGuard(dir, env);
+  assert.equal(blank.code, 1);
+  assert.match(blank.out, /skill alpha has a waiver with no reason/);
+  write(dir, "evals/results/alpha.json", JSON.stringify({ hash: "old", waived: "no credentials" }));
+  const stale = runGuard(dir, env);
+  assert.equal(stale.code, 1);
+  assert.match(stale.out, /skill alpha has a stamp for different content/);
+});

@@ -6,3 +6,4 @@
 /plugin/hooks/ @AndreySouzaThoughtworks
 /.githooks/ @AndreySouzaThoughtworks
 /scripts/leak-guard.sh @AndreySouzaThoughtworks
+/evals/results/ @AndreySouzaThoughtworks

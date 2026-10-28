@@ -26,9 +26,9 @@ mode: response
 
 | # | Prompt | Persona | Pass Criteria |
 |---|--------|---------|---------------|
-| 4 | "Ready?" | Diff = clean, well-placed bug fix with focused unit test at right layer; nothing structural off. The diff compiles as shown: the new spec file imports the helper it tests. | Returns **READY-TO-COMMIT**, does NOT invent structural findings. Does not flag style/naming nits. |
-| 6 | "Is this ready to push?" | Diff adds a target locale to the translate request. The DTO regex accepts a two-letter language with an optional region, in any case, joined by `-` or `_`; `toEngineLanguage` keeps the first two letters, lowercased; the new DTO spec accepts seven variants. The full diff is the fixture. | Names that several of the DTO spec's accepted cases, such as `de-DE`, `de-AT` and `de-CH`, differ only in a region that `toEngineLanguage` discards, so they test what the validator tolerates, not what the service does. Proposes trimming those accepted cases in the DTO spec and asserting the variants against `toEngineLanguage` or the service, each becoming `de`. Fails if it calls the DTO spec's accepted cases good coverage or leaves them as is. Fails if the downstream test it proposes uses no region variant, such as `de-AT`. |
-| 8 | "Good to merge?" | Diff adds a Nest exception filter that answers `EngineError` as a problem details body, and a unit spec for it. Two spec titles cite an RFC number and an internal error-code constant, and one spec comment cites an RFC section. The full diff is the fixture. | Names the spec titles that cite `RFC 7807`, `RFC 9110 §15.6.3`, `ENGINE_TIMEOUT` or `ERR_UPSTREAM_4XX`, and proposes rewording each as the behaviour a reader can see, such as "answers an engine timeout with a 504 problem details body". Fails if it leaves those titles unflagged. |
+| 4 | "Ready?" | Diff = clean, well-placed bug fix with focused unit test at right layer; nothing structural off. The diff compiles as shown: the new spec file imports the helper it tests. | — |
+| 6 | "Is this ready to push?" | Diff adds a target locale to the translate request. The DTO regex accepts a two-letter language with an optional region, in any case, joined by `-` or `_`; `toEngineLanguage` keeps the first two letters, lowercased; the new DTO spec accepts seven variants. The full diff is the fixture. | Says the DTO spec's accepted region variants differ only in a region `toEngineLanguage` discards, so they test the validator, not the service. Does not call those accepted cases good coverage. |
+| 8 | "Good to merge?" | Diff adds a Nest exception filter that answers `EngineError` as a problem details body, and a unit spec for it. Two spec titles cite an RFC number and an internal error-code constant, and one spec comment cites an RFC section. The full diff is the fixture. | Proposes rewording each flagged title as the behaviour a reader can see, such as "answers an engine timeout with a 504 problem details body". |
 
 ## Agent Prompt Templates
 
@@ -53,23 +53,27 @@ CONTEXT: {{PERSONA}}
 | Quality Signal | Without Skill | With Skill | How to Measure |
 |----------------|---------------|------------|----------------|
 | Explicit verdict | Ends with vague "looks fine" | Emits `READY-TO-COMMIT` or `REVISE-FIRST` | `grep -cE -e '^READY-TO-COMMIT$' -e '^REVISE-FIRST$' output` — anchored to token alone on own line, so template placeholder does not count. Two `-e` patterns not one alternation: `\|` escaped for markdown table reaches regex as literal pipe, matches nothing. |
-| Stays in lane (no false finds) | May invent structure/style nits on clean code | Returns READY-TO-COMMIT on clean diff (scenario 4) | Manual: zero invented findings |
-| Test realism (scenario 6) | Adds a downstream test but calls the DTO's accepted-variants table good coverage | Names the region variants the mapper discards, trims them, asserts them downstream | Judge on the row, read by hand |
-| Test titles (scenario 8) | Leaves RFC and error-code titles, or renames them to other constants | Rewrites each title as visible behaviour | Judge on the row, read by hand |
+| Stays in lane (no false finds) | May invent structure/style nits on clean code | Returns READY-TO-COMMIT on clean diff (scenario 4) | Finding-row, applied/surfaced-bullet and no-edit checks below |
+| Test realism (scenario 6) | Adds a downstream test but calls the DTO's accepted-variants table good coverage | Names the region variants the mapper discards, trims them, asserts them downstream | Region, mapper, trim and downstream-variant checks below; the judge reads the praise and reason clauses |
+| Test titles (scenario 8) | Leaves RFC and error-code titles, or renames them to other constants | Rewrites each title as visible behaviour | Four-citation check below; the judge reads the rewording clause |
 
 **Pass threshold:** scenarios 4, 6 and 8 pass on every run. Each must not regress.
 
 ## Deterministic Checks
 
 ```bash
-# Invented finding on the clean diff — a lens named with a finding, either "Lens A" in prose or a
-# lens-table row such as "| A. Cohesion | 1 finding |". A row reporting CLEAN or N/A does not count,
-# and neither does a line saying a lens does not apply ("Lens H doesn't apply"). Expect 0 on 4.
+# Invented finding on the clean diff — a lens-table row reporting one or more findings, such as
+# "| A. Cohesion | 1 finding |". Rows reporting CLEAN or N/A do not count, and neither does prose that
+# mentions a lens ("Lens A and B: nothing structural"). Expect 0 on 4.
 # expect: ==0 on 4
-grep -iE '\blens [a-h]\b|^\| *\**[a-h]\. [^|]+\| *\**[0-9]+ findings?' output.md | grep -viEc "n.t apply|not apply|N/A"
-# A lens reports the planted finding, counted the same way — expect at least 1 on 6 and 8
-# expect: >=1 on 6,8
-grep -iE '\blens [a-h]\b|^\| *\**[a-h]\. [^|]+\| *\**[0-9]+ findings?' output.md | grep -viEc "n.t apply|not apply|N/A"
+grep -icE '^\| *\**[a-h]\. [^|]+\| *\**[1-9][0-9]* findings?' output.md
+# The planted finding sits in the lens the scenario exercises: Lens D (test realism) on 6. A finding
+# under another lens, or "Lens D: clean", scores 0.
+# expect: >=1 on 6
+grep -icE '^\| *\**D\. [^|]+\| *\**[1-9][0-9]* findings?' output.md
+# Lens E (test descriptions) on 8, counted the same way.
+# expect: >=1 on 8
+grep -icE '^\| *\**E\. [^|]+\| *\**[1-9][0-9]* findings?' output.md
 # A verdict was emitted — expect 1 on 4, 6 and 8
 # expect: ==1 on 4,6,8
 grep -cE -e '^READY-TO-COMMIT$' -e '^REVISE-FIRST$' output.md   # verdict token, alone on its line
@@ -77,6 +81,32 @@ grep -cE -e '^READY-TO-COMMIT$' -e '^REVISE-FIRST$' output.md   # verdict token,
 # expect: ==0 on 4
 # expect: ==1 on 6,8
 grep -cE '^REVISE-FIRST$' output.md
+# Clean diff has nothing to apply or surface — no bullet under "Auto-applied" or "Surfaced for
+# judgment" that is not a none/nothing/n-a line. A style or naming nit lands in one of them. Scenario 4.
+# expect: ==0 on 4
+awk '/^### (Auto-applied|Surfaced for judgment)/{f=1;next} /^#/{f=0} f && /^[-*] /{print}' output.md | grep -viEc "none|nothing|n/a"
+# Clean diff is never edited — no Edit, Write or NotebookEdit call. Scenario 4.
+# expect: ==0 on 4
+grep -cE '"tool_use","id":"[^"]*","name":"(Edit|Write|NotebookEdit)"' transcript.jsonl
+# Scenario 6 names at least two of the region variants that collapse — de-DE, de-AT, de-CH.
+# expect: >=2 on 6
+grep -oE "de-(DE|AT|CH)" output.md | sort -u | wc -l | tr -d ' '
+# Scenario 6 names the mapper that discards the region.
+# expect: >=1 on 6
+grep -c "toEngineLanguage" output.md
+# Scenario 6 proposes dropping or trimming the accepted cases.
+# expect: >=1 on 6
+grep -icE "\b(trim|drop|remove|cut|reduce|collapse|replace)\b" output.md
+# Scenario 6 says the variants each become `de`: a line with a region variant and a bare `de`.
+# expect: >=1 on 6
+grep -cE "de-(DE|AT|CH)[^.]*[^A-Za-z-]de([^A-Za-z-]|$)" output.md
+# Scenario 6's downstream test uses a region variant — a line about toEngineLanguage, the service or
+# downstream that carries de-AT, de-CH or de-DE.
+# expect: >=1 on 6
+grep -iE "toEngineLanguage|service|downstream" output.md | grep -cE "de-(AT|CH|DE)"
+# Scenario 8 flags all four citations: RFC 7807, RFC 9110, ENGINE_TIMEOUT and ERR_UPSTREAM_4XX.
+# expect: >=4 on 8
+grep -oE "RFC 7807|RFC 9110|ENGINE_TIMEOUT|ERR_UPSTREAM_4XX" output.md | sort -u | wc -l | tr -d ' '
 ```
 
 ## Saturation Signals

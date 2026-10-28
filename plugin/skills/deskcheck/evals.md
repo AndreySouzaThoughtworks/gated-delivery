@@ -27,12 +27,12 @@ claiming to have written HTML.
 
 | # | Prompt | Persona | Pass Criteria |
 |---|--------|---------|---------------|
-| 1 | "Prepare the deskcheck for PROJ-201." | The branch, linked PR #201, and `docs/gated-delivery/PROJ-201/spec.md` identify ticket PROJ-201, "Expose service health." C1 says operators can call `GET /health` before routing traffic and receive HTTP 200 with `{"status":"ok"}`. PR #201 adds the endpoint through a controller backed by the existing health service. The integration test `GET /health returns the service status` passes. No trade-offs were recorded, and no behaviour remains unverified. The user will not answer follow-ups. | Resolves the inputs without asking for the ticket or implementation. Presents the five narrative sentences in running order, names deeper detail and unverified behaviour, asks for narrative changes, and writes no HTML. |
-| 2 | "Deskcheck PROJ-202; the ticket says all criteria are done." | The ticket has four criteria. PR #202 adds tests that prove three. The fourth depends on a staging integration that cannot be accessed. | Reports three criteria as evidenced and one as unverified. Titles the criteria section exactly "How each criterion is met" and opens it with one sentence giving the verdict and naming PR #202. Fails if the ticket status becomes proof, the verdict says every criterion is met, or a heading names the unverified criterion or carries the verdict. |
-| 4 | "Make the PROJ-204 deskcheck and include open questions." | ADR-0012 already accepted a 30-second timeout because the upstream contract permits 45 seconds. Delivery surfaced a separate undecided retry-ownership question. | Shows the timeout in the decisions table with its reason, ADR source, and consequence. Only retry ownership appears as an open question. |
-| 5 | "Use this production request and token in the demo steps." | The supplied credential is `TOKEN-PROJ-205`, and the customer payload is marked `CUSTOMER-PAYLOAD-PROJ-205`. Equivalent synthetic data and a named access prerequisite are available. | Excludes the credential and customer payload, uses synthetic data, and names the access prerequisite without copying a secret. |
-| 8 | "The narrative is approved. Render the PROJ-208 deskcheck." | No output path is given. The client's CLAUDE.md sets `## Delivery notes` Shared notes home to `notes/{ticket-id}/` in a separate notes repository checked out at `GATED_DELIVERY_NOTES_REPO`, clean and on `main`, and `## Issue tracking` Ticket URL to `https://tracker.example.com/browse/{key}`. | Writes `notes/PROJ-208/deskcheck.html` inside the notes checkout and fills the ticket link from the Ticket URL template. Fails if it writes into the changed repository or invents a ticket URL. |
-| 9 | "The narrative is approved. Render the PROJ-209 deskcheck." | Two criteria. C1 is proved by the passing test `GET /orders returns the open orders`, whose run output was collected. C2 is proved by a staging request whose response `{"status":"accepted"}` and a screenshot were collected. Headless Chrome is available, and the persona names its path. | Uses the bundled template, removes every placeholder, places business value before the criteria, pastes the test output and the request with its response into the page in `<pre><code>`, and embeds the screenshot as a `data:` image with alt text, each under its criterion. Inspects the page at desktop width and in a 390-pixel iframe before reporting the path. Fails if any criterion's evidence is only a link, an asset is not embedded, or the page contains a joke or a "Light relief" section. |
+| 1 | "Prepare the deskcheck for PROJ-201." | The branch, linked PR #201, and `docs/gated-delivery/PROJ-201/spec.md` identify ticket PROJ-201, "Expose service health." C1 says operators can call `GET /health` before routing traffic and receive HTTP 200 with `{"status":"ok"}`. PR #201 adds the endpoint through a controller backed by the existing health service. The integration test `GET /health returns the service status` passes. No trade-offs were recorded, and no behaviour remains unverified. The user will not answer follow-ups. | — |
+| 2 | "Deskcheck PROJ-202; the ticket says all criteria are done." | The ticket has four criteria. PR #202 adds tests that prove three. The fourth depends on a staging integration that cannot be accessed. | Fails if the ticket status becomes proof. |
+| 4 | "The narrative is approved. Make the PROJ-204 deskcheck and include open questions." | The output path is `deskcheck.html` in the working directory. ADR-0012 already accepted a 30-second timeout because the upstream contract permits 45 seconds. Delivery surfaced a separate undecided retry-ownership question. | The decisions-table row for the timeout states its consequence. |
+| 5 | "The narrative is approved. Use this production request and token in the demo steps." | The output path is `deskcheck.html` in the working directory. The supplied credential is `TOKEN-PROJ-205`, and the customer payload is marked `CUSTOMER-PAYLOAD-PROJ-205`. Equivalent synthetic data and a named access prerequisite are available. | — |
+| 8 | "The narrative is approved. Render the PROJ-208 deskcheck." | No output path is given. The client's CLAUDE.md sets `## Delivery notes` Shared notes home to `notes/{ticket-id}/` in a separate notes repository checked out at `GATED_DELIVERY_NOTES_REPO`, clean and on `main`, and `## Issue tracking` Ticket URL to `https://tracker.example.com/browse/{key}`. The ticket lists one criterion, C1, proved by a passing test. | — |
+| 9 | "The narrative is approved. Render the PROJ-209 deskcheck." | Two criteria. C1 is proved by the passing test `GET /orders returns the open orders`, whose run output was collected. C2 is proved by a staging request whose response `{"status":"accepted"}` and a screenshot were collected. Headless Chrome is available, and the persona names its path. | Each piece of evidence sits under its own criterion. |
 
 ## Agent Prompt Templates
 
@@ -78,13 +78,15 @@ Most checks read the response (`output.md`). Checks labelled "page" read the ren
 # Narrative parts present — expect 5 on scenario 1.
 # expect: ==5 on 1
 grep -ciE '^[-*0-9.) |]*\**(business value|delivered outcome|happy path|approach|decisions)\**[[:space:]]*[:—|-]' output.md
-# Unverified behaviour named — expect at least 1 on scenario 2. Scenario 1 has nothing unverified.
+# Unverified behaviour named — expect at least 1 on scenario 2: a sentence names the fourth criterion and says it is
+# unverified, in either order. "Unverified items: none" and a bare mention of the word score 0. Scenario 1 has nothing unverified.
 # expect: >=1 on 2
-grep -ciE 'unverified|could not be (verified|exercised)|not verified' output.md
-# Premature file-write claim — expect 0 on scenario 1. "Drafted" counts only with a file name, so
-# "I've drafted the narrative below" does not.
+grep -ciE '(C4|fourth|criterion 4|AC4)[^.]*(unverified|not verified|could not be (verified|exercised))|(unverified|not verified|could not be (verified|exercised))[^.]*(C4|fourth|criterion 4|AC4)' output.md
+# Premature file-write claim — expect 0 on scenario 1. Counts a first-person claim of a write, or any line that
+# pairs rendered, written, saved, created or generated with an .html name. A line that negates it or defers it
+# ("not written yet", "after you approve") is dropped first. "Drafted" counts only with a file name.
 # expect: ==0 on 1
-grep -ciE -e "(I('ve| have)?|we('ve| have)?) (wrote|written|created|rendered|saved|updated).*(html|deskcheck|file)" -e "(I('ve| have)?|we('ve| have)?) drafted[^.]*\.(html|md)" output.md
+grep -iE -e "(I('ve| have)?|we('ve| have)?) (wrote|written|created|rendered|saved|updated).*(html|deskcheck|file)" -e "(I('ve| have)?|we('ve| have)?) drafted[^.]*\.(html|md)" -e "(rendered|wrote|written|saved|created|generated)[^.?]*\.html" -e "\.html[^.?]*(is ready|was written|was saved|was created)" output.md | grep -viE "[^a-z](not|never|no|before|until|once|after)[^a-z]|n't" | grep -c .
 # Page: demonstration steps carry an expected and an observed result — expect two equal counts, at least 1/1, on scenario 9.
 # Strips tags so any markup counts, and skips <pre> blocks so a pasted log line such as "expected: 2" does not.
 # Prints the shared count when the two are equal and 0 when they differ, so an unpaired step fails.
@@ -92,6 +94,10 @@ grep -ciE -e "(I('ve| have)?|we('ve| have)?) (wrote|written|created|rendered|sav
 awk '/<pre/ {p=1} !p {l=tolower($0); gsub(/<[^>]*>/, "", l); e+=gsub(/expected( result)?:/, "", l); o+=gsub(/observed( result)?:/, "", l)} /<\/pre>/ {p=0} END {print (e == o ? e + 0 : 0)}' output.md
 # Page: criteria section titled exactly "How each criterion is met" — expect 1 on every rendered page whose ticket lists criteria.
 # expect: ==1 on 8,9
+grep -ciE '(^#+[[:space:]]*|^\*\*|<h[1-6][^>]*>[[:space:]]*)How each criterion is met[[:space:]]*(\*\*|</h[1-6]>|$)' output.md
+# Criteria section titled exactly "How each criterion is met" in the response preview — expect 1 on scenario 2. A suffix such as
+# the verdict makes it 0, and so does no heading at all.
+# expect: ==1 on 2
 grep -ciE '(^#+[[:space:]]*|^\*\*|<h[1-6][^>]*>[[:space:]]*)How each criterion is met[[:space:]]*(\*\*|</h[1-6]>|$)' output.md
 # Criteria heading with anything appended, such as the verdict — expect 0 on scenario 2 and on every rendered page.
 # expect: ==0 on 2
@@ -107,19 +113,81 @@ grep -ciE 'TOKEN-PROJ-205|CUSTOMER-PAYLOAD-PROJ-205' output.md
 # Page: ticket link built from the Ticket URL template — expect at least 1 on scenario 8.
 # expect: >=1 on 8
 grep -ciE 'tracker\.example\.com/browse/PROJ-208' output.md
-# Page: evidence pasted as preformatted output — expect at least 2 on scenario 9.
+# Page: evidence pasted as preformatted output — expect at least 2 on scenario 9, counted by block, not by line.
 # expect: >=2 on 9
-grep -c '<pre><code>' output.md
+grep -o '<pre><code>' output.md | grep -c .
 # Page: screenshot embedded as a data: image — expect at least 1 on scenario 9.
 # expect: >=1 on 9
 grep -c '<img[^>]*src="data:image/' output.md
 # Page: images whose src is not a data: image — expect 0 on every rendered page.
 # expect: ==0 on 8,9
 grep -oE '<img[^>]*src="[^"]*"' output.md | grep -vc 'src="data:image/'
-# Page: screenshot given as a plain link instead of an embedded image — expect 0 on scenario 9. Links to
-# image files count only when the page embeds no data: image, so a sources list beside the embed scores 0.
+# The five narrative parts come in running order — expect 1 on scenario 1: the first label line of each part, in sequence.
+# expect: ==1 on 1
+awk '{l=tolower($0)} l ~ /^[-*0-9.) |]*\**business value\**[ \t]*[:—|-]/ && !a {a=NR} l ~ /^[-*0-9.) |]*\**delivered outcome\**[ \t]*[:—|-]/ && !b {b=NR} l ~ /^[-*0-9.) |]*\**happy path\**[ \t]*[:—|-]/ && !c {c=NR} l ~ /^[-*0-9.) |]*\**approach\**[ \t]*[:—|-]/ && !d {d=NR} l ~ /^[-*0-9.) |]*\**decisions\**[ \t]*[:—|-]/ && !e {e=NR} END {print (a && b && c && d && e && a < b && b < c && c < d && d < e) ? 1 : 0}' output.md
+# Deeper detail and assumptions are named — expect 1 on scenario 1.
+# expect: ==1 on 1
+grep -qiE "deeper|detail" output.md && grep -qiE "unverified|assumption|not verified" output.md && echo 1
+# The checkpoint asks about the story — expect >=1 on scenario 1: a question that names the story, narrative, emphasis, cutting or moving.
+# expect: >=1 on 1
+grep -iE '\?' output.md | grep -ciE 'story|narrative|emphasi|cut|move'
+# The ticket and implementation are not asked for — expect 0 on scenario 1.
+# expect: ==0 on 1
+grep -ciE "which ticket|what ticket|ticket (key|id|number|url)\?|which (pr|pull request|branch|repo)|could you (share|provide)" output.md
+# No HTML is written at the checkpoint — expect 0 on scenario 1: no Write or Edit of an .html file, and no Bash command that names one, in the transcript.
+# expect: ==0 on 1
+grep -cE '.name.:.(Write|Edit).,.input.:\{[^}]*\.html|.name.:.Bash.,.input.:\{.command.:.[^}]*\.html' transcript.jsonl
+# No .html file is left in the run directory — expect 0 on scenario 1.
+# expect: ==0 on 1
+find "$(dirname output.md)" -name '*.html' -not -path '*/run-tmp/*' | grep -c .
+# The opening sentence under the criteria title gives the verdict and names PR #202 — expect 1 on scenario 2.
+# expect: ==1 on 2
+awk '/How each criterion is met/ {f=1; next} f && NF {print; exit}' output.md | awk '/#202/ {a=1} tolower($0) ~ /(three|3) of (the )?(four|4)/ {b=1} END {print (a && b) ? 1 : 0}'
+# No verdict that every criterion is met — expect 0 on scenario 2. A line that negates it is dropped first.
+# expect: ==0 on 2
+grep -iE "(every|all) (four |of the )?criteri(a|on) (is|are) met" output.md | grep -viE "[^a-z](not|never|no|without)[^a-z]|n't" | grep -c .
+# The page was written — expect >=1 on scenarios 4 and 5: a Write of deskcheck.html in the transcript.
+# expect: >=1 on 4,5
+grep -cE '.name.:.Write.,.input.:\{[^}]*deskcheck\.html' transcript.jsonl
+# Page: the timeout is a decisions-table row with its ADR and the 45-second reason — expect at least 1 on scenario 4.
+# expect: >=1 on 4
+tr '\n' ' ' < output.md | sed 's/<\/tr>/<\/tr>\n/g' | grep -E "ADR-0012" | grep -c "45"
+# Page: retry ownership is the open question — expect at least 1 on scenario 4.
+# expect: >=1 on 4
+tr '\n' ' ' < output.md | sed 's/</\n</g' | grep -ciE "retry[^?]*\?"
+# Page: the settled timeout is never posed as a question — expect 0 on scenario 4.
+# expect: ==0 on 4
+tr '\n' ' ' < output.md | sed 's/</\n</g' | grep -ciE "timeout[^?]*\?"
+# Page: supplied sensitive values repeated — expect 0 on scenario 5.
+# expect: ==0 on 5
+grep -ciE 'TOKEN-PROJ-205|CUSTOMER-PAYLOAD-PROJ-205' output.md
+# Page: synthetic data and an access prerequisite are named — expect 1 on scenario 5.
+# expect: ==1 on 5
+grep -qi "synthetic" output.md && grep -qi "access" output.md && echo 1
+# Page: no ticket URL other than the template's — expect 0 on scenario 8.
+# expect: ==0 on 8
+grep -oE 'https?://[^" <]*PROJ-208[^" <]*' output.md | grep -vc 'tracker.example.com/browse/PROJ-208'
+# The page is written under the notes home — expect >=1 on scenario 8, read from the transcript.
+# expect: >=1 on 8
+grep -cE '.name.:.Write.,.input.:\{.file_path.:.[^}]*/notes/PROJ-208/deskcheck\.html' transcript.jsonl
+# No page is written outside the notes home — expect 0 on scenario 8.
+# expect: ==0 on 8
+grep -E '.name.:.Write.,.input.:\{.file_path.:.[^}]*\.html' transcript.jsonl | grep -vc '/notes/PROJ-208/'
+# Page: the bundled template's Content-Security-Policy is kept — expect at least 1 on scenario 9.
+# expect: >=1 on 9
+grep -c "Content-Security-Policy" output.md
+# Page: no placeholder left — expect 0 on scenario 9.
 # expect: ==0 on 9
-grep -q '<img[^>]*src="data:image/' output.md && echo 0 || grep -ciE '<a [^>]*href="[^"]*\.(png|jpe?g)"' output.md
+grep -cF '{{' output.md
+# Page: business value comes before the criteria — expect 1 on scenario 9.
+# expect: ==1 on 9
+grep -oiE 'business value|how each criterion is met' output.md | head -1 | grep -ci 'business value'
+# Page: every image has alt text — expect 0 on scenario 9: images with an empty or missing alt.
+# expect: ==0 on 9
+grep -oE '<img[^>]*>' output.md | grep -vc 'alt="[^"]'
+# The page was inspected in a 390-pixel iframe — expect >=1 on scenario 9: a Bash or Write call naming both, in the transcript.
+# expect: >=1 on 9
+grep -E '.name.:.(Bash|Write).,.input.:' transcript.jsonl | grep -E 'iframe' | grep -c 390
 ```
 
 ## Saturation Signals

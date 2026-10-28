@@ -7,7 +7,7 @@
 import assert from "node:assert";
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
-import { baseRefFromEnv, changedSkills, stampStatus } from "../eval/changed-skills.mjs";
+import { baseRefFromEnv, changedSkills, stampStatus, waiverReason } from "../eval/changed-skills.mjs";
 import { parseChecks } from "../eval/run-checks.mjs";
 
 const ROOT = process.cwd();
@@ -600,12 +600,14 @@ for (const file of sourceFiles.filter((name) => name.endsWith(".mjs"))) {
 }
 
 // --- 18. A skill changed against the base ref carries a matching eval stamp ---
-const STAMP_PROBLEM = { missing: "has no stamp", stale: "has a stamp for different content" };
+const STAMP_PROBLEM = { missing: "has no stamp", stale: "has a stamp for different content", "blank-waiver": "has a waiver with no reason" };
 const baseRef = baseRefFromEnv();
 if (baseRef) {
   for (const skill of changedSkills(ROOT, baseRef)) {
     const status = stampStatus(ROOT, skill);
-    if (status !== "ok") {
+    if (status === "waived") {
+      warnings.push(`skill ${skill} ships on a waiver: ${waiverReason(ROOT, skill)}. Hint: run node scripts/eval/changed-skills.mjs and replace evals/results/${skill}.json once credentials exist`);
+    } else if (status !== "ok") {
       errors.push(`skill ${skill} ${STAMP_PROBLEM[status]}. Hint: skill ${skill} changed since its evals last passed; run node scripts/eval/changed-skills.mjs and commit evals/results/${skill}.json`);
     }
   }

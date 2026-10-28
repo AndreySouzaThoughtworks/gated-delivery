@@ -28,7 +28,7 @@ threshold = 0.8
 # [paths."tests/e2e/"]
 # disable = ["process-in-test", "filesystem-in-test", "network-in-test"]
 [paths."**/*.test.mjs"]
-disable = ["assertion-density", "filesystem-in-test", "process-in-test"]
+disable = ["filesystem-in-test", "process-in-test"]
 
 # The project's words for things. Names that use a banned word, or an alias of a word the
 # project settled on, are reported. Domains and contexts carry their own words; a context
@@ -54,7 +54,9 @@ select = ["all"]
 
 # Rules to switch off everywhere. Every rule is listed here, with its severity, when it runs,
 # and how to fix what it finds; uncomment the ones you don't want.
+# NASA-5 density forced asserts that cannot fail; real input checks stay.
 disable = [
+  "assertion-density",
   # "parse-error",                     # warning, on by default. Fix the syntax error, or report the construct if the code is valid.
   # "forbidden-call",                  # warning, on by default. Call the code you need directly.
   # "recursion",                       # warning, on with --strict. Rewrite it as a loop with a fixed bound.

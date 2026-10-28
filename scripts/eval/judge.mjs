@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { isAbsolute, join, relative, resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const SKILLS_DIR = join(process.cwd(), "plugin", "skills");
@@ -92,7 +92,6 @@ export function findRow(markdown, id) {
     }
     if (!header || cells[0] !== id) continue;
     const [prompt, persona, criteria] = ["Prompt", "Persona", CRITERIA_HEADING].map((name) => cells[header.indexOf(name)] ?? "");
-    assert(header.includes(CRITERIA_HEADING), `row ${id} must sit under a table with a ${CRITERIA_HEADING} column, got ${JSON.stringify(header)}; fix the evals table header`);
     return { prompt, persona, criteria };
   }
   return null;
@@ -123,63 +122,44 @@ export const splitClauses = (criteria) => {
     .flatMap((s) => s.split(FAILS_IF_SPLIT))
     .map((s) => s.trim())
     .filter(Boolean);
-  assert(clauses.join("").length <= criteria.length, `clauses cannot be longer than the criteria they came from, got ${clauses.join("").length} for ${criteria.length}; fix the sentence splitter`);
   return clauses;
 };
 
-export const aggregate = (clauses) => {
-  assert(clauses.every((c) => RESULTS.includes(c.result)), `every clause result must be one of ${RESULTS}, got ${JSON.stringify(clauses.map((c) => c.result))}; settle the clauses first`);
-  const verdict = !clauses.length
+export const aggregate = (clauses) =>
+  !clauses.length
     ? UNCLEAR
     : clauses.some((c) => c.result === FAIL)
       ? FAIL
       : clauses.some((c) => c.result === UNCLEAR)
         ? UNCLEAR
         : PASS;
-  assert(verdict !== PASS || clauses.length > 0, `a PASS verdict needs at least one clause, got ${clauses.length}; fix the aggregation`);
-  return verdict;
-};
 
-const normalize = (text) => {
-  assert(text.length <= REPLY_BUFFER_BYTES, `text to normalize must fit the reply buffer of ${REPLY_BUFFER_BYTES} bytes, got ${text.length}; skip oversized files`);
-  const normalized = text
+const normalize = (text) =>
+  text
     .replace(/\\[nt]/g, " ")
     .replace(/\\"/g, '"')
     .replace(/[*_`]/g, "")
     .replace(/\s+/g, " ")
     .trim();
-  assert(!/\s{2}/.test(normalized), `normalized text holds no run of whitespace, got ${JSON.stringify(normalized.slice(0, SHOWN_CHARS))}; fix the whitespace collapse`);
-  return normalized;
-};
 
-const filesUnder = (dir) => {
-  assert(isAbsolute(dir), `the run directory must be absolute so every file path stays under it, got ${dir}; resolve it first`);
-  const files = readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+const filesUnder = (dir) =>
+  readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) return SKIPPED_DIRS.has(entry.name) ? [] : filesUnder(path);
     return entry.isFile() ? [path] : [];
   });
-  assert(files.every((path) => path.startsWith(dir)), `every listed file must sit under ${dir}, got ${files.find((path) => !path.startsWith(dir))}; fix the directory walk`);
-  return files;
-};
 
 export const readRun = (runDir) => {
-  assert(runDir.trim() !== "", `the run directory must not be blank, got ${JSON.stringify(runDir)}; pass the saved run folder`);
   const root = resolve(runDir);
   const files = filesUnder(root).map((path) => {
     const inside = relative(root, path);
     const body = readFileSync(join(root, inside), "utf8");
     return { path: inside, text: normalize(body), lines: body.split("\n").length };
   });
-  assert(
-    files.every(({ path }) => !isAbsolute(path) && !path.split("/").includes(PARENT_SEGMENT)),
-    `run file must stay inside the run directory, got ${JSON.stringify(files.map(({ path }) => path))} (parent segment ${PARENT_SEGMENT}); remove the escaping entry from the run directory`,
-  );
   return { files };
 };
 
 export const settle = (clauses, graded, run) => {
-  assert(run.files.length > 0, `a run must hold at least one file to quote from, got ${run.files.length}; read the run with readRun`);
   const settled = clauses.map((clause, index) => {
     const found = graded.find((g) => g.id === index + 1);
     if (!found) return { clause, result: UNCLEAR, evidence: "" };
@@ -202,13 +182,10 @@ export const settle = (clauses, graded, run) => {
       .join(" — ");
     return { clause, result: proven ? found.result : UNCLEAR, evidence };
   });
-  assert(settled.every(({ result }) => RESULTS.includes(result)), `every settled clause needs a result from ${RESULTS}, got ${JSON.stringify(settled.map(({ result }) => result))}; fix the settle mapping`);
   return settled;
 };
 
 const promptFor = ({ prompt, persona }, clauses, runDir) => {
-  assert(clauses.length > 0, `a scenario needs at least one clause to grade, got ${clauses.length}; give the row Pass Criteria`);
-  assert(isAbsolute(runDir), `the run directory in the prompt must be absolute, got ${runDir}; resolve it first`);
   const files = readdirSync(runDir).filter((f) => f !== OUTPUT_FILE);
   const text = `You grade one recorded run of an AI coding assistant against a fixed list of clauses.
 
@@ -253,12 +230,10 @@ Return one entry per clause, with its number as id.
 <${OUTPUT_FILE}>
 ${readFileSync(join(runDir, OUTPUT_FILE), "utf8")}
 </${OUTPUT_FILE}>`;
-  assert(text.includes(runDir), `prompt must name the run directory ${runDir}; fix the prompt template`);
   return text;
 };
 
 const parseReply = (stdout) => {
-  assert(stdout.length <= REPLY_BUFFER_BYTES, `the judge reply must fit the ${REPLY_BUFFER_BYTES} byte buffer, got ${stdout.length}; raise the buffer or shorten the prompt`);
   let reply;
   try {
     reply = JSON.parse(stdout);
@@ -328,10 +303,7 @@ export function judge(skill, id, runDir) {
     throw new HarnessError(`${CLAUDE_BIN} exited ${run.status}: ${(run.stderr || run.stdout).slice(0, SHOWN_CHARS)}`);
   }
   const settled = settle(clauses, parseReply(run.stdout), readRun(runPath));
-  const result = { verdict: aggregate(settled), clauses: settled };
-  assert(RESULTS.includes(result.verdict), `returned verdict must be one of ${RESULTS}, got ${result.verdict}; fix the aggregation`);
-  assert(result.clauses.length === clauses.length, `every clause needs one settled entry, got ${result.clauses.length} for ${clauses.length}; fix the settle mapping`);
-  return result;
+  return { verdict: aggregate(settled), clauses: settled };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

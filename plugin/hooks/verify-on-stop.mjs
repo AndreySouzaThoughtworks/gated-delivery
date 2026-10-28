@@ -64,11 +64,11 @@ const verifyCmdFromInstructions = () => {
     }
     if (found || dir === home) break;
   }
-  console.assert(found === undefined || found.trim().length > 0, `a found Verify command must not be blank, got ${JSON.stringify(found)}`);
   return found;
 };
 
 const VERIFY_CMD = process.env.GATED_DELIVERY_VERIFY_CMD ?? verifyCmdFromInstructions() ?? DEFAULT_VERIFY_CMD;
+console.assert(VERIFY_CMD.trim().length > 0, `the verify command must not be blank, got ${JSON.stringify(VERIFY_CMD)}`);
 const VERIFY_OUTPUT_TAIL = 1500;
 // Sentinel in the counter file: this session gave up on the gate. Negative, so no block count reaches it.
 const RELEASED = -1;
@@ -87,10 +87,8 @@ const EXIT_OK = 0;
 const input = readHookInput();
 const sessionId = typeof input.session_id === "string" ? input.session_id : undefined;
 const COUNTER_FILE = join(COUNTER_DIR, `${(sessionId ?? DEFAULT_SESSION_ID).replace(/[^A-Za-z0-9_-]/g, "_")}${COUNTER_EXTENSION}`);
-console.assert(dirname(COUNTER_FILE) === COUNTER_DIR, `a session id must not escape the counter folder, got ${COUNTER_FILE}`);
 
 const readCounter = () => {
-  console.assert(dirname(COUNTER_FILE) === COUNTER_DIR, `the counter file must sit in the counter folder, got ${COUNTER_FILE}`);
   let count;
   try {
     count = Number(readFileSync(COUNTER_FILE, "utf8")) || 0;
@@ -101,28 +99,19 @@ const readCounter = () => {
   return count;
 };
 const writeCounter = (value) => {
-  console.assert(Number.isInteger(value) && value >= RELEASED, `a counter value must be a whole number from ${RELEASED} up, got ${value}`);
   mkdirSync(COUNTER_DIR, { recursive: true });
   writeFileSync(COUNTER_FILE, String(value));
-  console.assert(existsSync(COUNTER_FILE), `the counter file must exist after writing ${value} to it, got ${COUNTER_FILE}`);
 };
 const resetCounter = () => {
-  console.assert(dirname(COUNTER_FILE) === COUNTER_DIR, `only a file in the counter folder may be removed, got ${COUNTER_FILE}`);
   try {
     rmSync(COUNTER_FILE);
   } catch {
     /* already gone */
   }
-  console.assert(!existsSync(COUNTER_FILE), `a reset counter file must be gone, got ${COUNTER_FILE}`);
 };
 
-const untrackedFiles = () => {
-  const listing = execFileSync("git", ["ls-files", "--others", "--exclude-standard"], { encoding: "utf8" });
-  console.assert(listing === "" || listing.endsWith("\n"), `git lists one path per line, got ${JSON.stringify(listing.slice(-20))}`);
-  const files = listing.split("\n").filter(Boolean);
-  console.assert(files.every((file) => !isAbsolute(file)), `untracked paths are relative to the repository, got ${files.find(isAbsolute)}`);
-  return files;
-};
+const untrackedFiles = () =>
+  execFileSync("git", ["ls-files", "--others", "--exclude-standard"], { encoding: "utf8" }).split("\n").filter(Boolean);
 
 // Extensions a JS/TS repo's lint gate plausibly covers — deliberately generous, including the ones
 // only a prettier-in-eslint setup touches. Skipping is a decision NOT to verify, so this errs toward
@@ -141,7 +130,6 @@ const LINTABLE = new Set([
  * glob), and empty means RUN — guessing narrower would silently shrink the gate.
  */
 const lintRoots = () => {
-  console.assert(VERIFY_CMD.trim().length > 0, `the verify command must not be blank, got ${JSON.stringify(VERIFY_CMD)}`);
   const pkgPath = resolve(process.cwd(), "package.json");
   let found = new Set();
   if (existsSync(pkgPath)) {
@@ -154,7 +142,6 @@ const lintRoots = () => {
         if (braced) braced.split(",").forEach((r) => roots.add(r.trim()));
         else roots.add(single);
       }
-      console.assert([...roots].every((root) => root.length > 0), `a lint root must not be blank, got ${JSON.stringify([...roots])}`);
       found = roots;
     } catch {
       found = new Set();
@@ -179,7 +166,6 @@ const nothingLintableChanged = () => {
     // what lint reports live — `eslint.config.mjs`, `tsconfig.json`, `package.json`, and the
     // extensionless `.eslintrc` / `.prettierrc` / `.editorconfig`, which carry no extension to match
     // and no directory to match either. Both filters below would wave them through.
-    console.assert(changed.every((file) => !isAbsolute(file)), `changed paths are relative to the repository, got ${changed.find(isAbsolute)}`);
     const touchesRepoRoot = changed.some((f) => !f.includes("/"));
     if (changed.length > 0 && !touchesRepoRoot) {
       if (!changed.some((f) => LINTABLE.has(extname(f)))) {
@@ -189,7 +175,6 @@ const nothingLintableChanged = () => {
         nothingLintable = roots.size > 0 && !changed.some((f) => roots.has(f.split("/")[0]));
       }
     }
-    console.assert(!nothingLintable || changed.length > 0, `nothing can be lintable unless something changed, got ${changed.length} changed paths`);
   } catch {
     nothingLintable = false;
   }
@@ -197,7 +182,6 @@ const nothingLintableChanged = () => {
 };
 
 const verifyScriptIsAbsent = () => {
-  console.assert(VERIFY_CMD.trim().length > 0, `the verify command must not be blank, got ${JSON.stringify(VERIFY_CMD)}`);
   const pkgPath = resolve(process.cwd(), "package.json");
   const looksLikePnpmScript = /^pnpm(\s+run)?\s/.test(VERIFY_CMD);
   let absent;
@@ -222,7 +206,6 @@ const runVerify = () =>
     const child = existsSync(LOCK_WRAPPER)
       ? spawn(LOCK_WRAPPER, [VERIFY_CMD], { ...options, env: { ...process.env, GATED_DELIVERY_VERIFY_LOCK_TIMEOUT_S: LOCK_WAIT_S } })
       : spawn(VERIFY_CMD, { ...options, shell: true });
-    console.assert(VERIFY_CMD.trim().length > 0, `the verify command must not be blank, got ${JSON.stringify(VERIFY_CMD)}`);
     let output = "";
     let timedOut = false;
     for (const stream of [child.stdout, child.stderr]) {
@@ -244,7 +227,6 @@ const runVerify = () =>
     });
     child.on("close", (code) => {
       clearTimeout(timer);
-      console.assert(output.length <= VERIFY_OUTPUT_TAIL, `the kept output must stay within ${VERIFY_OUTPUT_TAIL} characters, got ${output.length}`);
       const lockBusy = code === LOCK_BUSY_EXIT && output.includes(LOCK_BUSY_MESSAGE);
       done({ passed: code === 0 && !timedOut, timedOut, lockBusy, output });
     });
@@ -274,7 +256,6 @@ const main = async () => {
   if (released) process.exit(EXIT_OK);
 
   const { passed, timedOut, lockBusy, output } = await runVerify();
-  console.assert(output.length <= VERIFY_OUTPUT_TAIL, `the verify output must be capped at ${VERIFY_OUTPUT_TAIL} characters, got ${output.length}`);
   if (lockBusy) {
     const reason = `another verify run holds ${LOCK_PATH_LABEL}; run the verify command once it finishes`;
     process.stdout.write(JSON.stringify({ systemMessage: `verify-on-stop skipped: ${reason}` }));

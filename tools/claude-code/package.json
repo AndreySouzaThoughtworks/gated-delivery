@@ -1,0 +1,8 @@
+{
+  "name": "gated-delivery-eval-tools",
+  "private": true,
+  "description": "Pinned claude-code CLI for the skill evals workflow",
+  "dependencies": {
+    "@anthropic-ai/claude-code": "2.1.310"
+  }
+}

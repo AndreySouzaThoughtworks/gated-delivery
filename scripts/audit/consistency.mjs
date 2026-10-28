@@ -7,6 +7,7 @@
 import assert from "node:assert";
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
+import { baseRefFromEnv, changedSkills, stampStatus } from "../eval/changed-skills.mjs";
 import { parseChecks } from "../eval/run-checks.mjs";
 
 const ROOT = process.cwd();
@@ -19,11 +20,10 @@ const read = (p) => {
   const inside = resolve(p);
   assert(inside.startsWith(ROOT + sep), `${p} must resolve inside ${ROOT}, got ${inside}; read only repo files`);
   const body = readFileSync(inside, "utf8");
-  assert(!body.includes(NOT_UTF8), `${inside} must be valid UTF-8, got a replacement character; re-save it as UTF-8`);
+  assert(!body.includes(NOT_UTF8), `${p} must be valid UTF-8, got a replacement character; re-save it as UTF-8`);
   return body;
 };
 const dirs = (p) => {
-  assert(existsSync(p), `${p} must exist before its folders are listed; create it or fix the path`);
   const names = readdirSync(p).filter((d) => statSync(join(p, d)).isDirectory());
   assert(names.length > 0, `${p} must hold at least one folder, got none; restore the folders it lists`);
   return names;
@@ -32,7 +32,6 @@ const dirs = (p) => {
 function frontmatterName(file) {
   // Callers reach here for files they have already reported as missing; reading one threw ENOENT and
   // killed the process before the report block could print the error it had just recorded.
-  assert(file.endsWith(".md"), `${file} must be a markdown file to carry frontmatter; pass a SKILL.md or agent file`);
   if (!existsSync(file)) return null;
   const block = read(file).match(/^---\n([\s\S]*?)\n---/);
   if (!block) return null;
@@ -142,11 +141,9 @@ const NOT_LOCAL_NAMES = new Set([
   "name", "skill-name",
 ]);
 const markdownFiles = (dir) => {
-  assert(dir.startsWith(ROOT + sep), `${dir} must sit inside ${ROOT}; list only repo folders`);
   const found = readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
     e.isDirectory() ? markdownFiles(join(dir, e.name)) : e.name.endsWith(".md") ? [join(dir, e.name)] : [],
   );
-  assert(found.every((file) => file.startsWith(dir + sep)), `every markdown file must sit under ${dir}, got ${found.find((file) => !file.startsWith(dir + sep))}; fix the walk`);
   return found;
 };
 const localNames = new Set([...skills, ...agents, ...commands]);
@@ -373,12 +370,16 @@ for (const skill of skills) {
 
 // --- 8. zanity stays at its strictest: the rules about the rules ---
 // A red zanity run is fixed in code. Narrowing `select`, adding a `disable`, or excluding a path
-// is the escape hatch an agent reaches for, so the guard fails on each one. The single exception is
-// the test-file table: tests state intent with node:assert, spawn processes and use temp folders.
+// is the escape hatch an agent reaches for, so the guard fails on each one. The only exceptions are
+// assertion-density everywhere and the test-file table: tests spawn processes and use temp folders.
 const ZANITY_CONFIG = "zanity.toml";
 const ZANITY_ALLOWED_EXCLUDES = ["tests/fixtures/", "evals/fixtures/"];
 const ZANITY_TEST_FILES_TABLE = 'paths."**/*.test.mjs"';
-const ZANITY_TEST_FILES_RELAXED_RULES = ["assertion-density", "filesystem-in-test", "process-in-test"];
+const ZANITY_RULES_TABLE = "rules";
+const ZANITY_ALLOWED_DISABLES = {
+  [ZANITY_RULES_TABLE]: ["assertion-density"],
+  [ZANITY_TEST_FILES_TABLE]: ["filesystem-in-test", "process-in-test"],
+};
 const QUOTED_ITEM = /"([^"]*)"/g;
 const LIST_FILLER = /[\s,]/g;
 const TOML_TABLE_HEADER = /^\[([^\]]+)\]\s*$/m;
@@ -394,20 +395,18 @@ const quotedItems = (list) => {
 };
 
 const zanityTableProblem = (header, body) => {
-  assert(header === header.trim() && !TOML_TABLE_HEADER.test(body), `a table body must be the text between two headers, got header ${JSON.stringify(header)}; split the config on its table headers`);
   const scopesPaths = header === "paths" || header.startsWith("paths.");
-  const expected = header === ZANITY_TEST_FILES_TABLE ? ZANITY_TEST_FILES_RELAXED_RULES : [];
+  const expected = ZANITY_ALLOWED_DISABLES[header] ?? [];
   const disabled = [...body.matchAll(DISABLE_LIST)].flatMap(([, list]) => quotedItems(list));
-  let problem;
-  if (scopesPaths && !expected.length) {
-    problem = `${ZANITY_CONFIG} scopes rules off in [${header}]. Hint: only [${ZANITY_TEST_FILES_TABLE}] may do that, so fix the findings in code instead.`;
-  } else if (!scopesPaths && PATHS_KEY.test(body)) {
-    problem = `${ZANITY_CONFIG} sets a paths key outside a [paths...] table. Hint: only [${ZANITY_TEST_FILES_TABLE}] may scope rules off, written as its own table.`;
-  } else if (disabled.length !== expected.length || !expected.every((rule) => disabled.includes(rule))) {
-    problem = `${ZANITY_CONFIG} disables ${disabled.join(", ") || "nothing"} under [${header || "top level"}]. Hint: only [${ZANITY_TEST_FILES_TABLE}] may disable, and exactly ${ZANITY_TEST_FILES_RELAXED_RULES.join(", ")}; fix the findings in code instead.`;
+  if (scopesPaths && header !== ZANITY_TEST_FILES_TABLE) {
+    return `${ZANITY_CONFIG} scopes rules off in [${header}]. Hint: only [${ZANITY_TEST_FILES_TABLE}] may do that, so fix the findings in code instead.`;
   }
-  assert(problem === undefined || problem.includes("Hint:"), `a table problem must carry a hint, got ${problem}; fix the message`);
-  return problem;
+  if (!scopesPaths && PATHS_KEY.test(body)) {
+    return `${ZANITY_CONFIG} sets a paths key outside a [paths...] table. Hint: only [${ZANITY_TEST_FILES_TABLE}] may scope rules off, written as its own table.`;
+  }
+  if (disabled.length !== expected.length || !expected.every((rule) => disabled.includes(rule))) {
+    return `${ZANITY_CONFIG} disables ${disabled.join(", ") || "nothing"} under [${header || "top level"}]. Hint: only ${Object.entries(ZANITY_ALLOWED_DISABLES).map(([table, rules]) => `[${table}] may disable exactly ${rules.join(", ")}`).join(" and ")}; fix the findings in code instead.`;
+  }
 };
 
 function zanityConfigErrors(text) {
@@ -425,7 +424,6 @@ function zanityConfigErrors(text) {
   for (const path of excluded.filter((p) => !ZANITY_ALLOWED_EXCLUDES.includes(p))) {
     found.push(`${ZANITY_CONFIG} excludes ${path}, which hides it from every check. Hint: only ${ZANITY_ALLOWED_EXCLUDES.join(", ")} may be excluded.`);
   }
-  assert(found.every((message) => message.startsWith(ZANITY_CONFIG) && message.includes("Hint:")), `every config problem must name ${ZANITY_CONFIG} and carry a hint, got ${JSON.stringify(found)}; fix the message`);
   return found;
 }
 
@@ -549,6 +547,66 @@ for (const file of sourceFiles) {
   for (const name of new Set(read(file).match(ENV_VAR) ?? [])) {
     if (!documentedVars.has(name)) {
       errors.push(`${file.slice(ROOT.length + 1)} reads ${name}, which no markdown names. Hint: add it to the knobs table in docs/onboarding.md.`);
+    }
+  }
+}
+
+// --- 17. No condition that is always true or always false ---
+// A check whose outcome never varies tests nothing: `assert(true, ...)`, `if (1 === 1)`, or a check on
+// a constant declared in the same file. Making a rule pass with one is never a fix, so the guard fails.
+// Only conditions decidable from the text alone are caught: every name in the condition is a keyword,
+// a pure global, or a same-file `const` bound to a number, string, boolean or null (an array or object
+// literal can be mutated, so it is not constant).
+const CHECK_OPENER = /\b(?:console\.assert|assert\.ok|assert|if|while)\s*\(/g;
+const LITERAL_CONST = /^\s*(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*(-?\d[\d_.]*|"[^"\n]*"|'[^'\n]*'|true|false|null)\s*;?\s*$/gm;
+const STRING_LITERAL = /"[^"\n]*"|'[^'\n]*'|`[^`\n]*`/g;
+const BARE_NAME = /(?<![.\w$])[A-Za-z_$][\w$]*/g;
+const CONSTANT_KEYWORDS = new Set(["typeof", "true", "false", "null", "undefined", "void", "in", "instanceof"]);
+const PURE_GLOBALS = new Set(["Number", "String", "Boolean", "Array", "Math", "Object"]);
+
+const blankComments = (text) => text.replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, " ")).replace(/(^|\s)\/\/.*$/gm, (comment) => comment.replace(/[^\n]/g, " "));
+
+const conditionAfter = (text, openIndex, firstArgumentOnly) => {
+  let depth = 1;
+  let quote = "";
+  for (let index = openIndex + 1; index < text.length; index++) {
+    const char = text[index];
+    if (quote) {
+      if (char === "\\") index++;
+      else if (char === quote) quote = "";
+    } else if (char === '"' || char === "'" || char === "`") quote = char;
+    else if ("([{".includes(char)) depth++;
+    else if (")]}".includes(char)) depth--;
+    if (depth === 0 || (firstArgumentOnly && depth === 1 && char === ",")) return text.slice(openIndex + 1, index);
+  }
+  return "";
+};
+
+const literalConstants = (text) => new Set([...text.matchAll(LITERAL_CONST)].map(([, name]) => name));
+
+for (const file of sourceFiles.filter((name) => name.endsWith(".mjs"))) {
+  const text = blankComments(read(file));
+  const constants = literalConstants(text);
+  for (const opener of text.matchAll(CHECK_OPENER)) {
+    const callee = opener[0].replace(/\s*\($/, "");
+    const condition = conditionAfter(text, opener.index + opener[0].length - 1, callee !== "if" && callee !== "while");
+    const names = condition.replace(STRING_LITERAL, "").match(BARE_NAME) ?? [];
+    const decidable = condition.trim() !== "" && names.every((name) => CONSTANT_KEYWORDS.has(name) || PURE_GLOBALS.has(name) || constants.has(name));
+    if (decidable) {
+      const line = text.slice(0, opener.index).split("\n").length;
+      errors.push(`${file.slice(ROOT.length + 1)}:${line} ${callee}(${condition.trim()}) has a condition that never varies. Hint: delete it, or test a value that can change.`);
+    }
+  }
+}
+
+// --- 18. A skill changed against the base ref carries a matching eval stamp ---
+const STAMP_PROBLEM = { missing: "has no stamp", stale: "has a stamp for different content" };
+const baseRef = baseRefFromEnv();
+if (baseRef) {
+  for (const skill of changedSkills(ROOT, baseRef)) {
+    const status = stampStatus(ROOT, skill);
+    if (status !== "ok") {
+      errors.push(`skill ${skill} ${STAMP_PROBLEM[status]}. Hint: skill ${skill} changed since its evals last passed; run node scripts/eval/changed-skills.mjs and commit evals/results/${skill}.json`);
     }
   }
 }

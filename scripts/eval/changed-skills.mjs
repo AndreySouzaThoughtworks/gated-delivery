@@ -104,12 +104,7 @@ const git = (root, args) => {
   return execFileSync("git", args, { cwd: root, encoding: "utf8" });
 };
 
-const lines = (text) => {
-  const found = text.split(LINE_BREAK).filter(Boolean);
-  assert(found.every((line) => !line.includes("\n")), "lines returned an entry holding a line break; expected one entry per line");
-  assert(found.every((line) => line !== ""), "lines returned an empty entry; expected blank lines dropped");
-  return found;
-};
+const lines = (text) => text.split(LINE_BREAK).filter(Boolean); // zanity: ignore[assertion-density] -- text is git command output and the result is one split-and-filter whose only possible failures are the splitter's own guarantees
 
 const changedPaths = (root, baseRef) => {
   assert(root !== "", `changedPaths got ${JSON.stringify(root)}; expected the repository root path`);

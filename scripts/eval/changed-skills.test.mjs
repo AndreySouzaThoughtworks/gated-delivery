@@ -46,6 +46,7 @@ const args = process.argv.slice(2);
 if (args.includes("--output-format") && args.includes("json")) {
   appendFileSync(process.env.STUB_LOG + ".probe", JSON.stringify({ args, cwd: process.cwd() }) + "\\n");
   if (process.env.STUB_PROBE === "garbage") { console.log("<html>gateway error</html>"); return; }
+  if (process.env.STUB_PROBE === "error-no-result") { console.log(JSON.stringify({ is_error: true })); return; }
   console.log(JSON.stringify({ is_error: process.env.STUB_PROBE === "error", result: process.env.STUB_PROBE === "error" ? "Not logged in" : "ok" }));
   return;
 }
@@ -188,6 +189,15 @@ test("exit 3 and a SKIPPED line when the probe run reports is_error, and no eval
   assert.equal(probeCalls(root).length, 1);
   assert.deepEqual(claudeCalls(root), []);
   assert.equal(existsSync(join(root, "evals", "results")), false);
+});
+
+test("a probe reply with is_error and no result prints a readable reason, not undefined", () => {
+  const root = fakeRepo();
+  write(root, "plugin/skills/demo/SKILL.md", "# demo\nbot. Edited.\n");
+  const result = runChangedSkills(root, [], { STUB_PROBE: "error-no-result" });
+  assert.equal(result.status, 3);
+  assert.match(result.stdout, /SKIPPED: claude cannot run with the eval flags: claude reported an error and gave no detail/);
+  assert.doesNotMatch(result.stdout, /undefined/);
 });
 
 test("exit 3 when the probe prints something that is not JSON", () => {
@@ -333,4 +343,32 @@ test("--waive rejects a missing or blank reason, an unknown skill and extra argu
     assert.equal(result.status, 2, args.join(" "));
   }
   assert.equal(existsSync(join(root, "evals", "results")), false);
+});
+
+test("a skill name that is a path, empty or unknown is a usage error before the probe, with no stack", () => {
+  const root = fakeRepo();
+  for (const name of ["a/b", "demo/../demo", "..", ".", "", "nope"]) {
+    const result = runChangedSkills(root, [name]);
+    assert.equal(result.status, 2, `${JSON.stringify(name)}: ${result.stdout}${result.stderr}`);
+    assert.doesNotMatch(result.stderr, /AssertionError|ENOENT/);
+  }
+  assert.deepEqual(probeCalls(root), []);
+  assert.deepEqual(claudeCalls(root), []);
+});
+
+test("--waive with a skill that reaches SKILL.md through .. is a usage error and writes nothing", () => {
+  const root = fakeRepo();
+  const result = runChangedSkills(root, ["--waive", "demo/../demo", "--reason", "x"]);
+  assert.equal(result.status, 2, result.stdout + result.stderr);
+  assert.match(result.stderr, /not a skill name/);
+  assert.doesNotMatch(result.stderr, /AssertionError/);
+  assert.equal(existsSync(join(root, "evals", "results")), false);
+});
+
+test("a failure inside the harness exits 4, not 1 which means evals failed", () => {
+  const root = fakeRepo();
+  write(root, "evals/results", "a file where the stamp folder belongs\n");
+  const result = runChangedSkills(root, ["--waive", "demo", "--reason", "x"]);
+  assert.equal(result.status, 4, result.stdout + result.stderr);
+  assert.match(result.stderr, /EEXIST|ENOTDIR/);
 });

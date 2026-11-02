@@ -7,7 +7,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -354,6 +354,31 @@ test("--scenario exits 2 on a usage error", () => {
   assert.equal(cli(dir, ["alpha", file, "--scenario", "404"]).code, 2, "id not in the scenario table");
   assert.equal(cli(dir, ["nope", file, "--scenario", "1"]).code, 2, "unknown skill");
   assert.equal(cli(dir, ["alpha", join(dir, "absent.md"), "--scenario", "1"]).code, 2, "missing file");
+});
+
+test("a skill argument that is a path, or . or .., is a usage error before any check runs", () => {
+  const dir = repoWith("alpha", SCENARIO_TABLE + fence("# x\n# expect: >=1 on 1\ngrep -c a output.md"));
+  const file = outputFile("a\n");
+  for (const skill of ["..", ".", "a/b", "../alpha", ""]) {
+    for (const args of [[skill, file], [skill, file, "--scenario", "1"]]) {
+      const result = cli(dir, args);
+      assert.equal(result.code, 2, `${JSON.stringify(skill)} ${args.length}: ${result.out}`);
+      assert.doesNotMatch(result.out, /AssertionError/);
+    }
+  }
+});
+
+test("an unreadable evals.md exits 3 as a harness error, not 1 which means FAIL", () => {
+  const dir = repoWith("alpha", "placeholder");
+  const evalsPath = join(dir, "plugin", "skills", "alpha", "evals.md");
+  rmSync(evalsPath);
+  mkdirSync(evalsPath);
+  const result = cli(dir, ["alpha", outputFile("a\n")]);
+  assert.equal(result.code, 3, result.out);
+  assert.match(result.out, /EISDIR/);
+  const lint = cli(dir, ["--lint"]);
+  assert.equal(lint.code, 3, lint.out);
+  assert.match(lint.out, /EISDIR/);
 });
 
 test("--lint rejects a malformed expect line and an unknown scenario id, and accepts manual", () => {

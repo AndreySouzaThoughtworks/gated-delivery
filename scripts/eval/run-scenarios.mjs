@@ -50,6 +50,7 @@ const VERDICTS = [VERDICT_PASS, VERDICT_FLAKY, VERDICT_FAIL, VERDICT_NOT_RUN];
 const EXIT_OK = 0;
 const EXIT_HARNESS_FAILURE = 1;
 const EXIT_USAGE = 2;
+const EXIT_INTERNAL_ERROR = 3;
 
 const ARM_SKILL = "skill";
 const ARM_BASELINE = "baseline";
@@ -116,6 +117,7 @@ const SUMMARY_COLUMNS = ["skill", "id", "arm", "run", "harness", "checks", "judg
 const LINE_BREAK = /\r?\n/;
 const FENCE_BODY = /```[a-z]*\n([\s\S]*?)```/;
 const ROW_CELLS = 4;
+const UNUSABLE_ID = /^$|[\t\n\r/\\]/;
 
 const sectionBody = (markdown, headingPrefix) => {
   assert(/^#+ /.test(headingPrefix), `a section heading prefix must start with # marks and a space, got ${JSON.stringify(headingPrefix)}; pass e.g. "## Client context"`);
@@ -166,14 +168,17 @@ export function parseEvals(markdown) {
     clientContext: sectionBody(markdown, "## Client context")?.match(FENCE_BODY)?.[1] ?? null,
     responseMode: /^mode:\s*response\b/m.test(sectionBody(markdown, "## Execution Model") ?? ""),
   };
-  assert(parsed.rows.every((row) => row.id && !row.id.includes(sep)), `every scenario row needs an id that names one folder, got ${JSON.stringify(parsed.rows.map((row) => row.id))}`);
+  assert(parsed.rows.every((row) => row.cells >= 1), `every scenario row must carry its cell count, got ${JSON.stringify(parsed.rows.map((row) => row.cells))}`);
   return parsed;
 }
 
 export const fillTemplate = (template, prompt, persona) => {
   assert(template.includes(PROMPT_PLACEHOLDER), `an agent template must carry ${PROMPT_PLACEHOLDER} or the prompt is dropped, got ${JSON.stringify(template.slice(0, 60))}`);
   assert(prompt.trim() !== "", `a scenario prompt must not be blank, got ${JSON.stringify(prompt)}; fill the Prompt cell of the row`);
-  return template.replaceAll(PROMPT_PLACEHOLDER, () => prompt).replaceAll(PERSONA_PLACEHOLDER, () => persona);
+  return template
+    .split(PROMPT_PLACEHOLDER)
+    .map((part) => part.replaceAll(PERSONA_PLACEHOLDER, () => persona))
+    .join(prompt);
 };
 
 export function inspectRun({ transcript, arm, skill, timedOut }) {
@@ -471,7 +476,7 @@ async function runOne({ skill, evals, arm, row, n, out, snapshot, budgetUsd, mod
   if (setupFailed) return { ...base, harness: SETUP_FAILED, failed: true };
   const tempDir = `${runDir}.${RUN_TEMP_DIR}`;
   mkdirSync(tempDir, { recursive: true });
-  const extraRules = existsSync(allowedToolsFile) ? readFileSync(allowedToolsFile, "utf8").split(LINE_BREAK).filter(Boolean) : [];
+  const extraRules = existsSync(allowedToolsFile) ? readFileSync(allowedToolsFile, "utf8").split(LINE_BREAK).filter((line) => line.trim()) : [];
 
   const persona = readFileSync(join(runDir, "persona.md"), "utf8").trimEnd();
   const template = arm === ARM_BASELINE ? evals.baselineTemplate : evals.skillTemplate;
@@ -519,20 +524,6 @@ const gradeRun = ({ base, skill, arm, row, runDir, prompt, timedOut, secs }) => 
     costUsd: result?.total_cost_usd ?? 0,
     secs,
   };
-};
-
-const table = (rows) => {
-  assert(rows.every((row) => SUMMARY_COLUMNS.every((column) => row[column] !== undefined)), `every table row must set every summary column, got ${JSON.stringify(rows.find((row) => SUMMARY_COLUMNS.some((column) => row[column] === undefined)))}`);
-  const cells = [SUMMARY_COLUMNS, ...rows.map((row) => SUMMARY_COLUMNS.map((column) => String(row[column])))];
-  const widths = SUMMARY_COLUMNS.map((_, i) => Math.max(...cells.map((r) => r[i].length)));
-  const lines = cells.map((r) =>
-    r
-      .map((cell, i) => cell.padEnd(widths[i]))
-      .join("  ")
-      .trimEnd(),
-  );
-  assert(lines.length === rows.length + 1, `the table must have a header and one line per row, got ${lines.length} lines for ${rows.length} rows`);
-  return lines.join("\n");
 };
 
 export function smokeScenarioIds(markdown, rowIds) {
@@ -591,15 +582,24 @@ export function scenarioVerdicts({ ids, results, unlaunchedIds, rerunFailures })
 
 const selectScenarios = (options, evals, arm, markdown) => {
   assert(ARMS.includes(arm), `arm must be one of ${ARMS.join(", ")}, got ${JSON.stringify(arm)}`);
+  if (!evals.rows.length) usage(`${options.skill} lists no scenario rows under ## Test Scenarios.`);
   if (arm === ARM_BASELINE && !evals.baselineTemplate) usage(`${options.skill} has no ### Baseline Agent template.`);
   if (arm === ARM_SKILL && !evals.skillTemplate) usage(`${options.skill} has no ### Skill Agent template.`);
+  const template = arm === ARM_BASELINE ? evals.baselineTemplate : evals.skillTemplate;
+  if (!template.includes(PROMPT_PLACEHOLDER)) usage(`The ${arm} agent template of ${options.skill} must carry ${PROMPT_PLACEHOLDER}, or the prompt is dropped.`);
+  const allIds = evals.rows.map((row) => row.id);
+  const unusableIds = allIds.filter((id) => UNUSABLE_ID.test(id));
+  if (unusableIds.length) usage(`Scenario ids must be non-blank and free of path separators, tabs and newlines, got ${JSON.stringify(unusableIds)}; rename them in the table.`);
+  const repeatedIds = [...new Set(allIds.filter((id, index) => allIds.indexOf(id) !== index))];
+  if (repeatedIds.length) usage(`Scenario ids must be unique, got ${JSON.stringify(repeatedIds)} more than once; rename the repeats.`);
   const unknown = options.ids.filter((id) => !evals.rows.some((row) => row.id === id));
   if (unknown.length) usage(`No such scenario in ${options.skill}: ${unknown.join(", ")}`);
-  const allIds = evals.rows.map((row) => row.id);
   const wanted = new Set(options.smoke ? smokeScenarioIds(markdown, allIds) : options.ids.length ? options.ids : allIds);
   const selected = evals.rows.filter((row) => wanted.has(row.id));
   const malformed = selected.filter((row) => row.cells !== ROW_CELLS);
   if (malformed.length) usage(`Rows without ${ROW_CELLS} cells: ${malformed.map((row) => row.id).join(", ")}`);
+  const blankPrompts = selected.filter((row) => !row.prompt?.trim());
+  if (blankPrompts.length) usage(`Rows with a blank Prompt cell: ${blankPrompts.map((row) => row.id).join(", ")}; fill the cell.`);
   assert(selected.every((row) => row.cells === ROW_CELLS), `every selected row must have ${ROW_CELLS} cells, got ${JSON.stringify(selected.map((row) => row.cells))}`);
   return selected;
 };
@@ -625,7 +625,15 @@ const report = ({ options, out, results, verdicts }) => {
   assert(existsSync(out), `the output folder must exist before the summary is written, got ${out}`);
   assert(results.every((row) => row.skill === options.skill), `every result must belong to ${options.skill}, got ${JSON.stringify([...new Set(results.map((row) => row.skill))])}`);
   writeFileSync(join(out, "summary.tsv"), summaryTsv(results));
-  console.log(table(results));
+  const cells = [SUMMARY_COLUMNS, ...results.map((row) => SUMMARY_COLUMNS.map((column) => String(row[column])))];
+  const widths = SUMMARY_COLUMNS.map((_, i) => Math.max(...cells.map((r) => r[i].length)));
+  const lines = cells.map((r) =>
+    r
+      .map((cell, i) => cell.padEnd(widths[i]))
+      .join("  ")
+      .trimEnd(),
+  );
+  console.log(lines.join("\n"));
   for (const { skill, id, arm, outcomes } of disagreements(results)) {
     console.log(`DISAGREE ${skill} ${id} ${arm}: ${outcomes.join(" | ")}`);
   }
@@ -639,8 +647,8 @@ const report = ({ options, out, results, verdicts }) => {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const evalsPath = join(SKILLS_DIR, options.skill, "evals.md");
-  if (!existsSync(evalsPath)) usage(`No such skill with evals: ${options.skill}`);
-  const markdown = readFileSync(evalsPath, "utf8");
+  const markdown = existsSync(evalsPath) ? readFileSync(evalsPath, "utf8") : "";
+  if (!markdown.trim()) usage(`No such skill with evals, or its evals.md is empty: ${options.skill}`);
   const evals = parseEvals(markdown);
   const arm = options.baseline ? ARM_BASELINE : ARM_SKILL;
   const selected = selectScenarios(options, evals, arm, markdown);
@@ -699,5 +707,13 @@ async function main() {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  process.exitCode = await main();
+  const timeoutSetting = process.env.GATED_DELIVERY_RUN_TIMEOUT_SECONDS;
+  if (timeoutSetting && !(Number.isFinite(Number(timeoutSetting)) && Number(timeoutSetting) > 0)) usage(`GATED_DELIVERY_RUN_TIMEOUT_SECONDS needs a positive number of seconds, got "${timeoutSetting}"; fix or unset it.`);
+  try {
+    process.exitCode = await main();
+  } catch (error) {
+    console.error(`harness error, not an eval failure: ${error?.stack ?? error}`);
+    for (const pid of liveGroups) signalGroup(pid, SIGNAL_TERM);
+    process.exit(EXIT_INTERNAL_ERROR);
+  }
 }

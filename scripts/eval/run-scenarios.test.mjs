@@ -104,6 +104,11 @@ const skillUse = ${JSON.stringify(SKILL_TOOL_USE)};
 const result = (extra) => JSON.stringify({ type: "result", result: "did the thing", total_cost_usd: 0.25, permission_denials: [], ...extra });
 writeFileSync(join(process.env.TMPDIR, "scratch.txt"), "x");
 if (behaviour === "pages") { writeFileSync("page.html", "thing"); writeFileSync(join(process.env.TMPDIR, "narrow.html"), "nope"); }
+if (behaviour === "sabotage") {
+  if (process.cwd().split("/").slice(-2)[0] === "1") setTimeout(() => { require("node:fs").unlinkSync(process.cwd() + ".transcript.jsonl"); process.exit(0); }, 800);
+  else setTimeout(() => {}, 60000);
+  return;
+}
 if (behaviour === "sleep") { setTimeout(() => {}, 60000); return; }
 if (behaviour === "denynoskill") { console.log(result({ permission_denials: [{ tool_name: "Bash" }] })); return; }
 if (behaviour === "noskill") { console.log(result()); return; }
@@ -277,6 +282,12 @@ test("fills the placeholders literally, even when the persona holds replacement 
   assert.equal(filled, "USER: go\nCONTEXT: costs $& and $1");
 });
 
+test("a placeholder written inside the prompt or the persona is data, never filled a second time", () => {
+  const template = "USER: {{PROMPT}}\nCONTEXT: {{PERSONA}}";
+  assert.equal(fillTemplate(template, "what does {{PERSONA}} mean?", "a reviewer"), "USER: what does {{PERSONA}} mean?\nCONTEXT: a reviewer");
+  assert.equal(fillTemplate(template, "go", "quotes {{PROMPT}} verbatim"), "USER: go\nCONTEXT: quotes {{PROMPT}} verbatim");
+});
+
 const DENIED_TOOLS = [{ tool_name: "Bash" }, { tool_name: "Read" }];
 const READ_SKILL_FILE = `{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"/p/skills/demo/SKILL.md"}}]}}\n${resultLine()}\n`;
 
@@ -405,10 +416,13 @@ test("--baseline fills the Baseline template and gives the run no plugin", () =>
 });
 
 test("a usage error exits 2 and says what is wrong", () => {
+  const withoutScenarios = fakeRepo({ evals: EVALS.replace(/^\| (?:1|2|G1) \|.*\n/gm, "") });
   const withoutBaseline = fakeRepo({ evals: EVALS.replace(/### Baseline Agent[\s\S]*?### Skill Agent/, "### Skill Agent") });
   const cases = [
     { repo: withoutBaseline, args: ["--baseline"], message: /Baseline/ },
     { repo: fakeRepo(), args: ["--scenario", "99"], message: /99/ },
+    { repo: withoutScenarios, args: [], message: /no scenario rows/ },
+    { repo: withoutScenarios, args: ["--smoke"], message: /no scenario rows/ },
   ];
   for (const { repo, args, message } of cases) {
     const { status, stderr } = run(repo, args);
@@ -417,6 +431,45 @@ test("a usage error exits 2 and says what is wrong", () => {
   }
   assert.equal(exitStatus([RUNNER]), 2, "no skill argument");
   assert.equal(exitStatus(["scripts/eval/run-scenarios.mjs", "nope"], fakeRepo().root), 2, "unknown skill");
+});
+
+const BAD_TABLES = [
+  { name: "a blank Prompt cell", args: [], evals: EVALS.replace(/^\| 2 \| .*$/m, "| 2 |  | Row persona two. | Fixes it. |"), message: /blank Prompt cell: 2/ },
+  { name: "duplicate ids", args: ["--jobs", "1"], evals: EVALS.replace("| 2 |", "| 1 |"), message: /unique.*"1"/ },
+  { name: "duplicate ids with --smoke", args: ["--smoke"], evals: EVALS.replace("| 2 |", "| 1 |"), message: /unique.*"1"/ },
+  { name: "a tab in an id", args: [], evals: EVALS.replace("| 2 |", "| 2\tb |"), message: /non-blank.*tabs/ },
+  { name: "a path separator in an id", args: [], evals: EVALS.replace("| 2 |", "| a/b |"), message: /non-blank.*"a\/b"/ },
+  { name: "a skill template without the prompt placeholder", args: [], evals: EVALS.replace(/(### Skill Agent[\s\S]*?)\{\{PROMPT\}\}/, "$1NOTHING"), message: /must carry \{\{PROMPT\}\}/ },
+  { name: "an empty file", args: [], evals: "\n", message: /empty/ },
+];
+
+for (const { name, args, evals, message } of BAD_TABLES) {
+  test(`${name} is a usage error before any model call`, () => {
+    const repo = fakeRepo({ evals });
+    const { status, stderr } = run(repo, args);
+    assert.equal(status, 2, stderr);
+    assert.match(stderr, message);
+    assert.equal(stubCalls(repo).length, 0);
+  });
+}
+
+for (const setting of ["-5", "0", "abc", "Infinity"]) {
+  test(`GATED_DELIVERY_RUN_TIMEOUT_SECONDS=${setting} is a usage error before any model call`, () => {
+    const repo = fakeRepo();
+    const { status, stderr } = run(repo, [], { GATED_DELIVERY_RUN_TIMEOUT_SECONDS: setting });
+    assert.equal(status, 2, stderr);
+    assert.match(stderr, /GATED_DELIVERY_RUN_TIMEOUT_SECONDS needs a positive number/);
+    assert.equal(stubCalls(repo).length, 0);
+  });
+}
+
+test("a blank line in a fixture's allowed-tools is skipped, not passed to claude", () => {
+  const repo = fakeRepo({ fixtures: { "2/persona.md": "p\n", "2/allowed-tools": "Bash(sh tracker.sh:*)\n   \n\t\n" } });
+  const { status } = run(repo, ["--scenario", "2", "--repeat", "1"]);
+  assert.equal(status, 0);
+  const [call] = stubCalls(repo);
+  assert.ok(call.argv.includes("Bash(sh tracker.sh:*)"));
+  assert.ok(call.argv.every((arg) => arg.trim()), `no argument may be blank, got ${JSON.stringify(call.argv)}`);
 });
 
 test("the snapshot leaves out evals.md", () => {
@@ -550,6 +603,16 @@ test("stopping the runner stops the sessions it started", async () => {
   assert.ok(alive(pid));
   runner.kill("SIGTERM");
   await waitFor(() => !alive(pid), "the session stopping with the runner");
+});
+
+test("a crash is exit 3, not the evals-failed 1, and stops the sessions still running", async () => {
+  const repo = fakeRepo();
+  const { status, stderr } = run(repo, ["--scenario", "1", "2", "--repeat", "1"], { STUB_BEHAVIOUR: "sabotage" });
+  assert.equal(status, 3, stderr);
+  assert.match(stderr, /harness error, not an eval failure/);
+  const sleeper = stubCalls(repo).find((call) => call.cwd.endsWith(join("2", "skill-1")));
+  assert.ok(sleeper, "the second scenario's session must have started");
+  await waitFor(() => !alive(sleeper.pid), "the session still running when the runner crashed stopping");
 });
 
 test("a denial is noted in the summary but is not a harness failure", () => {

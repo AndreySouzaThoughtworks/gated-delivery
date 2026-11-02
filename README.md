@@ -18,7 +18,7 @@ This repo is **both** marketplace and plugin: the marketplace manifest lives at 
 
 | Path | What |
 |------|------|
-| `plugin/` | The plugin — 12 skills, 2 agents, 3 hooks, 2 commands. Inventory and call graph: [docs/skill-graph.md](docs/skill-graph.md). |
+| `plugin/` | The plugin — 12 skills, 2 agents, 3 hooks, 3 commands. Inventory and call graph: [docs/skill-graph.md](docs/skill-graph.md). |
 | `.claude-plugin/marketplace.json` | Marketplace manifest; points at `./plugin`. |
 | `docs/` | [onboarding](docs/onboarding.md) · [skill-graph](docs/skill-graph.md) · [evals](docs/evals.md) · [client-context](plugin/references/client-context.md) |
 | `scripts/` | `leak-guard.sh`, the consistency guard (`audit/`) and the eval tools (`eval/`). |
@@ -44,6 +44,10 @@ This repo is **both** marketplace and plugin: the marketplace manifest lives at 
 | `gitleaks` | Secret scan |
 
 The rules guard themselves. The consistency guard fails if `zanity.toml` drops `select = ["all"]`, disables anything except the process and filesystem rules for test files, or excludes more than the fixtures. It also fails on an `assert`, `if` or `while` whose condition cannot vary, since a check that cannot fail proves nothing, and on a skill that changed without a passing eval stamp or a recorded waiver. The guard's own sections are listed in `scripts/audit/consistency.mjs`.
+
+## Bootstrapping a client repo
+
+`/gated-delivery:bootstrap` fills the guardrail gaps of a Python or TS/JS repo on GitHub. It shows a diff and writes nothing until you confirm each group (`config`, `guards`, `ci`), and it never overwrites an existing file. It calls zanity for `zanity init` and the baseline and prints the overwatch install line. It does not install overwatch. The workflow it writes pins every action to a full SHA and keeps the baseline from growing. The scripts and their tests are in `plugin/bootstrap/`.
 
 ## Keeping client data out
 

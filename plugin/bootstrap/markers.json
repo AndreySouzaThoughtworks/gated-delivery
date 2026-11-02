@@ -1,0 +1,89 @@
+{
+  "source": "overwatch 0.4.0 watchers.json",
+  "search": {
+    "depth": 2,
+    "skip": [
+      "node_modules",
+      "target",
+      "vendor",
+      "dist",
+      "build",
+      "venv",
+      "__pycache__",
+      "zig-cache",
+      "zig-out",
+      "Downloads",
+      "Desktop",
+      "tmp",
+      "temp",
+      "scratch"
+    ]
+  },
+  "watchers": [
+    {
+      "name": "zig",
+      "marker": "build.zig"
+    },
+    {
+      "name": "python",
+      "marker": "pyproject.toml",
+      "requires": "uv"
+    },
+    {
+      "name": "python",
+      "marker": "pyproject.toml",
+      "requires": "pytest"
+    },
+    {
+      "name": "vitest",
+      "marker": "node_modules/.bin/vitest",
+      "language": "js"
+    },
+    {
+      "name": "jest",
+      "marker": "node_modules/.bin/jest",
+      "language": "js"
+    },
+    {
+      "name": "bun",
+      "marker": "bun.lock",
+      "language": "js"
+    },
+    {
+      "name": "bun",
+      "marker": "bun.lockb",
+      "language": "js"
+    },
+    {
+      "name": "deno",
+      "marker": "deno.json"
+    },
+    {
+      "name": "deno",
+      "marker": "deno.jsonc"
+    },
+    {
+      "name": "go",
+      "marker": "go.mod",
+      "requires": "gotestsum"
+    },
+    {
+      "name": "go",
+      "marker": "go.mod"
+    },
+    {
+      "name": "rust",
+      "marker": "Cargo.toml"
+    },
+    {
+      "name": "swift",
+      "marker": "Package.swift"
+    }
+  ],
+  "checkers": [
+    {
+      "name": "zanity",
+      "marker": "zanity"
+    }
+  ]
+}

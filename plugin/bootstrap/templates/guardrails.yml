@@ -1,0 +1,57 @@
+name: guardrails
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  zanity:
+    name: zanity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: benomahony/zanity@97db0c56358db8ff895bbbe349d4014543df89fa # v0.1.30
+        with:
+          version: {{ZANITY_VERSION}}
+          args: {{ZANITY_ARGS}}
+
+  guards:
+    name: guards
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Baseline only shrinks
+        run: node guards/ratchet.mjs --baseline zanity-baseline.json --base-ref origin/main
+      - name: Rules about the rules stay strict
+        run: node guards/rules-about-rules.mjs --repo .
+
+  workflows:
+    name: workflows
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: false
+      - run: uvx --from actionlint-py==1.7.12.25 actionlint
+      - run: uvx zizmor==1.31.1 --pedantic .github
+        env:
+          GH_TOKEN: ${{ github.token }}

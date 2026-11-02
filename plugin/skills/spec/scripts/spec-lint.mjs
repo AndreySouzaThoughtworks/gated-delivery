@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Structural lint for a spec written by /spec (plugin/skills/spec/templates/change.md).
-// Usage: node scripts/audit/spec-lint.mjs <spec.md>...  Exits 1 and prints one line per problem.
+// Usage: node <skill base directory>/scripts/spec-lint.mjs <spec.md>...  Exits 1 and prints one line per problem.
 
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -244,7 +244,7 @@ export const lintSpec = (raw) => {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const files = process.argv.slice(2);
   if (files.length === 0) {
-    process.stderr.write("usage: node scripts/audit/spec-lint.mjs <spec.md>...\n");
+    process.stderr.write("usage: node <skill base directory>/scripts/spec-lint.mjs <spec.md>...\n");
     process.exit(EXIT_PROBLEMS);
   }
   let failed = false;

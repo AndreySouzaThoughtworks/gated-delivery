@@ -5,9 +5,9 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ARMS, scanText } from "./guardrail-scan.mjs";
+import { ARMS, scanText } from "../../plugin/skills/issue-writing/scripts/guardrail-scan.mjs";
 
-const SCAN = join(dirname(fileURLToPath(import.meta.url)), "guardrail-scan.mjs");
+const SCAN = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "plugin", "skills", "issue-writing", "scripts", "guardrail-scan.mjs");
 
 const FLAGGED = [
   ["credential given a value", "the config has password: hunter2"],

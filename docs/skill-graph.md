@@ -66,6 +66,7 @@ Named per client in its CLAUDE.md (`## Stack recipes`, `## Review routing`, `## 
 /slice
   ├── step 0  Skill(repo-forensics) quick posture
   ├── /spec                                               (Route A)
+  ├── scripts/resolve-verify-cmd.mjs, the verify command  (start, passed on as verify-cmd)
   ├── scripts/slice-tree.sh, one tree per wave slice      (Route W, references/parallel.md)
   ├── Agent(slice-executor)                               (6.1, per functional batch; a round's batches in parallel batch trees)
   ├── scripts/batch-pick.sh                               (6, a parallel round's batches back onto the slice)
@@ -89,6 +90,7 @@ Named per client in its CLAUDE.md (`## Stack recipes`, `## Review routing`, `## 
   ├── security/threat STRIDE                              (3e)
   ├── ordered Rollout, waves + optional PR graph          (5)
   ├── Skill(senior-review-lens) Lens H                    (6, open decisions)
+  ├── scripts/spec-lint.mjs, structural lint of the draft (7)
   └── Skill(issue-writing)                                (10, link comment scan and reconcile)
 
 hooks (always-on, underneath every loop):

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Mechanical checks for a deskcheck.html written by /deskcheck (plugin/skills/deskcheck/SKILL.md, Verification
-// items 1, 2, 3 and 4, and the escaping rule). Usage: node scripts/audit/deskcheck-lint.mjs <deskcheck.html>...
-// Exits 1 and prints one line per problem. Browser inspection (item 5) and the report (item 6) stay manual.
+// and the escaping rule). Usage: node <skill base directory>/scripts/deskcheck-lint.mjs <deskcheck.html>...
+// Exits 1 and prints one line per problem. Credentials, browser inspection and the report stay manual.
 
 import assert from "node:assert";
 import { existsSync, readFileSync } from "node:fs";
@@ -9,7 +9,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-export const TEMPLATE_PATH = join(HERE, "..", "..", "plugin", "skills", "deskcheck", "templates", "deskcheck.html");
+export const TEMPLATE_PATH = join(HERE, "..", "templates", "deskcheck.html");
 const CSP_META = /<meta\s+http-equiv=["']Content-Security-Policy["'][^>]*>/gi;
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
 const HTTPS = /^https:\/\/\S+$/i;
@@ -62,7 +62,7 @@ export const lintDeskcheck = (html, { dir, templateHtml = readFileSync(TEMPLATE_
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const files = process.argv.slice(2);
   if (files.length === 0) {
-    process.stderr.write("usage: node scripts/audit/deskcheck-lint.mjs <deskcheck.html>...\n");
+    process.stderr.write("usage: node <skill base directory>/scripts/deskcheck-lint.mjs <deskcheck.html>...\n");
     process.exit(EXIT_PROBLEMS);
   }
   let failed = false;

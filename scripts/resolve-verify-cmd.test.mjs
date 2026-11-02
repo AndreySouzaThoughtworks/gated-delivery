@@ -5,9 +5,9 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlink
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { NO_COMMAND_MESSAGE, VERIFY_ENV, resolveVerifyCmd } from "./resolve-verify-cmd.mjs";
+import { NO_COMMAND_MESSAGE, VERIFY_ENV, resolveVerifyCmd } from "../plugin/skills/slice/scripts/resolve-verify-cmd.mjs";
 
-const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "resolve-verify-cmd.mjs");
+const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "..", "plugin", "skills", "slice", "scripts", "resolve-verify-cmd.mjs");
 const FROM_INSTRUCTIONS = "make verify-from-instructions";
 const FROM_REPO_FILE = "make verify-from-repo-claude";
 const FROM_ENV = "make verify-from-env";

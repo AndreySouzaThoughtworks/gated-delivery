@@ -16,7 +16,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "e6caa6bb93b07747e693584320e2954b507db527662b810b0b8399d43d4adf37",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/detect.mjs",
@@ -32,7 +32,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "742581868e113a5af2def3d98eb6f8c112b33a2461abaca173513aef9eff104e",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/detect.mjs",
@@ -48,7 +48,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "63fdc14da847dcb10597355b00c63b3816fb95fcafe6c5ebaaa4834acd407ffd",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/detect.mjs",
@@ -64,11 +64,11 @@
       "edit_end": null,
       "edit_text": null,
       "id": "e59acc9686b0f5b3e5dde54532060160b296e9e5ad7fd76255b9290bf285d34e",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/guards/ratchet.mjs",
-      "line": 20,
+      "line": 21,
       "column": 7,
       "severity": "error",
       "rule": "assertion-density",
@@ -80,27 +80,11 @@
       "edit_end": null,
       "edit_text": null,
       "id": "50d4c59b3e169aedd47318707ba067596f4ab49fb1ebfc173725734e55e5cae9",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/guards/ratchet.mjs",
-      "line": 32,
-      "column": 7,
-      "severity": "error",
-      "rule": "assertion-density",
-      "message": "'findingIds' has 1 assertion that can catch a bug; it needs at least 2.",
-      "fix": "Assert what 'findingIds' needs from 'text' and 'source' and what it returns.",
-      "matching_total": null,
-      "next_offset": null,
-      "edit_start": null,
-      "edit_end": null,
-      "edit_text": null,
-      "id": "7f0f2c321472faf86a07f59f30b48ba31cf61154dc717ef199d3b8a4ea299911",
-      "classification": "new"
-    },
-    {
-      "path": "plugin/bootstrap/guards/ratchet.mjs",
-      "line": 65,
+      "line": 74,
       "column": 7,
       "severity": "error",
       "rule": "assertion-density",
@@ -112,11 +96,11 @@
       "edit_end": null,
       "edit_text": null,
       "id": "a75a8984cc56ddcbc4776d463a4ff2529bf812317b02a956e232063bc554e060",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/guards/ratchet.mjs",
-      "line": 76,
+      "line": 85,
       "column": 7,
       "severity": "error",
       "rule": "assertion-density",
@@ -128,11 +112,11 @@
       "edit_end": null,
       "edit_text": null,
       "id": "1af84c6b248c46d387b612b808aa552e0b9b94aca43ceb25c233997bb851597e",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/guards/ratchet.mjs",
-      "line": 92,
+      "line": 101,
       "column": 7,
       "severity": "error",
       "rule": "assertion-density",
@@ -144,7 +128,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "ded5218d11d6aff581821d6508701149d8084e693479110504a9b96d0e84155d",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/guards/rules-about-rules.mjs",
@@ -160,7 +144,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "7a5dc7bfd265b29c0be55adfa6e1c537248383550bc94e370e58f6d94b4e6a9e",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/guards/rules-about-rules.mjs",
@@ -176,7 +160,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "545950d4dde0c25b9695cd560e05e97d3f631167a179b82c7f0f56864fc58ecb",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/guards/rules-about-rules.mjs",
@@ -192,7 +176,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "c950370a5e0a175fbb78fd9721200d683b767d681dace32e24dff1183520cd17",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/guards/rules-about-rules.mjs",
@@ -208,7 +192,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "0033310ec82c90c09baf8e1775fd6a5e4419a84f689e172c411ff3c2070a7c0d",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/guards/rules-about-rules.mjs",
@@ -224,7 +208,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "046d3fb6c51b048c811b302689d241a9e3b99200993b4f4f9d774ac81fd525df",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/guards/rules-about-rules.mjs",
@@ -240,7 +224,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "c9ecf1c569594a021516f93e705a210b882dd51c4f7ffc9cdc0ac23dcf7c0033",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/guards/rules-about-rules.mjs",
@@ -256,7 +240,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "92a975aa250a2fb1743087014b8f9cc4b5cc7307666499adc119ef3b331e79a9",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/guards/rules-about-rules.mjs",
@@ -272,7 +256,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "d7f3b62ffb82a50b33271da92d3b4c3f52d45c9e72a4b96cf7d4899c4baf6eeb",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/guards/rules-about-rules.mjs",
@@ -288,7 +272,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "cb589a1171930ae8610099e948dc1572704e701f861f0796863ddc14523396f6",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/guards/rules-about-rules.mjs",
@@ -304,7 +288,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "0ad0354b41f03f3b6a3b3492b6a85f9f72c4a1c388ec5ed1558808438ff62095",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/guards/rules-about-rules.mjs",
@@ -320,7 +304,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "ac8ff5b0044172169c6606d45e48db0b20486284ece3c555010f9307f38d82b7",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/guards/rules-about-rules.mjs",
@@ -336,7 +320,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "fa80774be224b6fb46282ea3e1d5d98e44077aac7ee33e7f18a61d4b87de5123",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/install-zanity.mjs",
@@ -352,7 +336,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "747e885d9fc5c2ada3dec679560b627554a04d709abe3ae400d5fd0ecfe3eacf",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/install-zanity.mjs",
@@ -368,7 +352,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "7ab7c584c0dd42a62a874802a00b530dc31fccffef43dfdaadb53eaadf30fb7f",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/plan.mjs",
@@ -384,7 +368,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "3227c941fdc80c177e1cfa9a1e21cdbea60d72134cb1deb02eec3e0a2c769ff6",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/plan.mjs",
@@ -400,7 +384,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "1131caad3fad43896f46336f8407924603548e19359735c3d73667c4efd792ac",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/plan.mjs",
@@ -416,7 +400,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "c1eea2ba545fb7003cad335f164fbb0487b1122c6211f7acfaf2c202d1c84653",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/plan.mjs",
@@ -432,7 +416,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "8f578e8670691435535e59b929f67822d2149555e909671c6276910eb04a0e94",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/plan.mjs",
@@ -448,7 +432,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "3b50c2a0a84ca6c9785e6aec5edf6bd40719c7a344b1e87392faf560d634b4c9",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/plan.mjs",
@@ -464,7 +448,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "57b256bb1fd24fc1c5dd75f5baa86a1fcc36b5ec04d1eb2738fa3a171c41fbfb",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/plan.mjs",
@@ -480,7 +464,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "45149167b7bcb7176ba8754027c07534117565e14ace3099688285dbbebe3301",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/plan.mjs",
@@ -496,7 +480,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "f948c561b137f623755d694a502a55a8a054b1e3e6e5141f94b5d81bad508df3",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/plan.mjs",
@@ -512,7 +496,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "72e1fdb55242d80a1ea51742b24fd56f4494475b7caabdb1c44b69d81c7867db",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/bootstrap/plan.mjs",
@@ -528,7 +512,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "9b4b039afd0e97051c0f0deb83489bf815fe84f65a8661d2ea639b38dd735f0c",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/hooks/guard-bash.mjs",
@@ -544,7 +528,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "d4e3e7fe00ac6d94f18f0cab090b30421cc4866f6a66b64b6d260b2d0fe20d46",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/hooks/lib/read-hook-input.mjs",
@@ -560,6 +544,118 @@
       "edit_end": null,
       "edit_text": null,
       "id": "62dc221f18ae176e7321713ade69bb5e1f4de14efcb5ab61d2e729615137d92e",
+      "classification": "existing"
+    },
+    {
+      "path": "plugin/skills/deskcheck/scripts/deskcheck-lint.mjs",
+      "line": 33,
+      "column": 14,
+      "severity": "error",
+      "rule": "assertion-density",
+      "message": "'lintDeskcheck' has 1 assertion that can catch a bug; it needs at least 2.",
+      "fix": "Assert what 'lintDeskcheck' needs from 'html' and what it returns.",
+      "matching_total": null,
+      "next_offset": null,
+      "edit_start": null,
+      "edit_end": null,
+      "edit_text": null,
+      "id": "bee1211c59f39d5dba21f600573f289594a0a9710d1805c2fcb8936065e69a64",
+      "classification": "new"
+    },
+    {
+      "path": "plugin/skills/issue-writing/scripts/guardrail-scan.mjs",
+      "line": 31,
+      "column": 14,
+      "severity": "error",
+      "rule": "assertion-density",
+      "message": "'scanText' has 0 assertions that can catch a bug; it needs at least 2.",
+      "fix": "Assert what 'scanText' needs from 'text' and 'extraTerms' and what it returns.",
+      "matching_total": null,
+      "next_offset": null,
+      "edit_start": null,
+      "edit_end": null,
+      "edit_text": null,
+      "id": "2c3c7a3a2b338ffbb54e8da1355fa53bbdf92e7626fe23fa5e2ef761403093a3",
+      "classification": "new"
+    },
+    {
+      "path": "plugin/skills/slice/scripts/resolve-verify-cmd.mjs",
+      "line": 51,
+      "column": 14,
+      "severity": "error",
+      "rule": "assertion-density",
+      "message": "'commandFromPackage' has 0 assertions that can catch a bug; it needs at least 2.",
+      "fix": "Assert what 'commandFromPackage' needs from 'cwd' and what it returns.",
+      "matching_total": null,
+      "next_offset": null,
+      "edit_start": null,
+      "edit_end": null,
+      "edit_text": null,
+      "id": "db9d78eab4bb67558fce78469f4df262f3189b7f2c5e9432d117ab59ca66359f",
+      "classification": "new"
+    },
+    {
+      "path": "plugin/skills/slice/scripts/resolve-verify-cmd.mjs",
+      "line": 62,
+      "column": 14,
+      "severity": "error",
+      "rule": "assertion-density",
+      "message": "'resolveVerifyCmd' has 0 assertions that can catch a bug; it needs at least 2.",
+      "fix": "Assert the state 'resolveVerifyCmd' starts from and what it returns.",
+      "matching_total": null,
+      "next_offset": null,
+      "edit_start": null,
+      "edit_end": null,
+      "edit_text": null,
+      "id": "6c5199d5ed5c7e25025e43233a086c840d366f91d0d8eb558c1cb22888123596",
+      "classification": "new"
+    },
+    {
+      "path": "plugin/skills/spec/scripts/spec-lint.mjs",
+      "line": 70,
+      "column": 7,
+      "severity": "error",
+      "rule": "assertion-density",
+      "message": "'splitByHeading' has 1 assertion that can catch a bug; it needs at least 2.",
+      "fix": "Assert what 'splitByHeading' needs from 'text' and 'level' and what it returns.",
+      "matching_total": null,
+      "next_offset": null,
+      "edit_start": null,
+      "edit_end": null,
+      "edit_text": null,
+      "id": "2cde464c2d3aac66e370b91a47a02955424ce905e5c96b53b4ce68343a3aac10",
+      "classification": "new"
+    },
+    {
+      "path": "plugin/skills/spec/scripts/spec-lint.mjs",
+      "line": 82,
+      "column": 14,
+      "severity": "error",
+      "rule": "assertion-density",
+      "message": "'parseSpec' has 0 assertions that can catch a bug; it needs at least 2.",
+      "fix": "Assert what 'parseSpec' needs from 'raw' and what it returns.",
+      "matching_total": null,
+      "next_offset": null,
+      "edit_start": null,
+      "edit_end": null,
+      "edit_text": null,
+      "id": "9f57b86c464763a601a866e0939185ee6b29059aa492163afe4a2ff028946d6f",
+      "classification": "new"
+    },
+    {
+      "path": "plugin/skills/spec/scripts/spec-lint.mjs",
+      "line": 237,
+      "column": 14,
+      "severity": "error",
+      "rule": "assertion-density",
+      "message": "'lintSpec' has 1 assertion that can catch a bug; it needs at least 2.",
+      "fix": "Assert what 'lintSpec' needs from 'raw' and what it returns.",
+      "matching_total": null,
+      "next_offset": null,
+      "edit_start": null,
+      "edit_end": null,
+      "edit_text": null,
+      "id": "6d15748a78beee1e54fa474c99da2da61ab8e1f2e8ebb2532a4ea8a59e206041",
       "classification": "new"
     },
     {
@@ -576,7 +672,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "086fbcc16f7a03f3b4ce98bddf220c879356343b59607cb0c0b254f920a6f301",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/audit/consistency.mjs",
@@ -592,87 +688,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "9f455b3b121906aba0e7c278d6431566b9dd9fae73ced2e73c20c39e7f443a4b",
-      "classification": "new"
-    },
-    {
-      "path": "scripts/audit/deskcheck-lint.mjs",
-      "line": 33,
-      "column": 14,
-      "severity": "error",
-      "rule": "assertion-density",
-      "message": "'lintDeskcheck' has 1 assertion that can catch a bug; it needs at least 2.",
-      "fix": "Assert what 'lintDeskcheck' needs from 'html' and what it returns.",
-      "matching_total": null,
-      "next_offset": null,
-      "edit_start": null,
-      "edit_end": null,
-      "edit_text": null,
-      "id": "9e28ed4fe99a2f460b4081bf176cfa39a397dcb5d2a5db635e22df012c526be5",
-      "classification": "new"
-    },
-    {
-      "path": "scripts/audit/guardrail-scan.mjs",
-      "line": 31,
-      "column": 14,
-      "severity": "error",
-      "rule": "assertion-density",
-      "message": "'scanText' has 0 assertions that can catch a bug; it needs at least 2.",
-      "fix": "Assert what 'scanText' needs from 'text' and 'extraTerms' and what it returns.",
-      "matching_total": null,
-      "next_offset": null,
-      "edit_start": null,
-      "edit_end": null,
-      "edit_text": null,
-      "id": "a0571a9d54f49986157023b887f40529d649a950dae4ce04c59a8c9c12630d34",
-      "classification": "new"
-    },
-    {
-      "path": "scripts/audit/spec-lint.mjs",
-      "line": 70,
-      "column": 7,
-      "severity": "error",
-      "rule": "assertion-density",
-      "message": "'splitByHeading' has 1 assertion that can catch a bug; it needs at least 2.",
-      "fix": "Assert what 'splitByHeading' needs from 'text' and 'level' and what it returns.",
-      "matching_total": null,
-      "next_offset": null,
-      "edit_start": null,
-      "edit_end": null,
-      "edit_text": null,
-      "id": "c07f9495e227455bad97df9c1d27a8e14bd7f81b1f6c76150cbd43db9b221d86",
-      "classification": "new"
-    },
-    {
-      "path": "scripts/audit/spec-lint.mjs",
-      "line": 82,
-      "column": 14,
-      "severity": "error",
-      "rule": "assertion-density",
-      "message": "'parseSpec' has 0 assertions that can catch a bug; it needs at least 2.",
-      "fix": "Assert what 'parseSpec' needs from 'raw' and what it returns.",
-      "matching_total": null,
-      "next_offset": null,
-      "edit_start": null,
-      "edit_end": null,
-      "edit_text": null,
-      "id": "ee5004a52de7ea43f36d409dcc008e4a01b1bed26c124d275d636a697344e06d",
-      "classification": "new"
-    },
-    {
-      "path": "scripts/audit/spec-lint.mjs",
-      "line": 237,
-      "column": 14,
-      "severity": "error",
-      "rule": "assertion-density",
-      "message": "'lintSpec' has 1 assertion that can catch a bug; it needs at least 2.",
-      "fix": "Assert what 'lintSpec' needs from 'raw' and what it returns.",
-      "matching_total": null,
-      "next_offset": null,
-      "edit_start": null,
-      "edit_end": null,
-      "edit_text": null,
-      "id": "a5b6c183536450109f08f88bf56aa4e0eb78f48579da8570b8a9b24ce0e60808",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/audit/suppressions.mjs",
@@ -688,7 +704,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "c40504f0e496ccca539621247af7cb14f461669c998a0df542ffcbab75e7179b",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/audit/suppressions.mjs",
@@ -704,7 +720,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "9caaa0ca43f5d8c67411cc90762d026a05fc487be57e31a281ff463fe818bd5c",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/audit/suppressions.mjs",
@@ -720,7 +736,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "28ab60784c0b5d77fe80816201a22a29f93cc3f8b0f2fee2d2f53ccc7f39748d",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/audit/suppressions.mjs",
@@ -736,7 +752,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "de3ed954206d06ef45f122c73bf86241206a0e8626364bbef288258549e96630",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/audit/suppressions.mjs",
@@ -752,7 +768,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "45442be38f299d189b77753fdd226c17a22dac4fed7d3f8fd9d86d692dddb730",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/changed-skills.mjs",
@@ -768,7 +784,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "dbc09a9589b08bfdfdaa0c46c18f0cd8057c70b4ae4ef2a9aa8edb6019064655",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/changed-skills.mjs",
@@ -784,7 +800,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "e3325bfdf230ef33b3ee5acb0e146359b896a7e6331d919cf3add0e23b534722",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/changed-skills.mjs",
@@ -800,7 +816,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "8ed2bbdbad7ff442947cd76b3b1b746eb8598cf16d6326fcec6e2cf81464083e",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/changed-skills.mjs",
@@ -816,7 +832,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "84f0856bb9a967ac51ed9c9618e97ee0f7950e62fc9d562dc4a350f1afcfd464",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/changed-skills.mjs",
@@ -832,7 +848,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "16ff6df778a851ee8c3e2542647430dd9bda8d709c8f28c8268b8455929b5755",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/changed-skills.mjs",
@@ -848,7 +864,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "10eae9534b815887ba6a66d8865364148e3ce501e7f2fce8664ddcc376d7611a",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/changed-skills.mjs",
@@ -864,7 +880,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "7915c40265fd49912859edb45883184fe2b4b632c63bb621902a76bc2c0feff9",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/changed-skills.mjs",
@@ -880,7 +896,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "83d1444c08c00f93b26e90df539254d529c7a40372ccd18fa13d36e077ea508f",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/changed-skills.mjs",
@@ -896,7 +912,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "384c7042bed56e97fff212d541785020022c1af17a3cd747e2b94e1b73b5603c",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/changed-skills.mjs",
@@ -912,7 +928,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "ac019444db26c0183ef207f7ea5b8ecb21acc1620af7130220d433ac62a61e5b",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/changed-skills.mjs",
@@ -928,7 +944,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "1f3b2ca181cdb74762607e8bd17cc5f55ed11746206558787452bc0759833736",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/changed-skills.mjs",
@@ -944,7 +960,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "0abd436fe169c49cf17a910d5ee8b22f22186f3a13c1b7bab21a4ae6e096429f",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/changed-skills.mjs",
@@ -960,7 +976,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "a128a45f7ef8f268a4a44d2227910e298779bed1928f836cff88f04f0985e02b",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/changed-skills.mjs",
@@ -976,7 +992,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "2d4f996d3a77cf408412bf7b3acef86a134ce04d5072a15677f506c7cedd43bd",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/changed-skills.mjs",
@@ -992,7 +1008,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "68985d0b1639f3611c9983c237f887d5453df83462daacea335bd6735aeba8c1",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/changed-skills.mjs",
@@ -1008,7 +1024,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "19cd65f9523b9de892beb9c50a6cbd653e563f87be6f446b8deda8b4a5da993d",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/changed-skills.mjs",
@@ -1024,7 +1040,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "58b397b94a99ca50780288d5ed84f954696a96b3eb1af943430d597942fca250",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/changed-skills.mjs",
@@ -1040,7 +1056,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "d4db93c55f733de9486b8efd8bc19e7316a4817bad197504f8dcf477776be25e",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/judge.mjs",
@@ -1056,7 +1072,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "2ecfa80eadbe40e8ce0f9bbb307bdd4ea46649a99188ffcfa763f15248090cef",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/judge.mjs",
@@ -1072,7 +1088,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "e43bcf77b99e37f3b054ea9cb3cb0fce65297308cd8a5912fa982eea4e237fc6",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/judge.mjs",
@@ -1088,7 +1104,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "4f76b4e718dbf7b74df65f1455f17546c09b5a3c83a65b04e7883d850f4eaba9",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/judge.mjs",
@@ -1104,7 +1120,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "87781807de93651c0f4446469410e6981d38cf8a1cac8141a44d5679b04d1aaa",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/judge.mjs",
@@ -1120,7 +1136,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "57ed4d27c160c41ed946468980a5a1815d2e3c847881a2c22447dc88bfa92450",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/judge.mjs",
@@ -1136,7 +1152,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "8bb2abb3391edb977c64445dd399707e1f3700786cfdfeccbd099385af987141",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/judge.mjs",
@@ -1152,7 +1168,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "073967c1c50ffb60ca0047ef72beb78d840562801d8e6882ad6f98c11fbe5872",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/judge.mjs",
@@ -1168,7 +1184,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "cf344a91048268f2834c0e313ea89c5d3f107e32b5e2f7c3373d18c845460f1f",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/judge.mjs",
@@ -1184,7 +1200,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "eea0fa48784c948d874d5c4ef764fb058c307da7e01813b3838464919b84e816",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/judge.mjs",
@@ -1200,7 +1216,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "78602ec3f91ef873e76d5a15a8bc9657573ddb51602cd62440af17e13f5dbd47",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-checks.mjs",
@@ -1216,7 +1232,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "0c9f9bb11430d20d71dc63e3aaddee8e1fee90997bf7251d657e22b821cb3759",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-checks.mjs",
@@ -1232,7 +1248,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "3a1c2d68d5729577a1f7792b4ff2357e82694796fc66d590093cabd102a9dd00",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-checks.mjs",
@@ -1248,7 +1264,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "fdab5fadb88d54da5cf6c6a0cdebda5d423707ce36af519f1ce057416eecf239",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-checks.mjs",
@@ -1264,7 +1280,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "0b08461ebd34eb9fad0ef8908696022fac6e3ff15ce09c97ab567b24b79e5fe5",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-checks.mjs",
@@ -1280,7 +1296,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "4059135c8ae6beafd44803cfc5dd54d210bee2ffa26a4d61b9489e84057265e4",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-checks.mjs",
@@ -1296,7 +1312,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "1c6fa1645b80ad18283a3c6f39f5914cee363c42e93e68b479826fdc001b33b6",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-checks.mjs",
@@ -1312,7 +1328,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "4f32c4aff29abab3fc18f325b3efb20486045dc341b00feab1890a068ac670c7",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-checks.mjs",
@@ -1328,7 +1344,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "2275696fefdc621c48589d99da705ca11cb396973d00887c54d17edb5fa95d63",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-checks.mjs",
@@ -1344,7 +1360,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "f71332f9f659118e1538911463e7fd64b99ff70b3f46e2e0ea210240dc092629",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-checks.mjs",
@@ -1360,7 +1376,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "2d61f4ba528ff2863f59ca75ac48120ff20992ce1f28217b7edda7637aef260e",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-checks.mjs",
@@ -1376,7 +1392,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "6b91e8949656c8721a7c53d4bb21f5686362531c22fd035fe96017aae34bfaf9",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-checks.mjs",
@@ -1392,7 +1408,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "8385a4043990e3e1a1506da4d74d8fb5e5b250f3c78ca070b03ef7a08b7d9118",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-checks.mjs",
@@ -1408,7 +1424,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "ac016541f7f743fc935ab2b46b21ee50b92d83f00de3032766ea4fc4c786a37e",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-checks.mjs",
@@ -1424,7 +1440,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "009a373c7076cb7d7597bd18e00d34b6ac8a972a2a2d753b0eede5ede7cecb86",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-checks.mjs",
@@ -1440,7 +1456,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "b7c64c018538db425dfed205a8ddcc456b7b41fdf4d18134e4d61b88e9ee5278",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-checks.mjs",
@@ -1456,7 +1472,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "256fd50d0393d522e1993a04c32446f0be63969a13d11e9093d7b90fa0bc82c8",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-checks.mjs",
@@ -1472,7 +1488,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "9beeab70561abd7162814adbb367d36d8efe7854e73aa15dd22b2715fe1441b1",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-scenarios.mjs",
@@ -1488,7 +1504,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "d0f669d16a0824366805fa9d064e408e9d6fec79b5986b04772a9828e629275b",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-scenarios.mjs",
@@ -1504,7 +1520,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "86dfb93ce80082462efd79f0c58971b77ba13da9cb8d2097a42e293aeb907a42",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-scenarios.mjs",
@@ -1520,7 +1536,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "c486c1fb9545c1cc94cd30f5f943ea8a6a908a3d7c133d3b772064132331a06d",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-scenarios.mjs",
@@ -1536,7 +1552,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "32cfc322c0b7bd59883a4fad083f44717256b2dfaebf5696ef7c12c515d5c278",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-scenarios.mjs",
@@ -1552,7 +1568,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "62d83649d6a0f2bcca8d31f184a03f829b52e0949687dacda9a2dd16d9c628b7",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-scenarios.mjs",
@@ -1568,7 +1584,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "46e278600142ff158d0e7cd27be78061662ca454a760d784b5461237c9be7413",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-scenarios.mjs",
@@ -1584,7 +1600,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "d454b15e2a077a8a2cdde0c954dfa8f69621ac26f44917f8b2af2abf2ca6b2c1",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-scenarios.mjs",
@@ -1600,7 +1616,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "c18779769740b5c699dbfa7cd23c67a5f99bb7f0c07c39ec54527657cfdb3b37",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-scenarios.mjs",
@@ -1616,7 +1632,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "2bbcf75c17dd286b39aca44063f75743e4fa08bc1ce62b83e1066424ef1910bf",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-scenarios.mjs",
@@ -1632,7 +1648,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "e5d44f96e30750f5177a13aafbf5d5a963a7d5eeeae2bd3d99d748cc52333c86",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-scenarios.mjs",
@@ -1648,7 +1664,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "0366b1027468a3acaa87928b4ef01e94269512b01740afe43035ede3b8cf5afc",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-scenarios.mjs",
@@ -1664,7 +1680,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "e3c9f877c3c8b8e6ff9d6a88f0a119f137e3b95ff49d18cab7746dca84bf3986",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-scenarios.mjs",
@@ -1680,7 +1696,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "8ef92a6a125e34bee31598c9a34e654b15b70503bf6096faee65b38589aabcd9",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-scenarios.mjs",
@@ -1696,7 +1712,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "b4a068d2e384711708f553d734b1eb7a1f6325b667cd3c5b8fb526400b793673",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-scenarios.mjs",
@@ -1712,7 +1728,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "084b12c80c63baf1bbce99cab641ba8b961179cc8192c527bfe261ec800e811a",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-scenarios.mjs",
@@ -1728,7 +1744,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "4ad47d61c17fc0503b57dc745066f8dc14dfbf94fa1993ea102e500c92c7bd2c",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-scenarios.mjs",
@@ -1744,7 +1760,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "348b8d2e4c9d949859361f98ff0740c0b9a5873c41476d9a01184d793f1d61c8",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-scenarios.mjs",
@@ -1760,7 +1776,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "80851fbbb8d40c8121843638634aaa0d9fe6a1bafbcd1fdf7286e89fc3224c34",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-scenarios.mjs",
@@ -1776,7 +1792,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "18e2652de124cbf62b8ce6a18ca3e78b460d017308792a49767b213bd7734d65",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-scenarios.mjs",
@@ -1792,7 +1808,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "10962770f0eb186a5d546e8446437c9617be3143208aa7cecfc127c006c1c9ae",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-scenarios.mjs",
@@ -1808,7 +1824,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "61e90960fa156b96c1adfd707fe8ce578b6cbbda8c569811883c75839351a13b",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-scenarios.mjs",
@@ -1824,7 +1840,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "07266e892333ebddc6cc07df52af6eb760041ef577674c09c704bf56747c687c",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-scenarios.mjs",
@@ -1840,7 +1856,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "bc03d69421bbbbc8c052cd2b76f557baba2c79c5932dab086d95e38352534db9",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-scenarios.mjs",
@@ -1856,7 +1872,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "bfb8fc076231192e5dc93484caacaff7263ce2f6546b8622a31492b9f1b9b9e2",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-scenarios.mjs",
@@ -1872,7 +1888,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "351ba155cac0ffce5d04252cea1848e5f327ec3bd280de76fc5ea4abc3b361fe",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/eval/run-scenarios.mjs",
@@ -1888,39 +1904,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "ccec8637c561b1c301bb7abe577a95598d280da4d5cb6844e39ae594db75bb7d",
-      "classification": "new"
-    },
-    {
-      "path": "scripts/resolve-verify-cmd.mjs",
-      "line": 51,
-      "column": 14,
-      "severity": "error",
-      "rule": "assertion-density",
-      "message": "'commandFromPackage' has 0 assertions that can catch a bug; it needs at least 2.",
-      "fix": "Assert what 'commandFromPackage' needs from 'cwd' and what it returns.",
-      "matching_total": null,
-      "next_offset": null,
-      "edit_start": null,
-      "edit_end": null,
-      "edit_text": null,
-      "id": "d317f61193a8f8796fa190bc9562ea88bbdfb25e1d388e3753437fb25d305de9",
-      "classification": "new"
-    },
-    {
-      "path": "scripts/resolve-verify-cmd.mjs",
-      "line": 62,
-      "column": 14,
-      "severity": "error",
-      "rule": "assertion-density",
-      "message": "'resolveVerifyCmd' has 0 assertions that can catch a bug; it needs at least 2.",
-      "fix": "Assert the state 'resolveVerifyCmd' starts from and what it returns.",
-      "matching_total": null,
-      "next_offset": null,
-      "edit_start": null,
-      "edit_end": null,
-      "edit_text": null,
-      "id": "39d0663b9e1c968b4eb698c5539d6cd1cf753f7a30a34d580f2f80720d689c2f",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/test-support/temp-dir.mjs",
@@ -1936,7 +1920,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "78c2719254b155651d666b461c1b59d54e80cf712661971b5b97a6e1996a2bfa",
-      "classification": "new"
+      "classification": "existing"
     }
   ]
 }

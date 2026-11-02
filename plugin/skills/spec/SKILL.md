@@ -194,7 +194,7 @@ If a decision changes PR shape or exposure, revise Rollout with the user before 
 
 Before showing final draft to user, re-read entire spec from executor's perspective. Hunt explicitly for:
 
-- **Stale cross-references** — ACs renumbered? Sections renamed? Decision N's wording updated? Find every "AC[N]" / "Decision[N]" / "step [N]" reference, verify it still point at right thing.
+- **Stale cross-references** — Decisions renumbered? Sections renamed? Decision N's wording updated? Find every "Decision[N]" / "step [N]" reference, verify it still point at right thing. The lint below checks AC references.
 - **Contradictions between sections** — does Summary's field list match Interface code block? Does Decision N's "consequence" match AC's expected behaviour? Does Done-when match AC list?
 - **Removed references** — did user say "drop X as a reference" mid-flight? Search for X. Almost always linger somewhere.
 - **Missing implementation details** — does spec say where new files go, which module wire them, how new port bound, what env vars exist? Executor that must guess will guess wrong.
@@ -202,13 +202,13 @@ Before showing final draft to user, re-read entire spec from executor's perspect
 - **Domain model deltas accurate** — every entity classified Added / Changed / Renamed / Referenced (unchanged) match work ACs imply. Canonical type pointer is real path (or noted as "added by this ticket"). If nothing touched, section is explicit "N/A — …" not missing header.
 - **Architecture sketch present iff rule triggers** — `## Architecture sketch` section appear in spec only if ≥3 components participate or ordering matter; omitted otherwise. Empty section header with no content is failure mode to watch for.
 - **Forensics output survived drafting** — every Contradictions row has disposition; no stale entry rest on age alone; every `## Relevant files` entry name check that guard it; **no claim that was Inferred now sitting in spec as fact** (it was verified, or it's named assumption in `## Open decisions`). If pass found nothing, explicit "No contradictions detected between the inspected surfaces." line present — empty table ambiguous between "clean" and "skipped".
-- **Rollout covers ACs exactly once** — every `in-repo` AC appears in exactly one slice; cross-repo ACs appear in none. Every slice declares exposure and satisfies the three-part boundary bar; every `flagged` slice names its flag, default and a concrete, checkable removal condition, or an Open decision holds the unknown name or condition; the slice that makes a surface reachable carries its authorization, validation and public-surface documentation.
-- **Cross-repo ACs owned** — with any `cross-repo / manual verification` AC, the AC section opens with its tag-explaining header and the written per-ticket Done-when block lists every cross-repo AC by number with its evidence and a named owner — a person, team or role, never "unassigned", "TBD" or an open-decision pointer.
-- **Done-when matches Rollout** — exactly one slice block per Rollout entry, in the same order, containing only checks that apply to this repository.
+- **Rollout boundaries** — every slice satisfies the three-part boundary bar; the slice that makes a surface reachable carries its authorization, validation and public-surface documentation; an Open decision holds any unknown flag name or removal condition.
+- **Cross-repo ACs explained** — with any `cross-repo / manual verification` AC, the AC section opens with its tag-explaining header.
+- **Done-when checks apply to this repository** — each slice block holds only checks that apply here.
 - **Optional PR graph agrees with Rollout** — when present, every node maps to one slice, every dependency points forward in the chosen sequence, and no graph-only requirement contradicts a Rollout boundary.
-- **Waves hold up** — every slice appears in exactly one wave-table row; every Rollout slice carries all four lane fields, even when the value is none; no two slices in one wave depend on each other, overlap in write surface or a shared hotspot, or touch an interface that is not yet fixed; the wave table and the graph agree.
+- **Waves hold up** — no two slices in one wave overlap in write surface or a shared hotspot, or touch an interface that is not yet fixed; the wave table and the graph agree.
 
-Fix everything found _before_ user see final draft.
+Run `node "<skill base directory>/scripts/spec-lint.mjs" <spec-file>` on the drafted spec: it checks frontmatter, template sections and order, leftover placeholders, AC format and numbers, slice coverage, lane fields, flag lines, waves, Done-when blocks, cross-repo owners and the Contradictions ledger. Fix every problem it reports, then everything the list above finds, _before_ user see final draft.
 
 ### 8. CHECKPOINT — final review
 

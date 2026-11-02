@@ -1,5 +1,5 @@
 {
-  "hash": "88416c3be372ef810f065306fc6c280ff722b06617e7edfc77d9a46d886a473c",
-  "waived": "removed prose that duplicates other text in the same skill or another skill and is not pinned by any eval scenario; no behavior change; live eval not run (prod-support: rule repeats step 3, reflect item 1 repeats steps 5 and the corpus section)",
-  "ranAt": "2026-11-02T14:06:44.189Z"
+  "hash": "02d1410b2ddc215a2d70cf9e968d51784f7e24ed60dc597acb025f51747fe973",
+  "waived": "This skill names the code-reviewer agent, whose verify-command paragraph now calls the shipped resolve-verify-cmd script instead of describing the resolution chain. The skill's own text is unchanged. Live eval not run.",
+  "ranAt": "2026-11-02T18:29:52.983Z"
 }

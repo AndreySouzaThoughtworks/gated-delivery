@@ -6,7 +6,7 @@
 # Cherry-picks the batch's commits the slice does not yet carry, oldest first,
 # keeping one commit per AC. "Carry" is by patch, not SHA: a batch already
 # picked has new SHAs on the slice, and picking it again would build its ACs
-# twice. Prints "<before>..<after>", the batch's range on the slice for 6.4;
+# twice. Prints "<before>..<after>", the batch's range on the slice for 6.3;
 # a batch with nothing left to pick prints an empty range.
 #
 # Exits 1 on a dirty tree, a missing branch, or a pick that fails for any

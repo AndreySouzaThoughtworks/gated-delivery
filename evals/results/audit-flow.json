@@ -1,0 +1,5 @@
+{
+  "hash": "53da79ce71e9ea001e8927290d5bc85bce5775cf45866a28a2767bd7ff8ac848",
+  "waived": "Removed When to invoke (repeats the frontmatter description), the enumeration of consistency.mjs checks, and Anti-patterns that repeat the intro and Steps 1, 3 and 4; orphan-hook warning scenario text kept; no behavior change; live eval not run.",
+  "ranAt": "2026-11-02T14:05:40.536Z"
+}

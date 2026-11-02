@@ -85,7 +85,7 @@ Run the happy path once while preparing and keep what each step produced: the sc
 
 The artifact follows the secrets and PII rule in `gated-delivery:issue-writing` (*Publishing to the tracker*, guardrail scan); production payloads count as customer data. Name access prerequisites without copying secrets.
 
-A demonstration step pairs an action with an observable result. Explanatory implementation notes belong after the demonstration unless the action cannot be understood without them.
+Explanatory implementation notes belong after the demonstration unless the action cannot be understood without them.
 
 ### 4. Adapt to the work
 
@@ -186,10 +186,8 @@ After the deskcheck, update the same file when asked. Record the feedback, decis
 Before reporting the path:
 
 1. Search the file for `{{` and `}}`; no placeholders remain.
-2. Confirm the document contains one `h1` and sections for the criteria when the ticket lists any, business value, the happy path, the evidence, the approach, the decisions and feedback.
-3. Confirm every demonstration step contains an action, an expected result and its observed result.
-4. Confirm every criterion reported as met has pasted evidence beside it — output, response or screenshot, not only a link.
-5. Confirm every local link resolves and every external link has an `https://` URL.
-6. Confirm the file contains no `<script>`, `on…=` event attribute, `javascript:` or `data:` link (a `data:` image pasted as evidence is fine), remote stylesheet, remote font, credentials, customer data or production payloads, and that the `Content-Security-Policy` meta tag is unchanged.
-7. Open the file in a browser. Inspect the full page at desktop width and a narrow viewport; fix overflow, unreadable contrast and broken hierarchy. Headless Chrome will not size a window below about 500 pixels, so its narrow screenshot clips the page; measure `document.documentElement.scrollWidth` inside a 390-pixel iframe instead.
-8. Report the output path and any part of the delivered behaviour that remains unverified.
+2. Confirm the document contains one `h1`.
+3. Confirm every local link resolves and every external link has an `https://` URL.
+4. Confirm the file contains no `<script>`, `on…=` event attribute, `javascript:` or `data:` link (a `data:` image pasted as evidence is fine), remote stylesheet, remote font, credentials, customer data or production payloads, and that the `Content-Security-Policy` meta tag is unchanged.
+5. Open the file in a browser. Inspect the full page at desktop width and a narrow viewport; fix overflow, unreadable contrast and broken hierarchy. Headless Chrome will not size a window below about 500 pixels, so its narrow screenshot clips the page; measure `document.documentElement.scrollWidth` inside a 390-pixel iframe instead.
+6. Report the output path and any part of the delivered behaviour that remains unverified.

@@ -180,58 +180,8 @@ Then **STOP** — `PROCEED` / `ADJUST` / `STOP`. Don't generate code until direc
   bodies into a file that might be committed. The secrets and PII list in
   `gated-delivery:issue-writing` (*Publishing to the tracker*, guardrail scan) names what stays out.
 
-## Boundaries
-
-This skill runs **before a change exists**. Does not overlap reviewers:
-
-| Skill / agent | Owns | Runs |
-|---|---|---|
-| `repo-forensics` | what is true in the repo, and what could break | before the change |
-| `senior-review-lens` | structural and cohesion design | on the diff, pre-commit |
-| `code-reviewer` | correctness against the ACs, with evidence | on the branch, pre-PR |
-| `/prod-support` | incident diagnosis — hypothesis, probe, root cause | during a production issue |
-
-Not an incident tool. Incident ticket or customer-reported regression → `/prod-support`.
-
-**Don't assume auto-invocation.** Explicit phrasing — "inspect first", "before you change
-anything", "what could break" — is the reliable trigger; ordinary small edits may not fire it.
-Dependable coverage is `/slice` step 0 for ticket work and invoking it by name everywhere else.
-
-**"Contradictions" elsewhere means something else.** `/spec` 5 and 7, and `issue-writing`'s consistency pass, check
-*authored artifacts* against each other — do ACs conflict, does Summary match Interface. This ledger
-checks *repo reality against itself* — code vs docs vs tests vs config vs history. Same word,
-different surface. Neither replaces other.
-
-## Verification
-
-After running this skill, check:
-
-- Tier named in first line, as `Quick posture` or `Full pass`.
-- Every Verified claim carries a real file locator, none approximated. Nothing sourced from the task
-  context sits under Verified.
-- Full pass: Contradictions either populated ledger or explicit no-contradictions sentence.
-  Quick posture: item 4 opens with `Surfaces disagree:`, `Surfaces agree; all must change together:`
-  or `Surfaces agree.` — no ledger.
-- Standalone with item 4 not `Surfaces agree.`, or the change editing more than one surface: the
-  tier is full pass.
-- No stale entry rests on age alone.
-- Every finding in full pass has a disposition.
-- Output ends in smallest-safe-next-step and no code, every tier. Explicit `PROCEED`/`ADJUST`/`STOP`
-  token is full-pass only.
-
 ## Origin
 
 Structure adopted from the
 [Repo Forensics Starter Prompt](https://practiceofclarity.eu/en-us/shared/thinkfirst/repo-forensics-starter-prompt/)
 (Practice of Clarity, Mikey Sebastian Drozd, CC BY 4.0) plus companion six-item pre-code checklist.
-
-**Does not repeat:** `/prod-support` evidence discipline, `code-reviewer`
-verify-or-`UNVERIFIED`, `/spec` 3a canonical-doc rule, `/slice` 5 smallest-step sizing.
-
-## Related skills
-
-- `/spec` — invokes full pass at step 3; output feeds `## Relevant files`, `## Red flags`,
-  `## Edges`, and `## Open decisions`.
-- `/slice` — invokes quick posture at step 0, before trivial-change escape hatch.
-- `Skill(senior-review-lens)` — post-change structural counterpart.
-- `Agent(code-reviewer)` — pre-PR correctness counterpart.

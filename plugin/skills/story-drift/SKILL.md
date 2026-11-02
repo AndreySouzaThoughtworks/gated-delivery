@@ -125,8 +125,7 @@ and 3 found. Write each candidate as this list, one field per line:
 
 Then filter:
 
-1. Re-read the source behind each candidate. Where it is Proposed, open or inferred, recast the
-   candidate as a question for the user, or drop it. Where two sources disagree, show both and ask.
+1. Re-read the source behind each candidate. Where two sources disagree, show both and ask.
 2. Apply the bar above. Drop what fails it.
 3. Merge candidates with one cause into one finding. One ADR contradicting three criteria is one
    finding with three edits.

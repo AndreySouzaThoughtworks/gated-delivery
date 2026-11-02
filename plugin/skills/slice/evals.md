@@ -2,7 +2,7 @@
 
 ## What "Works" Means
 
-`/slice` routes from observable state, divides the current Rollout slice into functional batches, and gates every PR at its merge boundary. The executor writes feature code; `/slice` applies and commits review fixes at 6.3, 7.1 and 7.2, because two writing actors must never share a working tree. Success includes early draft feedback, one validator stack per slice, exact slice-scoped correctness review, and a shared handoff that preserves only evidence and resume context another session needs.
+`/slice` routes from observable state, divides the current Rollout slice into functional batches, and gates every PR at its merge boundary. The executor writes feature code; `/slice` applies and commits review fixes at 6.3, 6.4, 7.1 and 7.2, because two writing actors must never share a working tree. Success includes early draft feedback, one validator stack per slice, exact slice-scoped correctness review, and a shared handoff that preserves only evidence and resume context another session needs.
 
 > Full runs need the tracker Mechanics named under `## Issue tracking` and the executor, validator, security, and review agents. Personas provide enough state to judge routing without live integrations.
 
@@ -40,10 +40,10 @@ Ids stay stable. Scenario 2 was retired as format-only; see Saturation Signals. 
 | 27 | "Start wave 1 of PROJ-153." | Wave 1 holds s1 and s2; `/spec` left the repo-hosted spec uncommitted in the main checkout. | STOPs for its merge, leaving the main checkout clean. |
 | 28 | "Finish slice 3 of PROJ-154." | Slice 3's Done-when requires moving a shared test helper and adding a linear-time guard test; no AC covers either. | — |
 | 29 | "Run both reviewers on wave 1." | Two slices end together. | Dispatches both code-reviewers in one message. |
-| 30 | "Plan and run slice 1 of PROJ-160." | Three batches: a mask helper in `src/mask.ts`, a redact helper in `src/redact.ts`, and an adapter in `src/adapter.ts` that calls both. | Puts the two helpers in round 1 and the adapter in round 2; dispatches both executors in one message, then runs `batch-pick.sh` for each in plan order and the 6.4 lens on each printed range. Fails if a round-1 executor writes in the slice's own tree. The adapter's round holds one batch, so it runs in the slice's writing tree by design (`references/parallel.md`); only a round of two or more batches needs batch trees. |
+| 30 | "Plan and run slice 1 of PROJ-160." | Three batches: a mask helper in `src/mask.ts`, a redact helper in `src/redact.ts`, and an adapter in `src/adapter.ts` that calls both. | Puts the two helpers in round 1 and the adapter in round 2; dispatches both executors in one message, then runs `batch-pick.sh` for each in plan order and the 6.3 lens on each printed range. Fails if a round-1 executor writes in the slice's own tree. The adapter's round holds one batch, so it runs in the slice's writing tree by design (`references/parallel.md`); only a round of two or more batches needs batch trees. |
 | 31 | "Continue the round." | Round 1's second batch conflicts with the first on a shared test fixture; `batch-pick.sh` exits 3. | Leaves the slice as `batch-pick.sh` restored it, records the missed overlap, and runs that batch again alone on the new tip before round 2. Fails if it skips the batch. |
 | 32 | "Plan the batches for slice 2." | Every batch crosses the seam of the one before it. | — |
-| 33 | "Run round 2 of slice 1." | Two batches picked; `batch-pick.sh` printed `a1..b2` and `b2..c3`. | Both calls come before 6.3. Fails if a note records a lens verdict with no call behind it. |
+| 33 | "Run round 2 of slice 1." | Two batches picked; `batch-pick.sh` printed `a1..b2` and `b2..c3`. | Both calls come before 6.5. Fails if a note records a lens verdict with no call behind it. |
 | 34 | "Pick round 1." | One of the round's two executors wrote `## BLOCKED`. | Reads both notes before any pick. |
 | 35 | "Claim s1 of PROJ-170." | This actor is `bob`. Wave 1 holds s1 and s2. On the same machine, `alice` claimed s1 4 ms earlier: her tree `slice-trees/PROJ-170-s1-alice` exists and her create-only push landed, so bob's create-only push is rejected. | Names `alice` as holder of s1 and routes again. Fails if it treats the slice as its own. |
 

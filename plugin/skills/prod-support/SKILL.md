@@ -64,12 +64,10 @@ Keep working evidence in **machine-local scratchpad outside the repo** — the `
 
 ## Rules
 
-- **Confirm before you commit.** Don't call something the cause — or fix it — until evidence confirms. A runbook that already pins the cause, or a prior ticket with the same root cause, *is* that evidence. If you can't evidence the cause, say so; state confidence as a number ("~85%") **and enumerate the evidence you have NOT examined** (unopened screenshots, unread logs, purged records). Keep "mechanism exists in code" separate from "this is what happened to these calls"; the latter needs records or screenshots.
+- **Confirm before you commit.** If you can't evidence the cause, say so; state confidence as a number ("~85%") **and enumerate the evidence you have NOT examined** (unopened screenshots, unread logs, purged records). Keep "mechanism exists in code" separate from "this is what happened to these calls"; the latter needs records or screenshots.
 - **Probe/repro must exercise bug path, not adjacent one.** Same observable output ≠ same root cause: exit code, empty result, or 500 can match for completely unrelated reasons. Before trusting probe's confirm/kill — or calling repro valid — confirm failing branch actually hit (assert on value only that branch produces, or instrument intermediate state). Check that turns green after fix but was red for wrong reason proves nothing.
-- **Test a probe before running it:** "what do I do differently for each possible result?" If every outcome leads to the same action, or none, skip it.
 - **Check the ticket's creation date against `Retention` before querying logs.** Past it, skip the logs and go straight to the longer-lived source, or mark logs unavailable.
 
-## When this skill has done its job — reflect twice
+## When this skill has done its job — reflect
 
-1. **On the issue.** Root cause evidenced (not guessed); fix shipped or queued with clear PR; findings recorded in local handover corpus; and — if API-reproducible — PII-free `.http` repro committed with fix PR. Fold any new domain lesson into matching runbook or the repo's context index in fix PR — that how next person inherits it. If step you ran late would have sped things up had you known sooner, pull it earlier next time.
-2. **On this skill.** Note where skill itself slowed you down or fell short — missing or wrong strategy, unclear step, probe order that wasted effort, something you had to work around. Surface to user with concrete proposed improvement, so skill keeps getting sharper. A missing client lever belongs in that client's `## Production support` section, not in this skill.
+Note where skill itself slowed you down or fell short — missing or wrong strategy, unclear step, probe order that wasted effort, something you had to work around. Surface to user with concrete proposed improvement, so skill keeps getting sharper. A missing client lever belongs in that client's `## Production support` section, not in this skill.

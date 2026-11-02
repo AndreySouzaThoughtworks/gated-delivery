@@ -94,14 +94,11 @@ This is gate before *first* render — but scope not set-once. Topic narrows or 
 
 ### 5. Render into the template
 
-Copy the template (`Template` from `## Artifact style`, else `templates/primer.html`) to output path, fill it. Rules baked into template — **do not regress**. The contrast rules, the spacing scale, and the banner and footer are grep-checked in `evals.md`. The radii, the SVG palette and the `<style>` block itself are checked by nothing, and hold only for as long as you keep `<style>` verbatim:
+Copy the template (`Template` from `## Artifact style`, else `templates/primer.html`) to output path, fill it. Rules baked into template — **do not regress**. The contrast rules, the spacing scale, the single Highlight, and the banner and footer are grep-checked in `evals.md` (step 6). The radii, the SVG palette and the `<style>` block itself are checked by nothing, and hold only for as long as you keep `<style>` verbatim:
 
 - Keep `<style>` block **verbatim**. Encodes the house style at WCAG-AA.
-- **Text** is Ink `#1C1E21` or Ink 2 `#5A6270`. Never pure black; never Muted (`#9AA3AF`) for text — fails AA.
-- **Accent** `#7AA7D6` is **non-text only** — borders, SVG strokes, arrowheads, key-box left rule. Never accent body/link text.
-- Exactly **one Highlight** `#E8590C` moment — header accent bar. No second.
-- Spacing on **4/8/12/16/24/32/48/64/96** scale. Card/container radius 8px; chips 4px (no full pills).
-- Keep the **internal-only banner** and the **disclosure footer** (`Disclosure`).
+- **Text** is Ink `#1C1E21` or Ink 2 `#5A6270`.
+- Card/container radius 8px; chips 4px (no full pills).
 - SVG diagrams: box titles `#1C1E21`, secondary text `#5A6270`, fills white / Subtle / Accent soft, strokes Accent.
 
 Brand questions beyond what template covers (surface template doesn't have)? Consult the `Brand skill` from `## Artifact style` when one is named — it owns tokens; template is its applied form. None named → stay inside the template's tokens.
@@ -117,14 +114,7 @@ For a team primer, commit it with a `docs({subject}): …` subject and publish i
 ## Boundaries
 
 - Never distribute a primer externally; it carries an internal-only banner, and external sharing is the user's explicit call.
-- Restyle through the client's `Brand skill` or `Template`, never by editing the `<style>` tokens by hand.
 
 ## Related skills
 
-- The `Brand skill` named in `## Artifact style` — owns the client's brand tokens; a client template is its WCAG-AA applied form.
 - Architecture skills listed under `## Domain references` — frequent *source* for architecture primers (provide findings; `/primer` renders them).
-- `templates/primer.html` — canonical neutral skeleton this skill fills when no client template is named.
-
-## Verification
-
-The contrast, style and structure checks live in `evals.md` under `## Deterministic Checks`; step 6 runs them.

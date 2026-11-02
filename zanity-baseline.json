@@ -515,22 +515,6 @@
       "classification": "existing"
     },
     {
-      "path": "plugin/hooks/guard-bash.mjs",
-      "line": 63,
-      "column": 7,
-      "severity": "error",
-      "rule": "assertion-density",
-      "message": "'main' has 0 assertions that can catch a bug; it needs at least 2.",
-      "fix": "Assert the state 'main' starts from and what it returns.",
-      "matching_total": null,
-      "next_offset": null,
-      "edit_start": null,
-      "edit_end": null,
-      "edit_text": null,
-      "id": "d4e3e7fe00ac6d94f18f0cab090b30421cc4866f6a66b64b6d260b2d0fe20d46",
-      "classification": "existing"
-    },
-    {
       "path": "plugin/hooks/lib/read-hook-input.mjs",
       "line": 6,
       "column": 14,
@@ -560,7 +544,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "bee1211c59f39d5dba21f600573f289594a0a9710d1805c2fcb8936065e69a64",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/skills/issue-writing/scripts/guardrail-scan.mjs",
@@ -576,7 +560,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "2c3c7a3a2b338ffbb54e8da1355fa53bbdf92e7626fe23fa5e2ef761403093a3",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/skills/slice/scripts/resolve-verify-cmd.mjs",
@@ -592,7 +576,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "db9d78eab4bb67558fce78469f4df262f3189b7f2c5e9432d117ab59ca66359f",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/skills/slice/scripts/resolve-verify-cmd.mjs",
@@ -608,7 +592,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "6c5199d5ed5c7e25025e43233a086c840d366f91d0d8eb558c1cb22888123596",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/skills/spec/scripts/spec-lint.mjs",
@@ -624,7 +608,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "2cde464c2d3aac66e370b91a47a02955424ce905e5c96b53b4ce68343a3aac10",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/skills/spec/scripts/spec-lint.mjs",
@@ -640,7 +624,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "9f57b86c464763a601a866e0939185ee6b29059aa492163afe4a2ff028946d6f",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "plugin/skills/spec/scripts/spec-lint.mjs",
@@ -656,7 +640,7 @@
       "edit_end": null,
       "edit_text": null,
       "id": "6d15748a78beee1e54fa474c99da2da61ab8e1f2e8ebb2532a4ea8a59e206041",
-      "classification": "new"
+      "classification": "existing"
     },
     {
       "path": "scripts/audit/consistency.mjs",

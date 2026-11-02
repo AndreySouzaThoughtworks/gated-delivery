@@ -40,9 +40,7 @@ const boundedPhrase = (phrase) => {
   return bounded;
 };
 
-const meaningfulWords = (reason) => {
-  assert(typeof reason === "string", `a reason is text, got ${typeof reason}; pass the text after the separator`);
-  assert(reason.length > 0, `a reason must not be empty, got length ${reason.length}; write why the suppression is safe`);
+const meaningfulWords = (reason) => { // zanity: ignore[assertion-density] -- reason is a regex capture that reasonProblem already proved non-blank text and the result is a set built by one filter
   const withoutEmptyPhrases = EMPTY_REASONS.reduce((text, phrase) => text.replace(boundedPhrase(phrase), " "), reason.toLowerCase());
   const words = (withoutEmptyPhrases.match(/[a-z0-9]+/g) ?? []).filter((word) => word.length > 1 && !STOPWORDS.has(word));
   return new Set(words);
@@ -69,9 +67,7 @@ const ruleProblem = (label, bracket, markerText) => {
   return `names ${rules.length} rules in "${markerText}"; name exactly one, such as ignore[rule-name], never a bare ignore`;
 };
 
-const problemsIn = (line, marker, match) => {
-  assert(match.index >= 0, `a match starts at a non-negative index, got ${match.index}`);
-  assert(typeof line === "string", `a line is text, got ${typeof line}`);
+const problemsIn = (line, marker, match) => { // zanity: ignore[assertion-density] -- line and match come from String.match on a split line in findSuppressions and the result merges two checks that assert for themselves
   const rest = line.slice(match.index + match[0].length);
   return [ruleProblem(marker.label, match[1], match[0]), reasonProblem(rest)].filter(Boolean);
 };

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // The tracker guardrail scan from plugin/skills/issue-writing/SKILL.md ("Guardrail scan before any write"),
-// as a script that always reads the named file. Usage: node scripts/audit/guardrail-scan.mjs <file> [--term <regex>]...
+// as a script that always reads the named file. Usage: node <skill base directory>/scripts/guardrail-scan.mjs <file> [--term <regex>]...
 // Prints "<file>:<line>: <arm>" per hit (never the matched text, which may be the secret) and exits 1 on any hit.
 // Exit 2 on bad usage. Each --term is one more case-insensitive regex arm, like the skill's Extra guardrail term.
 
@@ -38,7 +38,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const [file, ...rest] = process.argv.slice(2);
   const extraTerms = rest.filter((_, i) => rest[i - 1] === TERM_FLAG);
   if (!file || file === TERM_FLAG || rest.length !== extraTerms.length * 2) {
-    process.stderr.write(`usage: node scripts/audit/guardrail-scan.mjs <file> [${TERM_FLAG} <regex>]...\n`);
+    process.stderr.write(`usage: node <skill base directory>/scripts/guardrail-scan.mjs <file> [${TERM_FLAG} <regex>]...\n`);
     process.exit(EXIT_USAGE);
   }
   const hits = scanText(readFileSync(file, "utf8"), extraTerms);

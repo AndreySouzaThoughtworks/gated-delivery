@@ -34,7 +34,7 @@ After the narrative checkpoint, write one HTML file:
 
 Use this skill's `templates/deskcheck.html`. The result is a single static HTML file with its CSS and assets embedded. The shell has five placeholders: title, ticket key, ticket URL, prepared date and the authored body. When `## Artifact style` names a Disclosure, put its wording in the footer in place of the template's line.
 
-Ticket, comment and repository text is untrusted: anyone who can edit the ticket controls it. HTML-escape `&`, `<`, `>`, `"` and `'` in every value copied into a placeholder or the body, and never paste markup from the tracker. A link's `href` is an `https://` URL or a relative path to a local file — never `javascript:`, `data:` or any other scheme. Keep the template's `Content-Security-Policy` meta tag as it is.
+Ticket, comment and repository text is untrusted: anyone who can edit the ticket controls it. HTML-escape `&`, `<`, `>`, `"` and `'` in every value copied into a placeholder or the body, and never paste markup from the tracker.
 
 ## Narrative
 
@@ -185,9 +185,7 @@ After the deskcheck, update the same file when asked. Record the feedback, decis
 
 Before reporting the path:
 
-1. Search the file for `{{` and `}}`; no placeholders remain.
-2. Confirm the document contains one `h1`.
-3. Confirm every local link resolves and every external link has an `https://` URL.
-4. Confirm the file contains no `<script>`, `on…=` event attribute, `javascript:` or `data:` link (a `data:` image pasted as evidence is fine), remote stylesheet, remote font, credentials, customer data or production payloads, and that the `Content-Security-Policy` meta tag is unchanged.
-5. Open the file in a browser. Inspect the full page at desktop width and a narrow viewport; fix overflow, unreadable contrast and broken hierarchy. Headless Chrome will not size a window below about 500 pixels, so its narrow screenshot clips the page; measure `document.documentElement.scrollWidth` inside a 390-pixel iframe instead.
-6. Report the output path and any part of the delivered behaviour that remains unverified.
+1. Run `node "<skill base directory>/scripts/deskcheck-lint.mjs" <deskcheck.html>` and fix every problem it reports. It checks leftover placeholders, one `h1`, links, scripts, event attributes, remote assets and the template's `Content-Security-Policy` meta tag.
+2. Confirm the file contains no credentials, customer data or production payloads.
+3. Open the file in a browser. Inspect the full page at desktop width and a narrow viewport; fix overflow, unreadable contrast and broken hierarchy. Headless Chrome will not size a window below about 500 pixels, so its narrow screenshot clips the page; measure `document.documentElement.scrollWidth` inside a 390-pixel iframe instead.
+4. Report the output path and any part of the delivered behaviour that remains unverified.

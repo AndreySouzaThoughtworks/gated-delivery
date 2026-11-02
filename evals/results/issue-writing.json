@@ -1,5 +1,5 @@
 {
-  "hash": "591d1854858b712042c24d792a02e83a51b049f7f792d5c99d8f1883e8969441",
-  "waived": "removed prose that duplicates other text in the same skill or another skill and is not pinned by any eval scenario; no behavior change; live eval not run (issue-writing: scan and re-fetch bullets duplicate Publishing guardrail scan and Mutate safely; Story DoR paragraph duplicates the Task, Bug and intro text)",
-  "ranAt": "2026-11-02T14:06:44.006Z"
+  "hash": "a579905cdf5252103e38cdce3b001d30d9d4976a37a3d48e2414e6ead634c981",
+  "waived": "no live eval run: the check moved from skill prose into a script shipped under the skill, and the prose lines that stated the rules were removed",
+  "ranAt": "2026-11-02T18:27:18.146Z"
 }

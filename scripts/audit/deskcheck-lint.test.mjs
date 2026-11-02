@@ -5,11 +5,11 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { TEMPLATE_PATH, lintDeskcheck } from "./deskcheck-lint.mjs";
+import { TEMPLATE_PATH, lintDeskcheck } from "../../plugin/skills/deskcheck/scripts/deskcheck-lint.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE_DIR = join(HERE, "fixtures", "deskcheck");
-const LINT = join(HERE, "deskcheck-lint.mjs");
+const LINT = join(HERE, "..", "..", "plugin", "skills", "deskcheck", "scripts", "deskcheck-lint.mjs");
 const VALID = readFileSync(join(FIXTURE_DIR, "valid.html"), "utf8");
 const TEMPLATE = readFileSync(TEMPLATE_PATH, "utf8");
 const CSP_TAG = VALID.match(/<meta http-equiv="Content-Security-Policy"[^>]*>/)[0];

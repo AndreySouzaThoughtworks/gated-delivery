@@ -5,10 +5,10 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { lintSpec } from "./spec-lint.mjs";
+import { lintSpec } from "../../plugin/skills/spec/scripts/spec-lint.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const LINT = join(HERE, "spec-lint.mjs");
+const LINT = join(HERE, "..", "..", "plugin", "skills", "spec", "scripts", "spec-lint.mjs");
 const VALID = readFileSync(join(HERE, "fixtures", "valid-spec.md"), "utf8");
 const TEMPLATE = readFileSync(join(HERE, "..", "..", "plugin", "skills", "spec", "templates", "change.md"), "utf8");
 

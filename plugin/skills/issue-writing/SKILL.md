@@ -293,24 +293,11 @@ and say what you could not check. Relocated, never deleted, and never overwritte
 wording: syncing gives one decision two homes, and the consistency pass below then has nothing to
 prefer.
 
-**Guardrail scan before any write.** The tracker may be customer-visible, and org policy forbids PII, secrets, internal hostnames or infra names in it. Redact, or relocate to repo:
+**Guardrail scan before any write.** The tracker may be customer-visible, and org policy forbids PII, secrets, internal hostnames or infra names in it. Redact, or relocate to repo.
 
-```
-grep -niE -e "(password|passwd|pwd|secret|token|api[_-]?key)[\"']?[[:space:]]*[:=][[:space:]]*[^[:space:]]" \
-  -e 'bearer [a-z0-9._~+/-]{8,}' -e 'sk-(live|test)-[a-z0-9]{6,}' -e 'AKIA' -e '-----BEGIN' -e '/Users/' \
-  -e '[a-z][a-z0-9+.-]*://[^[:space:]/]*:[^[:space:]@]*@' -e 'mongodb\+srv' -e '\.internal([^a-z0-9-]|$)' \
-  -e '(^|[^0-9.])([0-9]{1,3}\.){3}[0-9]{1,3}([^0-9.]|$)' -e '[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}' \
-  -e '\+[0-9][0-9 ().-]{8,}' -e '(^|[^0-9])0[0-9]{2,4}[ .-]?[0-9]{6,8}([^0-9]|$)' \
-  -e '(^|[^0-9.-])[0-9]{3}[-.][0-9]{3}[-.][0-9]{4}([^0-9.-]|$)' <draft-file>
-```
+Run `node "<skill base directory>/scripts/guardrail-scan.mjs" <draft-file>` over the saved draft, every field included. Add each **Extra guardrail term** from `## Issue tracking` as `--term '<regex>'`. It prints `file:line: <what matched>` and exits 1 on any hit; redact or relocate every hit and run it again until it exits 0.
 
-The arms cover credentials given a value, connection strings carrying a user and password, hosts
-under `.internal`, IP addresses, emails and phone numbers. Credential words match only with a value
-after them, so the word "password" in a sentence explaining a redaction does not fire. Add each
-**Extra guardrail term** from `## Issue tracking` as one more `-e` arm. Run it over the saved draft, every field included. With no file named it waits on stdin and scans
-nothing.
-
-The grep is a floor, not the list. The list below is the plugin's one secrets and PII list; other skills apply it to their own artifacts. It is two tiers, and only one of them has an exception.
+The scan is a floor, not the list. The list below is the plugin's one secrets and PII list; other skills apply it to their own artifacts. It is two tiers, and only one of them has an exception.
 
 **Secrets and PII** — credentials, tokens and keys, connection strings, caller numbers, emails, conversation ids, IP and call addresses, transcript content, settings dumps, log bodies, production payloads, customer data and customer screenshots — never reach the tracker in any field, a restricted comment included. Redact them and put the value where secrets belong.
 

@@ -1,5 +1,5 @@
 {
-  "hash": "050ed632ef696b2396185515c33710f1bcbdf2c8c70d16552a38057187c11b2b",
-  "waived": "Behavior change: step 10 now requires user approval of the exact tracker comment text before posting (was posting after only the write-to-disk approval); step 3e reference renumbered to /slice 6.4. Also removed Related skills and 'does NOT do' sections that duplicate steps 1, 3, 6, 9, 10 and the top of the skill. Live eval not run.",
-  "ranAt": "2026-11-02T14:06:44.277Z"
+  "hash": "2498e828170547adb2facba738e5aa591c9348c3624d4d151c4247b2dd3d4cdf",
+  "waived": "no live eval run: the check moved from skill prose into a script shipped under the skill, and the prose lines that stated the rules were removed",
+  "ranAt": "2026-11-02T18:27:18.085Z"
 }

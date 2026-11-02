@@ -1,5 +1,5 @@
 {
-  "hash": "8265038ace61ab24e5ca3bdcb877823ff1c4dcecb46ee736b0519ef7e7b10034",
-  "waived": "removed prose that duplicates other text in the same skill or another skill and is not pinned by any eval scenario; no behavior change; live eval not run (deskcheck: verification items repeat steps 3, 7 and 10)",
-  "ranAt": "2026-11-02T14:06:44.052Z"
+  "hash": "b0d00effdcc2b379024a8b430349b37d377ff7339827080a2dfbf4166955de3f",
+  "waived": "no live eval run: the check moved from skill prose into a script shipped under the skill, and the prose lines that stated the rules were removed",
+  "ranAt": "2026-11-02T18:27:18.116Z"
 }

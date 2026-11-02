@@ -1,5 +1,5 @@
 {
-  "hash": "35e3d7b5dab0a21ae10f60ae270103dd9841d1789017dfd90d161eb4f9769c7f",
-  "waived": "Behavior changes against the last stamped version: step 6 renumbered (6.3 lens, 6.4 security, 6.5 suite after fixes, 6.6 PR) with every reference updated; the Stop-hook paragraph removed because that hook is retired; most of 'does NOT do' removed as duplicated, and the never-auto-merge limit restored as one sentence in the clean-up step. Live eval not run.",
-  "ranAt": "2026-11-02T16:19:41.809Z"
+  "hash": "1b456c760d5f9d9aacafb100b04c9ef7d0d250f7c6ac830c84245759ff724ccf",
+  "waived": "no live eval run: the check moved from skill prose into a script shipped under the skill, and the prose lines that stated the rules were removed",
+  "ranAt": "2026-11-02T18:27:18.176Z"
 }

@@ -1,0 +1,5 @@
+{
+  "hash": "d589d573c649f1f27b25b89d18ba92cd284d314d8ec8df8e1509c9e01459deb2",
+  "waived": "Removed principles relabeling, Origin, Related skills and Verification that restate Output format, spec/SKILL.md:185,268 and slice/SKILL.md:198-353; also two Rules bullets duplicating step 4 and the intro; not pinned by any eval scenario; no behavior change; live eval not run.",
+  "ranAt": "2026-11-02T14:05:40.491Z"
+}

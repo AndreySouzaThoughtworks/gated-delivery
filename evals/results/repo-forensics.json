@@ -1,0 +1,5 @@
+{
+  "hash": "9aaeafd937bd943eb505a1585bc26bf7ecfca9529e7084ed75e7cd47907c2992",
+  "waived": "Removed prose that duplicates docs/skill-graph.md, spec/SKILL.md:52,264 and slice/SKILL.md:52,390 (boundaries, related skills, verification restating steps above); Origin attribution kept; not pinned by any eval scenario; no behavior change; live eval not run.",
+  "ranAt": "2026-11-02T14:05:40.401Z"
+}

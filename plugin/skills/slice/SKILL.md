@@ -162,7 +162,7 @@ A slice that no longer meets its documented safety boundary requires Route B′ 
 
 Run 6.1–6.6 for every batch in the current slice. `## BLOCKED` still stops immediately; there is no human checkpoint between healthy batches.
 
-Immediately before each 6.1 dispatch, record `git rev-parse HEAD` in machine-local notes as `<batch-base>` — after any handoff commit, so a batch's range never carries one. It is the start of that batch's 6.4 range.
+Immediately before each 6.1 dispatch, record `git rev-parse HEAD` in machine-local notes as `<batch-base>` — after any handoff commit, so a batch's range never carries one. It is the start of that batch's 6.3 range.
 
 #### 6.1. Dispatch `slice-executor`
 
@@ -191,21 +191,21 @@ Read new entries from `notes-path`:
 
 A `PARTIAL` return leaves the AC in progress uncommitted; every complete AC is already committed. Before dispatching that batch again, set the unfinished work aside in its tree — `git -C <tree> stash push -u -m "slice {ticket-id} partial <batch>"`, kept, not dropped — so the executor starts clean from its last commit. Dispatch it again with the ACs it did not complete.
 
-#### 6.3. Run the repository test suite
-
-Run after 6.4 and 6.5, once their fixes are committed. Run `pnpm test` or the repository equivalent through the verify lock only when `HEAD` has moved past the executor's last verified commit — after round picks, or after 6.4 or 6.5 fix commits. Otherwise say "executor's per-AC verify already covers this tip" and skip. Fix and commit failures. The full verification command runs once at slice end.
-
-#### 6.4. Run `senior-review-lens` on the batch
+#### 6.3. Run `senior-review-lens` on the batch
 
 Unless the slice contains one batch, invoke `Skill(senior-review-lens)` with this batch's exact commit range: `<batch-base>..HEAD`, or the range `batch-pick.sh` printed in a round. **One `Skill` call per batch range**: a lens loaded for an earlier batch, or reviewed from memory, does not count, and no note may record a lens verdict for a range the skill was not invoked on. STOP if `senior-review-lens` is not found.
 
 Apply clear fixes in follow-up commits. Carry judgment calls to step 7.6. Report what each lens examined alongside its letter.
 
-#### 6.5. Run conditional code security review
+#### 6.4. Run conditional code security review
 
 When the batch changes an inbound controller or DTO, authorization, input handling, secrets, or an external outbound call, invoke the security reviewer named under `## Review routing` — default the built-in `/security-review` — in report-only, code-scan-only mode over this batch's files. Scope the dispatch to a code scan explicitly; fixes belong to the orchestrator. Include later ACs in the same slice so intentionally incomplete internal wiring is not mistaken for the final surface.
 
 Skip with one sentence for purely internal logic.
+
+#### 6.5. Run the repository test suite
+
+Run after 6.3 and 6.4, once their fixes are committed. Run `pnpm test` or the repository equivalent through the verify lock only when `HEAD` has moved past the executor's last verified commit — after round picks, or after 6.3 or 6.4 fix commits. Otherwise say "executor's per-AC verify already covers this tip" and skip. Fix and commit failures. The full verification command runs once at slice end.
 
 #### 6.6. Open or update the draft PR
 
@@ -371,25 +371,4 @@ Then complete Route F. **Every tracker write waits for approval:** each edit and
 
 ## What `/slice` does NOT do
 
-- Auto-merge PRs.
-- Put two writers in one working tree, or run a suite or verify outside the verify lock.
-- Author or silently revise Rollout during implementation; Routes R and B′ stop for spec publication.
-- Use working documents as a second copy of the tracker, GitHub, code, or the spec.
-- Create empty working-document scaffolds.
 - Change shared tooling or governance as an incidental part of a product ticket.
-
-## Failure modes
-
-- **Spec mismatch appears mid-slice:** stop and take Route B′.
-- **Stacked base is uncertain:** stop rather than audit or open a PR against the wrong range.
-- **Notes-repository push races:** merge remote `main`; never overwrite another ticket's working documents.
-
-## Related skills and agents
-
-- `/spec` — creates the spec and Rollout used by Routes A and R.
-- `Skill(repo-forensics)` — gates the trivial-change escape hatch.
-- `Skill(senior-review-lens)` — batch, slice, and ticket structural review.
-- `Agent(code-reviewer)` — fresh-context correctness gate for every slice PR.
-- `Agent(slice-executor)` — mechanical TDD worker for each functional batch.
-- Stack validators — once per slice; the `## Review routing` security reviewer additionally handles batch code scans and dependency-scoped slice scans.
-- [`references/parallel.md`](references/parallel.md) — parallel waves, batch rounds, and their resume.

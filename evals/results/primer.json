@@ -1,0 +1,5 @@
+{
+  "hash": "14356ca7c605c9920e0197d17cd9b1988e1aa9dcc322d8193e226d014cf92f44",
+  "waived": "removed prose that duplicates other text in the same skill or another skill and is not pinned by any eval scenario; no behavior change; live eval not run (primer: token bullets repeat the evals.md grep checks, Boundaries/Related/Verification repeat steps 5 and 6)",
+  "ranAt": "2026-11-02T14:06:44.144Z"
+}

@@ -30,7 +30,7 @@ const writeIn = (dir, name, body) => {
   assert(existsSync(join(dir, name)), `${name} must exist after the write, got none in ${dir}`);
 };
 
-const makeRepo = ({ dirty, pkg = true, lint = "true" }) => {
+const makeRepo = ({ dirty, pkg = true, lint = "true", scripts = { lint } }) => {
   assert(lint.length > 0, `the lint script must not be blank, got ${JSON.stringify(lint)}; name a command`);
   const dir = tempDir(TEMP_PREFIX, "test");
   git(dir, ["init", "-q", "--template="]);
@@ -38,7 +38,7 @@ const makeRepo = ({ dirty, pkg = true, lint = "true" }) => {
   git(dir, ["config", "user.name", "t"]);
   git(dir, ["config", "commit.gpgsign", "false"]);
   writeIn(dir, "file.ts", "const one = 1;\n");
-  if (pkg) writeIn(dir, "package.json", JSON.stringify({ scripts: { lint } }));
+  if (pkg) writeIn(dir, "package.json", JSON.stringify({ scripts }));
   git(dir, ["add", "."]);
   git(dir, ["commit", "-qm", "init"]);
   if (dirty) writeIn(dir, "file.ts", "const two = 2;\n");
@@ -364,6 +364,35 @@ test("no-ops when the repo has no lint script", () => {
   const dir = makeRepo({ dirty: true });
   writeIn(dir, "package.json", JSON.stringify({ scripts: {} }));
   assert.equal(run(dir), null);
+});
+
+const FAILING_SCRIPT = "exit 1";
+
+const defaultGateReason = (scripts) => {
+  assert(Object.keys(scripts).length > 0, `the fixture needs at least one script, got ${JSON.stringify(scripts)}; name one`);
+  const result = run(makeRepo({ dirty: true, scripts }));
+  assert(result?.decision === "block", `a failing default script must block, got ${JSON.stringify(result)} for scripts ${JSON.stringify(scripts)}`);
+  return result.reason;
+};
+
+test("with only a check script the default gate runs pnpm check", () => {
+  assert.match(defaultGateReason({ check: FAILING_SCRIPT }), /\(`pnpm check`\)/);
+});
+
+test("check wins over lint and test in the default gate", () => {
+  assert.match(defaultGateReason({ test: FAILING_SCRIPT, lint: FAILING_SCRIPT, check: FAILING_SCRIPT }), /\(`pnpm check`\)/);
+});
+
+test("with only a lint script the default gate runs pnpm lint", () => {
+  assert.match(defaultGateReason({ lint: FAILING_SCRIPT }), /\(`pnpm lint`\)/);
+});
+
+test("with only a test script the default gate runs pnpm test", () => {
+  assert.match(defaultGateReason({ test: FAILING_SCRIPT }), /\(`pnpm test`\)/);
+});
+
+test("with none of check, lint, test the default gate stands down", () => {
+  assert.equal(run(makeRepo({ dirty: true, scripts: { build: FAILING_SCRIPT } })), null);
 });
 
 test("no package.json stands the gate down even with an explicit non-pnpm override", () => {

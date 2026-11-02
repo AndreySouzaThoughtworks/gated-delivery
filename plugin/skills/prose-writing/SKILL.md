@@ -100,34 +100,4 @@ Name the unit too, where the prose was someone else's: _"read: 6 files whole"_ a
 
 The rule is in `writing.md`. Which one you are holding decides the check: a living doc fails if it records what _was_ true, a dated record fails if you edit it to match what is true now.
 
-| Writing | Then |
-| --- | --- |
-| documentation, agent instructions, skills, a spec in flight | drop completed items, drop the history of the rule |
-| a changelog, commit body, archived spec, handover note | leave it as written, and exclude it from repo-wide sweeps |
-
 A tone, wording or style fix is an edit. Asked to fix the tone of a released changelog entry, leave the entry as written and say why.
-
-## Worked example
-
-A commit body carrying the conversation instead of the change:
-
-```
-Worth noting this is the inverse of the caching change — we debated
-whether to gate it per batch or at slice end, and slice end won because
-a security finding costs more than a style finding. Doesn't use the
-supply-chain recipe. Placement here rather than in the loop reads better.
-```
-
-The pass: announcing frame ("Worth noting"), conversation residue (the debate, its resolution), negative space ("Doesn't use"), self-commentary ("reads better"), negation-contrast ("rather than").
-
-```
-The dependency scan moves to 7.1 behind a manifest check. It is
-dependency-scoped, so it costs the same once per slice as it does once
-per batch.
-```
-
-## Scope
-
-The pass runs on prose. Code identifiers, test descriptions and commit _types_ answer to their own conventions — `senior-review-lens` covers test naming and structural cohesion, the stack recipes cover identifiers.
-
-A test title stays out of the pass as prose and comes into it as a neighbour: a comment above an `it()` is judged against the title below, so the title is read even where it is not edited.

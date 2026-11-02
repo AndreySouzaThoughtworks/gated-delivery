@@ -30,6 +30,8 @@ const RELAXED_TEST_RULES = '["filesystem-in-test", "process-in-test"]';
 const SELECT_ALL = 'select = ["all"]';
 const STRICT_ZANITY_CONFIG = `exclude = ["tests/fixtures/", "evals/fixtures/"]\n[rules]\n${SELECT_ALL}\n[${TEST_FILES_TABLE}]\ndisable = ${RELAXED_TEST_RULES}\n`;
 
+const ONE_SCENARIO = "## Test Scenarios\n\n| # | Prompt |\n|---|---|\n| 1 | a |\n\n";
+
 /** A fixture the guard must accept: 1 skill, 1 agent, 1 hook, all documented. */
 const validRepo = () => {
   const dir = mkdtempSync(join(tmpdir(), "gated-delivery-guard-test-"));
@@ -38,7 +40,7 @@ const validRepo = () => {
   write(
     dir,
     "plugin/skills/alpha/evals.md",
-    "| Signal | How to Measure |\n|---|---|\n| x | `grep -c foo out` |\n\n## Deterministic Checks\n\n```bash\n# expect: manual\ngrep -c foo output.md\n```\n",
+    ONE_SCENARIO + "| Signal | How to Measure |\n|---|---|\n| x | `grep -c foo out` |\n\n## Deterministic Checks\n\n```bash\n# expect: manual\ngrep -c foo output.md\n```\n",
   );
   write(dir, "plugin/agents/bot.md", "---\nname: bot\ndescription: x\n---\n");
   write(dir, "plugin/hooks/h.mjs", "process.exit(0);\n");
@@ -222,7 +224,7 @@ test("an explicit gated-delivery: prefix resolves against the local inventory", 
 
 test("warns on a skill whose evals carry no runnable fence", () => {
   const dir = validRepo();
-  write(dir, "plugin/skills/alpha/evals.md", "| Signal | How to Measure |\n|---|---|\n| x | `grep -c foo out` |\n");
+  write(dir, "plugin/skills/alpha/evals.md", ONE_SCENARIO + "| Signal | How to Measure |\n|---|---|\n| x | `grep -c foo out` |\n");
   const { code, out } = runGuard(dir);
   assert.equal(code, 0, "a missing fence is judgment work, not drift — WARN, never ERROR");
   assert.match(out, /skill "alpha" has no runnable "## Deterministic Checks" fence/);
@@ -233,7 +235,7 @@ test("warns, without failing, on a check that carries no expect line", () => {
   write(
     dir,
     "plugin/skills/alpha/evals.md",
-    "## Deterministic Checks\n\n```bash\n# Counts foo.\ngrep -c foo output.md\n# Graded.\n# expect: >=1 on 1\ngrep -c bar output.md\n```\n",
+    ONE_SCENARIO + "## Deterministic Checks\n\n```bash\n# Counts foo.\ngrep -c foo output.md\n# Graded.\n# expect: >=1 on 1\ngrep -c bar output.md\n```\n",
   );
   const { code, out } = runGuard(dir);
   assert.equal(code, 0, "a missing expectation is a WARN, never an ERROR");
@@ -244,7 +246,7 @@ test("warns, without failing, on a check that carries no expect line", () => {
 test("a heading with no fence under it does not count as coverage", () => {
   // Grepping for the heading called this skill covered while the runner parsed zero checks from it.
   const dir = validRepo();
-  write(dir, "plugin/skills/alpha/evals.md", "## Deterministic Checks\n\nComing soon.\n");
+  write(dir, "plugin/skills/alpha/evals.md", ONE_SCENARIO + "## Deterministic Checks\n\nComing soon.\n");
   assert.match(runGuard(dir).out, /skill "alpha" has no runnable/);
 });
 
@@ -258,14 +260,14 @@ test("warns on an unescaped pipe inside a table-cell code span", () => {
   // The defect that survived three review rounds: GFM reads the pipe as a column separator, so the
   // command renders truncated; escaping it as \| fixes rendering but breaks the raw text.
   const dir = validRepo();
-  write(dir, "plugin/skills/alpha/evals.md", '| x | `grep -iEc "foo|bar" out` |\n');
+  write(dir, "plugin/skills/alpha/evals.md", ONE_SCENARIO + '| x | `grep -iEc "foo|bar" out` |\n');
   assert.match(runGuard(dir).out, /unescaped "\|" in a table-cell code span/);
 });
 
 test("warns when a measure is keyed on one of the skill's own headings", () => {
   // Such a measure fires on any output of that shape, including a run that failed the scenario.
   const dir = validRepo();
-  write(dir, "plugin/skills/alpha/evals.md", '| x | `grep -c -e "Heading One" out` |\n');
+  write(dir, "plugin/skills/alpha/evals.md", ONE_SCENARIO + '| x | `grep -c -e "Heading One" out` |\n');
   assert.match(runGuard(dir).out, /measure "heading one" also appears in SKILL\.md heading/);
 });
 
@@ -276,7 +278,7 @@ test("warns when a check inside the fence is keyed on one of the skill's own hea
   write(
     dir,
     "plugin/skills/alpha/evals.md",
-    "| Signal | How to Measure |\n|---|---|\n| x | y |\n\n## Deterministic Checks\n\n```bash\ngrep -iEc \"heading one\" output.md\n```\n",
+    ONE_SCENARIO + "| Signal | How to Measure |\n|---|---|\n| x | y |\n\n## Deterministic Checks\n\n```bash\ngrep -iEc \"heading one\" output.md\n```\n",
   );
   assert.match(runGuard(dir).out, /check keyed on "heading one", also in SKILL\.md heading/);
 });
@@ -288,7 +290,7 @@ test("a `## ` comment inside the fence does not hide the checks after it", () =>
   write(
     dir,
     "plugin/skills/alpha/evals.md",
-    "| Signal | How to Measure |\n|---|---|\n| x | y |\n\n## Deterministic Checks\n\n```bash\n## a shell comment that looks like a heading\ngrep -iEc \"heading one\" output.md\n```\n",
+    ONE_SCENARIO + "| Signal | How to Measure |\n|---|---|\n| x | y |\n\n## Deterministic Checks\n\n```bash\n## a shell comment that looks like a heading\ngrep -iEc \"heading one\" output.md\n```\n",
   );
   assert.match(runGuard(dir).out, /check keyed on "heading one"/);
 });
@@ -298,7 +300,7 @@ test("a fence check marked heading-match-intended is left alone", () => {
   write(
     dir,
     "plugin/skills/alpha/evals.md",
-    "| Signal | How to Measure |\n|---|---|\n| x | y |\n\n## Deterministic Checks\n\n```bash\ngrep -iEc \"heading one\" output.md   # heading-match-intended\n```\n",
+    ONE_SCENARIO + "| Signal | How to Measure |\n|---|---|\n| x | y |\n\n## Deterministic Checks\n\n```bash\ngrep -iEc \"heading one\" output.md   # heading-match-intended\n```\n",
   );
   assert.doesNotMatch(runGuard(dir).out, /check keyed on/);
 });
@@ -309,7 +311,7 @@ test("a structured fence pattern is not read as a bare heading word", () => {
   write(
     dir,
     "plugin/skills/alpha/evals.md",
-    "| Signal | How to Measure |\n|---|---|\n| x | y |\n\n## Deterministic Checks\n\n```bash\ngrep -iEc \"heading one (a|b)\" output.md\n```\n",
+    ONE_SCENARIO + "| Signal | How to Measure |\n|---|---|\n| x | y |\n\n## Deterministic Checks\n\n```bash\ngrep -iEc \"heading one (a|b)\" output.md\n```\n",
   );
   assert.doesNotMatch(runGuard(dir).out, /check keyed on/);
 });
@@ -319,7 +321,7 @@ test("does not warn on a measure that avoids the skill's headings", () => {
   write(
     dir,
     "plugin/skills/alpha/evals.md",
-    '| x | `grep -c -e "unrelated token" out` |\n\n## Deterministic Checks\n\n```bash\n# expect: manual\ngrep -c foo output.md\n```\n',
+    ONE_SCENARIO + '| x | `grep -c -e "unrelated token" out` |\n\n## Deterministic Checks\n\n```bash\n# expect: manual\ngrep -c foo output.md\n```\n',
   );
   const { code, out } = runGuard(dir);
   assert.doesNotMatch(out, /WARN/, "a clean measure must not warn");
@@ -510,7 +512,7 @@ test("warns when a skill or agent file uses a phrase banned by the writing rules
 test("the prose-writing skill may name the phrases it bans", () => {
   const dir = validRepo();
   write(dir, "plugin/skills/prose-writing/SKILL.md", "---\nname: prose-writing\ndescription: x\n---\n\ngrep 'earns its place|load-bearing'\n");
-  write(dir, "plugin/skills/prose-writing/evals.md", "## Deterministic Checks\n\n```bash\ngrep -c foo output.md\n```\n");
+  write(dir, "plugin/skills/prose-writing/evals.md", ONE_SCENARIO + "## Deterministic Checks\n\n```bash\ngrep -c foo output.md\n```\n");
   write(dir, "plugin/skills/prose-writing/writing.md", "- the phrases \"earns its place\" and \"load-bearing\"\n");
   write(dir, "README.md", "The plugin — 2 skills, 1 agents, 1 hooks.\n");
   write(dir, "docs/skill-graph.md", "| `/alpha` | a skill |\n| `/prose-writing` | prose |\n| `bot` | an agent |\n| `h.mjs` | a hook |\n");
@@ -539,6 +541,7 @@ test("zanity is a required check and its config cannot be loosened", () => {
     "a second paths table": `${STRICT_ZANITY_CONFIG}[paths."tests/e2e/"]\ndisable = ["process-in-test"]\n`,
     "a dotted paths key at the top level": `paths."plugin/".disable = ["assertion-density"]\n${STRICT_ZANITY_CONFIG}`,
     "a single-quoted rule the guard cannot read": STRICT_ZANITY_CONFIG.replace(SELECT_ALL, `${SELECT_ALL}\ndisable = ['assertion-density']`),
+    "a byte order mark": `\uFEFF${STRICT_ZANITY_CONFIG}`,
     "an extra excluded path": STRICT_ZANITY_CONFIG.replace('"evals/fixtures/"', '"evals/fixtures/", "plugin/"'),
   };
   for (const [label, config] of Object.entries(loosened)) {
@@ -578,6 +581,15 @@ test("rejects a repeated scenario id", () => {
   const rows = "| # | Prompt |\n|---|---|\n| 1 | a |\n| 3 | b |\n| 3 | c |\n";
   write(dir, "plugin/skills/alpha/evals.md", `## Test Scenarios\n\n${rows}\n## Deterministic Checks\n\n\`\`\`bash\n# expect: manual\ngrep -c foo output.md\n\`\`\`\n`);
   mustReject(dir, /alpha\/evals\.md repeats scenario id 3\. Hint:/);
+});
+
+test("rejects an evals.md with no scenario row, whether the section is empty or missing", () => {
+  const withoutRows = ["## Test Scenarios\n\n| # | Prompt |\n|---|---|\n\n## Deterministic Checks\n", "## Deterministic Checks\n"];
+  for (const body of withoutRows) {
+    const dir = validRepo();
+    write(dir, "plugin/skills/alpha/evals.md", body);
+    mustReject(dir, /alpha\/evals\.md has no scenario row under "## Test Scenarios"\. Hint: add one table row/);
+  }
 });
 
 test("rejects a script path that does not resolve, and a skill script that is not executable", () => {
@@ -721,7 +733,7 @@ test("the stamp check is skipped when GATED_DELIVERY_BASE_REF is unset", () => {
 });
 
 test("a skill nobody changed, or whose only change is evals.md, needs no stamp", () => {
-  const evalsOnly = featureBranchEditing("plugin/skills/alpha/evals.md", "| Signal | How to Measure |\n|---|---|\n| x | `grep -c foo out` |\n\n## Deterministic Checks\n\n```bash\n# expect: manual\ngrep -c bar output.md\n```\n");
+  const evalsOnly = featureBranchEditing("plugin/skills/alpha/evals.md", ONE_SCENARIO + "| Signal | How to Measure |\n|---|---|\n| x | `grep -c foo out` |\n\n## Deterministic Checks\n\n```bash\n# expect: manual\ngrep -c bar output.md\n```\n");
   const edited = runGuard(evalsOnly, { GATED_DELIVERY_BASE_REF: BASE_REF });
   assert.equal(edited.code, 0, edited.out);
   const untouched = featureBranchEditing("docs/note.md", "note\n");

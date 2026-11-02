@@ -1,0 +1,5 @@
+{
+  "hash": "cd053416c2bc9c9e82b12f2ea94f2b47fb4a1d7914f2df4cfd8770515ab11b2a",
+  "waived": "removed prose that duplicates other text in the same skill or another skill and is not pinned by any eval scenario; no behavior change; live eval not run (learn-flow: invoke table repeats the description, default-to-drop repeated)",
+  "ranAt": "2026-11-02T14:06:44.233Z"
+}

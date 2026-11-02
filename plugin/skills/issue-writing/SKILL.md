@@ -140,15 +140,8 @@ table, the Definition of Ready and the Definition of Done — belongs to Story a
 - Give every reference a resolvable URL and a line saying why it matters; build ticket links from the
   `## Issue tracking` Ticket URL template when one is set. A reader who has to open the link to
   understand the ticket is reading an incomplete ticket.
-- Scan for secrets, personal data, customer identifiers and internal detail before anything reaches
-  the tracker.
 - Show the complete proposed text and get approval before any write — for every artifact the write
   touches, the spec or design note that receives relocated detail included.
-- Re-fetch after every mutation and confirm it landed as intended.
-
-Do not carry the Story Definition of Ready or Definition of Done onto another kind. AC coverage
-across every test layer, a coverage target, observability, deployment, stakeholder acceptance and
-sprint demonstration are Story obligations, not universal ones.
 
 ## Task
 

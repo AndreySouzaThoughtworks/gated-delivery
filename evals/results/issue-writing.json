@@ -1,0 +1,5 @@
+{
+  "hash": "591d1854858b712042c24d792a02e83a51b049f7f792d5c99d8f1883e8969441",
+  "waived": "removed prose that duplicates other text in the same skill or another skill and is not pinned by any eval scenario; no behavior change; live eval not run (issue-writing: scan and re-fetch bullets duplicate Publishing guardrail scan and Mutate safely; Story DoR paragraph duplicates the Task, Bug and intro text)",
+  "ranAt": "2026-11-02T14:06:44.006Z"
+}

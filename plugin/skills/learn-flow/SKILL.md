@@ -10,15 +10,7 @@ Default to **drop**. Each candidate _presumed dropped_ until it clear keep-bar b
 
 ## When to invoke
 
-| Trigger                                                                | Pass                                 |
-| ---------------------------------------------------------------------- | ------------------------------------ |
-| User types `/learn-flow`                                               | Full pass                            |
-| User says "what did we learn", "lessons learned", "let's capture this" | Full pass                            |
-| End of a `/slice` or `/spec` session that hit non-trivial friction     | Full pass                            |
-| A fix whose root cause was non-obvious                                 | Quick pass (1 item)                  |
-| Routine session, no surprises                                          | Skip — no capture is a valid outcome |
-
-No auto-fire on every mid-session correction — note silently, surface in next full pass.
+Run a full pass on the triggers in the description. Run a quick pass (1 item) after a fix whose root cause was non-obvious. A routine session with no surprises needs no pass. No auto-fire on every mid-session correction — note silently, surface in next full pass.
 
 ## Step 1 — Reflect (start from the null)
 
@@ -28,11 +20,11 @@ Scan adversarially. For each thing that nag — gotcha, correction, sequence tha
 
 After a `/slice` session, scan two places for the ticket(s) worked. **The Local notes home** — `## Delivery notes` in the client's CLAUDE.md, default `~/.local/state/gated-delivery/` — holds the executor's raw entries: assumptions, surprises, deviations, `## REFACTOR-NOTE`s. **`handoff.md` in the Shared notes home** — same section, default `docs/gated-delivery/{ticket-id}/` — holds what `/slice` step 7.6 promoted out of those notes: evidenced carry-forward items and the decisions taken at each slice-end checkpoint. Both are ready-made evidence you otherwise miss; the notes are richer, the handoff is what survived.
 
-If nothing overturn null in 30 seconds, say so and stop. Typing `/learn-flow` does **not** obligate capture — "nothing this time" = common, correct outcome.
+If nothing overturn null in 30 seconds, say so and stop.
 
 ## Step 2 — Apply the keep-bar (drop is the default)
 
-Each candidate **presumed dropped**. Survive only if clear **both** gates — name evidence and mechanism inline, so reader can check work:
+Survive only if clear **both** gates — name evidence and mechanism inline, so reader can check work:
 
 - **Evidence.** Point to concrete moment it happened — exact correction, agent-notes or `handoff.md` line, error/stack, command that failed. No pointer → vibe → drop.
 - **Mechanism.** Name _why this bite again_ — structural cause in tool/repo/flow, not accident of this session. Test: _"would next person on same path hit same wall, because of how things are built?"_ If depend on this session specifics (transient flake, one-time bad merge) → drop. Prior sighting (matching agent-notes entry, memory file, "second time I hit this") = _strongest_ corroboration — bonus, not requirement.
@@ -104,7 +96,3 @@ No empty headings. Render section only for something that survived. Print just t
 - **Client / Repo / Personal prose** → `Edit` target CLAUDE.md on exact section. Show one-line diff.
 
 After each action, confirm in one line: `<target> — <created/updated/filed>`.
-
-## Anti-patterns
-
-- **Keeping the plausible-but-marginal.** The failure mode is not ten obvious-junk items; it is one tidy-sounding lesson with no structural cause behind it. This is the trap to watch.

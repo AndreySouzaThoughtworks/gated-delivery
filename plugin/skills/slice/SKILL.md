@@ -43,8 +43,6 @@ When the Shared notes home is a separate repository — the **notes repository**
 
 **Notes-repository preconditions.** Before any working-document read or write, verify that checkout: working tree clean and HEAD on `main`. Any other state — STOP and surface it. Never pull, commit, or push into a checkout sitting on an unrelated branch.
 
-**Automatic verification floor.** When uncommitted changes exist, the Stop hook runs the `## Verification` Verify command (else `pnpm lint`), through the same verify lock. Slice-end verification and fresh-context correctness review remain required.
-
 ## Process
 
 ### 0. Trivial-change escape hatch

@@ -18,7 +18,7 @@ This repo is **both** marketplace and plugin: the marketplace manifest lives at 
 
 | Path | What |
 |------|------|
-| `plugin/` | The plugin — 12 skills, 2 agents, 3 hooks, 2 commands. Inventory and call graph: [docs/skill-graph.md](docs/skill-graph.md). |
+| `plugin/` | The plugin — 12 skills, 2 agents, 2 hooks, 2 commands. Inventory and call graph: [docs/skill-graph.md](docs/skill-graph.md). |
 | `.claude-plugin/marketplace.json` | Marketplace manifest; points at `./plugin`. |
 | `docs/` | [onboarding](docs/onboarding.md) · [skill-graph](docs/skill-graph.md) · [evals](docs/evals.md) · [client-context](plugin/references/client-context.md) |
 | `scripts/` | `leak-guard.sh`, the consistency guard (`audit/`) and the eval tools (`eval/`). |
@@ -77,4 +77,4 @@ Each skill's `evals.md` holds scenarios and a `## Deterministic Checks` fence. C
 
 Login-bound tests skip with exit 3 when the profile is not logged in. Point them at another profile with `GATED_DELIVERY_TEST_PROFILE=~/.claude-<name>`.
 
-The verification gate (`verify-on-stop` hook) runs the repo's own lint at turn-end. Knobs: [docs/onboarding.md](docs/onboarding.md#knobs-environment-variables).
+Turn-end verification is the `overwatch` plugin's job: [docs/onboarding.md](docs/onboarding.md#install-overwatch-for-turn-end-verification). Knobs: [docs/onboarding.md](docs/onboarding.md#knobs-environment-variables).

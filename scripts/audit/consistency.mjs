@@ -537,7 +537,7 @@ if (new Set(manifestVersions.map(([, version]) => version)).size > 1) {
 }
 
 // --- 16. Every GATED_DELIVERY_ variable the code reads is documented ---
-// A knob nobody can find is not a knob: verify-on-stop and run-scenarios each read a variable that
+// A knob nobody can find is not a knob: run-scenarios once read a variable that
 // no markdown named until this check existed.
 const ENV_VAR = /GATED_DELIVERY_[A-Z0-9_]+/g;
 const SOURCE_EXTENSIONS = [".mjs", ".sh"];

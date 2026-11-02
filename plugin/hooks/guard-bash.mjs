@@ -14,73 +14,9 @@
 // Those are the accidents this exists to catch, and each one has a row in guard-bash.test.mjs.
 
 import { readFileSync } from "node:fs";
+import { evaluate } from "./lib/guard-core.mjs";
 
-// Target may be quoted and may carry a trailing slash: `rm -rf "$HOME"` and `rm -rf ~/` are the
-// same catastrophe as `rm -rf $HOME`. Demanding whitespace-or-end straight after the target let
-// both through.
-const HOME_OR_ROOT = /['"]?(\/|~|\$HOME|\/\*)\/?['"]?(\s|$)/.source;
-// main/master must be a whole ref, not a substring. Every character that can legally sit against a
-// ref name has to be in these classes or the guard is bypassable: `/` for `refs/heads/main`, `:` for
-// `HEAD:main`, and quotes for `'main'`. The trailing class is what keeps `fix/main-menu` and
-// `release/main-line` allowed — those continue with `-`, so they never close the match.
-const PROTECTED_REF = /([\s/:'"]|^)(main|master)([\s'"]|$)/.source;
-// `git push origin +main` force-pushes with no --force flag at all. Same catastrophe, different
-// spelling, and the flag-based patterns below cannot see it.
-const PLUS_FORCE = /\bgit\s+push\b[^|&;]*\s\+(\S*[\s/:])?(main|master)([\s'"]|$)/;
-
-const CATASTROPHIC = [
-  {
-    // Recursive and force may come combined (`-Rf`), split (`-r -f`) or long (`--recursive --force`),
-    // in any order, so each is a separate lookahead over the same command segment.
-    pattern: new RegExp(
-      /\brm\b(?=[^|&;]*\s(-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)\b)(?=[^|&;]*\s(-[a-zA-Z]*f[a-zA-Z]*|--force)\b)[^|&;]*\s/
-        .source + HOME_OR_ROOT,
-    ),
-    why: "recursive force-delete targeting / , ~ , $HOME, or /*",
-  },
-  {
-    pattern: new RegExp(/\bgit\s+push\b[^|&;]*(--force|-f)\b[^|&;]*/.source + PROTECTED_REF),
-    why: "force-push to main/master",
-  },
-  {
-    pattern: new RegExp(
-      /\bgit\s+push\b[^|&;]*/.source + PROTECTED_REF + /[^|&;]*(--force|-f)\b/.source,
-    ),
-    why: "force-push to main/master",
-  },
-  {
-    pattern: PLUS_FORCE,
-    why: "force-push to main/master (via the +ref refspec)",
-  },
-  {
-    pattern: /:\s*\(\s*\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;\s*:/,
-    why: "fork bomb",
-  },
-];
-
-const EXIT_OK = 0;
-
-const main = () => {
-  let input = {};
-  try {
-    input = JSON.parse(readFileSync(0, "utf8"));
-  } catch {
-    process.exit(EXIT_OK);
-  }
-  const command = input?.tool_input?.command ?? "";
-  const blocked = CATASTROPHIC.find(({ pattern }) => pattern.test(command));
-  if (blocked) {
-    process.stdout.write(
-      JSON.stringify({
-        hookSpecificOutput: {
-          hookEventName: "PreToolUse",
-          permissionDecision: "deny",
-          permissionDecisionReason: `Blocked by gated-delivery guard: ${blocked.why}. If this is genuinely intended, run it outside the agent or adjust the command.`,
-        },
-      }),
-    );
-  }
-  process.exit(EXIT_OK);
-};
-
-main();
+const result = evaluate(() => readFileSync(0, "utf8"), process.env);
+process.stdout.write(result.stdout);
+process.stderr.write(result.stderr);
+process.exit(result.status);

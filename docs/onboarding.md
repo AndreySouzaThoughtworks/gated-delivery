@@ -42,6 +42,7 @@ Add the sections the client needs to its CLAUDE.md (a folder-level CLAUDE.md abo
 | `GATED_DELIVERY_VERIFY_CMD` | unset | Verify command `/slice` and `code-reviewer` run. Without it they read the `## Verification` Verify command from the nearest folder-level CLAUDE.md above the repo (a repo's own CLAUDE.md is ignored, since a cloned repo controls it), else the repo's own checks. |
 | `GATED_DELIVERY_RUN_TIMEOUT_SECONDS` | `1200` | Wall-clock budget for one eval run in `scripts/eval/run-scenarios.mjs`; a run past it is stopped and flagged as a harness failure. |
 | `GATED_DELIVERY_RUN_MODEL` | unset | Model passed as `--model` to each eval run in `scripts/eval/run-scenarios.mjs`. The `--model` flag wins. |
+| `GATED_DELIVERY_GUARD` | unset | Set to `off` only when the Bash guard itself is broken and blocks every command: it then allows everything, so unset it once the guard is fixed. Set it in the environment that starts Claude Code; writing it inside a command does nothing. |
 | `GATED_DELIVERY_BASE_REF` | `origin/main` for `changed-skills.mjs`; unset for the guard | Git ref a skill change is measured against. The consistency guard checks eval stamps only when it is set; CI sets it on pull requests. |
 
 ## What runs automatically (hooks — zero setup)
@@ -57,6 +58,16 @@ gated-delivery has no Stop gate. The `overwatch` plugin replaces it:
 ```
 
 overwatch runs the repo's tests in watch mode and hands failures back to the agent. It keeps completion guarded while the build is red, ignores findings the repo already had (the baseline), and can gate protected actions such as pushing through `.overwatch.json`. When `zanity` is on `PATH` it runs zanity beside the tests and treats any zanity error or warning as a failure.
+
+### When an agent is stuck on a failure it cannot fix
+
+If a red build is one the agent cannot fix (a broken environment, a failure outside the repo), overwatch keeps completion guarded, so the agent cannot finish. Put this in `.overwatch.json` at the project root:
+
+```json
+{ "enabled": false }
+```
+
+It turns overwatch off for the project, and that includes the zanity watcher. Treat it as a change that needs review: `plugin/bootstrap/guards/rules-about-rules.mjs`, which ships to client repos, fails a repo whose `.overwatch.json` sets `"enabled": false`. Remove the file once the build is fixed.
 
 ## Daily use
 

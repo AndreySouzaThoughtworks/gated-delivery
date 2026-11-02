@@ -43,7 +43,7 @@ This repo is **both** marketplace and plugin: the marketplace manifest lives at 
 | `spelling` | `typos` on defaults |
 | `gitleaks` | Secret scan |
 
-The rules guard themselves. The consistency guard fails if `zanity.toml` drops `select = ["all"]`, disables anything beyond `assertion-density` (and the process and filesystem rules for test files), or excludes more than the fixtures. It also fails on an `assert`, `if` or `while` whose condition cannot vary, since a check that cannot fail proves nothing, and on a skill that changed without a passing eval stamp or a recorded waiver. The guard's own sections are listed in `scripts/audit/consistency.mjs`.
+The rules guard themselves. The consistency guard fails if `zanity.toml` drops `select = ["all"]`, disables anything except the process and filesystem rules for test files, or excludes more than the fixtures. It also fails on an `assert`, `if` or `while` whose condition cannot vary, since a check that cannot fail proves nothing, and on a skill that changed without a passing eval stamp or a recorded waiver. The guard's own sections are listed in `scripts/audit/consistency.mjs`.
 
 ## Keeping client data out
 

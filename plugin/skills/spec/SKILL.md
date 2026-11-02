@@ -134,11 +134,11 @@ For new/changed surface, decompose entry/exit points, trust boundaries, data flo
 - **Becomes an Open decision** — mitigation need design call (auth model, cross-repo contract, deploy dependency) → carry to step 6.
 - **Accepted** — explicitly, with reason and who accepted it.
 
-Map mitigations to controls the stack recipes already ship — the security sections of the `## Stack recipes` entries (guards-auth, authorization, validation-security, rate-limiting, cors-helmet) — and to platform laws from the platform architecture recipe (PII handling, etc.). Output flows into the spec's `## Security` section and into `## Open decisions` or `## Acceptance criteria`. The code-time complement is `/slice` step 6.5's conditional security review.
+Map mitigations to controls the stack recipes already ship — the security sections of the `## Stack recipes` entries (guards-auth, authorization, validation-security, rate-limiting, cors-helmet) — and to platform laws from the platform architecture recipe (PII handling, etc.). Output flows into the spec's `## Security` section and into `## Open decisions` or `## Acceptance criteria`. The code-time complement is `/slice` step 6.4's conditional security review.
 
 ### 4. Draft sections in conversation
 
-Walk this skill's own `templates/change.md` section by section in template order, presenting drafts to the user. Drafts live in conversation only — no disk write until step 9.
+Walk this skill's own `templates/change.md` section by section in template order, presenting drafts to the user.
 
 **For Architecture sketch section** — if step 3's flow-sketch exercise produced diagram, paste it (and its paragraph) into section. If trigger rule didn't fire, omit section header entirely from spec — don't write empty section.
 
@@ -236,7 +236,7 @@ Update frontmatter:
 
 ### 10. Update the ticket
 
-Add a comment linking to the single spec location. Post it through the tracker Mechanics (`## Issue tracking`). Use the repository URL for a repo-hosted spec or the notes-repository URL for an external spec. Run `Skill(issue-writing)`'s guardrail scan on the comment before posting it; a link is still a write.
+Draft a comment linking to the single spec location: the repository URL for a repo-hosted spec, the notes-repository URL for an external spec. Run `Skill(issue-writing)`'s guardrail scan on it, show the user its exact text, and post it through the tracker Mechanics (`## Issue tracking`) only after the user approves that text. Approval to write the spec file does not cover it; a link is still a write.
 
 **Where speccing invalidated the ticket, reconcile it** — the ticket stays source of truth for the
 user-facing story, so no criterion may be left silently contradicted by the spec. Route the edit
@@ -248,21 +248,3 @@ which stays in the ticket with its link.
 ### 11. Report
 
 Tell the caller where the spec lives and whether it was published. For a repo-hosted spec, say explicitly that the file is uncommitted until `/slice` commits it — on the slice-1 branch, or through its own spec PR when the first wave runs in parallel — and that stopping before then leaves it only in the working tree. For an external spec, report the pushed commit.
-
-## What `/spec` does NOT do
-
-- Make architectural decisions — surface them and wait for the user
-- Write spec sections before the final-review checkpoint
-- Open implementation PRs or commit code
-- Skip the review checklist or Rollout sign-off
-- Duplicate a spec between the changed repository and the Shared notes home
-- Re-spec a ticket that already has a spec — direct the caller to update the existing file
-
-## Related skills
-
-- `/slice` — primary caller (Route A) and workflow this spec dispatched into.
-- `Skill(repo-forensics)` — inspect-first full pass loaded at start of step 3; feed `## Relevant files`, `## Red flags`, `## Edges`, `## Open decisions`.
-- Platform and codebase architecture recipes named by `## Stack recipes` — architectural context loaded at step 3.
-- Threat-modeling skill and threat-modeler / threat-reviewer agents named by `## Review routing` — security & threat pass at step 3e.
-- `Skill(issue-writing)` — guardrail scan and publishing rules for every ticket write at step 10.
-- `Skill(senior-review-lens)` — Lens H (framing depth) invoked inline at step 6 for each open decision.

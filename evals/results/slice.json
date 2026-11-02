@@ -1,0 +1,5 @@
+{
+  "hash": "bd787676740dc98bb84b209352dfee20c304408cc86f9aec38b297fb437a727a",
+  "waived": "Behavior change: step 6 renumbered so the order is true (6.3 lens, 6.4 security, 6.5 suite after fixes, 6.6 PR) and every reference to the old numbers fixed in parallel.md, batch-pick.sh and evals.md; removed Failure modes, Related skills and most of 'does NOT do', which repeat steps 2, 4, 7 and 8. Live eval not run.",
+  "ranAt": "2026-11-02T14:08:03.120Z"
+}

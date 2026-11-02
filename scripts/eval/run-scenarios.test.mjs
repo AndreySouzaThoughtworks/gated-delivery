@@ -9,15 +9,16 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   disagreements,
   fillTemplate,
-  harnessFlags,
+  inspectRun,
   parseEvals,
   scenarioVerdicts,
   smokeScenarioIds,
@@ -80,10 +81,18 @@ const SKILL_TOOL_USE = JSON.stringify({
   type: "assistant",
   message: { content: [{ type: "tool_use", name: "Skill", input: { skill: "gated-delivery:demo" } }] },
 });
-const resultLine = (fields = {}) =>
-  JSON.stringify({ type: "result", result: "done", total_cost_usd: 0.25, permission_denials: [], ...fields });
+const resultLine = (fields = {}) => {
+  assert(!Object.hasOwn(fields, "type"), `a result line must keep type "result", got an override of ${JSON.stringify(fields.type)}`);
+  const line = JSON.stringify({ type: "result", result: "done", total_cost_usd: 0.25, permission_denials: [], ...fields });
+  assert(!line.includes("\n"), "a transcript line must be one line of JSON");
+  return line;
+};
 
-const readText = (path) => readFileSync(path, "utf8");
+const readText = (path) => {
+  assert(isAbsolute(path), `a file to read must be an absolute path, got ${path}`);
+  assert(existsSync(path), `the file to read must exist, got ${path}`);
+  return readFileSync(path, "utf8");
+};
 
 const STUB_CLAUDE = `#!/usr/bin/env node
 const { writeFileSync } = require("node:fs");
@@ -109,13 +118,17 @@ console.log(result());
 `;
 
 const EXECUTABLE_MODE = 0o755;
+const ANY_EXECUTE_BIT = 0o111;
 
 const writeExecutable = (path, body) => {
+  assert(body.startsWith("#!"), `an executable must start with a shebang, got ${JSON.stringify(body.slice(0, 20))}`);
   writeFileSync(path, body);
   chmodSync(path, EXECUTABLE_MODE);
+  assert((statSync(path).mode & ANY_EXECUTE_BIT) !== 0, `${path} must be executable after chmod`);
 };
 
 const fakeRepo = ({ evals = EVALS, fixtures = {}, graders = false } = {}) => {
+  assert(Object.keys(fixtures).every((path) => !isAbsolute(path) && !path.includes("..")), `fixture paths must stay inside the fixtures folder, got ${Object.keys(fixtures)}`);
   const root = mkdtempSync(join(tmpdir(), "gated-delivery-runner-"));
   const skillDir = join(root, "plugin", "skills", SKILL);
   mkdirSync(join(root, "plugin", ".claude-plugin"), { recursive: true });
@@ -160,35 +173,65 @@ process.exit(id === "2" ? 3 : 0);
   writeExecutable(join(bin, "claude"), STUB_CLAUDE);
   const log = join(root, "stub-log");
   mkdirSync(log);
+  assert(existsSync(join(bin, "claude")), `got ${JSON.stringify(bin)} without a claude stub; expected the fake repo to carry one`);
+  assert(readText(join(skillDir, "evals.md")) === evals, "the fake repo must carry the given evals unchanged");
   return { root, skillDir, claude: join(bin, "claude"), log };
 };
 
-const runnerEnv = (repo, env) => ({ ...process.env, GATED_DELIVERY_CLAUDE_BIN: repo.claude, STUB_LOG: repo.log, ...env });
+const runnerEnv = (repo, env) => {
+  assert(existsSync(repo.claude), `the stub claude must exist, got ${repo.claude}`);
+  const merged = { ...process.env, GATED_DELIVERY_CLAUDE_BIN: repo.claude, STUB_LOG: repo.log, ...env };
+  assert(merged.GATED_DELIVERY_CLAUDE_BIN === repo.claude, `the runner must reach the stub claude, got ${merged.GATED_DELIVERY_CLAUDE_BIN}`);
+  return merged;
+};
 
 const run = (repo, args, env = {}) => {
+  assert(!args.includes("--out"), `run adds --out itself, got ${args}`);
+  assert(existsSync(repo.root), `the fake repo must exist, got ${repo.root}`);
   const out = join(repo.root, "out");
   const result = spawnSync("node", ["scripts/eval/run-scenarios.mjs", SKILL, ...args, "--out", out], {
     cwd: repo.root,
     encoding: "utf8",
     env: runnerEnv(repo, { STUB_BEHAVIOUR: "skill", ...env }),
   });
+  assert(result.error === undefined, `the runner process must start, got ${result.error}`);
   return { ...result, out };
 };
 
-const startRunner = (repo, env) =>
-  spawn("node", ["scripts/eval/run-scenarios.mjs", SKILL, "--scenario", "1", "--repeat", "1", "--out", join(repo.root, "out")], {
+const startRunner = (repo, env) => {
+  assert(existsSync(join(repo.root, "scripts", "eval", "run-scenarios.mjs")), `the fake repo must carry the runner, got none in ${repo.root}`);
+  const child = spawn("node", ["scripts/eval/run-scenarios.mjs", SKILL, "--scenario", "1", "--repeat", "1", "--out", join(repo.root, "out")], {
     cwd: repo.root,
     env: runnerEnv(repo, env),
   });
+  assert(child.pid !== undefined, `got pid ${JSON.stringify(child.pid)}; expected the runner process to start`);
+  return child;
+};
 
-const exitStatus = (args, cwd) => spawnSync("node", args, { cwd, encoding: "utf8" }).status;
+const exitStatus = (args, cwd) => {
+  assert(cwd === undefined || existsSync(cwd), `the working directory must exist when given, got ${cwd}`);
+  const { status } = spawnSync("node", args, { cwd, encoding: "utf8" });
+  assert(status !== null, `the process must exit on its own, got a signal for ${args}`);
+  return status;
+};
 
-const stubCalls = (repo) => readdirSync(repo.log).map((f) => JSON.parse(readText(join(repo.log, f))));
+const stubCalls = (repo) => {
+  assert(existsSync(repo.log), `the stub log folder must exist, got ${repo.log}`);
+  const calls = readdirSync(repo.log).map((f) => JSON.parse(readText(join(repo.log, f))));
+  assert(calls.every((call) => call.argv.includes("-p")), `every stub call must run in print mode, got ${JSON.stringify(calls.map((call) => call.argv))}`);
+  return calls;
+};
 
-const promptOf = (call) => call.argv[call.argv.indexOf("-p") + 1];
+const promptOf = (call) => {
+  assert(call.argv.includes("-p"), `the stub call must carry -p, got ${call.argv}`);
+  const prompt = call.argv[call.argv.indexOf("-p") + 1];
+  assert(prompt !== undefined && !prompt.startsWith("--"), `-p must be followed by the prompt, got ${JSON.stringify(prompt)}`);
+  return prompt;
+};
 
-const summaryRows = (out) =>
-  readText(join(out, "summary.tsv"))
+const summaryRows = (out) => {
+  assert(existsSync(join(out, "summary.tsv")), `the run must write summary.tsv, got none in ${out}`);
+  const rows = readText(join(out, "summary.tsv"))
     .trim()
     .split("\n")
     .slice(1)
@@ -196,6 +239,9 @@ const summaryRows = (out) =>
       const [skill, id, arm, runNo, harness, checks, judge, cost, secs] = line.split("\t");
       return { skill, id, arm, run: runNo, harness, checks, judge, cost, secs };
     });
+  assert(rows.every((row) => row.secs !== undefined), `every summary row must carry all nine columns, got ${JSON.stringify(rows.find((row) => row.secs === undefined))}`);
+  return rows;
+};
 
 test("parses every scenario row across grouped tables", () => {
   const { rows } = parseEvals(EVALS);
@@ -234,7 +280,7 @@ test("fills the placeholders literally, even when the persona holds replacement 
 const DENIED_TOOLS = [{ tool_name: "Bash" }, { tool_name: "Read" }];
 const READ_SKILL_FILE = `{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"/p/skills/demo/SKILL.md"}}]}}\n${resultLine()}\n`;
 
-test("harnessFlags names each way a run went wrong, and nothing for a clean run", () => {
+test("inspectRun names each way a run went wrong, and nothing for a clean run", () => {
   const cases = [
     { transcript: `${SKILL_TOOL_USE}\n${resultLine()}\n`, flags: [] },
     { transcript: `${resultLine()}\n`, flags: ["no-skill"] },
@@ -244,7 +290,7 @@ test("harnessFlags names each way a run went wrong, and nothing for a clean run"
     { transcript: `${resultLine()}\n`, arm: "baseline", flags: [] },
   ];
   for (const { transcript, arm = "skill", timedOut = false, flags } of cases) {
-    assert.deepEqual(harnessFlags({ transcript, arm, skill: SKILL, timedOut }), flags);
+    assert.deepEqual(inspectRun({ transcript, arm, skill: SKILL, timedOut }).flags, flags);
   }
 });
 
@@ -285,11 +331,13 @@ test("runs each selected scenario N times with the documented flags", () => {
 });
 
 const addDirs = (argv) => {
+  assert(argv.includes("--add-dir"), `the claude call must carry --add-dir, got ${argv}`);
   const dirs = [];
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] !== "--add-dir") continue;
     while (argv[i + 1] !== undefined && !argv[i + 1].startsWith("--")) dirs.push(argv[++i]);
   }
+  assert(dirs.every((dir) => isAbsolute(dir)), `every --add-dir must be absolute, got ${JSON.stringify(dirs.filter((dir) => !isAbsolute(dir)))}`);
   return dirs;
 };
 
@@ -474,6 +522,8 @@ test("a run past the wall-clock limit is stopped and flagged", () => {
 const NO_SUCH_PROCESS = "ESRCH";
 
 const alive = (pid) => {
+  assert(pid > 0, `a pid to probe must be positive, got ${pid}; 0 and below probe a process group`);
+  assert(pid !== process.pid, `the test process cannot probe itself, got ${pid}`);
   try {
     process.kill(pid, 0);
     return true;
@@ -486,19 +536,20 @@ const alive = (pid) => {
 const POLL_ATTEMPTS = 100;
 const POLL_INTERVAL_MS = 50;
 
-const waitFor = async (condition) => {
+const waitFor = async (condition, what) => {
+  assert(what !== "", `waitFor got ${JSON.stringify(what)}; expected a name for the event it waits on`);
   for (let i = 0; i < POLL_ATTEMPTS && !condition(); i++) await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-  return condition();
+  assert(condition(), `${what} did not happen within ${POLL_ATTEMPTS * POLL_INTERVAL_MS} ms; expected the condition to hold`);
 };
 
 test("stopping the runner stops the sessions it started", async () => {
   const repo = fakeRepo();
   const runner = startRunner(repo, { STUB_BEHAVIOUR: "sleep" });
-  assert.ok(await waitFor(() => readdirSync(repo.log).length === 1), "the stub session started");
+  await waitFor(() => readdirSync(repo.log).length === 1, "the stub session starting");
   const [{ pid }] = stubCalls(repo);
   assert.ok(alive(pid));
   runner.kill("SIGTERM");
-  assert.ok(await waitFor(() => !alive(pid)), "the session outlived the runner");
+  await waitFor(() => !alive(pid), "the session stopping with the runner");
 });
 
 test("a denial is noted in the summary but is not a harness failure", () => {
@@ -524,7 +575,12 @@ test("a baseline that reads the skill's files is a harness failure", () => {
   assert.equal(summaryRows(out)[0].harness, "read-skill");
 });
 
-const withChecks = (fence) => EVALS.replace(/## Deterministic Checks[\s\S]*$/, `## Deterministic Checks\n\n\`\`\`bash\n${fence}\n\`\`\`\n`);
+const withChecks = (fence) => {
+  assert(!fence.includes("```"), `a checks fence must not close itself, got ${JSON.stringify(fence)}`);
+  const evals = EVALS.replace(/## Deterministic Checks[\s\S]*$/, `## Deterministic Checks\n\n\`\`\`bash\n${fence}\n\`\`\`\n`);
+  assert(evals.includes(fence) && evals.split("## Deterministic Checks").length === 2, `got evals without fence ${JSON.stringify(fence)} under exactly one checks heading; expected both`);
+  return evals;
+};
 const COVER_FENCE = ["# expect: >=1 on 1,2", "grep -c a output.md", "# expect: >=1 on G1", "grep -c b output.md"].join("\n");
 const ROW_IDS = ["1", "2", "G1"];
 
@@ -569,7 +625,7 @@ test("GATED_DELIVERY_RUN_MODEL sets the model unless --model is given", () => {
 
 test("any is_error result is a harness failure, never a pass", () => {
   const transcript = `${SKILL_TOOL_USE}\n${resultLine({ is_error: true, subtype: "success" })}\n`;
-  assert.deepEqual(harnessFlags({ transcript, arm: "skill", skill: SKILL, timedOut: false }), ["api-error"]);
+  assert.deepEqual(inspectRun({ transcript, arm: "skill", skill: SKILL, timedOut: false }).flags, ["api-error"]);
 });
 
 test("a run the budget cap stopped is a harness failure, never a pass", () => {
@@ -588,7 +644,12 @@ test("the total budget stops new runs, reports the rest as not-run and exits non
   assert.deepEqual(JSON.parse(readText(join(out, "verdicts.json"))).verdicts, { 1: "pass", 2: "not-run", G1: "not-run" });
 });
 
-const verdictsOf = (out) => JSON.parse(readText(join(out, "verdicts.json"))).verdicts;
+const verdictsOf = (out) => {
+  assert(existsSync(join(out, "verdicts.json")), `the run must write verdicts.json, got none in ${out}`);
+  const verdicts = JSON.parse(readText(join(out, "verdicts.json"))).verdicts;
+  assert(Object.keys(verdicts).length > 0, `a run must record a verdict per scenario, got ${JSON.stringify(verdicts)}`);
+  return verdicts;
+};
 
 test("--rerun-failures reruns only a failed scenario: pass then fail is flaky and exits 0", () => {
   const repo = fakeRepo({ graders: true });

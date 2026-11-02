@@ -57,7 +57,7 @@ Named per client in its CLAUDE.md (`## Stack recipes`, `## Review routing`, `## 
 | Dependency | Used by |
 |------------|---------|
 | Stack recipes (production code, tests, framework patterns) | `/spec`, `/slice`, `slice-executor` |
-| Stack validator and security reviewer agents | `/slice` 6.5 and 7.1 |
+| Stack validator and security reviewer agents | `/slice` 6.4 and 7.1 |
 | Domain reference docs | `/spec`, `/slice` |
 
 ## Skill graph
@@ -69,9 +69,9 @@ Named per client in its CLAUDE.md (`## Stack recipes`, `## Review routing`, `## 
   ├── scripts/slice-tree.sh, one tree per wave slice      (Route W, references/parallel.md)
   ├── Agent(slice-executor)                               (6.1, per functional batch; a round's batches in parallel batch trees)
   ├── scripts/batch-pick.sh                               (6, a parallel round's batches back onto the slice)
-  ├── repository test command, under verify-lock.sh       (6.3, per batch)
-  ├── Skill(senior-review-lens)                           (6.4, multi-batch slices)
-  ├── security reviewer from Review routing, code scope   (6.5, conditional per batch)
+  ├── repository test command, under verify-lock.sh       (6.5, per batch)
+  ├── Skill(senior-review-lens)                           (6.3, multi-batch slices)
+  ├── security reviewer from Review routing, code scope   (6.4, conditional per batch)
   ├── draft PR                                            (6.6, after first batch)
   ├── stack validators from Review routing                (7.1, once per slice)
   ├── security reviewer, supply-chain scope               (7.1, manifest changes)

@@ -10,7 +10,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, extname, join, resolve } from "node:path";
+import { dirname, extname, isAbsolute, join, resolve } from "node:path";
 import { readHookInput } from "./lib/read-hook-input.mjs";
 
 const FORMATTABLE = new Set([
@@ -42,6 +42,7 @@ const prettierCli = () => {
     const declared = typeof bin === "string" ? bin : bin?.prettier;
     const cli = declared ? join(dirname(manifest), declared) : null;
     console.assert(cli === null || existsSync(cli), `the declared prettier CLI must exist on disk, got ${cli}`);
+    console.assert(cli === null || isAbsolute(cli), `the declared prettier CLI must resolve to an absolute path, got ${cli}`);
     return cli;
   } catch {
     return null;
@@ -59,6 +60,7 @@ const main = () => {
   // case for a plugin installed everywhere — is a silent no-op, same as before.
   const cli = prettierCli();
   if (!cli) process.exit(EXIT_OK);
+  console.assert(isAbsolute(cli), `the prettier CLI to spawn must be an absolute path, got ${cli}`);
 
   try {
     // execFileSync, not execSync: passing args as an array means no shell parses them. The string

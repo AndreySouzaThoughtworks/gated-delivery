@@ -8,12 +8,6 @@ Audits **the flow itself**, not your code. Over time flow accretes — skills, h
 
 Default to **trim**: win come from removing redundancy and resolving conflicts, not adding more.
 
-## When to invoke
-
-- Before cutting gated-delivery release.
-- After several skills / hooks landed.
-- When flow feel bloated, or user say "audit the flow" / "is this still coherent" / "trim it".
-
 ## Step 1 — Deterministic guard (the mechanical floor)
 
 Run consistency checker, report findings, **quote its summary line verbatim** (the `gated-delivery audit: N skills, N agents, N hooks` line) as proof it ran. Reported result with no quoted output indistinguishable from guessed one. Same gate CI runs:
@@ -22,9 +16,9 @@ Run consistency checker, report findings, **quote its summary line verbatim** (t
 node scripts/audit/consistency.mjs
 ```
 
-**Errors** — missing skill files, name/dir mismatches, dangling hook and marketplace references, wrong README counts, undocumented skills/agents. **Fix these mechanically** (not judgment calls) — or, if flow live in different checkout, file them. Don't proceed to Step 2 with guard red; coherent review need accurate inventory.
+**Errors** are mechanical. Fix them, or, if the flow lives in a different checkout, file them. Don't proceed to Step 2 with the guard red.
 
-**Warnings** — orphan hook files, skill whose `evals.md` carry no `## Deterministic Checks` fence (so `--lint` measure nothing for it), and two eval-measure traps: pipe inside table-cell code span (truncates rendered command), and measure keyed on word that also one of skill's own headings (can score failing run as pass). These do **not** turn guard red and are **not** mechanical: each need human to confirm real collision, because some intentional. Treat as input to Step 2, not drift to fix on sight.
+**Warnings** (orphan hook files, eval-lint findings) do **not** turn the guard red and are **not** mechanical: each needs a human to confirm a real collision, because some are intentional. Treat them as input to Step 2, not drift to fix on sight.
 
 ## Step 2 — Judgment pass (what a script can't see)
 
@@ -69,11 +63,4 @@ Emit:
 The Route line names the gated-delivery repo even when this checkout has no remote or is not that repo. A local commit, a branch kept here, or "apply once approved" is not a route: it reaches no other install.
 
 **Propose, never silently write.** Mechanical drift fixes can apply directly (not judgment). Every trim/merge/retire of rule or doc is proposal: get sign-off, then PR. Never retire or trim a rule in the same session you flag it, even when told to apply it — apply only mechanical drift fixes. Route flow-level changes to the gated-delivery repo as a PR or an issue — same repo→release path `learn-flow` use, so change reach every install. A local commit kept in this checkout is not a route.
-
-## Anti-patterns
-
-- **Adding more than you remove.** An audit that only grows the flow failed its job.
-- **Claiming usage you didn't measure.** No telemetry means ask the team, not infer.
-- **Retiring a rule in the same session you flag it.** Propose, get sign-off, then PR. This holds even when the user says to apply the findings: apply only the mechanical drift fixes, and leave every trim, merge or retire as a proposal.
-- **Skipping Step 1.** Judgment on a drifted inventory is judgment on fiction.
 

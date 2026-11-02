@@ -20,7 +20,9 @@ const SKILLS_DIR = join(process.cwd(), "plugin", "skills");
 
 const evalsPathOf = (skill) => {
   assert(!skill.includes("/"), `a skill is a bare folder name, got ${JSON.stringify(skill)}; pass the skill name, not a path`);
-  return join(SKILLS_DIR, skill, "evals.md");
+  const path = join(SKILLS_DIR, skill, "evals.md");
+  assert(dirname(dirname(path)) === SKILLS_DIR, `skill ${JSON.stringify(skill)} resolves to ${path}; expected an evals.md directly inside one folder of ${SKILLS_DIR}`);
+  return path;
 };
 
 // `sh -c` reports only the LAST stage of a pipeline, so a broken command anywhere upstream exits 0
@@ -37,6 +39,7 @@ const SHELL = existsSync("/bin/bash")
 // Variables the runner supplies, so fences can refer to the repo under test. Documented contract:
 // a fence may use "$WORKTREE" without assigning it. Anything else must be assigned in the fence.
 const PROVIDED = { WORKTREE: process.cwd() };
+const SHELL_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /**
  * POSIX shell quoting. `JSON.stringify` is JSON encoding, not shell quoting: it wraps in double
@@ -44,7 +47,14 @@ const PROVIDED = { WORKTREE: process.cwd() };
  * was executed rather than read. Single quotes suppress all expansion; an embedded single quote is
  * closed, escaped, and reopened.
  */
-const shellQuote = (s) => `'${String(s).replaceAll("'", `'\\''`)}'`;
+const SINGLE_QUOTE = "'";
+const ESCAPED_SINGLE_QUOTE = "'\\''";
+const shellQuote = (s) => {
+  const quoted = `${SINGLE_QUOTE}${String(s).replaceAll(SINGLE_QUOTE, ESCAPED_SINGLE_QUOTE)}${SINGLE_QUOTE}`;
+  assert(quoted.length >= 2 && quoted.startsWith(SINGLE_QUOTE) && quoted.endsWith(SINGLE_QUOTE), `shellQuote(${JSON.stringify(s)}) gave ${quoted}; expected the value wrapped in single quotes`);
+  assert(!quoted.slice(1, -1).replaceAll(ESCAPED_SINGLE_QUOTE, "").includes(SINGLE_QUOTE), `shellQuote(${JSON.stringify(s)}) left a bare single quote in ${quoted}; expected each one closed, escaped and reopened`);
+  return quoted;
+};
 
 /**
  * Variables a fence references that nothing supplies. Such a reference expands to empty and the
@@ -65,20 +75,27 @@ const shellQuote = (s) => `'${String(s).replaceAll("'", `'\\''`)}'`;
  * The `+` forms are the trap: they look like defaults and are the exact silent-empty case.
  */
 const toggleQuote = (quote, c) => {
+  assert(c.length === 1, `toggleQuote got ${JSON.stringify(c)}; expected one character`);
+  assert(!(quote.inSingle && quote.inDouble), `toggleQuote got inSingle ${JSON.stringify(quote.inSingle)} and inDouble ${JSON.stringify(quote.inDouble)}; expected at most one of them true`);
   let toggled = true;
   if (c === "'" && !quote.inDouble) quote.inSingle = !quote.inSingle;
   else if (c === '"' && !quote.inSingle) quote.inDouble = !quote.inDouble;
   else toggled = false;
+  assert(!(quote.inSingle && quote.inDouble), `toggleQuote on ${c} left single and double quotes open at once; expected at most one`);
   return toggled;
 };
 
 const enterSubstitution = (enclosing, quote) => {
+  assert(!(quote.inSingle && quote.inDouble), `enterSubstitution got inSingle ${JSON.stringify(quote.inSingle)} and inDouble ${JSON.stringify(quote.inDouble)}; expected at most one of them true`);
   enclosing.push({ inSingle: quote.inSingle, inDouble: quote.inDouble, depth: 0 });
   quote.inSingle = false;
   quote.inDouble = false;
+  assert(enclosing.at(-1).depth === 0, `enterSubstitution opened a substitution at depth ${enclosing.at(-1).depth}; expected 0`);
 };
 
 const trackParen = (enclosing, quote, c) => {
+  assert(c.length === 1, `trackParen got ${JSON.stringify(c)}; expected one character`);
+  assert(enclosing.every((substitution) => substitution.depth >= 0), "trackParen found a substitution with negative paren depth; expected 0 or more");
   const substitution = enclosing.at(-1);
   const consumes = Boolean(substitution) && !quote.inDouble && (c === "(" || c === ")");
   if (!consumes) return false;
@@ -96,6 +113,7 @@ const trackParen = (enclosing, quote, c) => {
 };
 
 const variableAt = (command, at) => {
+  assert(command[at] === "$", `variableAt expected a $ at ${at}, found ${JSON.stringify(command[at])}`);
   const rest = command.slice(at + 1);
   const braced = rest.startsWith("{");
   const body = braced ? rest.slice(1) : rest;
@@ -106,6 +124,7 @@ const variableAt = (command, at) => {
     length: name.length + (braced ? 1 : 0),
     hasFallback: braced && /^:?[-=?]/.test(body.slice(name.length)),
   };
+  assert(variable.length >= variable.name.length, `variableAt read ${variable.name} but consumed only ${variable.length}; expected the whole name`);
   return variable;
 };
 
@@ -135,6 +154,8 @@ const unresolvedVars = (command, assigned) => {
     if (!variable.hasFallback) found.add(variable.name);
   }
   const unresolved = [...found].filter((n) => !assigned.has(n) && PROVIDED[n] === undefined);
+  assert(unresolved.every((name) => SHELL_IDENTIFIER.test(name)), `unresolvedVars reported ${unresolved.join(", ")}; expected only shell variable names`);
+  assert(unresolved.every((name) => !assigned.has(name) && PROVIDED[name] === undefined), `unresolvedVars reported a variable that is assigned or provided: ${unresolved.join(", ")}`);
   return unresolved;
 };
 // The section first, then the first bash fence inside it. Anchoring the fence directly to the heading
@@ -145,6 +166,7 @@ const unresolvedVars = (command, assigned) => {
 // `^## ` truncated the section at the first one — dropping every check after it, silently.
 const SECTION_HEADING = "## Deterministic Checks";
 const sectionOf = (markdown) => {
+  assert(!markdown.includes("\r"), "sectionOf got a carriage return; expected line endings normalised to \\n first");
   const out = [];
   let inSection = false;
   let inFence = false;
@@ -157,6 +179,7 @@ const sectionOf = (markdown) => {
     if (line.startsWith("```")) inFence = !inFence;
     if (inSection) out.push(line);
   }
+  assert(out.length === 0 || markdown.includes(SECTION_HEADING), `sectionOf returned ${out.length} lines without a "${SECTION_HEADING}" heading in the text; expected none`);
   return out.join("\n");
 };
 const FENCE = /```bash\n([\s\S]*?)```/;
@@ -180,6 +203,8 @@ export function parseExpect(text) {
   else if (!shape) expect = { raw: text, error: `malformed expect "${text}"` };
   else if (new Set(ids).size !== ids.length) expect = { raw: text, error: `malformed expect "${text}": repeated id` };
   else expect = { raw: text, op: shape[1], n: Number(shape[2]), ids };
+  assert(expect.raw === text, `parseExpect returned raw ${JSON.stringify(expect.raw)} for ${JSON.stringify(text)}; expected the input kept verbatim`);
+  assert(expect.manual || expect.error !== undefined || (Object.hasOwn(COMPARE, expect.op) && expect.ids.length > 0), `parseExpect(${JSON.stringify(text)}) is neither manual, an error nor a comparison with ids; expected exactly one`);
   return expect;
 }
 
@@ -199,6 +224,8 @@ export function scenarioIds(evalsMarkdown) {
     const id = inSection && line.match(TABLE_ROW_ID)?.[1];
     if (id && !NOT_AN_ID.test(id)) ids.add(id);
   }
+  assert([...ids].every((id) => id === id.trim() && !NOT_AN_ID.test(id)), `scenarioIds returned ${JSON.stringify([...ids])}; expected trimmed ids with no header or separator cells`);
+  assert(!ids.has(""), "scenarioIds returned an empty id; expected only named scenarios");
   return ids;
 }
 
@@ -233,6 +260,8 @@ export function parseChecks(evalsMarkdown) {
     label = [];
     expects = [];
   }
+  assert(checks.every((check) => !check.command.startsWith("#") && !ASSIGNMENT.test(check.command)), "parseChecks kept a comment or an assignment as a check; expected only commands");
+  assert(prelude.every((assignment) => ASSIGNMENT.test(assignment)), "parseChecks kept a non-assignment in the prelude; expected only NAME=value lines");
   return { prelude, checks };
 }
 
@@ -241,6 +270,8 @@ export function parseChecks(evalsMarkdown) {
  * `grep` exits 1 for "no match" — that is a result, not a failure. Only >=2 is a broken command.
  */
 export function runCheck({ label, command }, outputFile, prelude = []) {
+  assert(command.trim() !== "", `runCheck "${label}" got a blank command; expected a shell command`);
+  assert(outputFile !== "", `runCheck "${label}" got an empty output file; expected the path being graded`);
   // Substitute the `output.md` placeholder only. Substituting a bare `output` too would corrupt any
   // command legitimately containing the word — `grep -c "output format" output.md` became
   // `grep -c ""<path>" format" "<path>"` and returned a wrong count rather than an error.
@@ -272,10 +303,12 @@ export function runCheck({ label, command }, outputFile, prelude = []) {
       else outcome = { label, command, ok: false, result: (e.stderr ?? "").trim() || `exit ${status}` };
     }
   }
+  assert(outcome.ok || outcome.result !== "", `runCheck "${label}" failed with an empty result; expected a reason`);
   return outcome;
 }
 
 function report(skill, outputFile) {
+  assert(outputFile !== "", `report(${skill}) got an empty output file; expected the path being graded`);
   const evalsPath = evalsPathOf(skill);
   if (!existsSync(evalsPath)) {
     console.error(`No such skill: ${skill}`);
@@ -294,10 +327,12 @@ function report(skill, outputFile) {
     const shown = result.length > 60 ? `${result.slice(0, 57)}...` : result;
     console.log(`  ${ok ? "·" : "✗"} ${label.slice(0, 58).padEnd(60)} ${shown}`);
   }
+  assert(broken <= checks.length, `report(${skill}) counted ${broken} broken of ${checks.length} checks; expected no more than the checks run`);
   return broken;
 }
 
 function expectProblems({ expects }, ids) {
+  assert(expects.every((expect) => expect.raw !== ""), `expectProblems got an expect line with blank text; expected every parsed line to keep its raw text`);
   const seen = new Set();
   const problems = [];
   for (const expect of expects) {
@@ -308,6 +343,7 @@ function expectProblems({ expects }, ids) {
       seen.add(id);
     }
   }
+  assert(problems.every((problem) => problem !== ""), `expectProblems produced a blank problem in ${JSON.stringify(problems)}; expected each problem to say what is wrong`);
   return problems;
 }
 
@@ -316,11 +352,11 @@ const PAGE_LABEL = /^Page:/i;
 const INTEGER = /^-?\d+$/;
 const LABEL_WIDTH = 100;
 
-const countOf = (result) => (INTEGER.test(result) ? Number(result) : result.split("\n").filter((l) => l.trim()).length);
-
 const gradeCheck = (check, expect, file, prelude) => {
+  assert(Object.hasOwn(COMPARE, expect.op), `gradeCheck got operator ${JSON.stringify(expect.op)} for "${check.label}"; expected one of ${Object.keys(COMPARE).join(" ")}`);
+  assert(file !== "", `gradeCheck "${check.label}" got an empty file; expected the path being graded`);
   const { ok, result } = runCheck(check, file, prelude);
-  const count = ok ? countOf(result) : "broken";
+  const count = ok ? (INTEGER.test(result) ? Number(result) : result.split("\n").filter((l) => l.trim()).length) : "broken";
   const pass = ok && COMPARE[expect.op](count, expect.n);
   if (!ok) console.error(`  ${check.command}\n  ${result}`);
   const label = check.label.length > LABEL_WIDTH ? `${check.label.slice(0, LABEL_WIDTH - 3)}...` : check.label;
@@ -329,6 +365,7 @@ const gradeCheck = (check, expect, file, prelude) => {
 };
 
 function gradeScenario(skill, file, id) {
+  assert(id !== "", `gradeScenario(${skill}) got an empty scenario id; expected one from the scenario table`);
   const evalsPath = evalsPathOf(skill);
   if (!existsSync(evalsPath)) return usage(`No such skill: ${skill}`);
   if (!existsSync(file)) return usage(`No such output file: ${file}`);
@@ -342,6 +379,7 @@ function gradeScenario(skill, file, id) {
     if (!expect || (skillHasPages && PAGE_LABEL.test(check.label) !== (basename(file) !== RESPONSE_FILE))) continue;
     if (!gradeCheck(check, expect, file, prelude)) failed++;
   }
+  assert(failed <= checks.length, `gradeScenario(${skill}) counted ${failed} failures from ${checks.length} checks; expected no more than the checks run`);
   return failed ? EXIT_FAIL : EXIT_PASS;
 }
 
@@ -353,7 +391,11 @@ const LINE_BREAK = /\r?\n|\r/g;
 const USAGE = "usage:\n  run-checks.mjs --lint\n  run-checks.mjs <skill> <output-file>\n  run-checks.mjs <skill> <output-file> --scenario <id>";
 
 function usage(message) {
-  console.error(message.replace(LINE_BREAK, "\\n").replace(CONTROL_CHARACTERS, "?"));
+  assert(message !== "", `usage got ${JSON.stringify(message)}; expected what went wrong or the usage text`);
+  const printable = message.replace(LINE_BREAK, "\\n").replace(CONTROL_CHARACTERS, "?");
+  assert(printable.search(LINE_BREAK) === -1, `usage would print a line break from ${JSON.stringify(message)}; expected one line so input cannot forge log lines`);
+  assert(printable.search(CONTROL_CHARACTERS) === -1, `usage would print a control character from ${JSON.stringify(message)}; expected each replaced`);
+  console.error(printable);
   return EXIT_USAGE;
 }
 
@@ -384,6 +426,8 @@ function lint() {
       console.log(`  BROKEN ${skill}: ${outcome.command}\n         ${outcome.result}`);
     }
   }
+  assert(measured <= skills.length, `lint measured ${measured} skills out of ${skills.length}; expected no more than were walked`);
+  assert(total >= measured, `lint counted ${total} checks across ${measured} measured skills; expected at least one check each`);
   const caveat = SHELL.pipelineAware
     ? ""
     : " (no bash: a broken command inside a pipeline cannot be detected here)";

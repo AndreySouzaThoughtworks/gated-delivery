@@ -1,5 +1,5 @@
 {
-  "hash": "0ee7c218ae3a3a88bf59260e471f6d240bba819d6c530f26e0673249f4df9933",
-  "waived": "Removed the paragraph describing the retired Stop hook from SKILL.md; no behavior of /slice changed",
-  "ranAt": "2026-11-02T14:31:33.688Z"
+  "hash": "35e3d7b5dab0a21ae10f60ae270103dd9841d1789017dfd90d161eb4f9769c7f",
+  "waived": "Behavior changes against the last stamped version: step 6 renumbered (6.3 lens, 6.4 security, 6.5 suite after fixes, 6.6 PR) with every reference updated; the Stop-hook paragraph removed because that hook is retired; most of 'does NOT do' removed as duplicated, and the never-auto-merge limit restored as one sentence in the clean-up step. Live eval not run.",
+  "ranAt": "2026-11-02T16:19:41.809Z"
 }

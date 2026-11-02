@@ -84,7 +84,7 @@ Report:
 
 An expected convention source missing from the `Conventions` line means source resolution failed.
 
-**Clean up merged slices before routing.** The user merges PRs, so no `/slice` step runs after a merge. For every slice tree (`$LOCAL_NOTES/slice-trees/{ticket-id}-*-{actor}`) and local slice branch of this actor, run `gh pr view <branch> --json state`; on `MERGED`, run `git worktree remove --force <tree> && git worktree prune`, then `git branch -D <branch>` for the slice branch and its batch branches. This cleanup runs on every route, close-out included, and never waits for approval: the PR's merge was the approval. Never touch another actor's tree or local branch — Route F step 9 is the one exception, for merged branches on `origin`.
+**Clean up merged slices before routing.** The user merges PRs: `/slice` never merges one, and no step runs after a merge. For every slice tree (`$LOCAL_NOTES/slice-trees/{ticket-id}-*-{actor}`) and local slice branch of this actor, run `gh pr view <branch> --json state`; on `MERGED`, run `git worktree remove --force <tree> && git worktree prune`, then `git branch -D <branch>` for the slice branch and its batch branches. This cleanup runs on every route, close-out included, and never waits for approval: the PR's merge was the approval. Never touch another actor's tree or local branch — Route F step 9 is the one exception, for merged branches on `origin`.
 
 Surface tracker blockers before routing. A missing `## Rollout` selects Route R.
 

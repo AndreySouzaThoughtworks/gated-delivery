@@ -3,7 +3,8 @@
 // issues, but only when there are uncommitted changes. Plugin-safe (uses the
 // decision:"block" JSON path, not exit 2) and self-capping (won't loop forever).
 // Command: GATED_DELIVERY_VERIFY_CMD, else the `## Verification` Verify command in the nearest CLAUDE.md
-// in a folder above the repo and inside the home folder, else "pnpm lint". The repo's own CLAUDE.md
+// in a folder above the repo and inside the home folder, else the repo's first package.json script of
+// check, lint, test run through pnpm ("pnpm lint" when none exists). The repo's own CLAUDE.md
 // is never read: a cloned repo controls it, and this command runs unprompted at every turn end.
 // Folders above or outside home are never read either: other users may write there.
 
@@ -14,7 +15,9 @@ import { dirname, extname, isAbsolute, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readHookInput } from "./lib/read-hook-input.mjs";
 
-const DEFAULT_VERIFY_CMD = "pnpm lint";
+const DEFAULT_SCRIPT_ORDER = ["check", "lint", "test"];
+const NO_SCRIPT_FALLBACK = "lint";
+const DEFAULT_RUNNER = "pnpm";
 const WORKING_FOLDER = ".";
 const DEFAULT_SESSION_ID = "default";
 const COUNTER_EXTENSION = ".count";
@@ -69,7 +72,26 @@ const verifyCmdFromInstructions = () => {
   return found;
 };
 
-const VERIFY_CMD = process.env.GATED_DELIVERY_VERIFY_CMD ?? verifyCmdFromInstructions() ?? DEFAULT_VERIFY_CMD;
+const defaultVerifyCmd = () => {
+  let scripts;
+  try {
+    scripts = JSON.parse(readFileSync(resolve(process.cwd(), "package.json"), "utf8")).scripts;
+  } catch {
+    scripts = undefined;
+  }
+  const scriptName = DEFAULT_SCRIPT_ORDER.find((name) => scripts?.[name]) ?? NO_SCRIPT_FALLBACK;
+  console.assert(
+    scriptName === NO_SCRIPT_FALLBACK || Boolean(scripts?.[scriptName]),
+    `the chosen script ${scriptName} must exist in package.json scripts ${JSON.stringify(Object.keys(scripts ?? {}))}`,
+  );
+  console.assert(
+    DEFAULT_SCRIPT_ORDER.includes(scriptName),
+    `the default script must be one of ${DEFAULT_SCRIPT_ORDER.join(", ")}, got ${scriptName}`,
+  );
+  return `${DEFAULT_RUNNER} ${scriptName}`;
+};
+
+const VERIFY_CMD = process.env.GATED_DELIVERY_VERIFY_CMD ?? verifyCmdFromInstructions() ?? defaultVerifyCmd();
 console.assert(VERIFY_CMD.trim().length > 0, `the verify command must not be blank, got ${JSON.stringify(VERIFY_CMD)}`);
 const VERIFY_OUTPUT_TAIL = 1500;
 // Sentinel in the counter file: this session gave up on the gate. Negative, so no block count reaches it.

@@ -1,10 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { tempDir } from "./lib/temp-dir.mjs";
 
 const HOOK = join(dirname(fileURLToPath(import.meta.url)), "format-on-edit.mjs");
 
@@ -15,20 +16,34 @@ const V3 = { bin: "./bin/prettier.cjs" };
 const V2 = { bin: { prettier: "./bin-prettier.js" } };
 
 const invocationLog = join(mkdtempSync(join(tmpdir(), "gated-delivery-format-log-")), "invocations.log");
-const invocations = () => readFileSync(invocationLog, "utf8").trim();
-const resetInvocations = () => writeFileSync(invocationLog, "");
+const invocations = () => {
+  assert(existsSync(invocationLog), `the invocation log must exist before it is read, got none at ${invocationLog}; create it at setup`);
+  const recorded = readFileSync(invocationLog, "utf8").trim();
+  assert(recorded === "" || recorded.includes("--write"), `every recorded prettier call must pass --write, got ${recorded}`);
+  return recorded;
+};
+const resetInvocations = () => {
+  assert(existsSync(dirname(invocationLog)), `the log folder must exist before a reset, got none at ${dirname(invocationLog)}; create it at setup`);
+  writeFileSync(invocationLog, "");
+  assert(invocations() === "", "a reset must leave the invocation log empty");
+};
 
-const run = (cwd, input) =>
-  execFileSync("node", [HOOK], {
+const run = (cwd, input) => {
+  assert(existsSync(cwd), `the hook must run in a folder that exists, got ${cwd}; create it first`);
+  assert(input !== undefined, `the hook input must be given, got ${input}; pass an object or a raw string`);
+  return execFileSync("node", [HOOK], {
     cwd,
     encoding: "utf8",
     input: typeof input === "string" ? input : JSON.stringify(input),
   });
+};
 
-const tempDir = (label) => mkdtempSync(join(tmpdir(), `gated-delivery-format-${label}-`));
+const TEMP_PREFIX = "gated-delivery-format";
+
 
 const workdir = (layout = V3) => {
-  const dir = tempDir("test");
+  assert(layout.bin, `a prettier layout must declare a bin, got ${JSON.stringify(layout)}; use V2 or V3`);
+  const dir = tempDir(TEMP_PREFIX, "test");
   const pkg = join(dir, "node_modules", "prettier");
   const cli = join(pkg, typeof layout.bin === "string" ? layout.bin : layout.bin.prettier);
   mkdirSync(dirname(cli), { recursive: true });
@@ -46,20 +61,19 @@ const workdir = (layout = V3) => {
       `process.exit(1);`,
     ].join("\n"),
   );
+  assert(existsSync(cli), `the fake prettier CLI must be written, got none at ${cli}`);
   return dir;
 };
-
-const editOf = (file_path) => ({ tool_input: { file_path } });
 
 test("never reaches prettier for a non-formattable, missing or absent file path, or unusable stdin", () => {
   const dir = workdir();
   writeFileSync(join(dir, "img.png"), UNFORMATTED);
   const inputs = [
-    editOf("img.png"),
-    editOf("gone.ts"),
+    { tool_input: { file_path: "img.png" } },
+    { tool_input: { file_path: "gone.ts" } },
     {},
     { tool_input: {} },
-    editOf(""),
+    { tool_input: { file_path: "" } },
     "",
     "not json",
   ];
@@ -76,17 +90,17 @@ test("formats through whichever CLI the installed prettier declares, and never b
     const dir = workdir(layout);
     writeFileSync(join(dir, "a.ts"), UNFORMATTED);
     resetInvocations();
-    assert.equal(run(dir, editOf("a.ts")), "");
+    assert.equal(run(dir, { tool_input: { file_path: "a.ts" } }), "");
     assert.match(invocations(), /--write .*a\.ts/, `not found for ${JSON.stringify(layout.bin)}`);
     assert.equal(readFileSync(join(dir, "a.ts"), "utf8"), FORMATTED);
   }
 });
 
 test("no prettier in the repo: silent no-op, never a crash", () => {
-  const dir = tempDir("bare");
+  const dir = tempDir(TEMP_PREFIX, "bare");
   writeFileSync(join(dir, "a.ts"), UNFORMATTED);
   resetInvocations();
-  assert.equal(run(dir, editOf("a.ts")), "");
+  assert.equal(run(dir, { tool_input: { file_path: "a.ts" } }), "");
   assert.equal(invocations(), "");
   assert.equal(readFileSync(join(dir, "a.ts"), "utf8"), UNFORMATTED);
 });
@@ -98,7 +112,7 @@ test("accepts every extension it claims to format", () => {
     const name = `f${extension}`;
     writeFileSync(join(dir, name), UNFORMATTED);
     resetInvocations();
-    assert.equal(run(dir, editOf(name)), "");
+    assert.equal(run(dir, { tool_input: { file_path: name } }), "");
     assert.notEqual(invocations(), "", `${extension} never reached prettier`);
   }
 });

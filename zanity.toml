@@ -54,9 +54,7 @@ select = ["all"]
 
 # Rules to switch off everywhere. Every rule is listed here, with its severity, when it runs,
 # and how to fix what it finds; uncomment the ones you don't want.
-# NASA-5 density forced asserts that cannot fail; real input checks stay.
 disable = [
-  "assertion-density",
   # "parse-error",                     # warning, on by default. Fix the syntax error, or report the construct if the code is valid.
   # "forbidden-call",                  # warning, on by default. Call the code you need directly.
   # "recursion",                       # warning, on with --strict. Rewrite it as a loop with a fixed bound.

@@ -6,11 +6,22 @@ import { dirname, join } from "node:path";
 
 const HOOK = join(dirname(fileURLToPath(import.meta.url)), "guard-bash.mjs");
 
-const spawnHook = (input) => execFileSync("node", [HOOK], { input, encoding: "utf8" });
+const PERMISSION_FIELD = '"permissionDecision"';
+const DECISIONS = ["allow", "deny"];
+
+const spawnHook = (input) => {
+  assert(input !== undefined, `the hook input must be given, got ${input}; pass a raw string`);
+  const out = execFileSync("node", [HOOK], { input, encoding: "utf8" });
+  assert(out === "" || out.includes(PERMISSION_FIELD), `the hook must stay silent or name a permission decision, got ${out}`);
+  return out;
+};
 
 const decide = (command) => {
+  assert(command.length > 0, `a command under test must not be blank, got ${JSON.stringify(command)}; name the command`);
   const out = spawnHook(JSON.stringify({ tool_input: { command } }));
-  return out ? JSON.parse(out).hookSpecificOutput.permissionDecision : "allow";
+  const decision = out ? JSON.parse(out).hookSpecificOutput.permissionDecision : "allow";
+  assert(DECISIONS.includes(decision), `the decision for ${command} must be one of ${DECISIONS}, got ${decision}`);
+  return decision;
 };
 
 const DENIED = [

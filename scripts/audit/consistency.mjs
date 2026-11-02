@@ -7,7 +7,7 @@
 import assert from "node:assert";
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
-import { baseRefFromEnv, changedSkills, stampStatus, waiverReason } from "../eval/changed-skills.mjs";
+import { BASE_REF_ENV, changedSkills, stampStatus, waiverReason } from "../eval/changed-skills.mjs";
 import { parseChecks } from "../eval/run-checks.mjs";
 
 const ROOT = process.cwd();
@@ -23,13 +23,16 @@ const read = (p) => {
   assert(!body.includes(NOT_UTF8), `${p} must be valid UTF-8, got a replacement character; re-save it as UTF-8`);
   return body;
 };
+const MARKDOWN_EXTENSION = ".md";
 const dirs = (p) => {
+  assert(existsSync(p), `${p} must exist before its folders are listed, got none; restore it`);
   const names = readdirSync(p).filter((d) => statSync(join(p, d)).isDirectory());
   assert(names.length > 0, `${p} must hold at least one folder, got none; restore the folders it lists`);
   return names;
 };
 
 function frontmatterName(file) {
+  assert(file.endsWith(MARKDOWN_EXTENSION), `${file} must be a markdown file to hold frontmatter, got another extension; pass a ${MARKDOWN_EXTENSION} path`);
   // Callers reach here for files they have already reported as missing; reading one threw ENOENT and
   // killed the process before the report block could print the error it had just recorded.
   if (!existsSync(file)) return null;
@@ -141,9 +144,11 @@ const NOT_LOCAL_NAMES = new Set([
   "name", "skill-name",
 ]);
 const markdownFiles = (dir) => {
+  assert(existsSync(dir), `${dir} must exist before its markdown is listed, got none; restore it`);
   const found = readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
-    e.isDirectory() ? markdownFiles(join(dir, e.name)) : e.name.endsWith(".md") ? [join(dir, e.name)] : [],
+    e.isDirectory() ? markdownFiles(join(dir, e.name)) : e.name.endsWith(MARKDOWN_EXTENSION) ? [join(dir, e.name)] : [],
   );
+  assert(found.every((file) => file.endsWith(MARKDOWN_EXTENSION)), `${dir} must list only markdown files, got ${found.find((file) => !file.endsWith(MARKDOWN_EXTENSION))}`);
   return found;
 };
 const localNames = new Set([...skills, ...agents, ...commands]);
@@ -370,14 +375,12 @@ for (const skill of skills) {
 
 // --- 8. zanity stays at its strictest: the rules about the rules ---
 // A red zanity run is fixed in code. Narrowing `select`, adding a `disable`, or excluding a path
-// is the escape hatch an agent reaches for, so the guard fails on each one. The only exceptions are
-// assertion-density everywhere and the test-file table: tests spawn processes and use temp folders.
+// is the escape hatch an agent reaches for, so the guard fails on each one. The only exception is
+// the test-file table: tests spawn processes and use temp folders.
 const ZANITY_CONFIG = "zanity.toml";
 const ZANITY_ALLOWED_EXCLUDES = ["tests/fixtures/", "evals/fixtures/"];
 const ZANITY_TEST_FILES_TABLE = 'paths."**/*.test.mjs"';
-const ZANITY_RULES_TABLE = "rules";
 const ZANITY_ALLOWED_DISABLES = {
-  [ZANITY_RULES_TABLE]: ["assertion-density"],
   [ZANITY_TEST_FILES_TABLE]: ["filesystem-in-test", "process-in-test"],
 };
 const QUOTED_ITEM = /"([^"]*)"/g;
@@ -395,6 +398,8 @@ const quotedItems = (list) => {
 };
 
 const zanityTableProblem = (header, body) => {
+  assert(body !== undefined, `[${header}] must come with a body, got none; the table split must pair every header with a body`);
+  assert(header === header.trim(), `[${header}] must be trimmed before the lookup, got stray whitespace`);
   const scopesPaths = header === "paths" || header.startsWith("paths.");
   const expected = ZANITY_ALLOWED_DISABLES[header] ?? [];
   const disabled = [...body.matchAll(DISABLE_LIST)].flatMap(([, list]) => quotedItems(list));
@@ -424,6 +429,7 @@ function zanityConfigErrors(text) {
   for (const path of excluded.filter((p) => !ZANITY_ALLOWED_EXCLUDES.includes(p))) {
     found.push(`${ZANITY_CONFIG} excludes ${path}, which hides it from every check. Hint: only ${ZANITY_ALLOWED_EXCLUDES.join(", ")} may be excluded.`);
   }
+  assert(found.every((problem) => problem.includes(ZANITY_CONFIG)), `every config problem must name ${ZANITY_CONFIG}, got ${found.find((problem) => !problem.includes(ZANITY_CONFIG))}`);
   return found;
 }
 
@@ -564,9 +570,16 @@ const BARE_NAME = /(?<![.\w$])[A-Za-z_$][\w$]*/g;
 const CONSTANT_KEYWORDS = new Set(["typeof", "true", "false", "null", "undefined", "void", "in", "instanceof"]);
 const PURE_GLOBALS = new Set(["Number", "String", "Boolean", "Array", "Math", "Object"]);
 
-const blankComments = (text) => text.replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, " ")).replace(/(^|\s)\/\/.*$/gm, (comment) => comment.replace(/[^\n]/g, " "));
+const blankComments = (text) => {
+  const blanked = text.replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, " ")).replace(/(^|\s)\/\/.*$/gm, (comment) => comment.replace(/[^\n]/g, " "));
+  assert(blanked.length === text.length, `blanking comments must keep every offset, got ${text.length} characters become ${blanked.length}`);
+  assert(blanked.split("\n").length === text.split("\n").length, "blanking comments must keep every line number, got a different line count");
+  return blanked;
+};
 
 const conditionAfter = (text, openIndex, firstArgumentOnly) => {
+  assert(text[openIndex] === "(", `the condition must start after an opening parenthesis, got ${JSON.stringify(text[openIndex])} at ${openIndex}`);
+  assert(openIndex < text.length, `the opening parenthesis must lie inside the text, got index ${openIndex} of ${text.length}`);
   let depth = 1;
   let quote = "";
   for (let index = openIndex + 1; index < text.length; index++) {
@@ -582,7 +595,12 @@ const conditionAfter = (text, openIndex, firstArgumentOnly) => {
   return "";
 };
 
-const literalConstants = (text) => new Set([...text.matchAll(LITERAL_CONST)].map(([, name]) => name));
+const literalConstants = (text) => {
+  const names = new Set([...text.matchAll(LITERAL_CONST)].map(([, name]) => name));
+  assert(names.size <= text.split("\n").length, `each literal constant takes its own line, got ${names.size} names in ${text.split("\n").length} lines`);
+  assert([...names].every((name) => text.includes(name)), `every constant name must appear in the text, got ${[...names].find((name) => !text.includes(name))} missing`);
+  return names;
+};
 
 for (const file of sourceFiles.filter((name) => name.endsWith(".mjs"))) {
   const text = blankComments(read(file));
@@ -601,7 +619,7 @@ for (const file of sourceFiles.filter((name) => name.endsWith(".mjs"))) {
 
 // --- 18. A skill changed against the base ref carries a matching eval stamp ---
 const STAMP_PROBLEM = { missing: "has no stamp", stale: "has a stamp for different content", "blank-waiver": "has a waiver with no reason" };
-const baseRef = baseRefFromEnv();
+const baseRef = process.env[BASE_REF_ENV] || null;
 if (baseRef) {
   for (const skill of changedSkills(ROOT, baseRef)) {
     const status = stampStatus(ROOT, skill);

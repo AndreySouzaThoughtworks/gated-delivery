@@ -8,7 +8,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, chmodSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,8 +27,8 @@ const write = (dir, relPath, body) => {
 
 const TEST_FILES_TABLE = 'paths."**/*.test.mjs"';
 const RELAXED_TEST_RULES = '["filesystem-in-test", "process-in-test"]';
-const TOP_LEVEL_DISABLE = 'disable = ["assertion-density"]';
-const STRICT_ZANITY_CONFIG = `exclude = ["tests/fixtures/", "evals/fixtures/"]\n[rules]\nselect = ["all"]\n${TOP_LEVEL_DISABLE}\n[${TEST_FILES_TABLE}]\ndisable = ${RELAXED_TEST_RULES}\n`;
+const SELECT_ALL = 'select = ["all"]';
+const STRICT_ZANITY_CONFIG = `exclude = ["tests/fixtures/", "evals/fixtures/"]\n[rules]\n${SELECT_ALL}\n[${TEST_FILES_TABLE}]\ndisable = ${RELAXED_TEST_RULES}\n`;
 
 /** A fixture the guard must accept: 1 skill, 1 agent, 1 hook, all documented. */
 const validRepo = () => {
@@ -529,16 +529,16 @@ test("zanity is a required check and its config cannot be loosened", () => {
   const loosened = {
     "a missing config": null,
     "a narrowed select": STRICT_ZANITY_CONFIG.replace('["all"]', '["correctness"]'),
-    "a second rule disabled under [rules]": STRICT_ZANITY_CONFIG.replace(TOP_LEVEL_DISABLE, 'disable = ["assertion-density", "recursion"]'),
-    "no rule disabled under [rules]": STRICT_ZANITY_CONFIG.replace(TOP_LEVEL_DISABLE, "disable = []"),
-    "assertion-density moved into the test-file table": STRICT_ZANITY_CONFIG.replace(TOP_LEVEL_DISABLE, "disable = []").replace(RELAXED_TEST_RULES, '["assertion-density", "filesystem-in-test", "process-in-test"]'),
+    "assertion-density disabled under [rules]": STRICT_ZANITY_CONFIG.replace(SELECT_ALL, `${SELECT_ALL}\ndisable = ["assertion-density"]`),
+    "another rule disabled under [rules]": STRICT_ZANITY_CONFIG.replace(SELECT_ALL, `${SELECT_ALL}\ndisable = ["recursion"]`),
+    "assertion-density moved into the test-file table": STRICT_ZANITY_CONFIG.replace(RELAXED_TEST_RULES, '["assertion-density", "filesystem-in-test", "process-in-test"]'),
     "a disable at the top level": `disable = ["assertion-density"]\n${STRICT_ZANITY_CONFIG}`,
     "an extra rule in the test-file table": STRICT_ZANITY_CONFIG.replace(RELAXED_TEST_RULES, `${RELAXED_TEST_RULES.slice(0, -1)}, "hollow-test"]`),
     "a rule missing from the test-file table": STRICT_ZANITY_CONFIG.replace(RELAXED_TEST_RULES, '["filesystem-in-test"]'),
     "the table on a non-test glob": STRICT_ZANITY_CONFIG.replace("**/*.test.mjs", "**/*.mjs"),
     "a second paths table": `${STRICT_ZANITY_CONFIG}[paths."tests/e2e/"]\ndisable = ["process-in-test"]\n`,
     "a dotted paths key at the top level": `paths."plugin/".disable = ["assertion-density"]\n${STRICT_ZANITY_CONFIG}`,
-    "a single-quoted rule the guard cannot read": STRICT_ZANITY_CONFIG.replace(TOP_LEVEL_DISABLE, "disable = ['assertion-density']"),
+    "a single-quoted rule the guard cannot read": STRICT_ZANITY_CONFIG.replace(SELECT_ALL, `${SELECT_ALL}\ndisable = ['assertion-density']`),
     "an extra excluded path": STRICT_ZANITY_CONFIG.replace('"evals/fixtures/"', '"evals/fixtures/", "plugin/"'),
   };
   for (const [label, config] of Object.entries(loosened)) {
@@ -552,6 +552,8 @@ test("zanity is a required check and its config cannot be loosened", () => {
 });
 
 const mustReject = (dir, pattern) => {
+  assert(existsSync(dir), `the guard must run on a repo that exists, got none at ${dir}; build the fixture first`);
+  assert(pattern.source.length > 0, `a rejection pattern must not be empty, got ${pattern}; it would match any output`);
   const { code, out } = runGuard(dir);
   assert.equal(code, 1, `expected the guard to fail, got ${out}`);
   assert.match(out, pattern);
@@ -668,22 +670,35 @@ test("a condition that never varies is rejected, one that can change is accepted
 
 const BASE_REF = "main";
 const GIT_IDENTITY = { GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" };
-const git = (dir, args) => execFileSync("git", args, { cwd: dir, encoding: "utf8", env: { ...process.env, ...GIT_IDENTITY } });
+const git = (dir, args) => {
+  assert(existsSync(dir), `git must run in a folder that exists, got ${dir}; build the fixture first`);
+  assert(args.length > 0, `git needs a subcommand, got ${JSON.stringify(args)}; name one`);
+  return execFileSync("git", args, { cwd: dir, encoding: "utf8", env: { ...process.env, ...GIT_IDENTITY } });
+};
+
+const FEATURE_BRANCH = "feature";
 
 const featureBranchEditing = (file, body) => {
+  assert(!file.startsWith("/"), `the edited file must be relative to the repo, got ${file}; drop the leading slash`);
   const dir = validRepo();
   git(dir, ["init", "-b", BASE_REF]);
   git(dir, ["add", "."]);
   git(dir, ["commit", "-m", "base"]);
-  git(dir, ["checkout", "-b", "feature"]);
+  git(dir, ["checkout", "-b", FEATURE_BRANCH]);
   write(dir, file, body);
   git(dir, ["add", "."]);
   git(dir, ["commit", "-m", "change"]);
+  const checkedOut = git(dir, ["rev-parse", "--abbrev-ref", "HEAD"]).trim();
+  assert(checkedOut === FEATURE_BRANCH, `the edit must be committed on ${FEATURE_BRANCH}, got ${checkedOut}`);
   return dir;
 };
 
 const SKILL_EDIT = ["plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\n\n## Heading One\n\nEdited.\n"];
-const stamp = (dir, hash) => write(dir, "evals/results/alpha.json", JSON.stringify({ hash }));
+const stamp = (dir, hash) => {
+  assert(hash.length > 0, `a stamp hash must not be blank, got ${JSON.stringify(hash)}; a blank one reads as a missing stamp`);
+  write(dir, "evals/results/alpha.json", JSON.stringify({ hash }));
+  assert(existsSync(join(dir, "evals/results/alpha.json")), `the stamp must exist after it is written, got none in ${dir}`);
+};
 
 test("a skill changed against the base ref needs an eval stamp with a matching hash", () => {
   const dir = featureBranchEditing(...SKILL_EDIT);

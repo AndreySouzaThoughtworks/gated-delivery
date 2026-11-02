@@ -64,6 +64,8 @@ const verifyCmdFromInstructions = () => {
     }
     if (found || dir === home) break;
   }
+  console.assert(isAbsolute(home), `the folder bounding the CLAUDE.md search must be absolute, got ${home}`);
+  console.assert(found === undefined || found.trim().length > 0, `a Verify command found in CLAUDE.md must not be blank, got ${JSON.stringify(found)}`);
   return found;
 };
 
@@ -96,22 +98,31 @@ const readCounter = () => {
     count = 0;
   }
   console.assert(Number.isInteger(count), `a stored counter must be a whole number, got ${count}`);
+  console.assert(count >= RELEASED, `a stored counter must not fall below the release sentinel ${RELEASED}, got ${count}`);
   return count;
 };
 const writeCounter = (value) => {
+  console.assert(Number.isInteger(value), `a counter to store must be a whole number, got ${value}`);
+  console.assert(value >= RELEASED, `a counter to store must not fall below the release sentinel ${RELEASED}, got ${value}`);
   mkdirSync(COUNTER_DIR, { recursive: true });
   writeFileSync(COUNTER_FILE, String(value));
 };
 const resetCounter = () => {
+  console.assert(COUNTER_FILE.startsWith(COUNTER_DIR + sep), `only a file inside ${COUNTER_DIR} may be removed, got ${COUNTER_FILE}`);
   try {
     rmSync(COUNTER_FILE);
   } catch {
     /* already gone */
   }
+  console.assert(!existsSync(COUNTER_FILE), `the counter file must be gone after a reset, got ${COUNTER_FILE}`);
 };
 
-const untrackedFiles = () =>
-  execFileSync("git", ["ls-files", "--others", "--exclude-standard"], { encoding: "utf8" }).split("\n").filter(Boolean);
+const untrackedFiles = () => {
+  const files = execFileSync("git", ["ls-files", "--others", "--exclude-standard"], { encoding: "utf8" }).split("\n").filter(Boolean);
+  console.assert(files.every((file) => !isAbsolute(file)), `untracked files must be listed relative to the repo, got ${files.find(isAbsolute)}`);
+  console.assert(new Set(files).size === files.length, `each untracked file must be listed once, got ${files.length - new Set(files).size} repeats`);
+  return files;
+};
 
 // Extensions a JS/TS repo's lint gate plausibly covers — deliberately generous, including the ones
 // only a prettier-in-eslint setup touches. Skipping is a decision NOT to verify, so this errs toward
@@ -147,6 +158,7 @@ const lintRoots = () => {
       found = new Set();
     }
   }
+  console.assert([...found].every((root) => root.length > 0), "a lint root must not be blank, got an empty name; a blank root matches no changed file");
   return found;
 };
 
@@ -175,6 +187,8 @@ const nothingLintableChanged = () => {
         nothingLintable = roots.size > 0 && !changed.some((f) => roots.has(f.split("/")[0]));
       }
     }
+    console.assert(!nothingLintable || changed.length > 0, `an empty change list must not count as nothing lintable, got nothingLintable=${nothingLintable} with ${changed.length} changed files`);
+    console.assert(!(touchesRepoRoot && nothingLintable), `a change at the repo root must always run the gate, got touchesRepoRoot=${touchesRepoRoot} and nothingLintable=${nothingLintable}`);
   } catch {
     nothingLintable = false;
   }
@@ -195,13 +209,16 @@ const verifyScriptIsAbsent = () => {
     console.assert(typeof pkg === "object" && pkg !== null, `package.json must hold a JSON object, got ${pkg === null ? "null" : typeof pkg}`);
     absent = !pkg.scripts || !pkg.scripts[scriptName];
   }
+  console.assert(!absent || !existsSync(pkgPath) || looksLikePnpmScript, `a script reads as absent only without a package.json or under pnpm, got ${VERIFY_CMD}`);
   return absent;
 };
 
 // The verify command runs in its own process group so a timeout can stop everything it started;
 // killing only the shell leaves linters and test workers running behind the next turn.
-const runVerify = () =>
-  new Promise((done) => {
+const runVerify = () => {
+  console.assert(VERIFY_CMD.trim().length > 0, `the verify command to run must not be blank, got ${JSON.stringify(VERIFY_CMD)}`);
+  console.assert(VERIFY_TIMEOUT_MS > 0, `the verify timeout must be positive because 0 means no limit, got ${VERIFY_TIMEOUT_MS}`);
+  return new Promise((done) => {
     const options = { cwd: process.cwd(), detached: true, stdio: ["ignore", "pipe", "pipe"] };
     const child = existsSync(LOCK_WRAPPER)
       ? spawn(LOCK_WRAPPER, [VERIFY_CMD], { ...options, env: { ...process.env, GATED_DELIVERY_VERIFY_LOCK_TIMEOUT_S: LOCK_WAIT_S } })
@@ -231,6 +248,7 @@ const runVerify = () =>
       done({ passed: code === 0 && !timedOut, timedOut, lockBusy, output });
     });
   });
+};
 
 const main = async () => {
   console.assert(Number.isFinite(MAX_CONSECUTIVE_BLOCKS), `GATED_DELIVERY_VERIFY_MAX_BLOCKS must be a number, got ${process.env.GATED_DELIVERY_VERIFY_MAX_BLOCKS}`);
@@ -266,6 +284,7 @@ const main = async () => {
     process.exit(EXIT_OK);
   }
   const blocks = readCounter() + 1;
+  console.assert(blocks >= 1, `a block count must start at 1 or more, got ${blocks}; the counter read as released mid-run`);
   writeCounter(blocks);
   if (blocks > MAX_CONSECUTIVE_BLOCKS) {
     writeCounter(RELEASED);

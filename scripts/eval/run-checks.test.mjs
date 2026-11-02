@@ -7,29 +7,45 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, dirname } from "node:path";
+import { basename, join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseChecks, parseExpect, runCheck, scenarioIds } from "./run-checks.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, "..", "..");
 
-const fence = (body) => `## Deterministic Checks\n\n\`\`\`bash\n${body}\n\`\`\`\n`;
+const OUTPUT_NAME = "output.md";
+const TRANSCRIPT_NAME = "transcript.jsonl";
+const CODE_FENCE = "```";
+
+const fence = (body) => {
+  assert(!body.includes(CODE_FENCE), `fence got body ${JSON.stringify(body)}; expected no ${JSON.stringify(CODE_FENCE)} inside it, since it would close the fence early`);
+  const markdown = `## Deterministic Checks\n\n\`\`\`bash\n${body}\n\`\`\`\n`;
+  assert(markdown.startsWith("## Deterministic Checks\n"), "fence does not open with the Deterministic Checks heading; expected the section parseChecks reads");
+  assert(markdown.includes(`\n${body}\n`), `fence got markdown ${JSON.stringify(markdown)}; expected body ${JSON.stringify(body)} on its own lines inside the fence`);
+  return markdown;
+};
 
 const withEnv = (name, value, body) => {
+  assert(process.env[name] === undefined, `withEnv would overwrite ${name}, already set to ${process.env[name]}; expected an unset variable`);
   process.env[name] = value;
+  let result;
   try {
-    return body();
+    result = body();
   } finally {
     delete process.env[name];
   }
+  assert(process.env[name] === undefined, `withEnv left ${name} set; expected it removed after the body`);
+  return result;
 };
 
 const outputFile = (body) => {
-  const f = join(mkdtempSync(join(tmpdir(), "gated-delivery-runner-test-")), "output.md");
+  const f = join(mkdtempSync(join(tmpdir(), "gated-delivery-runner-test-")), OUTPUT_NAME);
   writeFileSync(f, body);
+  assert(basename(f) === OUTPUT_NAME, `outputFile named the file ${basename(f)}; expected ${OUTPUT_NAME}, the name fences refer to`);
+  assert(readFileSync(f, "utf8") === body, `${f} does not hold the body outputFile wrote`);
   return f;
 };
 
@@ -236,14 +252,18 @@ test("--lint passes over the real skills and goes red when a check is broken", (
 const SCENARIO_TABLE = "## Test Scenarios\n\n| # | Prompt | Persona | Pass Criteria |\n|---|---|---|---|\n| 1 | p | q | r |\n| 2b | p | q | r |\n\n";
 
 const repoWith = (skill, evalsBody) => {
+  assert(!skill.includes("/"), `repoWith got skill ${JSON.stringify(skill)}; expected a bare folder name`);
   const dir = mkdtempSync(join(tmpdir(), "gated-delivery-runner-scenario-"));
   const skillDir = join(dir, "plugin", "skills", skill);
   mkdirSync(skillDir, { recursive: true });
   writeFileSync(join(skillDir, "evals.md"), evalsBody);
+  assert(existsSync(join(skillDir, "evals.md")), `repoWith(${skill}) wrote no evals.md; expected one for the runner to read`);
   return dir;
 };
 
 const cli = (cwd, args) => {
+  assert(existsSync(cwd), `cli ran in ${cwd}, which does not exist; expected an existing folder`);
+  assert(args.length > 0, `cli got ${args.length} arguments; expected --lint or a skill and an output file`);
   try {
     return { code: 0, out: execFileSync("node", [join(HERE, "run-checks.mjs"), ...args], { cwd, encoding: "utf8" }) };
   } catch (e) {
@@ -357,7 +377,9 @@ const COUNT_WRITES = "grep -c '\"name\":\"Write\"' transcript.jsonl";
 
 const outputWithTranscript = (transcript) => {
   const file = outputFile("hello\n");
-  if (transcript !== undefined) writeFileSync(join(dirname(file), "transcript.jsonl"), transcript);
+  if (transcript !== undefined) writeFileSync(join(dirname(file), TRANSCRIPT_NAME), transcript);
+  assert(existsSync(file), `outputWithTranscript wrote no ${OUTPUT_NAME}; expected the graded file`);
+  assert(existsSync(join(dirname(file), TRANSCRIPT_NAME)) === (transcript !== undefined), `outputWithTranscript(${transcript === undefined ? "no transcript" : "a transcript"}) disagrees with the ${TRANSCRIPT_NAME} on disk; expected one only when given`);
   return file;
 };
 

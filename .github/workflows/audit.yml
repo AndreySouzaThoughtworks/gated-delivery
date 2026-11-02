@@ -23,7 +23,7 @@ jobs:
       - uses: benomahony/zanity@7fd1880c9c509019f7b87a8b506a6b78599bc8c7 # v0.1.39
         with:
           version: 0.1.39
-          args: check . --baseline zanity-baseline.json --new-only --fail-on warning --strict
+          args: check . --baseline zanity-baseline.json --new-only --agent --fail-on warning --strict
 
   consistency:
     name: consistency

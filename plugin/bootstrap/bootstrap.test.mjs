@@ -172,6 +172,7 @@ test("the clean-repo variant skips the baseline and drops --new-only", () => {
   assert(!clean.diff.includes("--new-only"), "a clean repo must not use --new-only");
   const dirty = run(repo, [], { FAKE_ZANITY_STATUS: "1" });
   assert(dirty.diff.includes("--baseline zanity-baseline.json --new-only"), `a dirty repo should use the baseline, got ${dirty.diff.match(/args: .*/)}`);
+  assert(dirty.diff.includes("--new-only --agent"), `a baseline run must pass --agent so zanity does not panic in its plain output, got ${dirty.diff.match(/args: .*/)}`);
 });
 
 test("a path escape is refused and nothing is written", () => {

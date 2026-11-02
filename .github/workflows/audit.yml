@@ -46,6 +46,8 @@ jobs:
         run: node --test plugin/hooks/*.test.mjs
       - name: Script tests (the guard and the eval runner)
         run: node --test scripts/audit/*.test.mjs scripts/eval/*.test.mjs
+      - name: Bootstrap and client guard tests
+        run: node --test plugin/bootstrap/*.test.mjs plugin/bootstrap/guards/*.test.mjs
       - name: Eval checks are runnable
         run: node scripts/eval/run-checks.mjs --lint
       - name: Leak guard self-test

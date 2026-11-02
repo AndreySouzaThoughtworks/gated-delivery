@@ -25,6 +25,7 @@
 |---------|---------|
 | `/gated-delivery:commit` | One commit following the client's `## Commit convention`, else plain Conventional Commits; explicit per-path staging. Covered by `tests/commit-convention.test.sh`. |
 | `/gated-delivery:commit-push-pr` | Commit, sync with the remote tip, checkpoint, push to an explicit refspec, open the PR. |
+| `/gated-delivery:bootstrap` | Add missing guardrails to a client repo (Python, TS/JS, GitHub): plan-only diff by default, writes per confirmed group on a branch, delivers through the two commit commands. Scripts in `plugin/bootstrap/`, covered by `plugin/bootstrap/bootstrap.test.mjs`. |
 
 ## Agents
 

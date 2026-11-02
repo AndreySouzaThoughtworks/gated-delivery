@@ -231,7 +231,7 @@ test("zanity installs from the pinned release tag and fails closed on an unverif
   const plan = installPlan();
   assert(/\/v\d+\.\d+\.\d+\/install\.sh$/.test(plan.scriptUrl) && !plan.scriptUrl.includes("/main/"), `install script must come from a tag, not main, got ${plan.scriptUrl}`);
   assert(plan.env.ZANITY_VERSION === plan.version, `ZANITY_VERSION must equal the pin, got ${plan.env.ZANITY_VERSION} vs ${plan.version}`);
-  assert(isVerifiedInstall("Installed zanity 0.1.30 to /x") === true, "a clean installer run must count as verified");
+  assert(isVerifiedInstall("Installed zanity 0.1.39 to /x") === true, "a clean installer run must count as verified");
   assert(isVerifiedInstall("this download is unverified\nInstalled zanity") === false, "an unverified warning must count as not verified");
   assert.throws(() => installPlan("latest"), /pinned x\.y\.z/, "an unpinned version must be refused");
 });

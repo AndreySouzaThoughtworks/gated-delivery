@@ -32,7 +32,6 @@ const dirs = (p) => {
 };
 
 function frontmatterName(file) {
-  assert(file.endsWith(MARKDOWN_EXTENSION), `${file} must be a markdown file to hold frontmatter, got another extension; pass a ${MARKDOWN_EXTENSION} path`);
   // Callers reach here for files they have already reported as missing; reading one threw ENOENT and
   // killed the process before the report block could print the error it had just recorded.
   if (!existsSync(file)) return null;
@@ -148,7 +147,6 @@ const markdownFiles = (dir) => {
   const found = readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
     e.isDirectory() ? markdownFiles(join(dir, e.name)) : e.name.endsWith(MARKDOWN_EXTENSION) ? [join(dir, e.name)] : [],
   );
-  assert(found.every((file) => file.endsWith(MARKDOWN_EXTENSION)), `${dir} must list only markdown files, got ${found.find((file) => !file.endsWith(MARKDOWN_EXTENSION))}`);
   return found;
 };
 const localNames = new Set([...skills, ...agents, ...commands]);

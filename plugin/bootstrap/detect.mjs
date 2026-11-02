@@ -51,15 +51,12 @@ const GUARDRAIL_FILES = { zanityToml: "zanity.toml", zanityBaseline: "zanity-bas
 const HIDDEN_PREFIX = ".";
 
 const listDir = (dir) => {
-  assert(existsSync(dir), `${dir} must exist to be listed, got a missing path; pass --repo <existing directory>`);
   const entries = readdirSync(dir, { withFileTypes: true });
-  assert(Array.isArray(entries), `listing ${dir} must yield entries, got ${typeof entries}`);
   return entries;
 };
 
 const sourceFiles = (root, depthLeft, prefix = "") => {
   assert(depthLeft >= 0, `depth budget must not be negative, got ${depthLeft}`);
-  assert(existsSync(join(root, prefix)), `${join(root, prefix)} must exist while scanning, got missing`);
   const skipped = new Set(markerTable.search.skip);
   return listDir(join(root, prefix)).flatMap((entry) => {
     const relative = join(prefix, entry.name);
@@ -72,9 +69,7 @@ const sourceFiles = (root, depthLeft, prefix = "") => {
 };
 
 const onPath = (tool) => {
-  assert(tool.length > 0, `a tool name must be non-empty, got "${tool}"`);
   const found = (process.env.PATH ?? "").split(delimiter).some((dir) => dir && existsSync(join(dir, tool)));
-  assert(typeof found === "boolean", `PATH lookup for ${tool} must answer yes or no, got ${found}`);
   return found;
 };
 
@@ -110,8 +105,6 @@ export const detect = (repo) => {
     linters,
     guardrails: Object.fromEntries(Object.entries(GUARDRAIL_FILES).map(([key, file]) => [key, topLevel.has(file)])),
   };
-  assert(result.languages.every((language) => typeof language === "string"), `languages must be names, got ${JSON.stringify(result.languages)}`);
-  assert(result.githubWorkflows.every((name) => WORKFLOW_EXTENSIONS.includes(extname(name))), `workflows must be yaml files, got ${JSON.stringify(result.githubWorkflows)}`);
   return result;
 };
 

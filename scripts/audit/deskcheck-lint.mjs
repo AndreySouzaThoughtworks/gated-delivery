@@ -56,7 +56,6 @@ export const lintDeskcheck = (html, { dir, templateHtml = readFileSync(TEMPLATE_
   if (csp.length !== 1 || csp[0] !== expectedCsp[0]) problems.push(`the page must carry the template's Content-Security-Policy meta tag exactly once and unchanged, got ${csp.length} tags; copy it from ${TEMPLATE_PATH}`);
 
   assert(expectedCsp.length === 1, `the template must hold exactly one Content-Security-Policy meta tag to compare against, got ${expectedCsp.length} in ${TEMPLATE_PATH}`);
-  assert(problems.every((p) => typeof p === "string" && p.length > 0), `every problem must be a non-empty message, got ${JSON.stringify(problems)}; fix the check that returned one`);
   return problems;
 };
 

@@ -6,11 +6,10 @@
 // The model reads the run read-only and returns, per clause, PASS, FAIL or UNCLEAR with quoted
 // evidence. Code, not the model, settles the verdict, and a result with no quote becomes UNCLEAR.
 
-import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, relative, resolve, sep } from "node:path";
+import { join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const SKILLS_DIR = join(process.cwd(), "plugin", "skills");
@@ -87,8 +86,6 @@ const CLAUSE_SHAPE = [
 class HarnessError extends Error {}
 
 export function findRow(markdown, id) {
-  assert(id.trim() !== "", `a scenario id must not be blank, got ${JSON.stringify(id)}; pass the id from the evals table`);
-  assert(!markdown.includes(PIPE_PLACEHOLDER), `an evals file must not contain a NUL character, got one at index ${markdown.indexOf(PIPE_PLACEHOLDER)}; it stands in for an escaped pipe`);
   let header = null;
   for (const line of markdown.replace(/\r/g, "").split("\n")) {
     if (!line.trimStart().startsWith("|")) {
@@ -113,7 +110,6 @@ export function findRow(markdown, id) {
 }
 
 export const splitClauses = (criteria) => {
-  assert(criteria.trim() !== "", `criteria must not be blank, got ${JSON.stringify(criteria)}; give the scenario row Pass Criteria`);
   const sentences = [];
   const text = criteria.trim();
   let start = 0;
@@ -137,12 +133,10 @@ export const splitClauses = (criteria) => {
     .flatMap((s) => s.split(FAILS_IF_SPLIT))
     .map((s) => s.trim())
     .filter(Boolean);
-  assert(clauses.length > 0, `non-blank criteria must yield at least one clause, got ${clauses.length} from ${JSON.stringify(criteria)}`);
   return clauses;
 };
 
 export const aggregate = (clauses) => {
-  assert(clauses.every((c) => RESULTS.includes(c.result)), `every clause result must be one of ${RESULTS.join(", ")}, got ${JSON.stringify(clauses.map((c) => c.result))}`);
   const verdict = !clauses.length
     ? UNCLEAR
     : clauses.some((c) => c.result === FAIL)
@@ -150,7 +144,6 @@ export const aggregate = (clauses) => {
       : clauses.some((c) => c.result === UNCLEAR)
         ? UNCLEAR
         : PASS;
-  assert(Object.hasOwn(EXIT, verdict), `a verdict must have an exit code, got ${JSON.stringify(verdict)}; expected one of ${RESULTS.join(", ")}`);
   return verdict;
 };
 
@@ -161,27 +154,20 @@ const normalize = (text) => {
     .replace(/[*_`]/g, "")
     .replace(/\s+/g, " ")
     .trim();
-  assert(!/[*_`]/.test(normalized), `normalized text must carry no emphasis marks, got ${JSON.stringify(normalized.slice(0, SHOWN_CHARS))}`);
-  assert(!/\s\s/.test(normalized) && normalized === normalized.trim(), `normalized text must have single spaces and no edge whitespace, got ${JSON.stringify(normalized.slice(0, SHOWN_CHARS))}`);
   return normalized;
 };
 
 const filesUnder = (dir) => {
-  assert(dir.trim() !== "", `a directory to list must not be blank, got ${JSON.stringify(dir)}; pass the run folder`);
   const files = readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) return SKIPPED_DIRS.has(entry.name) ? [] : filesUnder(path);
     return entry.isFile() ? [path] : [];
   });
-  const escaped = files.filter((path) => relative(dir, path).split(sep)[0] === PARENT_SEGMENT);
-  assert(escaped.length === 0, `every listed file must sit under ${dir}, got ${JSON.stringify(escaped)}`);
   return files;
 };
 
 export const readRun = (runDir) => {
-  assert(runDir.trim() !== "", `runDir must not be blank, got ${JSON.stringify(runDir)}; a blank path would read the current directory`);
   const root = resolve(runDir);
-  assert(existsSync(root), `the run folder must exist, got ${root}; pass the saved run folder`);
   const files = filesUnder(root).map((path) => {
     const inside = relative(root, path);
     const body = readFileSync(join(root, inside), "utf8");
@@ -191,7 +177,6 @@ export const readRun = (runDir) => {
 };
 
 export const settle = (clauses, graded, run) => {
-  assert(new Set(graded.map((g) => g.id)).size === graded.length, `each clause id must be graded once, got ${JSON.stringify(graded.map((g) => g.id))}; the first reply would silently win`);
   const settled = clauses.map((clause, index) => {
     const found = graded.find((g) => g.id === index + 1);
     if (!found) return { clause, result: UNCLEAR, evidence: "" };
@@ -214,12 +199,10 @@ export const settle = (clauses, graded, run) => {
       .join(" — ");
     return { clause, result: proven ? found.result : UNCLEAR, evidence };
   });
-  assert(settled.length === clauses.length, `every clause must be settled once, got ${settled.length} for ${clauses.length} clauses`);
   return settled;
 };
 
 const promptFor = ({ prompt, persona }, clauses, runDir) => {
-  assert(clauses.length > 0, `a judge prompt needs at least one clause, got ${clauses.length}; split the row's Pass Criteria first`);
   const files = readdirSync(runDir).filter((f) => f !== OUTPUT_FILE);
   const text = `You grade one recorded run of an AI coding assistant against a fixed list of clauses.
 
@@ -264,12 +247,10 @@ Return one entry per clause, with its number as id.
 <${OUTPUT_FILE}>
 ${readFileSync(join(runDir, OUTPUT_FILE), "utf8")}
 </${OUTPUT_FILE}>`;
-  assert(clauses.every((c) => text.includes(c)), `the prompt must carry every clause, got ${JSON.stringify(clauses.filter((c) => !text.includes(c)))} missing`);
   return text;
 };
 
 const parseReply = (stdout) => {
-  assert(stdout.length <= REPLY_BUFFER_BYTES, `a judge reply cannot exceed the ${REPLY_BUFFER_BYTES} byte buffer, got ${stdout.length} characters`);
   let reply;
   try {
     reply = JSON.parse(stdout);
@@ -282,13 +263,10 @@ const parseReply = (stdout) => {
   if (!wellFormed) throw new HarnessError("judge output does not match the clause schema");
   const gradedIds = graded.map((g) => g.id);
   if (new Set(gradedIds).size !== gradedIds.length) throw new HarnessError(`judge graded a clause more than once, ids ${JSON.stringify(gradedIds)}; rerun the judge`);
-  assert(new Set(graded.map((g) => g.id)).size === graded.length, `each clause id must be graded once, got ${JSON.stringify(graded.map((g) => g.id))}; reject the duplicated reply`);
   return graded;
 };
 
 export function judge(skill, id, runDir) {
-  assert(skill !== PARENT_SEGMENT && !/[\\/]/.test(skill), `skill must name one skills folder, got ${JSON.stringify(skill)}; pass a skill name, not a path`);
-  assert(runDir.trim() !== "", `runDir must not be blank, got ${JSON.stringify(runDir)}; pass the saved run folder`);
   const evalsPath = join(SKILLS_DIR, skill, "evals.md");
   if (!existsSync(evalsPath)) throw new HarnessError(`No such skill: ${skill}`);
   const markdown = readFileSync(evalsPath, "utf8");

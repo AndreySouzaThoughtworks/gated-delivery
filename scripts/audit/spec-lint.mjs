@@ -76,7 +76,6 @@ const splitByHeading = (text, level) => {
     body: text.slice(mark.index + mark[0].length, marks[i + 1]?.index ?? text.length).trim(),
   }));
   assert(parts.every((p) => !new RegExp(`^${hashes} `, "m").test(p.body)), `a ${hashes} part must not contain another ${hashes} heading, got one inside ${JSON.stringify(parts.find((p) => new RegExp(`^${hashes} `, "m").test(p.body))?.title)}`);
-  assert(parts.reduce((total, p) => total + p.body.length, 0) <= text.length, `the parts must not hold more text than the ${text.length} characters split, got ${parts.length} parts`);
   return parts;
 };
 
@@ -104,8 +103,6 @@ export const parseSpec = (raw) => {
       const match = line.match(AC_LINE);
       return { line, id: Number(match?.[1]), tag: match?.[2], text: match?.[3], matched: Boolean(match) };
     });
-  assert(prose.length <= body.length, `removing code fences must not grow the body, got ${prose.length} from ${body.length} characters; fix the fence pattern`);
-  assert(slices.every((s) => s.matched || Number.isNaN(s.number)), `a slice that did not match its heading has no number, got ${JSON.stringify(slices.find((s) => !s.matched && !Number.isNaN(s.number))?.line)}`);
   return { frontmatter, body, prose, sections, bodies, slices, criteria, heading: prose.match(/^# (.+)$/m)?.[1] };
 };
 
@@ -240,7 +237,6 @@ const RULES = [
 export const lintSpec = (raw) => {
   const spec = parseSpec(raw);
   const problems = RULES.flatMap((rule) => rule(spec));
-  assert(problems.every((p) => typeof p === "string" && p.length > 0), `every problem must be a non-empty message, got ${JSON.stringify(problems)}; fix the rule that returned one`);
   assert(spec.sections.length > 0 || problems.length > 0, `a file with no sections must be reported, got ${spec.sections.length} sections and ${problems.length} problems; a spec needs the template sections`);
   return problems;
 };

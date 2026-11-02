@@ -67,9 +67,7 @@ const main = () => {
   } catch {
     process.exit(EXIT_OK);
   }
-  console.assert(typeof input === "object" && input !== null, `a hook payload is a JSON object, got ${input === null ? "null" : typeof input}`);
   const command = input?.tool_input?.command ?? "";
-  console.assert(typeof command === "string", `a Bash payload carries its command as text, got ${typeof command}`);
   const blocked = CATASTROPHIC.find(({ pattern }) => pattern.test(command));
   if (blocked) {
     process.stdout.write(

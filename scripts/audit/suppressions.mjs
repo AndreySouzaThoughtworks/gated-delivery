@@ -33,10 +33,7 @@ const STOPWORDS = new Set(
 const REGEX_SPECIALS = /[.*+?^${}()|[\]\\/]/g;
 
 const boundedPhrase = (phrase) => {
-  assert(phrase.length > 0, `an empty phrase would match everywhere, got length ${phrase.length}; list real phrases`);
   const bounded = new RegExp(`(?<![a-z0-9])${phrase.replace(REGEX_SPECIALS, "\\$&")}(?![a-z0-9])`, "g");
-  assert(bounded.test(phrase), `the pattern for "${phrase}" must match the phrase itself, got ${bounded}`);
-  bounded.lastIndex = 0;
   return bounded;
 };
 
@@ -47,11 +44,9 @@ const meaningfulWords = (reason) => { // zanity: ignore[assertion-density] -- re
 };
 
 const reasonProblem = (rest) => {
-  assert(typeof rest === "string", `the text after a marker must be a string, got ${typeof rest}`);
   const found = rest.replace(COMMENT_CLOSERS, "").match(REASON_SEPARATOR);
   if (!found) return `has no reason; write ${REASON_FORMAT}`;
   const words = meaningfulWords(found[1]);
-  assert(found[1].length > 0, `the reason after "--" must not be empty, got "${found[1]}"; write why it is safe`);
   if (words.size < MIN_REASON_WORDS) {
     return `reason "${found[1]}" has ${words.size} meaningful distinct words; explain why in at least ${MIN_REASON_WORDS}, without filler such as ${EMPTY_REASONS.join(", ")}`;
   }
@@ -59,8 +54,6 @@ const reasonProblem = (rest) => {
 };
 
 const ruleProblem = (label, bracket, markerText) => {
-  assert(typeof label === "string" && label.length > 0, `a marker needs a label, got "${label}"`);
-  assert(typeof markerText === "string", `the marker text must be a string, got ${typeof markerText}`);
   if (label !== "zanity") return null;
   const rules = (bracket ?? "").split(",").map((rule) => rule.trim()).filter(Boolean);
   if (rules.length === 1) return null;
@@ -81,7 +74,6 @@ const trackedFiles = (repo) => {
 };
 
 const findSuppressions = (repo) => {
-  assert(typeof repo === "string", `repo must be a directory path, got ${typeof repo}`);
   const found = [];
   for (const file of trackedFiles(repo)) {
     const body = readFileSync(join(repo, file), "utf8");
@@ -93,13 +85,11 @@ const findSuppressions = (repo) => {
       }
     });
   }
-  assert(found.every((entry) => Array.isArray(entry.problems)), "every finding carries a problems list, got a finding without one");
   return found;
 };
 
 const allowedCount = (repo) => {
   const path = join(repo, COUNT_FILE);
-  assert(typeof repo === "string", `repo must be a directory path, got ${typeof repo}`);
   if (!existsSync(path)) return null;
   const allowed = Number.parseInt(readFileSync(path, "utf8").trim(), 10);
   assert(Number.isInteger(allowed) && allowed >= 0, `${COUNT_FILE} must hold one non-negative integer, got "${readFileSync(path, "utf8").trim()}"; write the current count`);

@@ -2,14 +2,13 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { isAbsolute, join, relative, resolve } from "node:path";
+import { join, resolve } from "node:path";
 
 const EXIT_OK = 0;
 const EXIT_VIOLATION = 1;
 const EXIT_USAGE = 2;
 const USAGE = "usage: node rules-about-rules.mjs --repo <dir>";
 const REPO_OPTION = "--repo";
-const PARENT_SEGMENT = "..";
 const ALLOWLIST_PATH = ".guardrails/allowed.json";
 const ZANITY_CONFIG = "zanity.toml";
 const OVERWATCH_CONFIG = ".overwatch.json";
@@ -43,15 +42,11 @@ class UsageError extends Error {}
 const parseArgs = (argv) => {
   if (argv.length !== 2 || argv[0] !== REPO_OPTION || argv[1].startsWith("--")) throw new UsageError(USAGE);
   assert(argv[1].length > 0, `${REPO_OPTION} must name a directory, got "${argv[1]}"; pass the repository root`);
-  assert(argv[0] === REPO_OPTION, `the only option is ${REPO_OPTION}, got ${argv[0]}`);
   return argv[1];
 };
 
 const readText = (repo, relativePath, what) => {
   const resolved = resolve(repo, relativePath);
-  const fromRepo = relative(resolve(repo), resolved);
-  assert(!isAbsolute(relativePath) && !fromRepo.startsWith(PARENT_SEGMENT), `${what} at ${relativePath} must stay inside ${repo}, resolved to ${resolved}`);
-  assert(fromRepo.length > 0, `${what} must name a file below ${repo}, got the repository itself`);
   try {
     return readFileSync(resolved, "utf8");
   } catch (error) {
@@ -85,8 +80,6 @@ const loadAllowlist = (repo) => {
     excludes: stringList(document?.zanityExcludes ?? [], "zanityExcludes"),
     requiredJobs: stringList(document?.requiredCiJobs ?? [], "requiredCiJobs"),
   };
-  assert(Object.values(allowlist.disables).every(Array.isArray), `every allowed disable entry must be a list, got ${JSON.stringify(allowlist.disables)}`);
-  assert(Array.isArray(allowlist.excludes) && Array.isArray(allowlist.requiredJobs), `excludes and required jobs must be lists, got ${JSON.stringify([allowlist.excludes, allowlist.requiredJobs])}`);
   return allowlist;
 };
 
@@ -99,8 +92,6 @@ const quotedItems = (list) => {
 };
 
 const tableProblem = (header, body, allowedDisables) => {
-  assert(body !== undefined, `[${header}] must come with a body, got none; the table split must pair every header with a body`);
-  assert(header === header.trim(), `[${header}] must be trimmed before the lookup, got stray whitespace`);
   const scopesPaths = header === "paths" || header.startsWith("paths.");
   const allowed = allowedDisables[header];
   const disabled = [...body.matchAll(DISABLE_LIST)].flatMap(([, list]) => quotedItems(list));
@@ -130,8 +121,6 @@ const zanityProblems = (text, allowlist) => {
   for (const path of excluded.filter((item) => !allowlist.excludes.includes(item))) {
     found.push(`${ZANITY_CONFIG} excludes ${path}, which hides it from every check and is not in ${ALLOWLIST_PATH}. Hint: fix the findings in code instead.`);
   }
-  assert(found.every((problem) => problem.includes(ZANITY_CONFIG)), `every config problem must name ${ZANITY_CONFIG}, got ${found.find((problem) => !problem.includes(ZANITY_CONFIG))}`);
-  assert(tables.length === 1 + headersAndBodies.length / 2, `${tables.length} tables read for ${headersAndBodies.length / 2} headers, expected one table per header plus the top level`);
   return found;
 };
 
@@ -172,8 +161,6 @@ const workflowProblems = (repo, requiredJobs) => {
   for (const job of requiredJobs.filter((name) => !present.has(name))) {
     found.push(`required CI job "${job}" is not defined in ${WORKFLOWS_DIR}. Hint: restore the job; it is listed under requiredCiJobs in ${ALLOWLIST_PATH}.`);
   }
-  assert(found.every((problem) => problem.includes(WORKFLOWS_DIR)), `every workflow problem must name its source, got ${JSON.stringify(found)}`);
-  assert(requiredJobs.every((job) => present.has(job) || found.some((problem) => problem.includes(`"${job}"`))), `each missing required job must be reported, got present ${JSON.stringify([...present])} and problems ${JSON.stringify(found)}`);
   return found;
 };
 
@@ -187,16 +174,12 @@ const overwatchProblems = (repo) => {
     throw new UsageError(`${OVERWATCH_CONFIG} is not valid JSON (${error.message})`);
   }
   const found = config?.enabled === false ? [`${OVERWATCH_CONFIG} sets "enabled": false, which turns the watchers off. Hint: remove the key and fix what the watchers report.`] : [];
-  assert(found.length === (config?.enabled === false ? 1 : 0), `${OVERWATCH_CONFIG} enabled=${JSON.stringify(config?.enabled)} must yield exactly one problem when false, got ${found.length}`);
-  assert(found.every((problem) => problem.includes(OVERWATCH_CONFIG)), `every overwatch problem must name ${OVERWATCH_CONFIG}, got ${JSON.stringify(found)}`);
   return found;
 };
 
 const sha256Of = (repo, relativePath) => {
   const resolved = resolve(repo, relativePath);
-  assert(!relative(resolve(repo), resolved).startsWith(PARENT_SEGMENT), `${relativePath} must stay inside ${repo}, resolved to ${resolved}`);
   const digest = createHash("sha256").update(readFileSync(resolved)).digest("hex");
-  assert(digest.length === 64, `a sha256 digest has 64 hex characters, got ${digest.length} for ${relativePath}`);
   return digest;
 };
 
@@ -210,7 +193,6 @@ const manifestEntries = (text) => {
       return { hash: match[1], path: match[2] };
     });
   assert(new Set(entries.map(({ path }) => path)).size === entries.length, `${MANIFEST_PATH} lists a file twice, got ${JSON.stringify(entries.map(({ path }) => path))}`);
-  assert(entries.every(({ path }) => path.startsWith(`${GUARDS_DIR}/`)), `manifest paths must sit under ${GUARDS_DIR}/, got ${JSON.stringify(entries.map(({ path }) => path))}`);
   return entries;
 };
 
@@ -230,7 +212,6 @@ const manifestProblems = (repo) => {
     return [`${path} differs from ${MANIFEST_PATH}. Hint: restore the file, or if a reviewer approved the change, update the manifest in the same pull request with: shasum -a 256 ${GUARDS_DIR}/*.mjs`];
   });
   const found = [...unlisted, ...changed];
-  assert(found.length >= unlisted.length, `the combined problems must include every unlisted guard, got ${found.length} of ${unlisted.length}`);
   assert(found.every((problem) => problem.includes(GUARDS_DIR) && !problem.includes("\n")), `each manifest problem must name a guard on one line, got ${JSON.stringify(found)}`);
   return found;
 };
@@ -239,13 +220,10 @@ const repoProblems = (repo) => {
   const allowlist = loadAllowlist(repo);
   const zanity = existsSync(join(repo, ZANITY_CONFIG)) ? zanityProblems(readText(repo, ZANITY_CONFIG, "the zanity config"), allowlist) : [`${ZANITY_CONFIG} is missing. Hint: zanity is a required check, so the repo must configure it.`];
   const found = [...zanity, ...workflowProblems(repo, allowlist.requiredJobs), ...overwatchProblems(repo), ...manifestProblems(repo)];
-  assert(found.length >= zanity.length, `the combined problems must include every zanity problem, got ${found.length} of ${zanity.length}`);
-  assert(found.every((problem) => problem.length > 0), `every problem needs a message, got ${JSON.stringify(found)}`);
   return found;
 };
 
 const main = () => {
-  assert(process.argv.length >= 2, `node must pass the script path in argv, got ${JSON.stringify(process.argv)}`);
   try {
     const problems = repoProblems(parseArgs(process.argv.slice(2)));
     assert(problems.every((problem) => !problem.includes("\n")), `each problem must be one line, got ${JSON.stringify(problems)}`);

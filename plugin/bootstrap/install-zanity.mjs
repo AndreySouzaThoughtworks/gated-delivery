@@ -14,14 +14,12 @@ const DEFAULT_INSTALL_DIR = join(homedir(), ".local", "bin");
 export const installPlan = (version = pins.zanityVersion, repository = pins.zanityRepository) => {
   assert(/^\d+\.\d+\.\d+$/.test(version), `zanity version must be a pinned x.y.z release, got "${version}"; set zanityVersion in pins.json`);
   const scriptUrl = `https://raw.githubusercontent.com/${repository}/v${version}/install.sh`;
-  assert(scriptUrl.includes(`/v${version}/`), `install script must come from the release tag, got ${scriptUrl}`);
   return { scriptUrl, env: { ZANITY_VERSION: version }, version };
 };
 
 export const isVerifiedInstall = (installerOutput) => {
   assert(installerOutput.includes("Installed"), `installer must report an install, got "${installerOutput.slice(0, 80)}"`);
   const verified = !installerOutput.includes(UNVERIFIED_MARKER);
-  assert(typeof verified === "boolean", `verification must be yes or no, got ${verified}`);
   return verified;
 };
 
@@ -43,7 +41,6 @@ const run = async () => {
   if (!isVerifiedInstall(output)) throw new Error(`zanity ${plan.version} could not be checksum-verified against its release. Nothing was installed; retry later or set GITHUB_TOKEN.`);
   mkdirSync(DEFAULT_INSTALL_DIR, { recursive: true });
   copyFileSync(join(stagingDir, "zanity"), join(DEFAULT_INSTALL_DIR, "zanity"));
-  assert(existsSync(join(DEFAULT_INSTALL_DIR, "zanity")), `zanity must exist in ${DEFAULT_INSTALL_DIR} after the copy`);
   assert(output.includes(plan.version), `installer output must name ${plan.version}, got "${output.slice(0, 80)}"`);
   console.error(`installed zanity ${plan.version} to ${DEFAULT_INSTALL_DIR}`);
 };

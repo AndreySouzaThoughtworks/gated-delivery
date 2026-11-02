@@ -31,8 +31,6 @@ const EXIT_USAGE = 2;
 export const scanText = (text, extraTerms = []) => {
   const arms = [...ARMS, ...extraTerms.map((term) => [`extra guardrail term ${term}`, term])].map(([name, pattern]) => [name, new RegExp(pattern, "i")]);
   const hits = text.split("\n").flatMap((line, index) => arms.filter(([, pattern]) => pattern.test(line)).map(([name]) => ({ line: index + 1, arm: name })));
-  assert(arms.length === ARMS.length + extraTerms.length, `every extra term must add exactly one arm, got ${arms.length} arms for ${ARMS.length} built-in and ${extraTerms.length} extra`);
-  assert(hits.every((hit) => hit.line >= 1 && hit.line <= text.split("\n").length), `every hit must name a line inside the ${text.split("\n").length}-line text, got ${JSON.stringify(hits.find((hit) => hit.line < 1))}`);
   return hits;
 };
 

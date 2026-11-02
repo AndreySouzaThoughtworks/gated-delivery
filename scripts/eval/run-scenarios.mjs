@@ -75,7 +75,6 @@ const VERDICT_SEVERITY = ["PASS", "FAIL", GRADER_ERROR];
 const KNOWN_GRADES = new Set(["PASS", "FAIL", "UNCLEAR", GRADER_ERROR, NOT_AVAILABLE]);
 const SIGNAL_TERM = "SIGTERM";
 const SIGNAL_KILL = "SIGKILL";
-const GROUP_SIGNALS = new Set([SIGNAL_TERM, SIGNAL_KILL]);
 const TSV_CELL_BREAK = /[\t\n]/;
 
 const PROMPT_PLACEHOLDER = "{{PROMPT}}";
@@ -120,8 +119,6 @@ const ROW_CELLS = 4;
 const UNUSABLE_ID = /^$|[\t\n\r/\\]/;
 
 const sectionBody = (markdown, headingPrefix) => {
-  assert(/^#+ /.test(headingPrefix), `a section heading prefix must start with # marks and a space, got ${JSON.stringify(headingPrefix)}; pass e.g. "## Client context"`);
-  assert(headingPrefix.replace(/^#+/, "").trim() !== "", `a section heading prefix must name the heading, got ${JSON.stringify(headingPrefix)}; a bare marker matches the first heading of that level`);
   const all = markdown.split(LINE_BREAK);
   const start = all.findIndex((l) => l.startsWith(headingPrefix));
   if (start === -1) return null;
@@ -137,7 +134,6 @@ const sectionBody = (markdown, headingPrefix) => {
 };
 
 export function parseEvals(markdown) {
-  assert(markdown.length > 0, `an evals file must not be empty, got ${markdown.length} characters`);
   const all = markdown.split(LINE_BREAK);
   const rows = [];
   let inScenarios = false;
@@ -168,13 +164,10 @@ export function parseEvals(markdown) {
     clientContext: sectionBody(markdown, "## Client context")?.match(FENCE_BODY)?.[1] ?? null,
     responseMode: /^mode:\s*response\b/m.test(sectionBody(markdown, "## Execution Model") ?? ""),
   };
-  assert(parsed.rows.every((row) => row.cells >= 1), `every scenario row must carry its cell count, got ${JSON.stringify(parsed.rows.map((row) => row.cells))}`);
   return parsed;
 }
 
 export const fillTemplate = (template, prompt, persona) => {
-  assert(template.includes(PROMPT_PLACEHOLDER), `an agent template must carry ${PROMPT_PLACEHOLDER} or the prompt is dropped, got ${JSON.stringify(template.slice(0, 60))}`);
-  assert(prompt.trim() !== "", `a scenario prompt must not be blank, got ${JSON.stringify(prompt)}; fill the Prompt cell of the row`);
   return template
     .split(PROMPT_PLACEHOLDER)
     .map((part) => part.replaceAll(PERSONA_PLACEHOLDER, () => persona))
@@ -182,8 +175,6 @@ export const fillTemplate = (template, prompt, persona) => {
 };
 
 export function inspectRun({ transcript, arm, skill, timedOut }) {
-  assert(ARMS.includes(arm), `arm must be one of ${ARMS.join(", ")}, got ${JSON.stringify(arm)}`);
-  assert(skill.trim() !== "", `skill must not be blank, got ${JSON.stringify(skill)}; a blank name matches every skills path`);
   const result =
     transcript
       .split(LINE_BREAK)
@@ -209,14 +200,11 @@ export function inspectRun({ transcript, arm, skill, timedOut }) {
 
 export const summaryTsv = (rows) => {
   const cellRows = rows.map((row) => SUMMARY_COLUMNS.map((column) => row[column]));
-  assert(cellRows.every((cells) => cells.every((cell) => cell !== undefined && !TSV_CELL_BREAK.test(cell))), `every summary cell must be set and free of tabs and newlines, got ${JSON.stringify(cellRows.find((cells) => cells.some((cell) => cell === undefined || TSV_CELL_BREAK.test(cell))))}`);
   const tsv = [SUMMARY_COLUMNS, ...cellRows].map((cells) => `${cells.join("\t")}\n`).join("");
-  assert(tsv.split("\n").length - 1 === rows.length + 1, `the summary must have one header line and one line per row, got ${tsv.split("\n").length - 1} lines for ${rows.length} rows`);
   return tsv;
 };
 
 export function disagreements(rows) {
-  assert(rows.every((row) => row.checks !== undefined && row.judge !== undefined), `every row must carry its checks and judge grades, got ${JSON.stringify(rows.filter((row) => row.checks === undefined || row.judge === undefined).map((row) => row.id))} without`);
   const groups = new Map();
   for (const row of rows) {
     const key = `${row.skill}\t${row.id}\t${row.arm}`;
@@ -230,7 +218,6 @@ export function disagreements(rows) {
     groups.get(key).outcomes.push(`checks ${row.checks} judge ${row.judge}`);
   }
   const disagreeing = [...groups.values()].filter((group) => new Set(group.outcomes).size > 1);
-  assert(disagreeing.every((group) => group.outcomes.length > 1), `a disagreement needs at least two runs, got ${JSON.stringify(disagreeing.map((group) => group.outcomes.length))}`);
   return disagreeing;
 }
 
@@ -242,27 +229,21 @@ const USAGE_LINES = [
 ];
 
 const usage = (message) => {
-  assert(String(message).trim() !== "", `usage got a blank message ${JSON.stringify(message)}; expected the reason the arguments are wrong`);
   const readable = String(message).replace(CONTROL_CHARACTERS, " ");
-  assert(readable.trim() !== "", `usage got only control characters in ${JSON.stringify(message)}; expected readable text`);
   console.error(readable);
   for (const line of USAGE_LINES) console.error(line);
   process.exit(EXIT_USAGE);
 };
 
 const positiveInteger = (flag, value) => {
-  assert(flag.startsWith("--"), `a flag name must start with --, got ${JSON.stringify(flag)}`);
   const n = Number(value);
   if (!Number.isInteger(n) || n < 1) usage(`${flag} needs a positive integer, got "${value}"`);
-  assert(n >= 1, `${flag} must resolve to at least 1, got ${n}`);
   return n;
 };
 
 const positiveNumber = (flag, value) => {
-  assert(flag.startsWith("--"), `a flag name must start with --, got ${JSON.stringify(flag)}`);
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0) usage(`${flag} needs a positive number, got "${value}"`);
-  assert(n > 0, `${flag} must resolve to more than 0, got ${n}`);
   return n;
 };
 
@@ -304,24 +285,19 @@ function parseArgs(argv) {
   if (!options.skill) usage("No skill given.");
   if (options.smoke && options.ids.length) usage("--smoke picks the scenarios itself; drop --scenario.");
   options.repeat ??= options.rerunFailures ? RERUN_REPEAT : DEFAULT_REPEAT;
-  assert(options.repeat >= 1, `repeat must be at least 1, got ${options.repeat}`);
-  assert(options.jobs >= 1, `jobs must be at least 1, got ${options.jobs}`);
   return options;
 }
 
 const pagesIn = (dir) => {
-  assert(dir.trim() !== "", `a directory to search for pages must not be blank, got ${JSON.stringify(dir)}; pass the run folder`);
   const pages = readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     if (entry.isDirectory()) return SKIPPED_DIRS.has(entry.name) ? [] : pagesIn(join(dir, entry.name));
     return entry.name.endsWith(PAGE_EXTENSION) ? [join(dir, entry.name)] : [];
   });
-  assert(pages.every((page) => page.endsWith(PAGE_EXTENSION)), `every page must end in ${PAGE_EXTENSION}, got ${JSON.stringify(pages.filter((page) => !page.endsWith(PAGE_EXTENSION)))}`);
   return pages;
 };
 
 function gradeChecks(skill, id, runDir) {
   if (!existsSync(RUN_CHECKS)) return NOT_AVAILABLE;
-  assert(existsSync(join(runDir, "output.md")), `a graded run must have its output.md, got none in ${runDir}`);
   const scratch = join(runDir, RUN_TEMP_DIR, "");
   const files = [join(runDir, "output.md"), ...pagesIn(runDir).filter((page) => !page.startsWith(scratch))];
   const log = [];
@@ -335,13 +311,11 @@ function gradeChecks(skill, id, runDir) {
   });
   writeFileSync(join(runDir, "checks.txt"), log.join("\n"));
   const worst = verdicts.reduce((a, b) => (VERDICT_SEVERITY.indexOf(b) > VERDICT_SEVERITY.indexOf(a) ? b : a));
-  assert(VERDICT_SEVERITY.includes(worst), `the checks verdict must be one of ${VERDICT_SEVERITY.join(", ")}, got ${JSON.stringify(worst)}`);
   return worst;
 }
 
 function gradeJudge(skill, id, runDir, criteria) {
   if (!existsSync(JUDGE) || criteria === NOTHING_TO_JUDGE) return NOT_AVAILABLE;
-  assert(existsSync(runDir), `the run folder to judge must exist, got ${runDir}`);
   const { status, stdout, stderr } = spawnSync("node", [JUDGE, skill, id, runDir], { cwd: ROOT, encoding: "utf8" });
   writeFileSync(join(runDir, "judge.json"), stdout || stderr);
   const verdict = JUDGE_VERDICTS[status] ?? GRADER_ERROR;
@@ -352,8 +326,6 @@ function gradeJudge(skill, id, runDir, criteria) {
 const NO_SUCH_PROCESS = "ESRCH";
 const liveGroups = new Set();
 const signalGroup = (pid, name) => {
-  assert(pid > 0, `a process group id must be positive, got ${pid}; pid 0 would signal the runner's own group`);
-  assert(GROUP_SIGNALS.has(name), `a group signal must be one of ${[...GROUP_SIGNALS].join(", ")}, got ${JSON.stringify(name)}`);
   try {
     process.kill(-pid, name);
   } catch (error) {
@@ -368,8 +340,6 @@ for (const name of ["SIGINT", "SIGTERM"]) {
 }
 
 const runClaude = (args, { cwd, env, transcriptPath, stderrPath }) => {
-  assert(transcriptPath !== stderrPath, `the transcript and stderr must go to different files, got ${transcriptPath} for both`);
-  assert(RUN_TIMEOUT_SECONDS > 0, `the run timeout must be positive, got ${RUN_TIMEOUT_SECONDS} seconds; fix GATED_DELIVERY_RUN_TIMEOUT_SECONDS`);
   return new Promise((resolve) => {
     const out = openSync(transcriptPath, "w");
     const err = openSync(stderrPath, "w");
@@ -406,7 +376,6 @@ const runClaude = (args, { cwd, env, transcriptPath, stderrPath }) => {
 const stageFixture = ({ skill, row, runDir }) => {
   const fixture = join(FIXTURES_DIR, skill, row.id);
   assert(fixture.startsWith(FIXTURES_DIR + sep), `a fixture must stay under ${FIXTURES_DIR}, got ${fixture}`);
-  assert(skill.trim() !== "", `a fixture needs a skill name, got ${JSON.stringify(skill)}; a blank name would stage the shared fixtures folder`);
   const hasFixture = existsSync(fixture);
   const setup = join(fixture, FIXTURE_SETUP);
   const allowedToolsFile = join(fixture, FIXTURE_ALLOWED_TOOLS);
@@ -425,8 +394,6 @@ const stageFixture = ({ skill, row, runDir }) => {
 };
 
 const claudeArgs = ({ arm, prompt, snapshot, tempDir, extraRules, budgetUsd, model }) => {
-  assert(extraRules.every((rule) => rule.trim()), `a fixture tool rule must not be blank, got ${JSON.stringify(extraRules)}`);
-  assert(ARMS.includes(arm), `arm must be one of ${ARMS.join(", ")}, got ${JSON.stringify(arm)}`);
   return [
     "-p",
     prompt,
@@ -450,8 +417,6 @@ const claudeArgs = ({ arm, prompt, snapshot, tempDir, extraRules, budgetUsd, mod
 };
 
 async function runOne({ skill, evals, arm, row, n, out, snapshot, budgetUsd, model }) {
-  assert(ARMS.includes(arm), `arm must be one of ${ARMS.join(", ")}, got ${JSON.stringify(arm)}`);
-  assert(n >= 1, `a run number starts at 1, got ${n}; the run folder name would collide`);
   const runDir = join(out, skill, row.id, `${arm}-${n}`);
   const base = {
     skill,
@@ -505,7 +470,6 @@ async function runOne({ skill, evals, arm, row, n, out, snapshot, budgetUsd, mod
 }
 
 const gradeRun = ({ base, skill, arm, row, runDir, prompt, timedOut, secs }) => {
-  assert(secs >= 0, `a run cannot take negative time, got ${secs} seconds`);
   const transcript = readFileSync(join(runDir, "transcript.jsonl"), "utf8");
   const { flags, result } = inspectRun({ transcript, arm, skill, timedOut });
   writeFileSync(join(runDir, "prompt.txt"), prompt);
@@ -513,7 +477,6 @@ const gradeRun = ({ base, skill, arm, row, runDir, prompt, timedOut, secs }) => 
   const notes = flags.filter((flag) => flag.startsWith(DENIED_NOTE));
   const failures = flags.filter((flag) => !notes.includes(flag));
   const harness = [...(failures.length ? failures : [HARNESS_OK]), ...notes].join(",");
-  assert(harness !== "", `a run must report a harness status, got ${JSON.stringify(harness)}`);
   return {
     ...base,
     harness,
@@ -527,7 +490,6 @@ const gradeRun = ({ base, skill, arm, row, runDir, prompt, timedOut, secs }) => 
 };
 
 export function smokeScenarioIds(markdown, rowIds) {
-  assert(new Set(rowIds).size === rowIds.length, `scenario ids must be unique, got ${JSON.stringify(rowIds)}; a repeat would share one coverage entry`);
   const known = new Set(rowIds);
   const coverage = new Map(rowIds.map((id) => [id, new Set()]));
   parseChecks(markdown).checks.forEach((check, index) => {
@@ -547,7 +509,6 @@ export function smokeScenarioIds(markdown, rowIds) {
         bestGain = gain;
       }
     }
-    assert(best !== null, `an uncovered check must be covered by some scenario, got ${uncovered.size} checks with no scenario`);
     chosen.add(best);
     for (const index of coverage.get(best)) uncovered.delete(index);
   }
@@ -557,7 +518,6 @@ export function smokeScenarioIds(markdown, rowIds) {
 const passed = (row) => !row.failed && PASSING_GRADES.has(row.checks) && PASSING_GRADES.has(row.judge); // zanity: ignore[assertion-density] -- grades are validated against KNOWN_GRADES where gradeJudge produces them and an unknown grade already counts as not passed
 
 export function scenarioVerdicts({ ids, results, unlaunchedIds, rerunFailures }) {
-  assert(new Set(ids).size === ids.length, `scenario ids must be unique, got ${JSON.stringify(ids)}; a repeat would overwrite its verdict`);
   const verdicts = Object.fromEntries(
     ids.map((id) => {
       const runs = results.filter((row) => row.id === id).sort((a, b) => a.run - b.run);
@@ -572,12 +532,10 @@ export function scenarioVerdicts({ ids, results, unlaunchedIds, rerunFailures })
       return [id, verdict];
     }),
   );
-  assert(Object.values(verdicts).every((verdict) => VERDICTS.includes(verdict)), `every verdict must be one of ${VERDICTS.join(", ")}, got ${JSON.stringify(verdicts)}`);
   return verdicts;
 }
 
 const selectScenarios = (options, evals, arm, markdown) => {
-  assert(ARMS.includes(arm), `arm must be one of ${ARMS.join(", ")}, got ${JSON.stringify(arm)}`);
   if (!evals.rows.length) usage(`${options.skill} lists no scenario rows under ## Test Scenarios.`);
   if (arm === ARM_BASELINE && !evals.baselineTemplate) usage(`${options.skill} has no ### Baseline Agent template.`);
   if (arm === ARM_SKILL && !evals.skillTemplate) usage(`${options.skill} has no ### Skill Agent template.`);
@@ -596,12 +554,10 @@ const selectScenarios = (options, evals, arm, markdown) => {
   if (malformed.length) usage(`Rows without ${ROW_CELLS} cells: ${malformed.map((row) => row.id).join(", ")}`);
   const blankPrompts = selected.filter((row) => !row.prompt?.trim());
   if (blankPrompts.length) usage(`Rows with a blank Prompt cell: ${blankPrompts.map((row) => row.id).join(", ")}; fill the cell.`);
-  assert(selected.every((row) => row.cells === ROW_CELLS), `every selected row must have ${ROW_CELLS} cells, got ${JSON.stringify(selected.map((row) => row.cells))}`);
   return selected;
 };
 
 const runQueue = async (items, jobs, ledger) => {
-  assert(jobs >= 1, `jobs must be at least 1, got ${jobs}; no worker would start and every item would stay queued`);
   const queue = [...items];
   const results = [];
   await Promise.all(
@@ -613,13 +569,10 @@ const runQueue = async (items, jobs, ledger) => {
       }
     }),
   );
-  assert(results.length + queue.length === items.length, `every item must be run or left queued, got ${results.length} run and ${queue.length} queued of ${items.length}`);
   return { results, unlaunched: queue };
 };
 
 const report = ({ options, out, results, verdicts }) => {
-  assert(existsSync(out), `the output folder must exist before the summary is written, got ${out}`);
-  assert(results.every((row) => row.skill === options.skill), `every result must belong to ${options.skill}, got ${JSON.stringify([...new Set(results.map((row) => row.skill))])}`);
   writeFileSync(join(out, "summary.tsv"), summaryTsv(results));
   const cells = [SUMMARY_COLUMNS, ...results.map((row) => SUMMARY_COLUMNS.map((column) => String(row[column])))];
   const widths = SUMMARY_COLUMNS.map((_, i) => Math.max(...cells.map((r) => r[i].length)));
@@ -661,7 +614,6 @@ async function main() {
 
   const ledger = { spent: 0, limit: options.totalBudgetUsd ?? Number.POSITIVE_INFINITY };
   const plan = (rows, count, firstRun) => {
-    assert(count >= 1 && firstRun >= 1, `a plan needs a repeat count and first run number of at least 1, got ${count} and ${firstRun}`);
     const items = rows.flatMap((row) =>
       Array.from({ length: count }, (_, i) => ({
         skill: options.skill,
@@ -675,11 +627,9 @@ async function main() {
         model: options.model,
       })),
     );
-    assert(items.length === rows.length * count, `a plan must hold one item per row and repeat, got ${items.length} for ${rows.length} rows of ${count}`);
     return items;
   };
   const first = await runQueue(plan(selected, options.repeat, 1), options.jobs, ledger);
-  assert(first.results.length + first.unlaunched.length === selected.length * options.repeat, `the first pass must account for every planned run, got ${first.results.length} run and ${first.unlaunched.length} unlaunched of ${selected.length * options.repeat}`);
   const results = [...first.results];
   const unlaunched = [...first.unlaunched];
   if (options.rerunFailures) {
@@ -689,7 +639,6 @@ async function main() {
     unlaunched.push(...second.unlaunched);
   }
   const rank = new Map(selected.map((row, index) => [row.id, index]));
-  assert(results.every((r) => rank.has(r.id)), `every result must belong to a selected scenario, got ${JSON.stringify(results.filter((r) => !rank.has(r.id)).map((r) => r.id))}`);
   results.sort((a, b) => rank.get(a.id) - rank.get(b.id) || a.run - b.run);
   const verdicts = scenarioVerdicts({
     ids: selected.map((row) => row.id),

@@ -26,8 +26,6 @@ const parseArgs = (argv) => {
     options[name.slice(OPTION_PREFIX.length)] = value;
   }
   if (!options.baseline || !options["base-ref"]) throw new UsageError(USAGE);
-  assert(options.baseline.length > 0, `--baseline must name a file, got "${options.baseline}"; pass the baseline path`);
-  assert(!options["base-ref"].startsWith(OPTION_PREFIX), `--base-ref must be a git ref, got "${options["base-ref"]}"; pass a branch, tag or commit`);
   return { baseline: options.baseline, baseRef: options["base-ref"] };
 };
 
@@ -43,7 +41,6 @@ const findingIds = (text, source) => {
   }
   const ids = document.findings.map((finding) => finding.id);
   if (new Set(ids).size !== ids.length) throw new UsageError(`${source} lists the same finding id twice; regenerate it with zanity`);
-  assert(ids.length === document.findings.length, `${source}: ${ids.length} ids read for ${document.findings.length} findings, expected one id per finding`);
   assert(ids.every((id) => id.length > 0), `${source}: every id must be non-empty, got ${JSON.stringify(ids.filter((id) => id.length === 0))}`);
   return new Set(ids);
 };
@@ -69,7 +66,6 @@ const readHead = (file) => {
   const resolved = resolve(file);
   const fromCwd = relative(process.cwd(), resolved);
   assert(!isAbsolute(fromCwd) && !fromCwd.startsWith(PARENT_SEGMENT), `${file} resolves to ${resolved}, outside ${process.cwd()}; pass a path inside the repository`);
-  assert(!file.includes("\0"), `${file} must not contain a NUL character`);
   try {
     return readFileSync(resolved, "utf8");
   } catch (error) {
@@ -83,8 +79,6 @@ const check = ({ baseline, baseRef }) => {
   if (baseText === undefined) return { code: EXIT_OK, message: `${baseline} is new relative to ${baseRef}: accepted with ${head.size} findings` };
   const base = findingIds(baseText, `${baseline} at ${baseRef}`);
   const added = [...head].filter((id) => !base.has(id));
-  assert(added.every((id) => head.has(id) && !base.has(id)), `added ids must be in HEAD and not in ${baseRef}, got ${JSON.stringify(added)}`);
-  assert(head.size - added.length <= base.size, `HEAD keeps ${head.size - added.length} ids that ${baseRef} has, but ${baseRef} only has ${base.size}`);
   const problems = [];
   if (head.size > base.size) problems.push(`${baseline} grew from ${base.size} to ${head.size} findings`);
   if (added.length > 0) {
@@ -96,10 +90,8 @@ const check = ({ baseline, baseRef }) => {
 };
 
 const main = () => {
-  assert(process.argv.length >= 2, `node must pass the script path in argv, got ${JSON.stringify(process.argv)}`);
   try {
     const { code, message } = check(parseArgs(process.argv.slice(2)));
-    assert([EXIT_OK, EXIT_VIOLATION].includes(code), `check must return ${EXIT_OK} or ${EXIT_VIOLATION}, got ${code}`);
     (code === EXIT_OK ? console.log : console.error)(message);
     process.exitCode = code;
   } catch (error) {

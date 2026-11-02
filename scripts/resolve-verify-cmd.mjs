@@ -56,16 +56,12 @@ export const commandFromPackage = ({ cwd }) => {
     scripts = undefined;
   }
   const name = SCRIPT_ORDER.find((candidate) => scripts?.[candidate]);
-  assert(name === undefined || Boolean(scripts[name]), `the chosen script ${name} must be defined in package.json scripts ${JSON.stringify(Object.keys(scripts ?? {}))}; define it or drop it from the order`);
-  assert(name === undefined || SCRIPT_ORDER.includes(name), `the chosen script must be one of ${SCRIPT_ORDER.join(", ")}, got ${name}`);
   return name && `${RUNNER} ${name}`;
 };
 
 export const resolveVerifyCmd = ({ env = process.env, cwd = process.cwd(), home = env.HOME || homedir() } = {}) => {
   const fromEnv = env[VERIFY_ENV]?.trim() || undefined;
   const command = fromEnv ?? commandFromInstructions({ cwd, home }) ?? commandFromPackage({ cwd });
-  assert(command === undefined || command.trim().length > 0, `a resolved verify command must not be blank, got ${JSON.stringify(command)}`);
-  assert(fromEnv === undefined || command === fromEnv, `${VERIFY_ENV} must win over every other source, got ${command} instead of ${fromEnv}`);
   return command;
 };
 

@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - uses: benomahony/zanity@97db0c56358db8ff895bbbe349d4014543df89fa # v0.1.30
+      - uses: benomahony/zanity@7fd1880c9c509019f7b87a8b506a6b78599bc8c7 # v0.1.39
         with:
           version: {{ZANITY_VERSION}}
           args: {{ZANITY_ARGS}}

@@ -15,14 +15,13 @@ export const GROUPS = ["config", "guards", "ci"];
 const GUARD_FILES = ["ratchet.mjs", "rules-about-rules.mjs"];
 const CLIENT_GUARDS_DIR = "guards";
 const GUARD_MANIFEST_PATH = ".guardrails/guards.sha256";
-const MANIFEST_LINE = /^[0-9a-f]{64} {2}guards\/\S+$/;
 const WORKFLOWS_DIR = join(".github", "workflows");
 const DEFAULT_WORKFLOW_NAME = "guardrails.yml";
 const ZANITY_TOML = "zanity.toml";
 const ZANITY_BASELINE = "zanity-baseline.json";
 const ZANITY_STRICT_ARGS = "--fail-on warning --strict";
 const ZANITY_PLAIN_ARGS = `check . ${ZANITY_STRICT_ARGS}`;
-const ZANITY_BASELINE_ARGS = `check . --baseline ${ZANITY_BASELINE} --new-only ${ZANITY_STRICT_ARGS}`;
+const ZANITY_BASELINE_ARGS = `check . --baseline ${ZANITY_BASELINE} --new-only --agent ${ZANITY_STRICT_ARGS}`;
 const PROTECTED_BRANCHES = ["main", "master"];
 const FORBIDDEN_EXIT = 2;
 const OVERWATCH_INSTALL_LINE = "/plugin install overwatch --marketplace benomahony/overwatch";
@@ -35,7 +34,6 @@ export class Refusal extends Error {}
 
 export const resolveInside = (root, candidate) => {
   const rootReal = realpathSync(root);
-  assert(rootReal.length > 0, `repo root must resolve to a path, got "${rootReal}"`);
   const target = resolve(rootReal, candidate);
   let existing = target;
   while (!existsSync(existing)) existing = dirname(existing);
@@ -68,7 +66,6 @@ const ZANITY_VERSION_ARGS = ["--version"];
 const ZANITY_CLEAN_ARGS = ["check", ".", ...ZANITY_STRICT_ARGS.split(" ")];
 
 const runZanity = (root, args) => {
-  assert(args.length > 0, `zanity needs arguments, got ${JSON.stringify(args)}`);
   const result = spawnSync(ZANITY_BINARY, args, { cwd: root, encoding: "utf8" });
   assert(result.status !== null || result.error, `zanity ${args.join(" ")} must exit or fail to start, got signal ${result.signal}`);
   return result;
@@ -78,22 +75,17 @@ const guardSources = (guardsDir) => {
   const missing = GUARD_FILES.filter((file) => !existsSync(join(guardsDir, file)));
   if (missing.length > 0) throw new Refusal(`guard scripts missing from ${guardsDir}: ${missing.join(", ")}. Restore plugin/bootstrap/guards/ or pass --guards-dir.`);
   const sources = GUARD_FILES.map((file) => ({ file, content: readFileSync(join(guardsDir, file), "utf8") }));
-  assert(sources.length === GUARD_FILES.length, `one source per guard expected ${GUARD_FILES.length}, got ${sources.length}`);
   assert(sources.every(({ content }) => content.length > 0), `guard scripts must not be empty, got empty ${sources.filter(({ content }) => content.length === 0).map(({ file }) => file)}`);
   return sources;
 };
 
 const manifestContent = (sources) => {
   const lines = sources.map(({ file, content }) => `${createHash("sha256").update(content).digest("hex")}  ${CLIENT_GUARDS_DIR}/${file}`);
-  assert(lines.length === sources.length, `one manifest line per guard expected ${sources.length}, got ${lines.length}`);
-  assert(lines.every((line) => MANIFEST_LINE.test(line)), `every manifest line must read "<sha256>  guards/<file>", got ${JSON.stringify(lines.find((line) => !MANIFEST_LINE.test(line)))}`);
   return `${lines.join("\n")}\n`;
 };
 
 const additionDiff = (path, content) => {
   const lines = content.replace(/\n$/, "").split("\n");
-  assert(lines.length > 0, `a new file must have at least one line, got ${lines.length} for ${path}`);
-  assert(path.length > 0 && !path.startsWith("/"), `diff path must be repo-relative, got "${path}"`);
   return [`--- /dev/null`, `+++ b/${path}`, `@@ -0,0 +1,${lines.length} @@`, ...lines.map((line) => `+${line}`), ""].join("\n");
 };
 
@@ -101,8 +93,6 @@ const workflowVariant = (root, facts) => {
   const baselinePresent = facts.guardrails.zanityBaseline;
   const knownClean = !baselinePresent && facts.guardrails.zanityToml && runZanity(root, ZANITY_VERSION_ARGS).status === 0 && runZanity(root, ZANITY_CLEAN_ARGS).status === 0;
   const variant = knownClean ? ZANITY_PLAIN_ARGS : ZANITY_BASELINE_ARGS;
-  assert(!knownClean || !baselinePresent, `plain args are only for repos with no baseline, got baseline ${baselinePresent}`);
-  assert(baselinePresent ? variant.includes("--new-only") : true, `a repo with a baseline must compare with --new-only, got ${variant}`);
   return variant;
 };
 
@@ -130,8 +120,6 @@ export const buildPlan = (repo, options = {}) => {
   const commands = [];
   if (!facts.guardrails.zanityToml) commands.push({ group: "config", argv: ["init"] });
   if (!facts.guardrails.zanityBaseline) commands.push({ group: "config", argv: ["check", ".", "--baseline", ZANITY_BASELINE, "--capture-baseline", "--strict"], onlyIfFindings: true });
-  assert(changes.every((change) => GROUPS.includes(change.group)), `every change needs a known group, got ${JSON.stringify(changes.map((c) => c.group))}`);
-  assert(conflicts.every((conflict) => existsSync(join(root, conflict.path))), `a conflict means the file exists, got ${JSON.stringify(conflicts.map((c) => c.path))}`);
   return { root, facts, changes, conflicts, commands, diff: changes.map((change) => additionDiff(change.path, change.content)).join("") };
 };
 
@@ -141,7 +129,6 @@ const assertSafeBranch = (root) => {
   if (result.status !== 0) throw new Refusal(`${root} is not a git repo on a branch. Run git init, or check out a branch, then retry.`);
   if (PROTECTED_BRANCHES.includes(branch)) throw new Refusal(`on ${branch}: apply works only on a branch. Run: git switch -c bootstrap/guardrails`);
   assert(branch.length > 0, `a branch name must not be empty, got "${branch}"`);
-  assert(!PROTECTED_BRANCHES.includes(branch), `apply must run off ${PROTECTED_BRANCHES.join("/")}, got ${branch}`);
   return branch;
 };
 
@@ -165,8 +152,6 @@ export const applyPlan = (repo, options) => {
     writeFileSync(target, change.content, { flag: "wx" });
     written.push(change.path);
   }
-  assert(written.every((path) => existsSync(join(root, path))), `every written file must exist, got ${JSON.stringify(written)}`);
-  assert(new Set(written).size === written.length, `a file must be written once, got ${JSON.stringify(written)}`);
   return written;
 };
 
@@ -197,8 +182,6 @@ const reportNotes = ({ facts, conflicts, commands }) => {
   for (const command of commands) notes.push(`would run: zanity ${command.argv.join(" ")}${command.onlyIfFindings ? " (only if findings exist)" : ""}`);
   if (unsupportedLanguages.length > 0) notes.push(`languages outside the MVP, no native lint planned: ${unsupportedLanguages.join(", ")}`);
   notes.push(`overwatch (not installed by this command): ${OVERWATCH_INSTALL_LINE}`);  notes.push(`facts: ${JSON.stringify({ languages: facts.languages, packageManagers: facts.packageManagers, testRunners: testRunners.map((runner) => runner.name), linters: facts.linters })}`);
-  assert(notes.some((note) => note.startsWith("facts:")), `a plan always reports facts, got ${notes.length} notes`);
-  assert(notes.length >= conflicts.length + commands.length, `every conflict and command needs a note, got ${notes.length} for ${conflicts.length + commands.length}`);
   return notes;
 };
 

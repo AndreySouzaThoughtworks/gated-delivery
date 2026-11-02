@@ -172,6 +172,7 @@ test("the clean-repo variant skips the baseline and drops --new-only", () => {
   assert(!clean.diff.includes("--new-only"), "a clean repo must not use --new-only");
   const dirty = run(repo, [], { FAKE_ZANITY_STATUS: "1" });
   assert(dirty.diff.includes("--baseline zanity-baseline.json --new-only"), `a dirty repo should use the baseline, got ${dirty.diff.match(/args: .*/)}`);
+  assert(dirty.diff.includes("--new-only --agent"), `a baseline run must pass --agent so zanity does not panic in its plain output, got ${dirty.diff.match(/args: .*/)}`);
 });
 
 test("a path escape is refused and nothing is written", () => {
@@ -231,7 +232,7 @@ test("zanity installs from the pinned release tag and fails closed on an unverif
   const plan = installPlan();
   assert(/\/v\d+\.\d+\.\d+\/install\.sh$/.test(plan.scriptUrl) && !plan.scriptUrl.includes("/main/"), `install script must come from a tag, not main, got ${plan.scriptUrl}`);
   assert(plan.env.ZANITY_VERSION === plan.version, `ZANITY_VERSION must equal the pin, got ${plan.env.ZANITY_VERSION} vs ${plan.version}`);
-  assert(isVerifiedInstall("Installed zanity 0.1.30 to /x") === true, "a clean installer run must count as verified");
+  assert(isVerifiedInstall("Installed zanity 0.1.39 to /x") === true, "a clean installer run must count as verified");
   assert(isVerifiedInstall("this download is unverified\nInstalled zanity") === false, "an unverified warning must count as not verified");
   assert.throws(() => installPlan("latest"), /pinned x\.y\.z/, "an unpinned version must be refused");
 });

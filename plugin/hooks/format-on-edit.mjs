@@ -10,7 +10,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, extname, isAbsolute, join, resolve } from "node:path";
+import { dirname, extname, join, resolve } from "node:path";
 import { readHookInput } from "./lib/read-hook-input.mjs";
 
 const FORMATTABLE = new Set([
@@ -28,53 +28,36 @@ const FORMATTABLE = new Set([
 const FORMAT_TIMEOUT_MS = 30_000;
 const EXIT_OK = 0;
 
-/**
- * The installed prettier's CLI entry, taken from its own manifest rather than a hard-coded path:
- * prettier 3 ships `bin/prettier.cjs`, prettier 2 ships `bin-prettier.js` at the package root, and
- * either literal silently stops formatting every repo on the other major.
- */
-const prettierCli = () => {
-  try {
-    const manifest = createRequire(join(process.cwd(), "package.json")).resolve(
-      "prettier/package.json",
-    );
-    const { bin } = JSON.parse(readFileSync(manifest, "utf8"));
-    const declared = typeof bin === "string" ? bin : bin?.prettier;
-    const cli = declared ? join(dirname(manifest), declared) : null;
-    console.assert(cli === null || existsSync(cli), `the declared prettier CLI must exist on disk, got ${cli}`);
-    console.assert(cli === null || isAbsolute(cli), `the declared prettier CLI must resolve to an absolute path, got ${cli}`);
-    return cli;
-  } catch {
-    return null;
-  }
-};
+const filePath = readHookInput()?.tool_input?.file_path;
+if (!filePath || !FORMATTABLE.has(extname(filePath))) process.exit(EXIT_OK);
+if (!existsSync(resolve(process.cwd(), filePath))) process.exit(EXIT_OK);
 
-const main = () => {
-  const input = readHookInput();
-  const filePath = input?.tool_input?.file_path;
-  console.assert(filePath === undefined || typeof filePath === "string", `an edited file path is text when present, got ${typeof filePath}`);
-  if (!filePath || !FORMATTABLE.has(extname(filePath))) process.exit(EXIT_OK);
-  if (!existsSync(resolve(process.cwd(), filePath))) process.exit(EXIT_OK);
+// The installed prettier's CLI entry, taken from its own manifest rather than a hard-coded path:
+// prettier 3 ships `bin/prettier.cjs`, prettier 2 ships `bin-prettier.js` at the package root, and
+// either literal silently stops formatting every repo on the other major.
+// Resolved from the edited repo, so it picks up that repo's prettier version. Absent — the common
+// case for a plugin installed everywhere — is a silent no-op, same as before.
+let cli = null;
+try {
+  const manifest = createRequire(join(process.cwd(), "package.json")).resolve("prettier/package.json");
+  const { bin } = JSON.parse(readFileSync(manifest, "utf8"));
+  const declared = typeof bin === "string" ? bin : bin?.prettier;
+  cli = declared ? join(dirname(manifest), declared) : null;
+} catch {
+  cli = null;
+}
+if (!cli) process.exit(EXIT_OK);
 
-  // Resolved from the edited repo, so it picks up that repo's prettier version. Absent — the common
-  // case for a plugin installed everywhere — is a silent no-op, same as before.
-  const cli = prettierCli();
-  if (!cli) process.exit(EXIT_OK);
-  console.assert(isAbsolute(cli), `the prettier CLI to spawn must be an absolute path, got ${cli}`);
-
-  try {
-    // execFileSync, not execSync: passing args as an array means no shell parses them. The string
-    // form interpolated the path into a shell command inside double quotes, where `$(...)` and
-    // backticks still expand — a file named `$(id -u)/a.ts` got formatted as `501/a.ts`.
-    execFileSync(process.execPath, [cli, "--write", filePath], {
-      stdio: "ignore",
-      cwd: process.cwd(),
-      timeout: FORMAT_TIMEOUT_MS,
-    });
-  } catch {
-    // prettier absent, not configured, or failed — never block on formatting
-  }
-  process.exit(EXIT_OK);
-};
-
-main();
+try {
+  // execFileSync, not execSync: passing args as an array means no shell parses them. The string
+  // form interpolated the path into a shell command inside double quotes, where `$(...)` and
+  // backticks still expand — a file named `$(id -u)/a.ts` got formatted as `501/a.ts`.
+  execFileSync(process.execPath, [cli, "--write", filePath], {
+    stdio: "ignore",
+    cwd: process.cwd(),
+    timeout: FORMAT_TIMEOUT_MS,
+  });
+} catch {
+  // prettier absent, not configured, or failed — never block on formatting
+}
+process.exit(EXIT_OK);

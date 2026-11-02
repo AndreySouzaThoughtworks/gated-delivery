@@ -50,3 +50,25 @@ jobs:
         run: bash tests/leak-guard.test.sh
       - name: Slice worktree and verify-lock tests
         run: bash tests/slice-scripts.test.sh
+
+  guardrail-scripts:
+    name: guardrail scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Verify-command resolver tests
+        run: node --test scripts/*.test.mjs
+      - name: Spec lint accepts the known-good spec
+        run: node scripts/audit/spec-lint.mjs scripts/audit/fixtures/valid-spec.md
+      - name: Deskcheck lint accepts the known-good page
+        run: node scripts/audit/deskcheck-lint.mjs scripts/audit/fixtures/deskcheck/valid.html
+      - name: Guardrail scan accepts the issue-writing templates and examples
+        run: |
+          for file in plugin/skills/issue-writing/templates/*.md plugin/skills/issue-writing/examples/*.md; do
+            node scripts/audit/guardrail-scan.mjs "$file"
+          done

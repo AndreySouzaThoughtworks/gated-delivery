@@ -23,7 +23,7 @@ jobs:
       - uses: benomahony/zanity@97db0c56358db8ff895bbbe349d4014543df89fa # v0.1.30
         with:
           version: 0.1.30
-          args: check . --fail-on warning --strict
+          args: check . --baseline zanity-baseline.json --new-only --fail-on warning --strict
 
   consistency:
     name: consistency
@@ -42,6 +42,9 @@ jobs:
         run: node scripts/audit/consistency.mjs
       - name: Suppression guard
         run: node scripts/audit/suppressions.mjs
+      - name: Zanity baseline only shrinks
+        if: github.event_name == 'pull_request'
+        run: node plugin/bootstrap/guards/ratchet.mjs --baseline zanity-baseline.json --base-ref "$GATED_DELIVERY_BASE_REF"
       - name: Hook behaviour tests
         run: node --test plugin/hooks/*.test.mjs
       - name: Script tests (the guard and the eval runner)

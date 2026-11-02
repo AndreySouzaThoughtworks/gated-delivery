@@ -7,3 +7,4 @@
 /.githooks/ @AndreySouzaThoughtworks
 /scripts/leak-guard.sh @AndreySouzaThoughtworks
 /evals/results/ @AndreySouzaThoughtworks
+/zanity-baseline.json @AndreySouzaThoughtworks

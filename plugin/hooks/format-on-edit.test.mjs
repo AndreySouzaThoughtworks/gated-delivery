@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { tempDir } from "./lib/temp-dir.mjs";
+import { tempDir } from "../../scripts/test-support/temp-dir.mjs";
 
 const HOOK = join(dirname(fileURLToPath(import.meta.url)), "format-on-edit.mjs");
 

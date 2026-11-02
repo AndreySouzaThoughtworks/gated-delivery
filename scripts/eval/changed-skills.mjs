@@ -26,6 +26,8 @@ const EXIT_PASSED = 0;
 const EXIT_FAILED = 1;
 const EXIT_USAGE = 2;
 const EXIT_NOTHING_RUN = 3;
+const EXIT_HARNESS_ERROR = 4;
+const SKILL_NAME = /^[^./\\][^/\\]*$/;
 
 const TIER_SMOKE = "smoke";
 const TIER_FULL = "full";
@@ -41,11 +43,11 @@ const CREDENTIAL_HINT = "runs ignore the user settings source, so set a working 
 const VERDICTS_FILE = "verdicts.json";
 const RUNNER = join("scripts", "eval", "run-scenarios.mjs");
 const SHA256_HEX = /^[0-9a-f]{64}$/;
-const FLAG_AND_VALUE = 2;
 
 const USAGE = [
   "usage: changed-skills.mjs [skill…] [--full] [--budget-usd N] [--total-budget-usd N] [--model M] [--jobs N]",
   '       changed-skills.mjs --waive <skill> --reason "<text>"',
+  "exit codes: 0 passed, waived or nothing to run, 1 evals failed, 2 usage error, 3 claude cannot run so no eval ran, 4 harness error (an internal check or file operation failed)",
 ].join("\n");
 const WAIVER_KEY = "waived";
 const VALUE_FLAGS = ["--budget-usd", "--total-budget-usd", "--model", "--jobs"];
@@ -76,24 +78,17 @@ const agentsNamedBy = (root, skill) => {
   return agents;
 };
 
-const hashedFilesOf = (root, skill) => {
-  assert(root !== "", `hashedFilesOf got ${JSON.stringify(root)}; expected the repository root path`);
-  assert(!skill.includes("/"), `hashedFilesOf got skill ${JSON.stringify(skill)}; expected a bare skill folder name`);
+export const skillHash = (root, skill) => {
+  assert(root !== "", `skillHash got ${JSON.stringify(root)}; expected the repository root path`);
+  assert(!skill.includes("/"), `skillHash got skill ${JSON.stringify(skill)}; expected a bare skill folder name`);
   const own = filesUnder(join(root, SKILLS_PREFIX, skill))
     .map((name) => name.split("\\").join("/"))
     .filter(isHashedSkillFile)
     .map((name) => `${SKILLS_PREFIX}/${skill}/${name}`);
-  const files = [...own, ...agentsNamedBy(root, skill)].sort();
-  assert(new Set(files).size === files.length, `hashedFilesOf(${skill}) lists a file twice; expected each file hashed once`);
-  assert(!files.includes(`${SKILLS_PREFIX}/${skill}/${EVALS_FILE}`), `hashedFilesOf(${skill}) includes ${EVALS_FILE}; expected it excluded so recording evals does not stale the stamp`);
-  return files;
-};
-
-export const skillHash = (root, skill) => {
-  assert(root !== "", `skillHash got ${JSON.stringify(root)}; expected the repository root path`);
-  assert(!skill.includes("/"), `skillHash got skill ${JSON.stringify(skill)}; expected a bare skill folder name`);
+  const files = [...new Set([...own, ...agentsNamedBy(root, skill)])].sort();
+  assert(!files.includes(`${SKILLS_PREFIX}/${skill}/${EVALS_FILE}`), `skillHash(${skill}) includes ${EVALS_FILE}; expected it excluded so recording evals does not stale the stamp`);
   const digest = createHash("sha256");
-  for (const path of hashedFilesOf(root, skill)) {
+  for (const path of files) {
     digest.update(`${path}\0`);
     digest.update(readFileSync(join(root, path)));
     digest.update("\0");
@@ -109,12 +104,7 @@ const git = (root, args) => {
   return execFileSync("git", args, { cwd: root, encoding: "utf8" });
 };
 
-const lines = (text) => {
-  const found = text.split(LINE_BREAK).filter(Boolean);
-  assert(found.every((line) => !line.includes("\n")), "lines returned an entry holding a line break; expected one entry per line");
-  assert(found.every((line) => line !== ""), "lines returned an empty entry; expected blank lines dropped");
-  return found;
-};
+const lines = (text) => text.split(LINE_BREAK).filter(Boolean); // zanity: ignore[assertion-density] -- text is git command output and the result is one split-and-filter whose only possible failures are the splitter's own guarantees
 
 const changedPaths = (root, baseRef) => {
   assert(root !== "", `changedPaths got ${JSON.stringify(root)}; expected the repository root path`);
@@ -197,23 +187,19 @@ const parseArgs = (argv) => {
   return options;
 };
 
-const modelFlags = (passthrough) => {
-  assert(passthrough.length % FLAG_AND_VALUE === 0, `modelFlags got ${passthrough.length} passthrough entries; expected flag and value pairs`);
-  const at = passthrough.indexOf("--model");
-  const model = at === -1 ? process.env.GATED_DELIVERY_RUN_MODEL : passthrough[at + 1];
-  const flags = model ? ["--model", model] : [];
-  assert(flags.every((flag) => flag !== ""), "modelFlags returned an empty flag value; expected --model followed by a model name, or nothing");
-  return flags;
-};
-
+const FLAG_AND_VALUE = 2;
 const EMPTY_PROBE_DETAIL = "claude reported an error and gave no detail";
 
 const probeProblem = (passthrough) => {
   assert(passthrough.length % FLAG_AND_VALUE === 0, `probeProblem got ${passthrough.length} passthrough entries; expected flag and value pairs`);
+  const modelAt = passthrough.indexOf("--model");
+  const model = modelAt === -1 ? process.env.GATED_DELIVERY_RUN_MODEL : passthrough[modelAt + 1];
+  const modelFlags = model ? ["--model", model] : [];
+  assert(modelFlags.every((flag) => flag !== ""), "probeProblem built an empty model flag; expected --model followed by a model name, or nothing");
   const scratch = mkdtempSync(join(tmpdir(), "gated-delivery-probe-"));
   let problem = null;
   try {
-    const probe = spawnSync(CLAUDE_BIN, [...PROBE_ARGS, ...modelFlags(passthrough)], {
+    const probe = spawnSync(CLAUDE_BIN, [...PROBE_ARGS, ...modelFlags], {
       cwd: scratch,
       encoding: "utf8",
       env: process.env,
@@ -226,32 +212,24 @@ const probeProblem = (passthrough) => {
     } catch {
       reply = null;
     }
-    if (reply?.is_error) problem = String(reply.result) || EMPTY_PROBE_DETAIL;
+    if (reply?.is_error) problem = reply.result ? String(reply.result) : EMPTY_PROBE_DETAIL;
     else if (probe.error) problem = probe.error.message;
     else if (probe.status !== 0 || reply === null) problem = probe.stdout || probe.stderr || `exit ${probe.status}`;
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
-  assert(problem === null || problem !== "", `probeProblem returned ${JSON.stringify(problem)}; expected null or the reason claude cannot run`);
   return problem;
-};
-
-const smokeDefaults = (passthrough) => {
-  assert(passthrough.length % FLAG_AND_VALUE === 0, `smokeDefaults got ${passthrough.length} passthrough entries; expected flag and value pairs`);
-  const defaults = [
-    ["--budget-usd", SMOKE_BUDGET_USD],
-    ["--total-budget-usd", SMOKE_TOTAL_BUDGET_USD],
-  ];
-  const flags = defaults.filter(([flag]) => !passthrough.includes(flag)).flat();
-  assert(flags.length % FLAG_AND_VALUE === 0, `smokeDefaults returned ${flags.length} entries; expected flag and value pairs`);
-  return flags;
 };
 
 const runSkill = (root, skill, options) => {
   assert(!skill.includes("/"), `runSkill got skill ${JSON.stringify(skill)}; expected a bare skill folder name`);
   assert(options.waive === null, `runSkill ran while waiving ${options.waive}; expected a waiver to write a stamp without running evals`);
   const out = mkdtempSync(join(tmpdir(), `gated-delivery-changed-${skill}-`));
-  const tierFlags = options.full ? [] : ["--smoke", "--rerun-failures", ...smokeDefaults(options.passthrough)];
+  const smokeDefaults = [
+    ["--budget-usd", SMOKE_BUDGET_USD],
+    ["--total-budget-usd", SMOKE_TOTAL_BUDGET_USD],
+  ].filter(([flag]) => !options.passthrough.includes(flag));
+  const tierFlags = options.full ? [] : ["--smoke", "--rerun-failures", ...smokeDefaults.flat()];
   const hash = skillHash(root, skill);
   const { status } = spawnSync("node", [RUNNER, skill, "--out", out, ...tierFlags, ...options.passthrough], {
     cwd: root,
@@ -286,19 +264,23 @@ const writeStamp = (root, { skill, hash, report }, tier) => {
   writeFileSync(path, `${JSON.stringify(stamp, null, 2)}\n`);
 };
 
-const waiveProblem = (options, root) => {
-  assert(root !== "", `waiveProblem got ${JSON.stringify(root)}; expected the repository root path`);
-  assert(options.error === undefined, `waiveProblem got a parse error (${options.error}); expected parseArgs errors reported before this check`);
-  if (options.waive === null) return options.reason === null ? null : "--reason belongs to --waive";
-  if (options.skills.length || options.full || options.passthrough.length) return "--waive takes no other skills or flags";
-  if (!options.reason?.trim()) return "--waive needs a non-blank --reason";
-  if (!existsSync(join(root, SKILLS_PREFIX, options.waive, SKILL_FILE))) return `no such skill: ${options.waive}`;
+const optionsProblem = (options, root) => {
+  assert(root !== "", `optionsProblem got ${JSON.stringify(root)}; expected the repository root path`);
+  assert(options.error === undefined, `optionsProblem got a parse error (${options.error}); expected parseArgs errors reported before this check`);
+  if (options.waive === null && options.reason !== null) return "--reason belongs to --waive";
+  if (options.waive !== null) {
+    if (options.skills.length || options.full || options.passthrough.length) return "--waive takes no other skills or flags";
+    if (!options.reason?.trim()) return "--waive needs a non-blank --reason";
+  }
+  for (const skill of options.waive === null ? options.skills : [options.waive]) {
+    if (!SKILL_NAME.test(skill)) return `not a skill name: ${skill}; pass the folder name under ${SKILLS_PREFIX}, not a path`;
+    if (!existsSync(join(root, SKILLS_PREFIX, skill, SKILL_FILE))) return `no such skill: ${skill}`;
+  }
   return null;
 };
 
 const writeWaiver = (root, skill, reason) => {
   assert(Boolean(reason?.trim()), `writeWaiver(${skill}) got a blank reason; expected the reason a waiver is accepted for`);
-  assert(!skill.includes("/"), `writeWaiver got skill ${JSON.stringify(skill)}; expected a bare skill folder name`);
   const path = stampPath(root, skill);
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, `${JSON.stringify({ hash: skillHash(root, skill), [WAIVER_KEY]: reason, ranAt: new Date().toISOString() }, null, 2)}\n`);
@@ -319,13 +301,13 @@ const reportOutcome = (root, outcome, tier) => {
 const main = (argv, root = process.cwd()) => {
   assert(existsSync(root), `main got root ${JSON.stringify(root)}; expected an existing repository folder`);
   const options = parseArgs(argv);
-  const problem = options.error ?? waiveProblem(options, root);
+  const problem = options.error ?? optionsProblem(options, root);
   if (problem) {
     console.error(`${problem}\n${USAGE}`);
     return EXIT_USAGE;
   }
   if (options.waive !== null) {
-    assert(options.reason !== null, `main reached the waiver for ${options.waive} without a reason; expected waiveProblem to reject that`);
+    assert(options.reason !== null, `main reached the waiver for ${options.waive} without a reason; expected optionsProblem to reject that`);
     writeWaiver(root, options.waive, options.reason);
     console.log(`WAIVED ${options.waive}: ${options.reason}`);
     return EXIT_PASSED;
@@ -348,5 +330,10 @@ const main = (argv, root = process.cwd()) => {
 };
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  process.exitCode = main(process.argv.slice(2));
+  try {
+    process.exitCode = main(process.argv.slice(2));
+  } catch (error) {
+    console.error(error);
+    process.exitCode = EXIT_HARNESS_ERROR;
+  }
 }

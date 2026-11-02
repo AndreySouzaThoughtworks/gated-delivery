@@ -21,7 +21,7 @@ The core plugin never names a client. Everything client-specific comes from sect
 | `## Review routing` | per job | Reviewer agents or skills for security, architecture, types, tests | Built-in `/security-review` and `/code-review`; skip the rest and say so |
 | `## Domain references` | per domain | Client reference docs a skill may load | None |
 | | API standard | The client's normative API guidelines | Ask when a story defines an API |
-| `## Verification` | Verify command | The one verify command for the turn-end gate, `/slice` and the code-reviewer. Resolution: `GATED_DELIVERY_VERIFY_CMD`, else this key from the nearest CLAUDE.md in a folder above the repo and inside the home folder — never the repo's own CLAUDE.md, never an `@`-imported file, never a folder above or outside home | Gate: `pnpm lint`. `/slice` and code-reviewer: `pnpm check`, else `pnpm lint`, else `pnpm test` |
+| `## Verification` | Verify command | The one verify command for `/slice` and the code-reviewer. Resolution: `GATED_DELIVERY_VERIFY_CMD`, else this key from the nearest CLAUDE.md in a folder above the repo and inside the home folder — never the repo's own CLAUDE.md, never an `@`-imported file, never a folder above or outside home | `pnpm check`, else `pnpm lint`, else `pnpm test` |
 | `## Production support` | Observability | Tool that holds production logs, and how to drive it | Ask which tool holds production logs |
 | | Log query | Log query for the service | Ask |
 | | Environment | Environment tag, and lookalikes that return nothing | Ask; never guess an environment name |

@@ -71,6 +71,19 @@ const SCHEMA = {
   additionalProperties: false,
 };
 
+const QUOTE_SHAPE = [
+  (q) => q,
+  (q) => typeof q.file === "string",
+  (q) => typeof q.text === "string",
+  (q) => q.line === undefined || Number.isInteger(q.line),
+];
+const CLAUSE_SHAPE = [
+  (g) => Number.isInteger(g.id),
+  (g) => RESULTS.includes(g.result),
+  (g) => Array.isArray(g.quotes) && g.quotes.every((q) => QUOTE_SHAPE.every((fits) => fits(q))),
+  (g) => typeof g.note === "string",
+];
+
 class HarnessError extends Error {}
 
 export function findRow(markdown, id) {
@@ -265,20 +278,10 @@ const parseReply = (stdout) => {
   }
   if (reply.is_error) throw new HarnessError(`judge reported an error: ${reply.result ?? ""}`);
   const graded = reply.structured_output?.clauses;
-  const wellFormed =
-    Array.isArray(graded) &&
-    graded.every(
-      (g) =>
-        g &&
-        Number.isInteger(g.id) &&
-        RESULTS.includes(g.result) &&
-        Array.isArray(g.quotes) &&
-        g.quotes.every((q) => q && typeof q.file === "string" && typeof q.text === "string" && (q.line === undefined || Number.isInteger(q.line))) &&
-        typeof g.note === "string",
-    );
-  if (!wellFormed) {
-    throw new HarnessError("judge output does not match the clause schema");
-  }
+  const wellFormed = Array.isArray(graded) && graded.every((g) => g && CLAUSE_SHAPE.every((fits) => fits(g)));
+  if (!wellFormed) throw new HarnessError("judge output does not match the clause schema");
+  const gradedIds = graded.map((g) => g.id);
+  if (new Set(gradedIds).size !== gradedIds.length) throw new HarnessError(`judge graded a clause more than once, ids ${JSON.stringify(gradedIds)}; rerun the judge`);
   assert(new Set(graded.map((g) => g.id)).size === graded.length, `each clause id must be graded once, got ${JSON.stringify(graded.map((g) => g.id))}; reject the duplicated reply`);
   return graded;
 };
@@ -288,8 +291,11 @@ export function judge(skill, id, runDir) {
   assert(runDir.trim() !== "", `runDir must not be blank, got ${JSON.stringify(runDir)}; pass the saved run folder`);
   const evalsPath = join(SKILLS_DIR, skill, "evals.md");
   if (!existsSync(evalsPath)) throw new HarnessError(`No such skill: ${skill}`);
-  const row = findRow(readFileSync(evalsPath, "utf8"), id);
+  const markdown = readFileSync(evalsPath, "utf8");
+  if (markdown.includes(PIPE_PLACEHOLDER)) throw new HarnessError(`${evalsPath} contains a NUL character at index ${markdown.indexOf(PIPE_PLACEHOLDER)}; remove it, it stands in for an escaped pipe`);
+  const row = findRow(markdown, id);
   if (!row) throw new HarnessError(`No scenario ${id} in ${evalsPath}`);
+  if (!row.criteria.trim()) throw new HarnessError(`Scenario ${id} in ${evalsPath} has blank Pass Criteria; fill the cell`);
   if (!existsSync(join(runDir, OUTPUT_FILE))) {
     throw new HarnessError(`No ${OUTPUT_FILE} in ${runDir}`);
   }
@@ -331,8 +337,15 @@ export function judge(skill, id, runDir) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [skill, id, runDir] = process.argv.slice(2);
-  if (!skill || !id || !runDir) {
-    console.error("usage: judge.mjs <skill> <id> <run-dir>");
+  const argumentProblem = !skill || !id || !runDir
+    ? "usage: judge.mjs <skill> <id> <run-dir>"
+    : skill === PARENT_SEGMENT || /[\\/]/.test(skill)
+      ? `skill must name one skills folder, got ${JSON.stringify(skill)}; pass a skill name, not a path`
+      : !id.trim() || !runDir.trim()
+        ? `the scenario id and the run folder must not be blank, got ${JSON.stringify(id)} and ${JSON.stringify(runDir)}`
+        : null;
+  if (argumentProblem) {
+    console.error(argumentProblem);
     process.exit(HARNESS_EXIT);
   }
   try {

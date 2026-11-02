@@ -8,10 +8,10 @@ What ships, what each piece does and how the pieces call each other — all in *
 
 ## Dev flow at a glance
 
-`/slice` → (`/spec` if needed) → one Rollout slice per branch/PR → `slice-executor` per functional batch → batch tests and targeted review → slice-end validators, full verification, structural lens, and fresh-context correctness review → merge → next slice. Stop, format, and guard hooks run underneath the loop.
+`/slice` → (`/spec` if needed) → one Rollout slice per branch/PR → `slice-executor` per functional batch → batch tests and targeted review → slice-end validators, full verification, structural lens, and fresh-context correctness review → merge → next slice. Format and guard hooks run underneath the loop.
 
 ## Dependencies & knobs
 
-- **A lint script** — the verify hook runs the repo's own lint (`pnpm lint` unless `GATED_DELIVERY_VERIFY_CMD` says otherwise). Knobs: [`docs/onboarding.md`](../docs/onboarding.md#knobs-environment-variables).
+- **A verify command** — `/slice` and `code-reviewer` run `GATED_DELIVERY_VERIFY_CMD`, else the `## Verification` Verify command, else the repo's own checks. Knobs: [`docs/onboarding.md`](../docs/onboarding.md#knobs-environment-variables).
 - **`senior-review-lens`** ships **in this plugin** — the canonical 8-lens copy, so every repo runs the same version.
 - **Stack recipes and validator agents** — not bundled; each client names its own under `## Stack recipes` and `## Review routing`.

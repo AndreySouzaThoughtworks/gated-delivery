@@ -40,6 +40,8 @@ jobs:
           node-version: 22
       - name: Plugin consistency
         run: node scripts/audit/consistency.mjs
+      - name: Suppression guard
+        run: node scripts/audit/suppressions.mjs
       - name: Hook behaviour tests
         run: node --test plugin/hooks/*.test.mjs
       - name: Script tests (the guard and the eval runner)

@@ -58,6 +58,16 @@ gated-delivery has no Stop gate. The `overwatch` plugin replaces it:
 
 overwatch runs the repo's tests in watch mode and hands failures back to the agent. It keeps completion guarded while the build is red, ignores findings the repo already had (the baseline), and can gate protected actions such as pushing through `.overwatch.json`. When `zanity` is on `PATH` it runs zanity beside the tests and treats any zanity error or warning as a failure.
 
+### When an agent is stuck on a failure it cannot fix
+
+If a red build is one the agent cannot fix (a broken environment, a failure outside the repo), overwatch keeps completion guarded, so the agent cannot finish. Put this in `.overwatch.json` at the project root:
+
+```json
+{ "enabled": false }
+```
+
+It turns overwatch off for the project, and that includes the zanity watcher. Treat it as a change that needs review: `plugin/bootstrap/guards/rules-about-rules.mjs`, which ships to client repos, fails a repo whose `.overwatch.json` sets `"enabled": false`. Remove the file once the build is fixed.
+
 ## Daily use
 
 Which skill to run when, and how they call each other: [skill-graph.md](./skill-graph.md).

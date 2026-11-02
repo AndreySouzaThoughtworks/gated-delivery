@@ -75,7 +75,6 @@ const shellQuote = (s) => {
  * The `+` forms are the trap: they look like defaults and are the exact silent-empty case.
  */
 const toggleQuote = (quote, c) => {
-  assert(c.length === 1, `toggleQuote got ${JSON.stringify(c)}; expected one character`);
   assert(!(quote.inSingle && quote.inDouble), `toggleQuote got inSingle ${JSON.stringify(quote.inSingle)} and inDouble ${JSON.stringify(quote.inDouble)}; expected at most one of them true`);
   let toggled = true;
   if (c === "'" && !quote.inDouble) quote.inSingle = !quote.inSingle;
@@ -83,14 +82,6 @@ const toggleQuote = (quote, c) => {
   else toggled = false;
   assert(!(quote.inSingle && quote.inDouble), `toggleQuote on ${c} left single and double quotes open at once; expected at most one`);
   return toggled;
-};
-
-const enterSubstitution = (enclosing, quote) => {
-  assert(!(quote.inSingle && quote.inDouble), `enterSubstitution got inSingle ${JSON.stringify(quote.inSingle)} and inDouble ${JSON.stringify(quote.inDouble)}; expected at most one of them true`);
-  enclosing.push({ inSingle: quote.inSingle, inDouble: quote.inDouble, depth: 0 });
-  quote.inSingle = false;
-  quote.inDouble = false;
-  assert(enclosing.at(-1).depth === 0, `enterSubstitution opened a substitution at depth ${enclosing.at(-1).depth}; expected 0`);
 };
 
 const trackParen = (enclosing, quote, c) => {
@@ -141,7 +132,9 @@ const unresolvedVars = (command, assigned) => {
     if (toggleQuote(quote, c)) continue;
     if (quote.inSingle) continue;
     if (c === "$" && command[i + 1] === "(") {
-      enterSubstitution(enclosing, quote);
+      enclosing.push({ inSingle: quote.inSingle, inDouble: quote.inDouble, depth: 0 });
+      quote.inSingle = false;
+      quote.inDouble = false;
       i++;
       continue;
     }
@@ -386,9 +379,17 @@ function gradeScenario(skill, file, id) {
 const EXIT_PASS = 0;
 const EXIT_FAIL = 1;
 const EXIT_USAGE = 2;
+const EXIT_HARNESS_ERROR = 3;
+const SKILL_NAME = /^[^./\\][^/\\]*$/;
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g;
 const LINE_BREAK = /\r?\n|\r/g;
-const USAGE = "usage:\n  run-checks.mjs --lint\n  run-checks.mjs <skill> <output-file>\n  run-checks.mjs <skill> <output-file> --scenario <id>";
+const USAGE = [
+  "usage:",
+  "  run-checks.mjs --lint",
+  "  run-checks.mjs <skill> <output-file>",
+  "  run-checks.mjs <skill> <output-file> --scenario <id>",
+  "exit codes: 0 every check held, 1 a check failed or the skill is unknown, 2 usage error, 3 harness error (an internal check or file read failed)",
+].join("\n");
 
 function usage(message) {
   assert(message !== "", `usage got ${JSON.stringify(message)}; expected what went wrong or the usage text`);
@@ -448,20 +449,23 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const args = process.argv.slice(2);
   const scenarioAt = args.indexOf("--scenario");
   const [arg, outputFile] = args;
-  if (scenarioAt !== -1) {
+  const scenarioMode = scenarioAt !== -1;
+  const positional = args.filter((_, i) => i !== scenarioAt && i !== scenarioAt + 1);
+  const [skill, file] = scenarioMode ? positional : [arg, outputFile];
+  let exitCode;
+  try {
     const id = args[scenarioAt + 1];
-    const positional = args.filter((_, i) => i !== scenarioAt && i !== scenarioAt + 1);
-    const [skill, file] = positional;
-    process.exit(id && positional.length === 2 ? gradeScenario(skill, file, id) : usage(USAGE));
-  } else if (arg === "--lint") {
-    process.exit(lint() ? 1 : 0);
-  } else if (arg && outputFile) {
-    if (!existsSync(outputFile)) {
-      console.error(`No such output file: ${outputFile}`);
-      process.exit(2);
-    }
-    process.exit(report(arg, outputFile) ? 1 : 0);
-  } else {
-    process.exit(usage(USAGE));
+    const wellFormed = scenarioMode ? Boolean(id) && positional.length === 2 : Boolean(arg && outputFile);
+    const lintMode = !scenarioMode && arg === "--lint";
+    if (lintMode) exitCode = lint() ? EXIT_FAIL : EXIT_PASS;
+    else if (!wellFormed) exitCode = usage(USAGE);
+    else if (!SKILL_NAME.test(skill)) exitCode = usage(`Not a skill name: ${skill}; pass the folder name under plugin/skills, not a path`);
+    else if (scenarioMode) exitCode = gradeScenario(skill, file, id);
+    else if (!existsSync(file)) exitCode = usage(`No such output file: ${file}`);
+    else exitCode = report(skill, file) ? EXIT_FAIL : EXIT_PASS;
+  } catch (error) {
+    console.error(error);
+    exitCode = EXIT_HARNESS_ERROR;
   }
+  process.exit(exitCode);
 }

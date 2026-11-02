@@ -314,6 +314,46 @@ test("CLI: a missing row, skill or output.md is exit 2 and never calls claude", 
   assert.throws(() => stub.call(), "claude must not run when the inputs are wrong");
 });
 
+const harnessMessage = (r) => {
+  assert(r.status === EXIT.HARNESS, `expected exit ${EXIT.HARNESS}, got ${r.status} with stderr ${JSON.stringify(r.stderr)}`);
+  assert(!/AssertionError|\n\s+at /.test(r.stderr), `a bad input must print one plain line, got ${JSON.stringify(r.stderr)}`);
+  return r.stderr.trim();
+};
+
+test("CLI: a blank id, a blank run folder or a skill given as a path is a one-line exit 2 and never calls claude", () => {
+  const stub = stubClaude(structured([]));
+  const repo = repoWith();
+  const cases = [
+    { args: ["demo", " ", runDirWith()], message: /must not be blank/ },
+    { args: ["demo", "1", " "], message: /must not be blank/ },
+    { args: ["../demo", "1", runDirWith()], message: /one skills folder/ },
+    { args: ["a/b", "1", runDirWith()], message: /one skills folder/ },
+  ];
+  for (const { args, message } of cases) {
+    assert.match(harnessMessage(runJudge(args, { bin: stub.bin, cwd: repo })), message);
+  }
+  assert.throws(() => stub.call(), "claude must not run when the inputs are wrong");
+});
+
+test("CLI: a NUL in evals.md or a row with blank Pass Criteria is a one-line exit 2 and never calls claude", () => {
+  const stub = stubClaude(structured([]));
+  const withNul = repoWith();
+  const evalsPath = join(withNul, "plugin", "skills", "demo", "evals.md");
+  writeFileSync(evalsPath, `${EVALS}\u0000\n`);
+  assert.match(harnessMessage(runJudge(["demo", "1", runDirWith()], { bin: stub.bin, cwd: withNul })), /NUL/);
+  const blankCriteria = repoWith();
+  writeFileSync(join(blankCriteria, "plugin", "skills", "demo", "evals.md"), EVALS.replace(/\| 1 \|.*\n/, '| 1 | "Write it." | A brief. |   |\n'));
+  assert.match(harnessMessage(runJudge(["demo", "1", runDirWith()], { bin: stub.bin, cwd: blankCriteria })), /blank Pass Criteria/);
+  assert.throws(() => stub.call(), "claude must not run when the inputs are wrong");
+});
+
+test("CLI: a reply that grades one clause twice is a one-line exit 2", () => {
+  const graded = { id: 1, result: "PASS", quotes: [q("Task")], note: "" };
+  const reply = JSON.stringify({ type: "result", is_error: false, structured_output: { clauses: [graded, graded] } });
+  const stub = stubClaude(reply);
+  assert.match(harnessMessage(runJudge(["demo", "1", runDirWith()], { bin: stub.bin, cwd: repoWith() })), /more than once/);
+});
+
 const stubbedRun = () => {
   const stub = stubClaude(
     structured([

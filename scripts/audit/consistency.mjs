@@ -8,7 +8,7 @@ import assert from "node:assert";
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
 import { BASE_REF_ENV, changedSkills, stampStatus, waiverReason } from "../eval/changed-skills.mjs";
-import { parseChecks } from "../eval/run-checks.mjs";
+import { parseChecks, scenarioIds } from "../eval/run-checks.mjs";
 
 const ROOT = process.cwd();
 const PLUGIN = join(ROOT, "plugin");
@@ -397,45 +397,36 @@ const quotedItems = (list) => {
   return items;
 };
 
-const zanityTableProblem = (header, body) => {
-  assert(body !== undefined, `[${header}] must come with a body, got none; the table split must pair every header with a body`);
-  assert(header === header.trim(), `[${header}] must be trimmed before the lookup, got stray whitespace`);
-  const scopesPaths = header === "paths" || header.startsWith("paths.");
-  const expected = ZANITY_ALLOWED_DISABLES[header] ?? [];
-  const disabled = [...body.matchAll(DISABLE_LIST)].flatMap(([, list]) => quotedItems(list));
-  if (scopesPaths && header !== ZANITY_TEST_FILES_TABLE) {
-    return `${ZANITY_CONFIG} scopes rules off in [${header}]. Hint: only [${ZANITY_TEST_FILES_TABLE}] may do that, so fix the findings in code instead.`;
-  }
-  if (!scopesPaths && PATHS_KEY.test(body)) {
-    return `${ZANITY_CONFIG} sets a paths key outside a [paths...] table. Hint: only [${ZANITY_TEST_FILES_TABLE}] may scope rules off, written as its own table.`;
-  }
-  if (disabled.length !== expected.length || !expected.every((rule) => disabled.includes(rule))) {
-    return `${ZANITY_CONFIG} disables ${disabled.join(", ") || "nothing"} under [${header || "top level"}]. Hint: only ${Object.entries(ZANITY_ALLOWED_DISABLES).map(([table, rules]) => `[${table}] may disable exactly ${rules.join(", ")}`).join(" and ")}; fix the findings in code instead.`;
-  }
-};
-
-function zanityConfigErrors(text) {
-  assert(!text.startsWith(BYTE_ORDER_MARK), `${ZANITY_CONFIG} must not start with a byte order mark, which hides its first line from the guard; re-save it without one`);
-  const config = text.replace(/#.*$/gm, "");
-  const found = [];
+const zanityConfigPath = join(ROOT, ZANITY_CONFIG);
+if (!existsSync(zanityConfigPath)) {
+  errors.push(`${ZANITY_CONFIG} is missing. Hint: zanity is a required check, so the repo must configure it.`);
+} else if (read(zanityConfigPath).startsWith(BYTE_ORDER_MARK)) {
+  errors.push(`${ZANITY_CONFIG} starts with a byte order mark, which hides its first line from the guard. Hint: re-save it without one.`);
+} else {
+  const config = read(zanityConfigPath).replace(/#.*$/gm, "");
   if (!/^select\s*=\s*\["all"\]/m.test(config)) {
-    found.push(`${ZANITY_CONFIG} must keep select = ["all"] under [rules]. Hint: restore it and fix the findings in code.`);
+    errors.push(`${ZANITY_CONFIG} must keep select = ["all"] under [rules]. Hint: restore it and fix the findings in code.`);
   }
   const [topLevel, ...headersAndBodies] = config.split(TOML_TABLE_HEADER);
   const tables = [{ header: "", body: topLevel }];
   for (let i = 0; i < headersAndBodies.length; i += 2) tables.push({ header: headersAndBodies[i].trim(), body: headersAndBodies[i + 1] });
-  found.push(...tables.map(({ header, body }) => zanityTableProblem(header, body)).filter(Boolean));
+  for (const { header, body } of tables) {
+    const scopesPaths = header === "paths" || header.startsWith("paths.");
+    const expected = ZANITY_ALLOWED_DISABLES[header] ?? [];
+    const disabled = [...body.matchAll(DISABLE_LIST)].flatMap(([, list]) => quotedItems(list));
+    if (scopesPaths && header !== ZANITY_TEST_FILES_TABLE) {
+      errors.push(`${ZANITY_CONFIG} scopes rules off in [${header}]. Hint: only [${ZANITY_TEST_FILES_TABLE}] may do that, so fix the findings in code instead.`);
+    } else if (!scopesPaths && PATHS_KEY.test(body)) {
+      errors.push(`${ZANITY_CONFIG} sets a paths key outside a [paths...] table. Hint: only [${ZANITY_TEST_FILES_TABLE}] may scope rules off, written as its own table.`);
+    } else if (disabled.length !== expected.length || !expected.every((rule) => disabled.includes(rule))) {
+      errors.push(`${ZANITY_CONFIG} disables ${disabled.join(", ") || "nothing"} under [${header || "top level"}]. Hint: only ${Object.entries(ZANITY_ALLOWED_DISABLES).map(([table, rules]) => `[${table}] may disable exactly ${rules.join(", ")}`).join(" and ")}; fix the findings in code instead.`);
+    }
+  }
   const excluded = quotedItems(config.match(/^exclude\s*=\s*\[([^\]]*)\]/m)?.[1] ?? "");
   for (const path of excluded.filter((p) => !ZANITY_ALLOWED_EXCLUDES.includes(p))) {
-    found.push(`${ZANITY_CONFIG} excludes ${path}, which hides it from every check. Hint: only ${ZANITY_ALLOWED_EXCLUDES.join(", ")} may be excluded.`);
+    errors.push(`${ZANITY_CONFIG} excludes ${path}, which hides it from every check. Hint: only ${ZANITY_ALLOWED_EXCLUDES.join(", ")} may be excluded.`);
   }
-  assert(found.every((problem) => problem.includes(ZANITY_CONFIG)), `every config problem must name ${ZANITY_CONFIG}, got ${found.find((problem) => !problem.includes(ZANITY_CONFIG))}`);
-  return found;
 }
-
-const zanityConfigPath = join(ROOT, ZANITY_CONFIG);
-if (existsSync(zanityConfigPath)) errors.push(...zanityConfigErrors(read(zanityConfigPath)));
-else errors.push(`${ZANITY_CONFIG} is missing. Hint: zanity is a required check, so the repo must configure it.`);
 
 // --- 9. Skills and agents state what they are for: a non-empty frontmatter description ---
 // The description is the only text a model sees before it decides to load a skill or call an agent,
@@ -468,6 +459,16 @@ for (const skill of skills) {
     const id = inScenarios ? line.match(SCENARIO_ROW_ID)?.[1] : undefined;
     if (id && seen.has(id)) errors.push(`${skill}/evals.md repeats scenario id ${id}. Hint: ids stay stable, so give the newer row the next unused number.`);
     if (id) seen.add(id);
+  }
+}
+
+// --- 10a. Every skill's evals.md carries at least one scenario row ---
+// A runner given an evals.md with no rows runs nothing and exits 0, and evals.md sits outside the
+// eval stamp hash, so deleting every row stays green everywhere else.
+for (const skill of skills) {
+  const evalsPath = join(skillsDir, skill, "evals.md");
+  if (existsSync(evalsPath) && scenarioIds(read(evalsPath)).size === 0) {
+    errors.push(`${skill}/evals.md has no scenario row under "${SCENARIOS_HEADING}". Hint: add one table row with a stable id, a prompt and its pass criteria.`);
   }
 }
 
@@ -537,7 +538,7 @@ if (new Set(manifestVersions.map(([, version]) => version)).size > 1) {
 }
 
 // --- 16. Every GATED_DELIVERY_ variable the code reads is documented ---
-// A knob nobody can find is not a knob: verify-on-stop and run-scenarios each read a variable that
+// A knob nobody can find is not a knob: run-scenarios once read a variable that
 // no markdown named until this check existed.
 const ENV_VAR = /GATED_DELIVERY_[A-Z0-9_]+/g;
 const SOURCE_EXTENSIONS = [".mjs", ".sh"];
@@ -570,44 +571,31 @@ const BARE_NAME = /(?<![.\w$])[A-Za-z_$][\w$]*/g;
 const CONSTANT_KEYWORDS = new Set(["typeof", "true", "false", "null", "undefined", "void", "in", "instanceof"]);
 const PURE_GLOBALS = new Set(["Number", "String", "Boolean", "Array", "Math", "Object"]);
 
-const blankComments = (text) => {
-  const blanked = text.replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, " ")).replace(/(^|\s)\/\/.*$/gm, (comment) => comment.replace(/[^\n]/g, " "));
-  assert(blanked.length === text.length, `blanking comments must keep every offset, got ${text.length} characters become ${blanked.length}`);
-  assert(blanked.split("\n").length === text.split("\n").length, "blanking comments must keep every line number, got a different line count");
-  return blanked;
-};
-
-const conditionAfter = (text, openIndex, firstArgumentOnly) => {
-  assert(text[openIndex] === "(", `the condition must start after an opening parenthesis, got ${JSON.stringify(text[openIndex])} at ${openIndex}`);
-  assert(openIndex < text.length, `the opening parenthesis must lie inside the text, got index ${openIndex} of ${text.length}`);
-  let depth = 1;
-  let quote = "";
-  for (let index = openIndex + 1; index < text.length; index++) {
-    const char = text[index];
-    if (quote) {
-      if (char === "\\") index++;
-      else if (char === quote) quote = "";
-    } else if (char === '"' || char === "'" || char === "`") quote = char;
-    else if ("([{".includes(char)) depth++;
-    else if (")]}".includes(char)) depth--;
-    if (depth === 0 || (firstArgumentOnly && depth === 1 && char === ",")) return text.slice(openIndex + 1, index);
-  }
-  return "";
-};
-
-const literalConstants = (text) => {
-  const names = new Set([...text.matchAll(LITERAL_CONST)].map(([, name]) => name));
-  assert(names.size <= text.split("\n").length, `each literal constant takes its own line, got ${names.size} names in ${text.split("\n").length} lines`);
-  assert([...names].every((name) => text.includes(name)), `every constant name must appear in the text, got ${[...names].find((name) => !text.includes(name))} missing`);
-  return names;
-};
-
 for (const file of sourceFiles.filter((name) => name.endsWith(".mjs"))) {
-  const text = blankComments(read(file));
-  const constants = literalConstants(text);
+  const text = read(file)
+    .replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, " "))
+    .replace(/(^|\s)\/\/.*$/gm, (comment) => comment.replace(/[^\n]/g, " "));
+  const constants = new Set([...text.matchAll(LITERAL_CONST)].map(([, name]) => name));
   for (const opener of text.matchAll(CHECK_OPENER)) {
     const callee = opener[0].replace(/\s*\($/, "");
-    const condition = conditionAfter(text, opener.index + opener[0].length - 1, callee !== "if" && callee !== "while");
+    const firstArgumentOnly = callee !== "if" && callee !== "while";
+    const openIndex = opener.index + opener[0].length - 1;
+    let condition = "";
+    let depth = 1;
+    let quote = "";
+    for (let index = openIndex + 1; index < text.length; index++) {
+      const char = text[index];
+      if (quote) {
+        if (char === "\\") index++;
+        else if (char === quote) quote = "";
+      } else if (char === '"' || char === "'" || char === "`") quote = char;
+      else if ("([{".includes(char)) depth++;
+      else if (")]}".includes(char)) depth--;
+      if (depth === 0 || (firstArgumentOnly && depth === 1 && char === ",")) {
+        condition = text.slice(openIndex + 1, index);
+        break;
+      }
+    }
     const names = condition.replace(STRING_LITERAL, "").match(BARE_NAME) ?? [];
     const decidable = condition.trim() !== "" && names.every((name) => CONSTANT_KEYWORDS.has(name) || PURE_GLOBALS.has(name) || constants.has(name));
     if (decidable) {

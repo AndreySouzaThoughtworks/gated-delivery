@@ -2,14 +2,15 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { isAbsolute, relative, resolve } from "node:path";
+import { basename, extname, isAbsolute, relative, resolve } from "node:path";
 
 const EXIT_OK = 0;
 const EXIT_VIOLATION = 1;
 const EXIT_USAGE = 2;
 const USAGE = "usage: node ratchet.mjs --baseline <file> --base-ref <ref>";
 const HOW_TO_FIX = "fix the finding in code; do not run --update-baseline to add findings";
-const REPORTED_ID_LIMIT = 5;
+const REPORTED_KEY_LIMIT = 5;
+const LEGITIMATE_MOVE = "A legitimate move or rename keeps the same findings under the same file name without its extension and the same function names; changing a function name, or adding a second finding of the same kind to a file, counts as new";
 const OPTION_PREFIX = "--";
 const PARENT_SEGMENT = "..";
 const GIT_IO = { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] };
@@ -29,20 +30,28 @@ const parseArgs = (argv) => {
   return { baseline: options.baseline, baseRef: options["base-ref"] };
 };
 
-const findingIds = (text, source) => {
+const KEY_SEPARATOR = " | ";
+const FINDING_FIELDS = ["path", "rule", "message"];
+
+const findingCounts = (text, source) => {
   let document;
   try {
     document = JSON.parse(text);
   } catch (error) {
     throw new UsageError(`${source} is not valid JSON (${error.message}); regenerate it with zanity check . --baseline <file> --capture-baseline`);
   }
-  if (!Array.isArray(document?.findings) || !document.findings.every((finding) => typeof finding?.id === "string")) {
-    throw new UsageError(`${source} is not a zanity baseline: it needs a findings array whose entries each have an id`);
+  if (!Array.isArray(document?.findings) || !document.findings.every((finding) => FINDING_FIELDS.every((field) => typeof finding?.[field] === "string"))) {
+    throw new UsageError(`${source} is not a zanity baseline: it needs a findings array whose entries each have ${FINDING_FIELDS.join(", ")}`);
   }
-  const ids = document.findings.map((finding) => finding.id);
-  if (new Set(ids).size !== ids.length) throw new UsageError(`${source} lists the same finding id twice; regenerate it with zanity`);
-  assert(ids.every((id) => id.length > 0), `${source}: every id must be non-empty, got ${JSON.stringify(ids.filter((id) => id.length === 0))}`);
-  return new Set(ids);
+  const counts = new Map();
+  for (const { path, rule, message } of document.findings) {
+    const key = [rule, message, basename(path, extname(path))].join(KEY_SEPARATOR);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const total = [...counts.values()].reduce((sum, count) => sum + count, 0);
+  assert(total === document.findings.length, `${source}: counted ${total} findings but the file lists ${document.findings.length}`);
+  assert(counts.size > 0 || total === 0, `${source}: ${total} findings produced no keys`);
+  return { counts, total };
 };
 
 const baselineAtRef = (baseRef, file) => {
@@ -74,19 +83,19 @@ const readHead = (file) => {
 };
 
 const check = ({ baseline, baseRef }) => {
-  const head = findingIds(readHead(baseline), baseline);
+  const head = findingCounts(readHead(baseline), baseline);
   const baseText = baselineAtRef(baseRef, baseline);
-  if (baseText === undefined) return { code: EXIT_OK, message: `${baseline} is new relative to ${baseRef}: accepted with ${head.size} findings` };
-  const base = findingIds(baseText, `${baseline} at ${baseRef}`);
-  const added = [...head].filter((id) => !base.has(id));
+  if (baseText === undefined) return { code: EXIT_OK, message: `${baseline} is new relative to ${baseRef}: accepted with ${head.total} findings` };
+  const base = findingCounts(baseText, `${baseline} at ${baseRef}`);
   const problems = [];
-  if (head.size > base.size) problems.push(`${baseline} grew from ${base.size} to ${head.size} findings`);
-  if (added.length > 0) {
-    const shown = added.slice(0, REPORTED_ID_LIMIT).join(", ");
-    problems.push(`${baseline} has ${added.length} finding ids that ${baseRef} does not (${shown}${added.length > REPORTED_ID_LIMIT ? ", ..." : ""})`);
+  if (head.total > base.total) problems.push(`${baseline} grew from ${base.total} to ${head.total} findings`);
+  const grown = [...head.counts].filter(([key, count]) => count > (base.counts.get(key) ?? 0));
+  if (grown.length > 0) {
+    const shown = grown.slice(0, REPORTED_KEY_LIMIT).map(([key, count]) => `${key} (${base.counts.get(key) ?? 0} at ${baseRef}, ${count} now)`).join("; ");
+    problems.push(`${grown.length} findings are new or counted more often than at ${baseRef}, by rule | message | file name without extension: ${shown}${grown.length > REPORTED_KEY_LIMIT ? "; ..." : ""}`);
   }
-  if (problems.length > 0) return { code: EXIT_VIOLATION, message: `${problems.join("; ")}. Hint: ${HOW_TO_FIX}.` };
-  return { code: EXIT_OK, message: `${baseline} holds ${head.size} findings, down from or equal to ${base.size} at ${baseRef}: ok` };
+  if (problems.length > 0) return { code: EXIT_VIOLATION, message: `${problems.join("; ")}. Hint: ${HOW_TO_FIX}. ${LEGITIMATE_MOVE}.` };
+  return { code: EXIT_OK, message: `${baseline} holds ${head.total} findings, down from or equal to ${base.total} at ${baseRef}: ok` };
 };
 
 const main = () => {

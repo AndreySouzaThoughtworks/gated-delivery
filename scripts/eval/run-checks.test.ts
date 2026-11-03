@@ -445,3 +445,12 @@ test("--lint proves a command using transcript.jsonl runnable and rejects a brok
   const broken = repoWith("alpha", SCENARIO_TABLE + fence("# w\ngrep --nonsense-flag x transcript.jsonl"));
   assert.equal(cli(broken, ["--lint"]).code, 1);
 });
+
+test("parseExpect refuses text that spans lines", () => {
+  assert.throws(() => parseExpect("expect: >=1 on a\nexpect: manual"), /an expect is one line/);
+  assert.deepEqual(parseExpect("expect: manual"), { raw: "expect: manual", manual: true });
+});
+
+test("runCheck refuses a prelude entry that is not an assignment", () => {
+  assert.throws(() => runCheck({ label: "x", command: "true" }, "/tmp/output.md", ["rm -f x"]), /the prelude holds assignments only/);
+});

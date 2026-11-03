@@ -199,6 +199,8 @@ type Verdicts = Record<string, string>;
 type FlagParser = (flag: string, value: string) => string | number;
 
 const sectionBody = (markdown: string, headingPrefix: string) => {
+  assert(typeof markdown === "string", `markdown must be a string, got ${typeof markdown}`);
+  assert(/^#+ /.test(headingPrefix), `a heading prefix starts with hashes and a space, got ${JSON.stringify(headingPrefix)}`);
   const all = markdown.split(LINE_BREAK);
   const start = all.findIndex((l: string) => l.startsWith(headingPrefix));
   if (start === -1) return null;
@@ -210,10 +212,12 @@ const sectionBody = (markdown: string, headingPrefix: string) => {
     if (!inFence && (line.startsWith("## ") || line.startsWith(level))) break;
     body.push(line);
   }
+  assert(body.length <= all.length - start - 1, `a section of ${headingPrefix} cannot be longer than the text after its heading`);
   return body.join("\n");
 };
 
 export function parseEvals(markdown: string): ParsedEvals {
+  assert(typeof markdown === "string", `markdown must be a string, got ${typeof markdown}`);
   const all = markdown.split(LINE_BREAK);
   const rows: EvalRow[] = [];
   let inScenarios = false;
@@ -244,17 +248,23 @@ export function parseEvals(markdown: string): ParsedEvals {
     clientContext: sectionBody(markdown, "## Client context")?.match(FENCE_BODY)?.[1] ?? null,
     responseMode: /^mode:\s*response\b/m.test(sectionBody(markdown, "## Execution Model") ?? ""),
   };
+  assert(rows.every((row) => row.id !== "#"), `the table header must not become a scenario row, got ids ${JSON.stringify(rows.map((row) => row.id))}`);
   return parsed;
 }
 
 export const fillTemplate = (template: string, prompt: string, persona: string) => {
-  return template
+  assert(template.includes(PROMPT_PLACEHOLDER), `a template must carry ${PROMPT_PLACEHOLDER} or the prompt is dropped, got ${JSON.stringify(template.slice(0, 80))}`);
+  const filled = template
     .split(PROMPT_PLACEHOLDER)
     .map((part: string) => part.replaceAll(PERSONA_PLACEHOLDER, () => persona))
     .join(prompt);
+  assert(filled.includes(prompt), `the filled template must carry the prompt ${JSON.stringify(prompt)}`);
+  return filled;
 };
 
 export function inspectRun({ transcript, arm, skill, timedOut }: { transcript: string; arm: Arm; skill: string; timedOut: boolean }) {
+  assert(ARMS.includes(arm), `an arm is one of ${ARMS.join(", ")}, got ${JSON.stringify(arm)}`);
+  assert(skill, `a run belongs to a skill, got ${JSON.stringify(skill)}`);
   const result =
     transcript
       .split(LINE_BREAK)
@@ -275,16 +285,21 @@ export function inspectRun({ transcript, arm, skill, timedOut }: { transcript: s
   if (timedOut) flags.push("timeout");
   if (result?.subtype === BUDGET_STOPPED_SUBTYPE) flags.push("over-budget");
   if (result?.is_error) flags.push("api-error");
+  assert(new Set(flags).size === flags.length, `each flag is raised once, got ${JSON.stringify(flags)}`);
+  assert(result !== null || flags.includes("no-result"), `a run without a result event must be flagged no-result, got ${JSON.stringify(flags)}`);
   return { flags, result };
 }
 
 export const summaryTsv = (rows: Record<string, unknown>[]) => {
   const cellRows = rows.map((row) => SUMMARY_COLUMNS.map((column) => row[column]));
+  assert(cellRows.every((cells) => cells.every((cell) => !TSV_CELL_BREAK.test(String(cell)))), `a TSV cell cannot hold a tab or newline, got ${JSON.stringify(cellRows)}`);
   const tsv = [SUMMARY_COLUMNS, ...cellRows].map((cells) => `${cells.join("\t")}\n`).join("");
+  assert(tsv.split("\n").length - 1 === rows.length + 1, `the TSV needs one header line and one line per row, got ${rows.length} rows`);
   return tsv;
 };
 
 export function disagreements(rows: Pick<RunRow, "skill" | "id" | "arm" | "checks" | "judge">[]) {
+  assert(rows.every((row) => ![row.skill, row.id, row.arm].some((part) => part.includes("\t"))), `a group key is tab separated, so no part may hold a tab, got ${JSON.stringify(rows)}`);
   const groups = new Map();
   for (const row of rows) {
     const key = `${row.skill}\t${row.id}\t${row.arm}`;
@@ -298,6 +313,7 @@ export function disagreements(rows: Pick<RunRow, "skill" | "id" | "arm" | "check
     groups.get(key).outcomes.push(`checks ${row.checks} judge ${row.judge}`);
   }
   const disagreeing = [...groups.values()].filter((group) => new Set(group.outcomes).size > 1);
+  assert(disagreeing.every((group) => group.outcomes.length > 1), `a group disagrees only across at least two runs, got ${JSON.stringify(disagreeing)}`);
   return disagreeing;
 }
 
@@ -310,20 +326,26 @@ const USAGE_LINES = [
 
 const usage = (message: unknown): never => {
   const readable = String(message).replace(CONTROL_CHARACTERS, " ");
+  assert(readable.trim(), `a usage error must say what is wrong, got ${JSON.stringify(message)}`);
+  assert(!/[\r\n]/.test(readable), `a usage error prints on one line, got ${JSON.stringify(readable)}`);
   console.error(readable);
   for (const line of USAGE_LINES) console.error(line);
   process.exit(EXIT_USAGE);
 };
 
 const positiveInteger = (flag: string, value: string) => {
+  assert(flag.startsWith("--") && Object.hasOwn(VALUE_FLAGS, flag), `${JSON.stringify(flag)} is not a value flag`);
   const n = Number(value);
   if (!Number.isInteger(n) || n < 1) usage(`${flag} needs a positive integer, got "${value}"`);
+  assert(Number.isInteger(n) && n >= 1, `${flag} must yield a positive integer, got ${n}`);
   return n;
 };
 
 const positiveNumber = (flag: string, value: string) => {
+  assert(flag.startsWith("--") && Object.hasOwn(VALUE_FLAGS, flag), `${JSON.stringify(flag)} is not a value flag`);
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0) usage(`${flag} needs a positive number, got "${value}"`);
+  assert(Number.isFinite(n) && n > 0, `${flag} must yield a positive number, got ${n}`);
   return n;
 };
 
@@ -338,6 +360,7 @@ const VALUE_FLAGS: Record<string, [string, FlagParser]> = {
 };
 
 function parseArgs(argv: string[]): ParsedOptions {
+  assert(Array.isArray(argv), `arguments must be an array, got ${Object.prototype.toString.call(argv)}`);
   const options: Options = {
     skill: null,
     ids: [],
@@ -366,18 +389,24 @@ function parseArgs(argv: string[]): ParsedOptions {
   if (!skill) return usage("No skill given.");
   if (options.smoke && options.ids.length) usage("--smoke picks the scenarios itself; drop --scenario.");
   const repeat = options.repeat ?? (options.rerunFailures ? RERUN_REPEAT : DEFAULT_REPEAT);
+  assert(repeat >= 1, `repeat must be at least 1, got ${repeat}`);
+  assert(options.jobs >= 1, `jobs must be at least 1, got ${options.jobs}`);
   return { ...options, skill, repeat };
 }
 
 const pagesIn = (dir: string): string[] => {
+  assert(existsSync(dir), `pages are read from an existing directory, got ${dir}`);
   const pages = readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     if (entry.isDirectory()) return SKIPPED_DIRS.has(entry.name) ? [] : pagesIn(join(dir, entry.name));
     return entry.name.endsWith(PAGE_EXTENSION) ? [join(dir, entry.name)] : [];
   });
+  assert(pages.every((page) => page.startsWith(dir) && page.endsWith(PAGE_EXTENSION)), `every page must be a ${PAGE_EXTENSION} file under ${dir}, got ${JSON.stringify(pages)}`);
   return pages;
 };
 
 function gradeChecks(skill: string, id: string, runDir: string) {
+  assert(id, `grading names a scenario, got ${JSON.stringify(id)}`);
+  assert(existsSync(runDir), `grading reads a run directory that exists, got ${runDir}`);
   if (!existsSync(RUN_CHECKS)) return NOT_AVAILABLE;
   const scratch = join(runDir, RUN_TEMP_DIR, "");
   const files = [join(runDir, "output.md"), ...pagesIn(runDir).filter((page: string) => !page.startsWith(scratch))];
@@ -392,10 +421,12 @@ function gradeChecks(skill: string, id: string, runDir: string) {
   });
   writeFileSync(join(runDir, "checks.txt"), log.join("\n"));
   const worst = verdicts.reduce((a, b) => (VERDICT_SEVERITY.indexOf(b) > VERDICT_SEVERITY.indexOf(a) ? b : a));
+  assert(VERDICT_SEVERITY.includes(worst), `the checks verdict must be a ranked grade, got ${JSON.stringify(worst)}`);
   return worst;
 }
 
 function gradeJudge(skill: string, id: string, runDir: string, criteria: string) {
+  assert(id && existsSync(runDir), `judging names a scenario and reads an existing run directory, got id=${JSON.stringify(id)} runDir=${runDir}`);
   if (!existsSync(JUDGE) || criteria === NOTHING_TO_JUDGE) return NOT_AVAILABLE;
   const { status, stdout, stderr } = spawnSync("node", [JUDGE, skill, id, runDir], { cwd: ROOT, encoding: "utf8" });
   writeFileSync(join(runDir, "judge.json"), stdout || stderr);
@@ -407,6 +438,8 @@ function gradeJudge(skill: string, id: string, runDir: string, criteria: string)
 const NO_SUCH_PROCESS = "ESRCH";
 const liveGroups = new Set<number>();
 const signalGroup = (pid: number, name: NodeJS.Signals) => {
+  assert(Number.isInteger(pid) && pid > 0, `a process group id is a positive integer; ${-pid} would signal our own group, got ${pid}`);
+  assert(name === SIGNAL_TERM || name === SIGNAL_KILL, `only ${SIGNAL_TERM} and ${SIGNAL_KILL} are sent to a group, got ${name}`);
   try {
     process.kill(-pid, name);
   } catch (error) {
@@ -422,6 +455,8 @@ for (const name of ["SIGINT", "SIGTERM"]) {
 }
 
 const runClaude = (args: string[], { cwd, env, transcriptPath, stderrPath }: ClaudeRun) => {
+  assert(existsSync(cwd), `claude runs in a directory that exists, got ${cwd}`);
+  assert(transcriptPath !== stderrPath, `the transcript and stderr need separate files, both are ${transcriptPath}`);
   return new Promise<{ timedOut: boolean }>((resolve) => {
     const out = openSync(transcriptPath, "w");
     const err = openSync(stderrPath, "w");
@@ -459,6 +494,7 @@ const runClaude = (args: string[], { cwd, env, transcriptPath, stderrPath }: Cla
 const stageFixture = ({ skill, row, runDir }: { skill: string; row: EvalRow; runDir: string }) => {
   const fixture = join(FIXTURES_DIR, skill, row.id);
   assert(fixture.startsWith(FIXTURES_DIR + sep), `a fixture must stay under ${FIXTURES_DIR}, got ${fixture}`);
+  assert(existsSync(runDir), `a fixture is staged into a run directory that exists, got ${runDir}`);
   const hasFixture = existsSync(fixture);
   const setup = join(fixture, FIXTURE_SETUP);
   const allowedToolsFile = join(fixture, FIXTURE_ALLOWED_TOOLS);
@@ -477,7 +513,9 @@ const stageFixture = ({ skill, row, runDir }: { skill: string; row: EvalRow; run
 };
 
 const claudeArgs = ({ arm, prompt, snapshot, tempDir, extraRules, budgetUsd, model }: ClaudeArgs) => {
-  return [
+  assert(ARMS.includes(arm), `an arm is one of ${ARMS.join(", ")}, got ${JSON.stringify(arm)}`);
+  assert(prompt, `claude needs a prompt, got ${JSON.stringify(prompt)}`);
+  const args = [
     "-p",
     prompt,
     ...(arm === ARM_SKILL ? ["--plugin-dir", snapshot, "--add-dir", snapshot] : []),
@@ -497,9 +535,15 @@ const claudeArgs = ({ arm, prompt, snapshot, tempDir, extraRules, budgetUsd, mod
     ...(budgetUsd ? ["--max-budget-usd", String(budgetUsd)] : []),
     ...(model ? ["--model", model] : []),
   ];
+  assert(args[1] === prompt, `the prompt must follow -p, got ${JSON.stringify(args[1])}`);
+  assert(arm === ARM_SKILL || !args.includes("--plugin-dir"), `the ${arm} arm must not load the plugin, got ${JSON.stringify(args)}`);
+  return args;
 };
 
 async function runOne({ skill, evals, arm, row, n, out, snapshot, budgetUsd, model }: RunJob): Promise<RunRow> {
+  assert(ARMS.includes(arm), `an arm is one of ${ARMS.join(", ")}, got ${JSON.stringify(arm)}`);
+  assert(Number.isInteger(n) && n >= 1, `a run number is a positive integer, got ${n}`);
+  assert(budgetUsd === null || budgetUsd > 0, `a run budget is positive or unset, got ${budgetUsd}`);
   const runDir = join(out, skill, row.id, `${arm}-${n}`);
   const base: RunRow = {
     skill,
@@ -528,8 +572,9 @@ async function runOne({ skill, evals, arm, row, n, out, snapshot, budgetUsd, mod
 
   const persona = readFileSync(join(runDir, "persona.md"), "utf8").trimEnd();
   const template = arm === ARM_BASELINE ? evals.baselineTemplate : evals.skillTemplate;
+  assert(template, `the ${arm} arm of ${skill} needs an agent template, got ${JSON.stringify(template)}`);
   const harnessLine = evals.responseMode && !hasFixture ? `\n${HARNESS_LINE}` : "";
-  const prompt = `${fillTemplate(template!, row.prompt, persona)}${harnessLine}`;
+  const prompt = `${fillTemplate(template, row.prompt, persona)}${harnessLine}`;
   const args = claudeArgs({ arm, prompt, snapshot, tempDir, extraRules, budgetUsd, model });
   const fixtureBin = join(runDir, FIXTURE_BIN);
   const path = existsSync(fixtureBin) ? `${fixtureBin}:${process.env.PATH}` : process.env.PATH;
@@ -553,6 +598,8 @@ async function runOne({ skill, evals, arm, row, n, out, snapshot, budgetUsd, mod
 }
 
 const gradeRun = ({ base, skill, arm, row, runDir, prompt, timedOut, secs }: GradeRun): RunRow => {
+  assert(base.id === row.id && base.arm === arm && base.skill === skill, `the base row must describe the run being graded, got ${JSON.stringify(base)} for ${skill} ${row.id} ${arm}`);
+  assert(existsSync(join(runDir, "transcript.jsonl")), `grading reads the transcript of ${runDir}, which is missing`);
   const transcript = readFileSync(join(runDir, "transcript.jsonl"), "utf8");
   const { flags, result } = inspectRun({ transcript, arm, skill, timedOut });
   writeFileSync(join(runDir, "prompt.txt"), prompt);
@@ -573,6 +620,8 @@ const gradeRun = ({ base, skill, arm, row, runDir, prompt, timedOut, secs }: Gra
 };
 
 export function smokeScenarioIds(markdown: string, rowIds: string[]) {
+  assert(rowIds.length > 0, `a smoke run needs at least one scenario to choose from, got ${rowIds.length}`);
+  assert(new Set(rowIds).size === rowIds.length, `scenario ids must be unique, got ${JSON.stringify(rowIds)}`);
   const known = new Set(rowIds);
   const coverage = new Map<string, Set<number>>(rowIds.map((id) => [id, new Set<number>()]));
   parseChecks(markdown).checks.forEach((check, index) => {
@@ -595,12 +644,16 @@ export function smokeScenarioIds(markdown: string, rowIds: string[]) {
     chosen.add(best);
     for (const index of coverage.get(best)!) uncovered.delete(index);
   }
-  return chosen.size ? rowIds.filter((id) => chosen.has(id)) : rowIds.slice(0, 1);
+  const smoke = chosen.size ? rowIds.filter((id) => chosen.has(id)) : rowIds.slice(0, 1);
+  assert(smoke.length > 0 && smoke.every((id) => known.has(id)), `a smoke run picks known scenarios, got ${JSON.stringify(smoke)} from ${JSON.stringify(rowIds)}`);
+  return smoke;
 }
 
 const passed = (row: GradedRun) => !row.failed && PASSING_GRADES.has(row.checks) && PASSING_GRADES.has(row.judge); // zanity: ignore[assertion-density] -- grades are validated against KNOWN_GRADES where gradeJudge produces them and an unknown grade already counts as not passed
 
 export function scenarioVerdicts({ ids, results, unlaunchedIds, rerunFailures }: { ids: string[]; results: GradedRun[]; unlaunchedIds: Set<string>; rerunFailures: boolean }): Verdicts {
+  assert(new Set(ids).size === ids.length, `scenario ids must be unique, got ${JSON.stringify(ids)}`);
+  assert(unlaunchedIds instanceof Set, `unlaunched ids must be a Set, got ${Object.prototype.toString.call(unlaunchedIds)}`);
   const verdicts = Object.fromEntries(
     ids.map((id) => {
       const runs = results.filter((row) => row.id === id).sort((a, b) => a.run - b.run);
@@ -615,10 +668,13 @@ export function scenarioVerdicts({ ids, results, unlaunchedIds, rerunFailures }:
       return [id, verdict];
     }),
   );
+  assert(Object.keys(verdicts).length === ids.length, `every scenario gets one verdict, got ${JSON.stringify(verdicts)} for ${JSON.stringify(ids)}`);
+  assert(Object.values(verdicts).every((verdict) => VERDICTS.includes(verdict)), `a verdict is one of ${VERDICTS.join(", ")}, got ${JSON.stringify(verdicts)}`);
   return verdicts;
 }
 
 const selectScenarios = (options: ParsedOptions, evals: ParsedEvals, arm: Arm, markdown: string) => {
+  assert(ARMS.includes(arm), `an arm is one of ${ARMS.join(", ")}, got ${JSON.stringify(arm)}`);
   if (!evals.rows.length) usage(`${options.skill} lists no scenario rows under ## Test Scenarios.`);
   if (arm === ARM_BASELINE && !evals.baselineTemplate) usage(`${options.skill} has no ### Baseline Agent template.`);
   if (arm === ARM_SKILL && !evals.skillTemplate) usage(`${options.skill} has no ### Skill Agent template.`);
@@ -637,10 +693,13 @@ const selectScenarios = (options: ParsedOptions, evals: ParsedEvals, arm: Arm, m
   if (malformed.length) usage(`Rows without ${ROW_CELLS} cells: ${malformed.map((row) => row.id).join(", ")}`);
   const blankPrompts = selected.filter((row) => !row.prompt?.trim());
   if (blankPrompts.length) usage(`Rows with a blank Prompt cell: ${blankPrompts.map((row) => row.id).join(", ")}; fill the cell.`);
+  assert(selected.length > 0, `no scenario selected from ${JSON.stringify(allIds)} with ${JSON.stringify(options.ids)}`);
   return selected;
 };
 
 const runQueue = async (items: RunJob[], jobs: number, ledger: Ledger) => {
+  assert(Number.isInteger(jobs) && jobs >= 1, `a queue needs at least one job, got ${jobs}`);
+  assert(ledger.spent >= 0 && ledger.limit > 0, `a ledger starts unspent under a positive limit, got ${JSON.stringify(ledger)}`);
   const queue = [...items];
   const results: RunRow[] = [];
   await Promise.all(
@@ -652,10 +711,13 @@ const runQueue = async (items: RunJob[], jobs: number, ledger: Ledger) => {
       }
     }),
   );
+  assert(results.length + queue.length === items.length, `every item is run or left unlaunched, got ${results.length} run and ${queue.length} unlaunched of ${items.length}`);
   return { results, unlaunched: queue };
 };
 
 const report = ({ options, out, results, verdicts }: { options: ParsedOptions; out: string; results: RunRow[]; verdicts: Verdicts }) => {
+  assert(existsSync(out), `the report is written into an output directory that exists, got ${out}`);
+  assert(results.every((row) => Object.hasOwn(verdicts, row.id)), `every run needs a verdict for its scenario, got ${JSON.stringify(verdicts)} for ${JSON.stringify(results.map((row) => row.id))}`);
   writeFileSync(join(out, "summary.tsv"), summaryTsv(results));
   const cells = [SUMMARY_COLUMNS, ...results.map((row: Record<string, unknown>) => SUMMARY_COLUMNS.map((column) => String(row[column])))];
   const widths = SUMMARY_COLUMNS.map((_, i) => Math.max(...cells.map((r) => r[i].length)));
@@ -677,6 +739,7 @@ const report = ({ options, out, results, verdicts }: { options: ParsedOptions; o
 };
 
 async function main() {
+  assert(existsSync(SKILLS_DIR), `skills are read from ${SKILLS_DIR}; run from the repository root`);
   const options = parseArgs(process.argv.slice(2));
   const evalsPath = join(SKILLS_DIR, options.skill, "evals.md");
   const markdown = existsSync(evalsPath) ? readFileSync(evalsPath, "utf8") : "";
@@ -697,6 +760,8 @@ async function main() {
 
   const ledger: Ledger = { spent: 0, limit: options.totalBudgetUsd ?? Number.POSITIVE_INFINITY };
   const plan = (rows: EvalRow[], count: number, firstRun: number) => {
+    assert(Number.isInteger(count) && count >= 1, `a plan repeats each row at least once, got ${count}`);
+    assert(Number.isInteger(firstRun) && firstRun >= 1, `run numbers start at 1 or later, got ${firstRun}`);
     const items = rows.flatMap((row) =>
       Array.from({ length: count }, (_, i) => ({
         skill: options.skill,
@@ -710,6 +775,7 @@ async function main() {
         model: options.model,
       })),
     );
+    assert(items.length === rows.length * count, `a plan holds ${count} runs per row, got ${items.length} items for ${rows.length} rows`);
     return items;
   };
   const first = await runQueue(plan(selected, options.repeat, 1), options.jobs, ledger);
@@ -729,6 +795,7 @@ async function main() {
     unlaunchedIds: new Set(unlaunched.map((item) => item.row.id)),
     rerunFailures: options.rerunFailures,
   });
+  assert(Object.keys(verdicts).length === selected.length, `every selected scenario needs a verdict, got ${JSON.stringify(verdicts)}`);
   writeFileSync(join(out, VERDICTS_FILE), JSON.stringify({ verdicts, totalCostUsd: ledger.spent, runs: results.length }));
 
   return report({ options, out, results, verdicts });

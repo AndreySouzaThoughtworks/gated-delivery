@@ -30,17 +30,34 @@ const EXIT_HITS = 1;
 const EXIT_USAGE = 2;
 
 /**
+ * @param {string} term
+ * @returns {RegExp}
+ */
+const compileTerm = (term) => {
+  assert(typeof term === "string" && term.length > 0, `each ${TERM_FLAG} must be a non-empty regex, which would otherwise match every line, got ${JSON.stringify(term)}`);
+  let compiled;
+  try {
+    compiled = new RegExp(term, "i");
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new assert.AssertionError({ message: `each ${TERM_FLAG} must be a valid regex, got ${JSON.stringify(term)}; ${detail}` });
+  }
+  assert(!compiled.test(""), `each ${TERM_FLAG} must not match an empty line, which would flag every line, got ${JSON.stringify(term)}`);
+  return compiled;
+};
+
+/**
  * @param {string} text
  * @param {string[]} [extraTerms]
  */
 export const scanText = (text, extraTerms = []) => {
   assert(typeof text === "string", `the text to scan must be a string, got ${typeof text}`);
-  assert(extraTerms.every((term) => typeof term === "string" && term.length > 0), `each ${TERM_FLAG} must be a non-empty regex, which would otherwise match every line, got ${JSON.stringify(extraTerms)}`);
-  const arms = [...ARMS, ...extraTerms.map((term) => /** @type {[string, string]} */ ([`extra guardrail term ${term}`, term]))].map(([name, pattern]) => ({ name, pattern: new RegExp(pattern, "i") }));
-  const hits = text.split("\n").flatMap((line, index) => arms.filter(({ pattern }) => pattern.test(line)).map(({ name }) => ({ line: index + 1, arm: name })));
-  const lineCount = text.split("\n").length;
-  assert(hits.every(({ line }) => line >= 1 && line <= lineCount), `every hit must fall on a line of the text, got ${JSON.stringify(hits)} for ${lineCount} lines`);
-  return hits;
+  assert(Array.isArray(extraTerms), `extra terms must be a list, got ${typeof extraTerms}`);
+  const arms = [
+    ...ARMS.map(([name, pattern]) => ({ name, pattern: new RegExp(pattern, "i") })),
+    ...extraTerms.map((term) => ({ name: `extra guardrail term ${term}`, pattern: compileTerm(term) })),
+  ];
+  return text.split("\n").flatMap((line, index) => arms.filter(({ pattern }) => pattern.test(line)).map(({ name }) => ({ line: index + 1, arm: name })));
 };
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

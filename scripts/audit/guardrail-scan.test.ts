@@ -56,6 +56,15 @@ test("hits carry the one-based line number and an extra term adds an arm", () =>
   assert.equal(scanText(text).length, 1, "without the term only the email hits");
 });
 
+test("an extra term that is not a regex is refused", () => {
+  assert.throws(() => scanText("hello", ["("]), /must be a valid regex/);
+  assert.throws(() => scanText("hello", [""]), /non-empty regex/);
+  assert.throws(() => scanText("hello", [".*"]), /must not match an empty line/);
+  assert.equal(scanText("orchid", ["orchid"]).length, 1, "a term that needs text still matches it");
+  const scan = scanText as (text: string, extraTerms: unknown) => unknown;
+  assert.throws(() => scan("hello", "orchid"), /extra terms must be a list/);
+});
+
 test("the command line exits 1 with file:line and never prints the match, 0 when clean, 2 on bad usage", () => {
   const dir = mkdtempSync(join(tmpdir(), "guardrail-scan-"));
   const dirty = join(dir, "dirty.md");

@@ -1,5 +1,5 @@
 {
-  "hash": "4d100eade7b1ded8fba528b253cd5fea8f1bb012d4f794a0bf94f5bf95426c11",
-  "waived": "no live eval run: the script shipped under the skill gained assertions on its arguments and results with no change for valid input; no prose changed; its tests and lint runs pass",
-  "ranAt": "2026-11-03T11:06:59.760Z"
+  "hash": "4792272852500d7c018cb0a61762e9a6860576be9ce86b8c17d26d440837eaaf",
+  "waived": "the script shipped under the skill gained a check on the template or on extra terms: a template that is not text, and an extra term that is not a valid regex or matches every line, are refused; no prose changed; live eval not run",
+  "ranAt": "2026-11-03T14:24:05.975Z"
 }

@@ -67,6 +67,11 @@ test("the unfilled template is rejected", () => {
   assert(!problems.some((p) => p.includes("Content-Security-Policy")), `the template's own CSP is the reference and must not be flagged, got ${JSON.stringify(problems)}`);
 });
 
+test("a template that is not text is refused", () => {
+  const lint = lintDeskcheck as (html: string, options: { templateHtml: unknown }) => string[];
+  assert.throws(() => lint(VALID, { templateHtml: 1 }), /the template must be text, got number/);
+});
+
 test("the command line exits 1 on a bad page and 0 on a good one", () => {
   const dir = mkdtempSync(join(tmpdir(), "deskcheck-lint-"));
   const bad = join(dir, "bad.html");

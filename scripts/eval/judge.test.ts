@@ -42,7 +42,7 @@ const scratch = () => {
 
 type Quote = { file: string; line?: number; text: string };
 type Clause = { id: number } & Record<string, unknown>;
-type StubCall = { args: string[]; cwd: string; cwdFiles: string[]; stdin: string };
+type StubCall = { args: string[]; cwd: string; cwdFiles: string[]; stdin: string; providerEnv: Record<string, string | undefined> };
 
 const repoWith = () => {
   const repo = scratch();
@@ -75,7 +75,7 @@ const stubClaude = (reply: unknown, exitCode = 0) => {
     bin,
     `#!/usr/bin/env node
 const fs = require("node:fs");
-fs.writeFileSync(${JSON.stringify(argsLog)}, JSON.stringify({ args: process.argv.slice(2), cwd: process.cwd(), cwdFiles: fs.readdirSync(process.cwd()), stdin: fs.readFileSync(0, "utf8") }));
+fs.writeFileSync(${JSON.stringify(argsLog)}, JSON.stringify({ args: process.argv.slice(2), cwd: process.cwd(), cwdFiles: fs.readdirSync(process.cwd()), stdin: fs.readFileSync(0, "utf8"), providerEnv: { ANTHROPIC_BASE_URL: process.env.ANTHROPIC_BASE_URL, ANTHROPIC_AUTH_TOKEN: process.env.ANTHROPIC_AUTH_TOKEN } }));
 process.stdout.write(fs.readFileSync(${JSON.stringify(replyFile)}, "utf8"));
 process.exit(${exitCode});
 `,
@@ -92,13 +92,15 @@ const structured = (clauses: Clause[]) => {
   return { type: "result", is_error: false, structured_output: { clauses } };
 };
 
-const runJudge = (args: string[], { bin, cwd }: { bin: string; cwd: string }) => {
+const OVERRIDE_ENV = "GATED_DELIVERY_JUDGE_MODEL";
+
+const runJudge = (args: string[], { bin, cwd, env = {} }: { bin: string; cwd: string; env?: Record<string, string> }) => {
   assert(existsSync(bin), `the stub claude must exist, got ${bin}`);
   assert(existsSync(cwd), `the judge working directory must exist, got ${cwd}`);
   const result = spawnSync("node", [JUDGE, ...args], {
     cwd,
     encoding: "utf8",
-    env: { ...process.env, GATED_DELIVERY_CLAUDE_BIN: bin },
+    env: { ...process.env, [OVERRIDE_ENV]: "", GATED_DELIVERY_CLAUDE_BIN: bin, ...env },
   });
   assert(result.error === undefined, `the judge process must start, got ${result.error}`);
   return result;
@@ -391,6 +393,43 @@ test("CLI: claude is read-only, loads no settings, plugin, slash command or MCP,
   assert.ok(args.includes("--disable-slash-commands"));
   assert.ok(!args.includes("--plugin-dir"), "the judge loads no plugin");
   assert.ok(!args.some((a) => a.startsWith("--max-budget")), "no spend cap");
+});
+
+const judgedWith = (env: Record<string, string>) => {
+  assert(Object.values(env).every((value) => typeof value === "string"), `judgedWith takes string environment values, got ${JSON.stringify(env)}`);
+  const stub = stubClaude(
+    structured([
+      { id: 1, result: "PASS", quotes: [q("Task")], note: "" },
+      { id: 2, result: "PASS", quotes: [q("nothing")], note: "" },
+      { id: 3, result: "PASS", quotes: [q("nothing")], note: "" },
+    ]),
+  );
+  const result = runJudge(["demo", "1", runDirWith()], { bin: stub.bin, cwd: repoWith(), env });
+  assert(result.status !== null, `the judge process ended by signal ${result.signal}`);
+  return { result, call: () => stub.call() };
+};
+
+const GLM_MODEL = "glm-5.3-flash[1m]";
+const GLM_BASE_URL = "https://api.z.ai/api/anthropic";
+const GLM_TOKEN = "token-for-the-test-only";
+
+test("CLI: GATED_DELIVERY_JUDGE_MODEL replaces the judge model and the default stays haiku without it", () => {
+  const overridden = judgedWith({ [OVERRIDE_ENV]: GLM_MODEL });
+  assert.equal(flagOf(overridden.call().args, "--model"), GLM_MODEL);
+  assert.equal(overridden.result.status, EXIT.PASS, overridden.result.stderr);
+  assert.equal(flagOf(judgedWith({}).call().args, "--model"), "haiku");
+});
+
+test("CLI: a blank GATED_DELIVERY_JUDGE_MODEL falls back to haiku and a whitespace one is a harness error", () => {
+  assert.equal(flagOf(judgedWith({ [OVERRIDE_ENV]: "" }).call().args, "--model"), "haiku");
+  const blank = judgedWith({ [OVERRIDE_ENV]: "  " });
+  assert.equal(blank.result.status, EXIT.HARNESS, `status ${blank.result.status}, stderr ${blank.result.stderr}`);
+  assert.match(blank.result.stderr, /GATED_DELIVERY_JUDGE_MODEL must name a model/);
+});
+
+test("CLI: ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN reach claude unmodified", () => {
+  const call = judgedWith({ ANTHROPIC_BASE_URL: GLM_BASE_URL, ANTHROPIC_AUTH_TOKEN: GLM_TOKEN }).call();
+  assert.deepEqual(call.providerEnv, { ANTHROPIC_BASE_URL: GLM_BASE_URL, ANTHROPIC_AUTH_TOKEN: GLM_TOKEN });
 });
 
 test("CLI: the run is reached through --add-dir and its output reaches the judge as data", () => {

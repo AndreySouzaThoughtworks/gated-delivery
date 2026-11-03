@@ -153,6 +153,7 @@ const fakeRepo = ({ evals = EVALS, fixtures = {}, graders = false }: { evals?: s
   mkdirSync(join(root, "scripts", "eval"), { recursive: true });
   copyFileSync(RUNNER, join(root, "scripts", "eval", "run-scenarios.ts"));
   copyFileSync(join(HERE, "run-checks.ts"), join(root, "scripts", "eval", "run-checks.ts"));
+  copyFileSync(join(HERE, "judge-model.ts"), join(root, "scripts", "eval", "judge-model.ts"));
   if (graders) {
     writeFileSync(
       join(root, "scripts", "eval", "run-checks.ts"),

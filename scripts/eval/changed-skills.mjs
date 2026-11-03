@@ -92,7 +92,7 @@ const git = (root, args) => {
 
 const lines = (text) => text.split(LINE_BREAK).filter(Boolean); // zanity: ignore[assertion-density] -- text is git command output and the result is one split-and-filter whose only possible failures are the splitter's own guarantees
 
-const changedPaths = (root, baseRef) => {
+export const changedPaths = (root, baseRef) => {
   const mergeBase = git(root, ["merge-base", baseRef, "HEAD"]).trim();
   assert(mergeBase !== "", `no merge base between ${baseRef} and HEAD; expected a commit, since an empty one diffs from the wrong point`);
   const paths = new Set([
@@ -102,6 +102,15 @@ const changedPaths = (root, baseRef) => {
   ]);
   assert([...paths].every((path) => !isAbsolute(path)), "changedPaths returned an absolute path; expected paths relative to the repository root");
   return paths;
+};
+
+export const fileAtBase = (root, baseRef, path) => {
+  assert(baseRef !== "", `fileAtBase needs a base ref, got ${JSON.stringify(baseRef)}; expected a branch or commit name`);
+  assert(!isAbsolute(path), `fileAtBase needs a path relative to the repository root, got ${path}`);
+  const mergeBase = git(root, ["merge-base", baseRef, "HEAD"]).trim();
+  assert(mergeBase !== "", `no merge base between ${baseRef} and HEAD; expected a commit, since an empty one reads from the wrong point`);
+  const shown = spawnSync("git", ["show", `${mergeBase}:${path}`], { cwd: root, encoding: "utf8" });
+  return shown.status === 0 ? shown.stdout : null;
 };
 
 export const changedSkills = (root, baseRef) => {

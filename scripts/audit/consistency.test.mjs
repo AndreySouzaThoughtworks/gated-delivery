@@ -741,6 +741,60 @@ test("a skill nobody changed, or whose only change is evals.md, needs no stamp",
   assert.equal(unchanged.code, 0, unchanged.out);
 });
 
+const RELEASED_VERSION = "1.0.0";
+const BUMPED_VERSION = "1.0.1";
+const SHIPPED_EDIT = ["plugin/bootstrap/helper.mjs", "export const answer = 41;\n"];
+
+const manifestsAt = (dir, version) => {
+  assert(version.length > 0, `a manifest version must not be blank, got ${JSON.stringify(version)}; a blank one reads as unversioned`);
+  write(dir, "plugin/.claude-plugin/plugin.json", JSON.stringify({ name: "p", version }));
+  write(dir, ".claude-plugin/marketplace.json", JSON.stringify({ metadata: { version }, plugins: [{ name: "p", source: "plugin" }] }));
+  assert(existsSync(join(dir, ".claude-plugin/marketplace.json")), `both manifests must exist after writing, got none in ${dir}`);
+};
+
+const releasedFeatureBranchEditing = (file, body) => {
+  assert(!file.startsWith("/"), `the edited file must be relative to the repo, got ${file}; drop the leading slash`);
+  const dir = validRepo();
+  manifestsAt(dir, RELEASED_VERSION);
+  git(dir, ["init", "-b", BASE_REF]);
+  git(dir, ["add", "."]);
+  git(dir, ["commit", "-m", "base"]);
+  git(dir, ["checkout", "-b", FEATURE_BRANCH]);
+  write(dir, file, body);
+  git(dir, ["add", "."]);
+  git(dir, ["commit", "-m", "change"]);
+  const checkedOut = git(dir, ["rev-parse", "--abbrev-ref", "HEAD"]).trim();
+  assert(checkedOut === FEATURE_BRANCH, `the edit must be committed on ${FEATURE_BRANCH}, got ${checkedOut}`);
+  return dir;
+};
+
+test("a shipped plugin file changed against the base ref needs a version bump", () => {
+  const dir = releasedFeatureBranchEditing(...SHIPPED_EDIT);
+  const env = { GATED_DELIVERY_BASE_REF: BASE_REF };
+  const unchanged = runGuard(dir, env);
+  assert.equal(unchanged.code, 1);
+  assert.match(unchanged.out, /plugin files changed \(plugin\/bootstrap\/helper\.mjs\) but the version is still 1\.0\.0\. Installs cache the plugin by version/);
+  manifestsAt(dir, BUMPED_VERSION);
+  const bumped = runGuard(dir, env);
+  assert.equal(bumped.code, 0, bumped.out);
+});
+
+test("a test file, a doc, or a base with no version needs no version bump", () => {
+  const env = { GATED_DELIVERY_BASE_REF: BASE_REF };
+  const testOnly = releasedFeatureBranchEditing("plugin/bootstrap/helper.test.mjs", SHIPPED_EDIT[1]);
+  assert.equal(runGuard(testOnly, env).code, 0, "a test file does not ship behaviour");
+  const docOnly = releasedFeatureBranchEditing("docs/note.md", "note\n");
+  assert.equal(runGuard(docOnly, env).code, 0, "a doc outside plugin/ does not ship behaviour");
+  const unversioned = featureBranchEditing(...SHIPPED_EDIT);
+  assert.equal(runGuard(unversioned, env).code, 0, "a base whose plugin.json has no version has nothing to compare");
+});
+
+test("the version check is skipped when GATED_DELIVERY_BASE_REF is unset", () => {
+  const dir = releasedFeatureBranchEditing(...SHIPPED_EDIT);
+  const { code, out } = runGuard(dir);
+  assert.equal(code, 0, out);
+});
+
 test("a changed skill on a waiver for its current hash passes with a warning; a blank or stale waiver fails", () => {
   const dir = featureBranchEditing(...SKILL_EDIT);
   const env = { GATED_DELIVERY_BASE_REF: BASE_REF };

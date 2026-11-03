@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { tempDir } from "./test-support/temp-dir.ts";
+import { tempDir } from "./test-support/temp-dir.mjs";
 
 test("tempDir creates a directory under the system temp dir named after prefix and label", () => {
   const created = tempDir("gd-test", "unit");

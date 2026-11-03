@@ -826,3 +826,26 @@ test("a changed skill on a waiver for its current hash passes with a warning; a 
   assert.equal(stale.code, 1);
   assert.match(stale.out, /skill alpha has a stamp for different content/);
 });
+
+test("a plugin file, tests included, that imports TypeScript is reported", () => {
+  const importers: Record<string, string> = {
+    "plugin/hooks/h.test.mjs": 'import { tempDir } from "../../scripts/test-support/temp-dir.ts";\n',
+    "plugin/hooks/h.mjs": 'const helper = await import("./helper.mts");\n',
+    "plugin/hooks/h.cjs": 'const helper = require("./helper.cts");\n',
+  };
+  for (const [file, body] of Object.entries(importers)) {
+    const dir = validRepo();
+    write(dir, file, body);
+    const { code, out } = runGuard(dir);
+    assert.equal(code, 1, `${file} imports TypeScript, expected the guard to fail, got ${code}: ${out}`);
+    assert.match(out, new RegExp(`${file.replace(/\./g, "\\.")} imports TypeScript`));
+  }
+});
+
+test("a plugin file that imports .mjs or only mentions .ts text stays silent", () => {
+  const dir = validRepo();
+  write(dir, "plugin/hooks/h.test.mjs", 'import { tempDir } from "../../scripts/test-support/temp-dir.mjs";\nconst name = "a.ts";\n');
+  const { code, out } = runGuard(dir);
+  assert.equal(code, 0, out);
+  assert.doesNotMatch(out, /imports TypeScript/);
+});

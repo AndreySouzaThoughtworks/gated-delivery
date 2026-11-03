@@ -644,6 +644,22 @@ if (baseRef) {
   }
 }
 
+// --- 20. Shipped plugin code imports no TypeScript file ---
+// Plugin code and its tests run on Node 18 and 20, which cannot load .ts: a test importing a dev
+// helper from scripts/ failed there with ERR_UNKNOWN_FILE_EXTENSION.
+const PLUGIN_SCRIPT_EXTENSIONS = [".mjs", ".js", ".cjs", ".ts", ".mts", ".cts"];
+const TYPESCRIPT_IMPORT = /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)["'][^"'\n]*\.[cm]?ts["']/g;
+const pluginScripts = existsSync(PLUGIN)
+  ? readdirSync(PLUGIN, { recursive: true, encoding: "utf8" })
+      .filter((name) => !name.split(sep).includes("node_modules") && PLUGIN_SCRIPT_EXTENSIONS.some((extension) => name.endsWith(extension)))
+      .map((name) => join(PLUGIN, name))
+  : [];
+for (const file of pluginScripts) {
+  for (const specifier of read(file).match(TYPESCRIPT_IMPORT) ?? []) {
+    errors.push(`${file.slice(ROOT.length + 1)} imports TypeScript (${specifier.trim()}). Hint: plugin code and tests run on Node 18 and 20, which cannot load .ts; import a .mjs file instead.`);
+  }
+}
+
 // --- report ---
 console.log(
   `gated-delivery audit: ${skills.length} skills, ${agents.length} agents, ${hookFiles.size} hooks` +

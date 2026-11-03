@@ -13,12 +13,14 @@ const DEFAULT_INSTALL_DIR = join(homedir(), ".local", "bin");
 
 export const installPlan = (version = pins.zanityVersion, repository = pins.zanityRepository) => {
   assert(/^\d+\.\d+\.\d+$/.test(version), `zanity version must be a pinned x.y.z release, got "${version}"; set zanityVersion in pins.json`);
+  assert(/^[\w.-]+\/[\w.-]+$/.test(repository), `zanity repository must be owner/name, got "${repository}"; set zanityRepository in pins.json`);
   const scriptUrl = `https://raw.githubusercontent.com/${repository}/v${version}/install.sh`;
   return { scriptUrl, env: { ZANITY_VERSION: version }, version };
 };
 
 /** @param {string} installerOutput */
 export const isVerifiedInstall = (installerOutput) => {
+  assert(typeof installerOutput === "string", `installer output must be text, got ${typeof installerOutput}`);
   assert(installerOutput.includes("Installed"), `installer must report an install, got "${installerOutput.slice(0, 80)}"`);
   const verified = !installerOutput.includes(UNVERIFIED_MARKER);
   return verified;

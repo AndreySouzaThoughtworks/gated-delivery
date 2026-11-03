@@ -30,6 +30,7 @@ class UsageError extends Error {}
  * @returns {RatchetOptions}
  */
 const parseArgs = (argv) => {
+  assert(Array.isArray(argv) && argv.every((argument) => typeof argument === "string"), `argv must be a list of strings, got ${JSON.stringify(argv)}`);
   /** @type {Record<string, string>} */
   const options = {};
   for (let i = 0; i < argv.length; i += 2) {
@@ -39,6 +40,7 @@ const parseArgs = (argv) => {
     options[name.slice(OPTION_PREFIX.length)] = value;
   }
   if (!options.baseline || !options["base-ref"]) throw new UsageError(USAGE);
+  assert(options.baseline.length > 0 && options["base-ref"].length > 0, `baseline and base-ref must be non-empty, got ${JSON.stringify(options)}`);
   return { baseline: options.baseline, baseRef: options["base-ref"] };
 };
 
@@ -95,14 +97,19 @@ const baselineAtRef = (baseRef, file) => {
 
 /** @param {string} file */
 const readHead = (file) => {
+  assert(typeof file === "string" && file.length > 0, `file must be a non-empty path, got ${JSON.stringify(file)}`);
   const resolved = resolve(file);
   const fromCwd = relative(process.cwd(), resolved);
   assert(!isAbsolute(fromCwd) && !fromCwd.startsWith(PARENT_SEGMENT), `${file} resolves to ${resolved}, outside ${process.cwd()}; pass a path inside the repository`);
+  /** @type {string} */
+  let text;
   try {
-    return readFileSync(resolved, "utf8");
+    text = readFileSync(resolved, "utf8");
   } catch (error) {
     throw new UsageError(`cannot read ${file} (${error instanceof Error && "code" in error ? error.code : String(error)}); the baseline must exist at HEAD, or be deleted together with the --new-only flag`);
   }
+  assert(text.length > 0, `${file} is empty, expected a zanity baseline document`);
+  return text;
 };
 
 /**
@@ -110,6 +117,7 @@ const readHead = (file) => {
  * @returns {RatchetOutcome}
  */
 const check = ({ baseline, baseRef }) => {
+  assert(baseline.length > 0 && baseRef.length > 0, `baseline and baseRef must be non-empty, got ${JSON.stringify({ baseline, baseRef })}`);
   const head = findingCounts(readHead(baseline), baseline);
   const baseText = baselineAtRef(baseRef, baseline);
   if (baseText === undefined) return { code: EXIT_OK, message: `${baseline} is new relative to ${baseRef}: accepted with ${head.total} findings` };
@@ -121,13 +129,18 @@ const check = ({ baseline, baseRef }) => {
     const shown = grown.slice(0, REPORTED_KEY_LIMIT).map(([key, count]) => `${key} (${base.counts.get(key) ?? 0} at ${baseRef}, ${count} now)`).join("; ");
     problems.push(`${grown.length} findings are new or counted more often than at ${baseRef}, by rule | message | file name without extension: ${shown}${grown.length > REPORTED_KEY_LIMIT ? "; ..." : ""}`);
   }
-  if (problems.length > 0) return { code: EXIT_VIOLATION, message: `${problems.join("; ")}. Hint: ${HOW_TO_FIX}. ${LEGITIMATE_MOVE}.` };
-  return { code: EXIT_OK, message: `${baseline} holds ${head.total} findings, down from or equal to ${base.total} at ${baseRef}: ok` };
+  const outcome = problems.length > 0
+    ? { code: EXIT_VIOLATION, message: `${problems.join("; ")}. Hint: ${HOW_TO_FIX}. ${LEGITIMATE_MOVE}.` }
+    : { code: EXIT_OK, message: `${baseline} holds ${head.total} findings, down from or equal to ${base.total} at ${baseRef}: ok` };
+  assert(outcome.code !== EXIT_OK || head.total <= base.total, `an accepted baseline must not exceed the base, got ${head.total} against ${base.total}`);
+  return outcome;
 };
 
 const main = () => {
   try {
+    assert(process.argv.length >= 2, `node must pass the script path in argv, got ${JSON.stringify(process.argv)}`);
     const { code, message } = check(parseArgs(process.argv.slice(2)));
+    assert([EXIT_OK, EXIT_VIOLATION].includes(code), `check must exit ${EXIT_OK} or ${EXIT_VIOLATION}, got ${code}`);
     (code === EXIT_OK ? console.log : console.error)(message);
     process.exitCode = code;
   } catch (error) {

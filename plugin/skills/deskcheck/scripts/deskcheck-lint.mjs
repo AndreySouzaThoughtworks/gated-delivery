@@ -42,6 +42,7 @@ const ATTRIBUTE_CHECKS = [
  * @returns {string[]}
  */
 export const lintDeskcheck = (html, { dir, templateHtml = readFileSync(TEMPLATE_PATH, "utf8") } = {}) => {
+  assert(typeof html === "string", `the page must be text, got ${typeof html}`);
   const tags = html.match(TAG) ?? [];
   const attributes = [...html.matchAll(ATTRIBUTE)].map((m) => ({ name: m[1].toLowerCase(), value: (m[2] ?? m[3]).trim() }));
   const ids = new Set([...html.matchAll(ID_ATTRIBUTE)].map((m) => m[1] ?? m[2]));
@@ -68,6 +69,7 @@ export const lintDeskcheck = (html, { dir, templateHtml = readFileSync(TEMPLATE_
   if (csp.length !== 1 || csp[0] !== expectedCsp[0]) problems.push(`the page must carry the template's Content-Security-Policy meta tag exactly once and unchanged, got ${csp.length} tags; copy it from ${TEMPLATE_PATH}`);
 
   assert(expectedCsp.length === 1, `the template must hold exactly one Content-Security-Policy meta tag to compare against, got ${expectedCsp.length} in ${TEMPLATE_PATH}`);
+  assert(problems.every((problem) => problem.length > 0 && !problem.includes("\n")), `each problem must be one non-empty line, got ${JSON.stringify(problems)}`);
   return problems;
 };
 

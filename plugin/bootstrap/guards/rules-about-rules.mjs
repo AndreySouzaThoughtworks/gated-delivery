@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join, relative, resolve, sep } from "node:path";
 
 const EXIT_OK = 0;
 const EXIT_VIOLATION = 1;
@@ -15,6 +15,9 @@ const OVERWATCH_CONFIG = ".overwatch.json";
 const WORKFLOWS_DIR = ".github/workflows";
 const WORKFLOW_FILE = /\.ya?ml$/;
 const TOP_LEVEL = "";
+const PARENT_SEGMENT = "..";
+const SHA256_HEX = /^[0-9a-f]{64}$/;
+const DOT_SEGMENTS = [".", PARENT_SEGMENT];
 const BYTE_ORDER_MARK = "\uFEFF";
 const QUOTED_ITEM = /"([^"]*)"/g;
 const LIST_FILLER = /[\s,]/g;
@@ -49,6 +52,7 @@ class UsageError extends Error {}
  * @returns {string}
  */
 const parseArgs = (argv) => {
+  assert(Array.isArray(argv) && argv.every((argument) => typeof argument === "string"), `argv must be a list of strings, got ${JSON.stringify(argv)}`);
   if (argv.length !== 2 || argv[0] !== REPO_OPTION || argv[1].startsWith("--")) throw new UsageError(USAGE);
   assert(argv[1].length > 0, `${REPO_OPTION} must name a directory, got "${argv[1]}"; pass the repository root`);
   return argv[1];
@@ -60,7 +64,9 @@ const parseArgs = (argv) => {
  * @param {string} what
  */
 const readText = (repo, relativePath, what) => {
+  assert(typeof repo === "string" && repo.length > 0, `repo must be a non-empty path, got ${JSON.stringify(repo)}`);
   const resolved = resolve(repo, relativePath);
+  assert(relative(resolve(repo), resolved).split(sep)[0] !== PARENT_SEGMENT, `${what} at ${relativePath} must stay inside ${repo}, got ${resolved}`);
   try {
     return readFileSync(resolved, "utf8");
   } catch (error) {
@@ -87,6 +93,7 @@ const stringList = (value, label) => {
  * @returns {Allowlist}
  */
 const loadAllowlist = (repo) => {
+  assert(typeof repo === "string" && repo.length > 0, `repo must be a non-empty path, got ${JSON.stringify(repo)}`);
   const path = join(repo, ALLOWLIST_PATH);
   if (!existsSync(path)) return { disables: {}, excludes: [], requiredJobs: [] };
   let document;
@@ -96,7 +103,8 @@ const loadAllowlist = (repo) => {
     if (error instanceof UsageError) throw error;
     throw new UsageError(`${ALLOWLIST_PATH} is not valid JSON (${error instanceof Error ? error.message : String(error)})`);
   }
-  const disables = document?.zanityDisables ?? {};
+  assert(typeof document === "object" && document !== null && !Array.isArray(document), `${ALLOWLIST_PATH} must hold a JSON object, got ${Array.isArray(document) ? "an array" : JSON.stringify(document)}`);
+  const disables = document.zanityDisables ?? {};
   if (typeof disables !== "object" || Array.isArray(disables)) throw new UsageError(`${ALLOWLIST_PATH}: zanityDisables must map a table name to a list of rules`);
   const allowlist = {
     disables: Object.fromEntries(Object.entries(disables).map(([table, rules]) => [table, stringList(rules, `zanityDisables["${table}"]`)])),
@@ -124,6 +132,8 @@ const quotedItems = (list) => {
  * @returns {string | undefined}
  */
 const tableProblem = (header, body, allowedDisables) => {
+  assert(typeof header === "string" && typeof body === "string", `a table needs a header and a body as text, got ${typeof header} and ${typeof body}`);
+  assert(typeof allowedDisables === "object" && allowedDisables !== null && !Array.isArray(allowedDisables), `allowedDisables must map a table to rules, got ${JSON.stringify(allowedDisables)}`);
   const scopesPaths = header === "paths" || header.startsWith("paths.");
   const allowed = allowedDisables[header];
   const disabled = [...body.matchAll(DISABLE_LIST)].flatMap(([, list]) => quotedItems(list));
@@ -157,6 +167,7 @@ const zanityProblems = (text, allowlist) => {
   for (const path of excluded.filter((item) => !allowlist.excludes.includes(item))) {
     found.push(`${ZANITY_CONFIG} excludes ${path}, which hides it from every check and is not in ${ALLOWLIST_PATH}. Hint: fix the findings in code instead.`);
   }
+  assert(found.every((problem) => problem.includes(ZANITY_CONFIG)), `each zanity problem must name ${ZANITY_CONFIG}, got ${JSON.stringify(found)}`);
   return found;
 };
 
@@ -186,6 +197,7 @@ const jobNames = (workflowText) => {
  * @param {string[]} requiredJobs
  */
 const workflowProblems = (repo, requiredJobs) => {
+  assert(requiredJobs.every((job) => typeof job === "string" && job.length > 0), `requiredJobs must be non-empty names, got ${JSON.stringify(requiredJobs)}`);
   const directory = join(repo, WORKFLOWS_DIR);
   const files = existsSync(directory) ? readdirSync(directory).filter((file) => WORKFLOW_FILE.test(file)).sort() : [];
   const found = [];
@@ -204,6 +216,7 @@ const workflowProblems = (repo, requiredJobs) => {
   for (const job of requiredJobs.filter((name) => !present.has(name))) {
     found.push(`required CI job "${job}" is not defined in ${WORKFLOWS_DIR}. Hint: restore the job; it is listed under requiredCiJobs in ${ALLOWLIST_PATH}.`);
   }
+  assert(found.every((problem) => problem.includes(WORKFLOWS_DIR)), `each workflow problem must name ${WORKFLOWS_DIR}, got ${JSON.stringify(found)}`);
   return found;
 };
 
@@ -211,6 +224,7 @@ const workflowProblems = (repo, requiredJobs) => {
  * @param {string} repo
  */
 const overwatchProblems = (repo) => {
+  assert(typeof repo === "string" && repo.length > 0, `repo must be a non-empty path, got ${JSON.stringify(repo)}`);
   if (!existsSync(join(repo, OVERWATCH_CONFIG))) return [];
   let config;
   try {
@@ -220,6 +234,7 @@ const overwatchProblems = (repo) => {
     throw new UsageError(`${OVERWATCH_CONFIG} is not valid JSON (${error instanceof Error ? error.message : String(error)})`);
   }
   const found = config?.enabled === false ? [`${OVERWATCH_CONFIG} sets "enabled": false, which turns the watchers off. Hint: remove the key and fix what the watchers report.`] : [];
+  assert(found.every((problem) => problem.includes(OVERWATCH_CONFIG)), `each overwatch problem must name ${OVERWATCH_CONFIG}, got ${JSON.stringify(found)}`);
   return found;
 };
 
@@ -229,7 +244,9 @@ const overwatchProblems = (repo) => {
  */
 const sha256Of = (repo, relativePath) => {
   const resolved = resolve(repo, relativePath);
+  assert(existsSync(resolved), `${relativePath} must exist under ${repo} before hashing, got missing ${resolved}`);
   const digest = createHash("sha256").update(readFileSync(resolved)).digest("hex");
+  assert(SHA256_HEX.test(digest), `a sha256 digest is 64 hex characters, got ${digest}`);
   return digest;
 };
 
@@ -246,6 +263,7 @@ const manifestEntries = (text) => {
       if (match === null) throw new UsageError(`${MANIFEST_PATH}: "${line}" must read "<sha256>  ${GUARDS_DIR}/<file>". Hint: regenerate the manifest with the bootstrap command.`);
       return { hash: match[1], path: match[2] };
     });
+  assert(entries.every(({ path }) => !DOT_SEGMENTS.includes(path.slice(GUARDS_DIR.length + 1))), `${MANIFEST_PATH} must list files, not directory references, got ${JSON.stringify(entries.map(({ path }) => path))}`);
   assert(new Set(entries.map(({ path }) => path)).size === entries.length, `${MANIFEST_PATH} lists a file twice, got ${JSON.stringify(entries.map(({ path }) => path))}`);
   return entries;
 };
@@ -254,6 +272,7 @@ const manifestEntries = (text) => {
  * @param {string} repo
  */
 const manifestProblems = (repo) => {
+  assert(typeof repo === "string" && repo.length > 0, `repo must be a non-empty path, got ${JSON.stringify(repo)}`);
   if (!existsSync(join(repo, GUARDS_DIR))) return [];
   if (!existsSync(join(repo, MANIFEST_PATH))) {
     return [`${GUARDS_DIR}/ exists but ${MANIFEST_PATH} is missing. Hint: restore the manifest from the main branch, or run the bootstrap command again.`];
@@ -277,14 +296,17 @@ const manifestProblems = (repo) => {
  * @param {string} repo
  */
 const repoProblems = (repo) => {
+  assert(typeof repo === "string" && repo.length > 0, `repo must be a non-empty path, got ${JSON.stringify(repo)}`);
   const allowlist = loadAllowlist(repo);
   const zanity = existsSync(join(repo, ZANITY_CONFIG)) ? zanityProblems(readText(repo, ZANITY_CONFIG, "the zanity config"), allowlist) : [`${ZANITY_CONFIG} is missing. Hint: zanity is a required check, so the repo must configure it.`];
   const found = [...zanity, ...workflowProblems(repo, allowlist.requiredJobs), ...overwatchProblems(repo), ...manifestProblems(repo)];
+  assert(found.every((problem) => typeof problem === "string" && problem.length > 0), `every problem must be a non-empty message, got ${JSON.stringify(found)}`);
   return found;
 };
 
 const main = () => {
   try {
+    assert(process.argv.length >= 2, `node must pass the script path in argv, got ${JSON.stringify(process.argv)}`);
     const problems = repoProblems(parseArgs(process.argv.slice(2)));
     assert(problems.every((problem) => !problem.includes("\n")), `each problem must be one line, got ${JSON.stringify(problems)}`);
     if (problems.length === 0) {
@@ -294,6 +316,7 @@ const main = () => {
     }
     console.error(problems.join("\n"));
     process.exitCode = EXIT_VIOLATION;
+    assert(process.exitCode === EXIT_VIOLATION, `a run with ${problems.length} problems must exit ${EXIT_VIOLATION}, got ${process.exitCode}`);
   } catch (error) {
     if (!(error instanceof UsageError || error instanceof assert.AssertionError)) throw error;
     console.error(error.message);

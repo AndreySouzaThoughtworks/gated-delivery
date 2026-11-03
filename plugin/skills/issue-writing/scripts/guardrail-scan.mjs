@@ -34,8 +34,12 @@ const EXIT_USAGE = 2;
  * @param {string[]} [extraTerms]
  */
 export const scanText = (text, extraTerms = []) => {
+  assert(typeof text === "string", `the text to scan must be a string, got ${typeof text}`);
+  assert(extraTerms.every((term) => typeof term === "string" && term.length > 0), `each ${TERM_FLAG} must be a non-empty regex, which would otherwise match every line, got ${JSON.stringify(extraTerms)}`);
   const arms = [...ARMS, ...extraTerms.map((term) => /** @type {[string, string]} */ ([`extra guardrail term ${term}`, term]))].map(([name, pattern]) => ({ name, pattern: new RegExp(pattern, "i") }));
   const hits = text.split("\n").flatMap((line, index) => arms.filter(({ pattern }) => pattern.test(line)).map(({ name }) => ({ line: index + 1, arm: name })));
+  const lineCount = text.split("\n").length;
+  assert(hits.every(({ line }) => line >= 1 && line <= lineCount), `every hit must fall on a line of the text, got ${JSON.stringify(hits)} for ${lineCount} lines`);
   return hits;
 };
 

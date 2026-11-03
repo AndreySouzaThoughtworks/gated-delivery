@@ -5,13 +5,13 @@
   },
   "metadata": {
     "description": "Client-neutral AI-assisted delivery flow.",
-    "version": "0.8.1"
+    "version": "0.9.0"
   },
   "plugins": [
     {
       "name": "gated-delivery",
       "source": "./plugin",
-      "description": "Issue-driven, test-first delivery flow with no client baked in. /spec turns a ticket into a signed-off spec with an ordered Rollout of independently safe PR slices; /slice implements each slice through executor batches with verification, structural and fresh-context correctness review at every merge boundary. Also ships /issue-writing, /story-drift, /repo-forensics, /senior-review-lens, /prose-writing, /prod-support, /deskcheck, /primer, /learn-flow and /audit-flow, the /gated-delivery:commit and /gated-delivery:commit-push-pr commands, and format, command-guard and verification hooks. Client specifics come from the client's CLAUDE.md."
+      "description": "Issue-driven, test-first delivery flow with no client baked in. /spec turns a ticket into a signed-off spec with an ordered Rollout of independently safe PR slices; /slice implements each slice through executor batches with verification, structural and fresh-context correctness review at every merge boundary. Also ships /issue-writing, /story-drift, /repo-forensics, /senior-review-lens, /prose-writing, /prod-support, /deskcheck, /primer, /learn-flow and /audit-flow, the /gated-delivery:bootstrap, /gated-delivery:commit and /gated-delivery:commit-push-pr commands, and format and command-guard hooks. Client specifics come from the client's CLAUDE.md."
     }
   ]
 }

@@ -8,6 +8,7 @@ import assert from "node:assert";
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
+/** @type {[name: string, pattern: string][]} */
 export const ARMS = [
   ["credential given a value", String.raw`(password|passwd|pwd|secret|token|api[_-]?key)["']?\s*[:=]\s*\S`],
   ["bearer token", String.raw`bearer [a-z0-9._~+/-]{8,}`],
@@ -28,9 +29,13 @@ const TERM_FLAG = "--term";
 const EXIT_HITS = 1;
 const EXIT_USAGE = 2;
 
+/**
+ * @param {string} text
+ * @param {string[]} [extraTerms]
+ */
 export const scanText = (text, extraTerms = []) => {
-  const arms = [...ARMS, ...extraTerms.map((term) => [`extra guardrail term ${term}`, term])].map(([name, pattern]) => [name, new RegExp(pattern, "i")]);
-  const hits = text.split("\n").flatMap((line, index) => arms.filter(([, pattern]) => pattern.test(line)).map(([name]) => ({ line: index + 1, arm: name })));
+  const arms = [...ARMS, ...extraTerms.map((term) => /** @type {[string, string]} */ ([`extra guardrail term ${term}`, term]))].map(([name, pattern]) => ({ name, pattern: new RegExp(pattern, "i") }));
+  const hits = text.split("\n").flatMap((line, index) => arms.filter(({ pattern }) => pattern.test(line)).map(({ name }) => ({ line: index + 1, arm: name })));
   return hits;
 };
 

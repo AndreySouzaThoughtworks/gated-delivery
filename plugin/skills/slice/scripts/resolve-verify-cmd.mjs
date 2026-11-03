@@ -15,9 +15,11 @@ const INSTRUCTIONS_FILE = "CLAUDE.md";
 const VERIFICATION_SECTION = "Verification";
 const VERIFY_LINE = /\*\*Verify command:\*\*\s*`([^`]+)`/;
 const EXIT_NO_COMMAND = 1;
+/** @type {import("node:child_process").SpawnSyncOptionsWithStringEncoding} */
 const GIT_QUIET = { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] };
 const WORK_TREE_ANSWER = "true";
 
+/** @param {{ cwd: string, home: string }} location */
 export const commandFromInstructions = ({ cwd, home: configuredHome }) => {
   assert(isAbsolute(configuredHome), `the home folder must be an absolute path to bound the CLAUDE.md search, got ${configuredHome}; set HOME to an absolute path`);
   let home;
@@ -48,6 +50,7 @@ export const commandFromInstructions = ({ cwd, home: configuredHome }) => {
   return found;
 };
 
+/** @param {{ cwd: string }} location */
 export const commandFromPackage = ({ cwd }) => {
   let scripts;
   try {
@@ -59,6 +62,7 @@ export const commandFromPackage = ({ cwd }) => {
   return name && `${RUNNER} ${name}`;
 };
 
+/** @param {{ env?: Record<string, string | undefined>, cwd?: string, home?: string }} [options] */
 export const resolveVerifyCmd = ({ env = process.env, cwd = process.cwd(), home = env.HOME || homedir() } = {}) => {
   const fromEnv = env[VERIFY_ENV]?.trim() || undefined;
   const command = fromEnv ?? commandFromInstructions({ cwd, home }) ?? commandFromPackage({ cwd });

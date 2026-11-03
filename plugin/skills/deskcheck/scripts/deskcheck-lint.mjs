@@ -22,20 +22,32 @@ const QUOTED = /"[^"]*"|'[^']*'/g;
 const EXIT_PROBLEMS = 1;
 
 const SHOWN_LENGTH = 60;
+/**
+ * @typedef {{ name: string, value: string, shown: string, scheme: boolean, local: string }} PageAttribute
+ * @typedef {{ ids: Set<string>, dir?: string }} PageContext
+ */
+
+/** @type {[isBroken: (attribute: PageAttribute, context: PageContext) => boolean, describe: (attribute: PageAttribute) => string][]} */
 const ATTRIBUTE_CHECKS = [
   [({ name, value }) => name === "href" && /^(javascript|data):/i.test(value), ({ shown }) => `href ${shown} uses a script or data scheme; use an https:// URL or a relative path`],
   [({ name, value, scheme }) => name === "href" && scheme && !HTTPS.test(value), ({ shown }) => `href ${shown} must be an https:// URL or a relative path; change its scheme`],
   [({ name, value, scheme }) => name === "src" && (/^(https?:)?\/\//i.test(value) || (scheme && !DATA_IMAGE.test(value))), ({ shown }) => `src ${shown} must be a data:image URI or a relative path; embed the asset`],
   [({ value }, { ids }) => value.startsWith("#") && value.length > 1 && !ids.has(value.slice(1)), ({ shown }) => `link ${shown} points at an id that does not exist; fix the anchor or add the id`],
-  [({ value, scheme, local }, { dir }) => Boolean(dir) && local !== "" && !scheme && !value.startsWith("//") && !value.startsWith("#") && !existsSync(resolve(dir, decodeURIComponent(local))), ({ name, shown }) => `${name} ${shown} does not resolve to a file beside the page; fix the path or add the file`],
+  [({ value, scheme, local }, { dir }) => dir !== undefined && dir !== "" && local !== "" && !scheme && !value.startsWith("//") && !value.startsWith("#") && !existsSync(resolve(dir, decodeURIComponent(local))), ({ name, shown }) => `${name} ${shown} does not resolve to a file beside the page; fix the path or add the file`],
 ];
 
+/**
+ * @param {string} html
+ * @param {{ dir?: string, templateHtml?: string }} [options]
+ * @returns {string[]}
+ */
 export const lintDeskcheck = (html, { dir, templateHtml = readFileSync(TEMPLATE_PATH, "utf8") } = {}) => {
   const tags = html.match(TAG) ?? [];
   const attributes = [...html.matchAll(ATTRIBUTE)].map((m) => ({ name: m[1].toLowerCase(), value: (m[2] ?? m[3]).trim() }));
   const ids = new Set([...html.matchAll(ID_ATTRIBUTE)].map((m) => m[1] ?? m[2]));
   const expectedCsp = (templateHtml.match(CSP_META) ?? []).map((tag) => tag.replace(/\s+/g, " ").trim());
   const csp = (html.match(CSP_META) ?? []).map((tag) => tag.replace(/\s+/g, " ").trim());
+  /** @type {string[]} */
   const problems = [];
 
   for (const placeholder of ["{{", "}}"].filter((p) => html.includes(p))) problems.push(`the file still holds the placeholder marker ${placeholder}; fill every template placeholder`);
@@ -51,7 +63,7 @@ export const lintDeskcheck = (html, { dir, templateHtml = readFileSync(TEMPLATE_
     ...attributes
       .map(({ name, value }) => ({ name, value, shown: JSON.stringify(value.slice(0, SHOWN_LENGTH)), scheme: SCHEME.test(value), local: value.split(/[?#]/)[0] }))
       .map((attribute) => ATTRIBUTE_CHECKS.find(([isBroken]) => isBroken(attribute, { ids, dir }))?.[1](attribute))
-      .filter(Boolean),
+      .filter((problem) => problem !== undefined),
   );
   if (csp.length !== 1 || csp[0] !== expectedCsp[0]) problems.push(`the page must carry the template's Content-Security-Policy meta tag exactly once and unchanged, got ${csp.length} tags; copy it from ${TEMPLATE_PATH}`);
 

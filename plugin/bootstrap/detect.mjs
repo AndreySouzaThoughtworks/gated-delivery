@@ -3,8 +3,15 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { delimiter, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+/**
+ * @typedef {{ name: string, marker: string, requires?: string }} Watcher
+ * @typedef {{ search: { depth: number, skip: string[] }, watchers: Watcher[] }} MarkerTable
+ */
+
+/** @type {MarkerTable} */
 const markerTable = JSON.parse(readFileSync(new URL("./markers.json", import.meta.url), "utf8"));
 
+/** @type {Partial<Record<string, string>>} */
 const LANGUAGE_BY_EXTENSION = {
   ".py": "python",
   ".ts": "typescript",
@@ -21,6 +28,7 @@ const LANGUAGE_BY_MARKER = {
   "package.json": "javascript",
   "tsconfig.json": "typescript",
 };
+/** @type {Partial<Record<string, string>>} */
 const LANGUAGE_BY_OVERWATCH_NAME = { python: "python", vitest: "javascript", jest: "javascript", bun: "javascript", deno: "javascript" };
 export const SUPPORTED_LANGUAGES = ["python", "typescript", "javascript"];
 
@@ -43,6 +51,7 @@ const LINTER_MARKERS = {
   typescript: ["tsconfig.json"],
   "pre-commit": [".pre-commit-config.yaml"],
 };
+/** @type {Record<string, string>} */
 const LINTER_TOOL_TABLES = { ruff: "[tool.ruff", mypy: "[tool.mypy" };
 const OTHER_CI_MARKERS = [".gitlab-ci.yml", "Jenkinsfile", "azure-pipelines.yml", ".circleci"];
 const GITHUB_WORKFLOWS_DIR = join(".github", "workflows");
@@ -50,11 +59,18 @@ const WORKFLOW_EXTENSIONS = [".yml", ".yaml"];
 const GUARDRAIL_FILES = { zanityToml: "zanity.toml", zanityBaseline: "zanity-baseline.json", overwatchConfig: ".overwatch.json" };
 const HIDDEN_PREFIX = ".";
 
+/** @param {string} dir */
 const listDir = (dir) => {
   const entries = readdirSync(dir, { withFileTypes: true });
   return entries;
 };
 
+/**
+ * @param {string} root
+ * @param {number} depthLeft
+ * @param {string} [prefix]
+ * @returns {string[]}
+ */
 const sourceFiles = (root, depthLeft, prefix = "") => {
   assert(depthLeft >= 0, `depth budget must not be negative, got ${depthLeft}`);
   const skipped = new Set(markerTable.search.skip);
@@ -68,11 +84,13 @@ const sourceFiles = (root, depthLeft, prefix = "") => {
   });
 };
 
+/** @param {string} tool */
 const onPath = (tool) => {
   const found = (process.env.PATH ?? "").split(delimiter).some((dir) => dir && existsSync(join(dir, tool)));
   return found;
 };
 
+/** @param {string} repo */
 export const detect = (repo) => {
   const root = resolve(repo);
   assert(existsSync(root), `${root} must exist, got missing; pass --repo <existing directory>`);
@@ -81,8 +99,7 @@ export const detect = (repo) => {
   const languages = new Set([
     ...files.map((file) => LANGUAGE_BY_EXTENSION[extname(file)]),
     ...Object.entries(LANGUAGE_BY_MARKER).filter(([marker]) => topLevel.has(marker)).map(([, language]) => language),
-  ]);
-  languages.delete(undefined);
+  ].filter((language) => language !== undefined));
   const testRunners = markerTable.watchers
     .filter((watcher) => existsSync(join(root, watcher.marker)))
     .map(({ name, marker, requires }) => ({ name, marker, language: LANGUAGE_BY_OVERWATCH_NAME[name], requiresOnPath: requires ? onPath(requires) : true }));

@@ -17,6 +17,7 @@ export const installPlan = (version = pins.zanityVersion, repository = pins.zani
   return { scriptUrl, env: { ZANITY_VERSION: version }, version };
 };
 
+/** @param {string} installerOutput */
 export const isVerifiedInstall = (installerOutput) => {
   assert(installerOutput.includes("Installed"), `installer must report an install, got "${installerOutput.slice(0, 80)}"`);
   const verified = !installerOutput.includes(UNVERIFIED_MARKER);

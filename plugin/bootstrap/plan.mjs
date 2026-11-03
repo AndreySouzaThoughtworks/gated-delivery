@@ -11,6 +11,16 @@ import { detect } from "./detect.mjs";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const pins = JSON.parse(readFileSync(join(HERE, "pins.json"), "utf8"));
 
+/**
+ * @typedef {ReturnType<typeof detect>} Facts
+ * @typedef {{ group: string, path: string, content: string }} PlannedFile
+ * @typedef {{ group: string, argv: string[], onlyIfFindings?: boolean }} PlannedCommand
+ * @typedef {{ root: string, facts: Facts, changes: PlannedFile[], conflicts: PlannedFile[], commands: PlannedCommand[], diff: string }} Plan
+ * @typedef {{ file: string, content: string }} GuardSource
+ * @typedef {{ groups?: string[], workflowName?: string, guardsDir?: string }} PlanOptions
+ * @typedef {PlanOptions & { repo: string, groups: string[], apply: boolean }} CliOptions
+ */
+
 export const GROUPS = ["config", "guards", "ci"];
 const GUARD_FILES = ["ratchet.mjs", "rules-about-rules.mjs"];
 const CLIENT_GUARDS_DIR = "guards";
@@ -32,6 +42,10 @@ const LOCAL_ACTION_PREFIX = "./";
 
 export class Refusal extends Error {}
 
+/**
+ * @param {string} root
+ * @param {string} candidate
+ */
 export const resolveInside = (root, candidate) => {
   const rootReal = realpathSync(root);
   const target = resolve(rootReal, candidate);
@@ -44,6 +58,9 @@ export const resolveInside = (root, candidate) => {
   return target;
 };
 
+/**
+ * @param {string} workflowText
+ */
 export const unpinnedActions = (workflowText) => {
   assert(typeof workflowText === "string" && workflowText.length > 0, `workflow text must be non-empty, got ${workflowText?.length}`);
   const refs = [...workflowText.matchAll(USES_LINE)].map((match) => match[1]).filter((ref) => !ref.startsWith(LOCAL_ACTION_PREFIX));
@@ -51,6 +68,9 @@ export const unpinnedActions = (workflowText) => {
   return refs.filter((ref) => !FULL_SHA.test(ref.split("@")[1] ?? ""));
 };
 
+/**
+ * @param {string} zanityArgs
+ */
 const renderWorkflow = (zanityArgs) => {
   const template = readFileSync(join(HERE, "templates", "guardrails.yml"), "utf8");
   const text = template.replace("{{ZANITY_VERSION}}", pins.zanityVersion).replace("{{ZANITY_ARGS}}", zanityArgs);
@@ -65,12 +85,20 @@ const ZANITY_BINARY = process.env.ZANITY_BIN ?? (existsSync(INSTALLED_ZANITY) ? 
 const ZANITY_VERSION_ARGS = ["--version"];
 const ZANITY_CLEAN_ARGS = ["check", ".", ...ZANITY_STRICT_ARGS.split(" ")];
 
+/**
+ * @param {string} root
+ * @param {string[]} args
+ */
 const runZanity = (root, args) => {
   const result = spawnSync(ZANITY_BINARY, args, { cwd: root, encoding: "utf8" });
   assert(result.status !== null || result.error, `zanity ${args.join(" ")} must exit or fail to start, got signal ${result.signal}`);
   return result;
 };
 
+/**
+ * @param {string} guardsDir
+ * @returns {GuardSource[]}
+ */
 const guardSources = (guardsDir) => {
   const missing = GUARD_FILES.filter((file) => !existsSync(join(guardsDir, file)));
   if (missing.length > 0) throw new Refusal(`guard scripts missing from ${guardsDir}: ${missing.join(", ")}. Restore plugin/bootstrap/guards/ or pass --guards-dir.`);
@@ -79,16 +107,27 @@ const guardSources = (guardsDir) => {
   return sources;
 };
 
+/**
+ * @param {GuardSource[]} sources
+ */
 const manifestContent = (sources) => {
   const lines = sources.map(({ file, content }) => `${createHash("sha256").update(content).digest("hex")}  ${CLIENT_GUARDS_DIR}/${file}`);
   return `${lines.join("\n")}\n`;
 };
 
+/**
+ * @param {string} path
+ * @param {string} content
+ */
 const additionDiff = (path, content) => {
   const lines = content.replace(/\n$/, "").split("\n");
   return [`--- /dev/null`, `+++ b/${path}`, `@@ -0,0 +1,${lines.length} @@`, ...lines.map((line) => `+${line}`), ""].join("\n");
 };
 
+/**
+ * @param {string} root
+ * @param {Facts} facts
+ */
 const workflowVariant = (root, facts) => {
   const baselinePresent = facts.guardrails.zanityBaseline;
   const knownClean = !baselinePresent && facts.guardrails.zanityToml && runZanity(root, ZANITY_VERSION_ARGS).status === 0 && runZanity(root, ZANITY_CLEAN_ARGS).status === 0;
@@ -96,6 +135,11 @@ const workflowVariant = (root, facts) => {
   return variant;
 };
 
+/**
+ * @param {string} repo
+ * @param {PlanOptions} [options]
+ * @returns {Plan}
+ */
 export const buildPlan = (repo, options = {}) => {
   const root = realpathSync(resolve(repo));
   const facts = detect(root);
@@ -110,19 +154,25 @@ export const buildPlan = (repo, options = {}) => {
     { group: "guards", path: GUARD_MANIFEST_PATH, content: manifestContent(sources) },
     { group: "ci", path: join(WORKFLOWS_DIR, workflowName), content: renderWorkflow(workflowVariant(root, facts)) },
   ];
+  /** @type {PlannedFile[]} */
   const changes = [];
+  /** @type {PlannedFile[]} */
   const conflicts = [];
   for (const item of wanted) {
     const target = resolveInside(root, item.path);
     if (!existsSync(target)) changes.push(item);
     else if (readFileSync(target, "utf8") !== item.content) conflicts.push(item);
   }
+  /** @type {PlannedCommand[]} */
   const commands = [];
   if (!facts.guardrails.zanityToml) commands.push({ group: "config", argv: ["init"] });
   if (!facts.guardrails.zanityBaseline) commands.push({ group: "config", argv: ["check", ".", "--baseline", ZANITY_BASELINE, "--capture-baseline", "--strict"], onlyIfFindings: true });
   return { root, facts, changes, conflicts, commands, diff: changes.map((change) => additionDiff(change.path, change.content)).join("") };
 };
 
+/**
+ * @param {string} root
+ */
 const assertSafeBranch = (root) => {
   const result = spawnSync("git", ["-C", root, "symbolic-ref", "--short", "HEAD"], { encoding: "utf8" });
   const branch = result.stdout.trim();
@@ -132,6 +182,10 @@ const assertSafeBranch = (root) => {
   return branch;
 };
 
+/**
+ * @param {string} repo
+ * @param {PlanOptions} options
+ */
 export const applyPlan = (repo, options) => {
   const groups = options.groups ?? [];
   const unknown = groups.filter((group) => !GROUPS.includes(group));
@@ -155,17 +209,24 @@ export const applyPlan = (repo, options) => {
   return written;
 };
 
-const VALUE_FLAGS = { "--repo": "repo", "--group": "groups", "--workflow-name": "workflowName", "--guards-dir": "guardsDir" };
+const GROUP_FLAG = "--group";
+/** @type {Record<string, "repo" | "workflowName" | "guardsDir">} */
+const VALUE_FLAGS = { "--repo": "repo", "--workflow-name": "workflowName", "--guards-dir": "guardsDir" };
 
+/**
+ * @param {string[]} argv
+ * @returns {CliOptions}
+ */
 const parseArgs = (argv) => {
+  /** @type {CliOptions} */
   const options = { repo: ".", groups: [], apply: false };
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
     if (flag === "--apply") options.apply = true;
-    if (!(flag in VALUE_FLAGS)) continue;
+    if (flag !== GROUP_FLAG && !(flag in VALUE_FLAGS)) continue;
     const value = argv[index + 1];
     if (value === undefined || value.startsWith("--")) throw new Refusal(`${flag} needs a value. Example: ${flag} <value>`);
-    if (flag === "--group") options.groups.push(value);
+    if (flag === GROUP_FLAG) options.groups.push(value);
     else options[VALUE_FLAGS[flag]] = value;
     index += 1;
   }
@@ -174,6 +235,9 @@ const parseArgs = (argv) => {
   return options;
 };
 
+/**
+ * @param {Plan} plan
+ */
 const reportNotes = ({ facts, conflicts, commands }) => {
   const { githubWorkflows, unsupportedLanguages, testRunners } = facts;
   const notes = [];

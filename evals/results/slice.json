@@ -1,5 +1,5 @@
 {
-  "hash": "1b456c760d5f9d9aacafb100b04c9ef7d0d250f7c6ac830c84245759ff724ccf",
-  "waived": "no live eval run: the check moved from skill prose into a script shipped under the skill, and the prose lines that stated the rules were removed",
-  "ranAt": "2026-11-02T18:27:18.176Z"
+  "hash": "b2ab8fb50c6bb24739e6d683f52dba0e5f73b8ec5f4fc5458c423c743ecc0a41",
+  "waived": "no live eval run: the script shipped under the skill got type annotations and type-narrowing rewrites with no behaviour change; no prose changed; its tests and lint runs pass",
+  "ranAt": "2026-11-03T10:30:40.733Z"
 }

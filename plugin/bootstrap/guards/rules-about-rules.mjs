@@ -39,21 +39,40 @@ const SCRIPT_FILE = /\.mjs$/;
 
 class UsageError extends Error {}
 
+/**
+ * @typedef {{ disables: Record<string, string[]>, excludes: string[], requiredJobs: string[] }} Allowlist
+ * @typedef {{ hash: string, path: string }} ManifestEntry
+ */
+
+/**
+ * @param {string[]} argv
+ * @returns {string}
+ */
 const parseArgs = (argv) => {
   if (argv.length !== 2 || argv[0] !== REPO_OPTION || argv[1].startsWith("--")) throw new UsageError(USAGE);
   assert(argv[1].length > 0, `${REPO_OPTION} must name a directory, got "${argv[1]}"; pass the repository root`);
   return argv[1];
 };
 
+/**
+ * @param {string} repo
+ * @param {string} relativePath
+ * @param {string} what
+ */
 const readText = (repo, relativePath, what) => {
   const resolved = resolve(repo, relativePath);
   try {
     return readFileSync(resolved, "utf8");
   } catch (error) {
-    throw new UsageError(`cannot read ${what} at ${resolved} (${error.code})`);
+    throw new UsageError(`cannot read ${what} at ${resolved} (${error instanceof Error && "code" in error ? error.code : String(error)})`);
   }
 };
 
+/**
+ * @param {unknown} value
+ * @param {string} label
+ * @returns {string[]}
+ */
 const stringList = (value, label) => {
   if (!Array.isArray(value) || !value.every((item) => typeof item === "string" && item.length > 0)) {
     throw new UsageError(`${ALLOWLIST_PATH}: ${label} must be a list of non-empty strings`);
@@ -63,6 +82,10 @@ const stringList = (value, label) => {
   return value;
 };
 
+/**
+ * @param {string} repo
+ * @returns {Allowlist}
+ */
 const loadAllowlist = (repo) => {
   const path = join(repo, ALLOWLIST_PATH);
   if (!existsSync(path)) return { disables: {}, excludes: [], requiredJobs: [] };
@@ -71,7 +94,7 @@ const loadAllowlist = (repo) => {
     document = JSON.parse(readText(repo, ALLOWLIST_PATH, "the allowlist"));
   } catch (error) {
     if (error instanceof UsageError) throw error;
-    throw new UsageError(`${ALLOWLIST_PATH} is not valid JSON (${error.message})`);
+    throw new UsageError(`${ALLOWLIST_PATH} is not valid JSON (${error instanceof Error ? error.message : String(error)})`);
   }
   const disables = document?.zanityDisables ?? {};
   if (typeof disables !== "object" || Array.isArray(disables)) throw new UsageError(`${ALLOWLIST_PATH}: zanityDisables must map a table name to a list of rules`);
@@ -83,6 +106,9 @@ const loadAllowlist = (repo) => {
   return allowlist;
 };
 
+/**
+ * @param {string} list
+ */
 const quotedItems = (list) => {
   const items = Array.from(list.matchAll(QUOTED_ITEM), (match) => match[1]);
   const unquoted = list.replaceAll(QUOTED_ITEM, "").replaceAll(LIST_FILLER, "");
@@ -91,6 +117,12 @@ const quotedItems = (list) => {
   return items;
 };
 
+/**
+ * @param {string} header
+ * @param {string} body
+ * @param {Record<string, string[]>} allowedDisables
+ * @returns {string | undefined}
+ */
 const tableProblem = (header, body, allowedDisables) => {
   const scopesPaths = header === "paths" || header.startsWith("paths.");
   const allowed = allowedDisables[header];
@@ -108,6 +140,10 @@ const tableProblem = (header, body, allowedDisables) => {
   }
 };
 
+/**
+ * @param {string} text
+ * @param {Allowlist} allowlist
+ */
 const zanityProblems = (text, allowlist) => {
   assert(!text.startsWith(BYTE_ORDER_MARK), `${ZANITY_CONFIG} must not start with a byte order mark, which hides its first line from the guard; re-save it without one`);
   const config = text.replace(TOML_COMMENT, "");
@@ -116,7 +152,7 @@ const zanityProblems = (text, allowlist) => {
   const [topLevel, ...headersAndBodies] = config.split(TOML_TABLE_HEADER);
   const tables = [{ header: TOP_LEVEL, body: topLevel }];
   for (let i = 0; i < headersAndBodies.length; i += 2) tables.push({ header: headersAndBodies[i].trim(), body: headersAndBodies[i + 1] });
-  found.push(...tables.map(({ header, body }) => tableProblem(header, body, allowlist.disables)).filter(Boolean));
+  found.push(...tables.map(({ header, body }) => tableProblem(header, body, allowlist.disables)).filter((problem) => problem !== undefined));
   const excluded = quotedItems(config.match(EXCLUDE_LIST)?.[1] ?? "");
   for (const path of excluded.filter((item) => !allowlist.excludes.includes(item))) {
     found.push(`${ZANITY_CONFIG} excludes ${path}, which hides it from every check and is not in ${ALLOWLIST_PATH}. Hint: fix the findings in code instead.`);
@@ -124,6 +160,9 @@ const zanityProblems = (text, allowlist) => {
   return found;
 };
 
+/**
+ * @param {string} workflowText
+ */
 const jobNames = (workflowText) => {
   const ids = [];
   const displayNames = [];
@@ -142,6 +181,10 @@ const jobNames = (workflowText) => {
   return [...ids, ...displayNames];
 };
 
+/**
+ * @param {string} repo
+ * @param {string[]} requiredJobs
+ */
 const workflowProblems = (repo, requiredJobs) => {
   const directory = join(repo, WORKFLOWS_DIR);
   const files = existsSync(directory) ? readdirSync(directory).filter((file) => WORKFLOW_FILE.test(file)).sort() : [];
@@ -164,6 +207,9 @@ const workflowProblems = (repo, requiredJobs) => {
   return found;
 };
 
+/**
+ * @param {string} repo
+ */
 const overwatchProblems = (repo) => {
   if (!existsSync(join(repo, OVERWATCH_CONFIG))) return [];
   let config;
@@ -171,18 +217,26 @@ const overwatchProblems = (repo) => {
     config = JSON.parse(readText(repo, OVERWATCH_CONFIG, "the overwatch config"));
   } catch (error) {
     if (error instanceof UsageError) throw error;
-    throw new UsageError(`${OVERWATCH_CONFIG} is not valid JSON (${error.message})`);
+    throw new UsageError(`${OVERWATCH_CONFIG} is not valid JSON (${error instanceof Error ? error.message : String(error)})`);
   }
   const found = config?.enabled === false ? [`${OVERWATCH_CONFIG} sets "enabled": false, which turns the watchers off. Hint: remove the key and fix what the watchers report.`] : [];
   return found;
 };
 
+/**
+ * @param {string} repo
+ * @param {string} relativePath
+ */
 const sha256Of = (repo, relativePath) => {
   const resolved = resolve(repo, relativePath);
   const digest = createHash("sha256").update(readFileSync(resolved)).digest("hex");
   return digest;
 };
 
+/**
+ * @param {string} text
+ * @returns {ManifestEntry[]}
+ */
 const manifestEntries = (text) => {
   const entries = text
     .split("\n")
@@ -196,6 +250,9 @@ const manifestEntries = (text) => {
   return entries;
 };
 
+/**
+ * @param {string} repo
+ */
 const manifestProblems = (repo) => {
   if (!existsSync(join(repo, GUARDS_DIR))) return [];
   if (!existsSync(join(repo, MANIFEST_PATH))) {
@@ -216,6 +273,9 @@ const manifestProblems = (repo) => {
   return found;
 };
 
+/**
+ * @param {string} repo
+ */
 const repoProblems = (repo) => {
   const allowlist = loadAllowlist(repo);
   const zanity = existsSync(join(repo, ZANITY_CONFIG)) ? zanityProblems(readText(repo, ZANITY_CONFIG, "the zanity config"), allowlist) : [`${ZANITY_CONFIG} is missing. Hint: zanity is a required check, so the repo must configure it.`];

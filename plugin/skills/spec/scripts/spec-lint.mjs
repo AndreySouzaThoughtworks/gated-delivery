@@ -54,10 +54,22 @@ const AC_REFERENCE = /AC\[?(\d+)\]?(?:\s*[–-]\s*(?:AC\[?)?(\d+)\]?)?/g;
 const WAVE_ROW = /^\|\s*(\d+)\s*\|([^|]*)\|/gm;
 const FENCE = /^```[\s\S]*?^```/gm;
 const INLINE_CODE = /`[^`\n]*`/g;
+/**
+ * @typedef {{ title: string, line: string, body: string }} HeadingPart
+ * @typedef {HeadingPart & { number: number, acs: number[], exposure: string, matched: boolean, lanes: Record<string, string | undefined>, dependsOn: number[] }} Slice
+ * @typedef {{ line: string, id: number, tag: string | undefined, text: string, matched: boolean }} Criterion
+ * @typedef {{ frontmatter: Record<string, string>, body: string, prose: string, sections: HeadingPart[], bodies: Record<string, string>, slices: Slice[], criteria: Criterion[], heading: string | undefined }} Spec
+ */
+
 const MAX_EXPANDED_IDS = 1000;
 const EXIT_PROBLEMS = 1;
 
+/**
+ * @param {string} text
+ * @returns {number[]}
+ */
 const idsIn = (text) => {
+  /** @type {number[]} */
   const ids = [];
   for (const [, from, to] of text.matchAll(AC_REFERENCE)) {
     for (let id = Number(from); id <= Number(to ?? from) && ids.length <= MAX_EXPANDED_IDS; id += 1) ids.push(id);
@@ -67,6 +79,11 @@ const idsIn = (text) => {
   return ids;
 };
 
+/**
+ * @param {string} text
+ * @param {number} level
+ * @returns {HeadingPart[]}
+ */
 const splitByHeading = (text, level) => {
   const hashes = "#".repeat(level);
   const marks = [...text.matchAll(new RegExp(`^${hashes} (.+)$`, "gm"))];
@@ -79,8 +96,13 @@ const splitByHeading = (text, level) => {
   return parts;
 };
 
+/**
+ * @param {string} raw
+ * @returns {Spec}
+ */
 export const parseSpec = (raw) => {
   const block = raw.match(/^---\n([\s\S]*?)\n---\n/);
+  /** @type {Record<string, string>} */
   const frontmatter = {};
   for (const line of (block?.[1] ?? "").split("\n")) {
     const colon = line.indexOf(":");
@@ -101,11 +123,12 @@ export const parseSpec = (raw) => {
     .filter((line) => line.startsWith("- ["))
     .map((line) => {
       const match = line.match(AC_LINE);
-      return { line, id: Number(match?.[1]), tag: match?.[2], text: match?.[3], matched: Boolean(match) };
+      return { line, id: Number(match?.[1]), tag: match?.[2], text: match?.[3] ?? "", matched: Boolean(match) };
     });
   return { frontmatter, body, prose, sections, bodies, slices, criteria, heading: prose.match(/^# (.+)$/m)?.[1] };
 };
 
+/** @type {((spec: Spec) => string[])[]} */
 const RULES = [
   (spec) => {
     const { ticket, type, status, created } = spec.frontmatter;
@@ -234,6 +257,9 @@ const RULES = [
   },
 ];
 
+/**
+ * @param {string} raw
+ */
 export const lintSpec = (raw) => {
   const spec = parseSpec(raw);
   const problems = RULES.flatMap((rule) => rule(spec));
@@ -249,11 +275,12 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   }
   let failed = false;
   for (const file of files) {
+    /** @type {string[]} */
     let problems;
     try {
       problems = lintSpec(readFileSync(file, "utf8"));
     } catch (error) {
-      problems = [error.message];
+      problems = [error instanceof Error ? error.message : String(error)];
     }
     for (const problem of problems) {
       process.stdout.write(`${file}: ${problem}\n`);

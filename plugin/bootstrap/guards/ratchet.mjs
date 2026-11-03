@@ -13,12 +13,24 @@ const REPORTED_KEY_LIMIT = 5;
 const LEGITIMATE_MOVE = "A legitimate move or rename keeps the same findings under the same file name without its extension and the same function names; changing a function name, or adding a second finding of the same kind to a file, counts as new";
 const OPTION_PREFIX = "--";
 const PARENT_SEGMENT = "..";
+/** @type {import("node:child_process").ExecFileSyncOptionsWithStringEncoding} */
 const GIT_IO = { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] };
 const KNOWN_OPTIONS = ["--baseline", "--base-ref"];
 
 class UsageError extends Error {}
 
+/**
+ * @typedef {{ baseline: string, baseRef: string }} RatchetOptions
+ * @typedef {{ path: string, rule: string, message: string }} Finding
+ * @typedef {{ code: number, message: string }} RatchetOutcome
+ */
+
+/**
+ * @param {string[]} argv
+ * @returns {RatchetOptions}
+ */
 const parseArgs = (argv) => {
+  /** @type {Record<string, string>} */
   const options = {};
   for (let i = 0; i < argv.length; i += 2) {
     const name = argv[i];
@@ -31,14 +43,20 @@ const parseArgs = (argv) => {
 };
 
 const KEY_SEPARATOR = " | ";
+/** @type {(keyof Finding)[]} */
 const FINDING_FIELDS = ["path", "rule", "message"];
 
+/**
+ * @param {string} text
+ * @param {string} source
+ */
 const findingCounts = (text, source) => {
+  /** @type {{ findings?: Finding[] } | null} */
   let document;
   try {
     document = JSON.parse(text);
   } catch (error) {
-    throw new UsageError(`${source} is not valid JSON (${error.message}); regenerate it with zanity check . --baseline <file> --capture-baseline`);
+    throw new UsageError(`${source} is not valid JSON (${error instanceof Error ? error.message : String(error)}); regenerate it with zanity check . --baseline <file> --capture-baseline`);
   }
   if (!Array.isArray(document?.findings) || !document.findings.every((finding) => FINDING_FIELDS.every((field) => typeof finding?.[field] === "string"))) {
     throw new UsageError(`${source} is not a zanity baseline: it needs a findings array whose entries each have ${FINDING_FIELDS.join(", ")}`);
@@ -54,6 +72,10 @@ const findingCounts = (text, source) => {
   return { counts, total };
 };
 
+/**
+ * @param {string} baseRef
+ * @param {string} file
+ */
 const baselineAtRef = (baseRef, file) => {
   try {
     execFileSync("git", ["rev-parse", "--verify", "--quiet", `${baseRef}^{commit}`], GIT_IO);
@@ -71,6 +93,7 @@ const baselineAtRef = (baseRef, file) => {
   return text;
 };
 
+/** @param {string} file */
 const readHead = (file) => {
   const resolved = resolve(file);
   const fromCwd = relative(process.cwd(), resolved);
@@ -78,10 +101,14 @@ const readHead = (file) => {
   try {
     return readFileSync(resolved, "utf8");
   } catch (error) {
-    throw new UsageError(`cannot read ${file} (${error.code}); the baseline must exist at HEAD, or be deleted together with the --new-only flag`);
+    throw new UsageError(`cannot read ${file} (${error instanceof Error && "code" in error ? error.code : String(error)}); the baseline must exist at HEAD, or be deleted together with the --new-only flag`);
   }
 };
 
+/**
+ * @param {RatchetOptions} options
+ * @returns {RatchetOutcome}
+ */
 const check = ({ baseline, baseRef }) => {
   const head = findingCounts(readHead(baseline), baseline);
   const baseText = baselineAtRef(baseRef, baseline);

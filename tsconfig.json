@@ -10,8 +10,8 @@
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "allowJs": true,
-    "checkJs": false
+    "checkJs": true
   },
   "include": ["scripts/**/*", "plugin/**/*.ts", "plugin/**/*.mjs"],
-  "exclude": ["node_modules", "scripts/audit/fixtures", "plugin/**/fixtures"]
+  "exclude": ["node_modules", "scripts/audit/fixtures", "plugin/**/fixtures", "plugin/**/*.test.mjs"]
 }

@@ -50,6 +50,15 @@ const ESCAPE_VARIABLE = "GATED_DELIVERY_GUARD";
 const ESCAPE_VALUE = "off";
 const ALLOWED_RESULT = { status: EXIT_OK, stdout: "", stderr: "" };
 
+/**
+ * @typedef {{ tool_input?: { command?: unknown } }} HookPayload
+ * @typedef {{ status: number, stdout: string, stderr: string }} GuardResult
+ */
+
+/**
+ * @param {HookPayload} payload
+ * @returns {string | null}
+ */
 const decide = (payload) => {
   assert(payload !== null && typeof payload === "object", `the payload must be a JSON object, got ${JSON.stringify(payload)}`);
   const command = payload.tool_input?.command;
@@ -57,6 +66,12 @@ const decide = (payload) => {
   return CATASTROPHIC.find(({ pattern }) => pattern.test(command))?.why ?? null;
 };
 
+/**
+ * @param {() => string} readInput
+ * @param {Record<string, string | undefined>} env
+ * @param {(payload: HookPayload) => string | null} [decider]
+ * @returns {GuardResult}
+ */
 const evaluate = (readInput, env, decider = decide) => {
   assert(typeof readInput === "function", `readInput must be a function, got ${typeof readInput}`);
   assert(typeof decider === "function", `decider must be a function, got ${typeof decider}`);
@@ -68,7 +83,7 @@ const evaluate = (readInput, env, decider = decide) => {
     const output = { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason } };
     return { status: EXIT_OK, stdout: JSON.stringify(output), stderr: "" };
   } catch (error) {
-    const stderr = `gated-delivery guard blocked this command because it could not check it: ${error.message}. Send the command again as a valid Bash tool call. If the guard itself is broken, start Claude Code with ${ESCAPE_VARIABLE}=${ESCAPE_VALUE} to turn it off.\n`;
+    const stderr = `gated-delivery guard blocked this command because it could not check it: ${error instanceof Error ? error.message : String(error)}. Send the command again as a valid Bash tool call. If the guard itself is broken, start Claude Code with ${ESCAPE_VARIABLE}=${ESCAPE_VALUE} to turn it off.\n`;
     return { status: EXIT_BLOCK, stdout: "", stderr };
   }
 };

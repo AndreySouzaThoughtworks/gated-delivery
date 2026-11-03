@@ -12,10 +12,10 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node
 import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { judgeModel } from "./judge-model.ts";
 
 const SKILLS_DIR = join(process.cwd(), "plugin", "skills");
 const CLAUDE_BIN = process.env.GATED_DELIVERY_CLAUDE_BIN || "claude";
-const JUDGE_MODEL = "haiku";
 const JUDGE_TOOLS = "Read,Grep,Glob";
 const SETTING_SOURCES = "";
 const WALL_CLOCK_MS = 1200 * 1000;
@@ -316,7 +316,7 @@ export function judge(skill: string, id: string, runDir: string) {
   try {
     const judgeArgs = [
       "-p",
-      "--model", JUDGE_MODEL,
+      "--model", judgeModel(),
       "--tools", JUDGE_TOOLS,
       "--allowedTools", JUDGE_TOOLS,
       "--setting-sources", SETTING_SOURCES,

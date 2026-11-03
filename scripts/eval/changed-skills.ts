@@ -39,7 +39,7 @@ const VERDICT_FLAKY = "flaky";
 const PROBE_ARGS = ["-p", "reply with the word ok", "--setting-sources", "", "--output-format", "json", "--max-budget-usd", "0.05"];
 const PROBE_TIMEOUT_MS = 120000;
 const PROBE_DETAIL_CHARS = 200;
-const CREDENTIAL_HINT = "runs ignore the user settings source, so set a working ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN (claude setup-token)";
+const CREDENTIAL_HINT = "runs ignore the user settings source, so set a working ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN (claude setup-token), or ANTHROPIC_BASE_URL with ANTHROPIC_AUTH_TOKEN for a compatible provider (docs/evals.md)";
 const VERDICTS_FILE = "verdicts.json";
 const RUNNER = join("scripts", "eval", "run-scenarios.ts");
 
@@ -52,7 +52,7 @@ const WAIVER_KEY = "waived";
 const STATUS_WAIVED = "waived";
 const VALUE_FLAGS = ["--budget-usd", "--total-budget-usd", "--model", "--jobs"];
 
-type Report = { verdicts: Record<string, string>; totalCostUsd?: number };
+type Report = { verdicts: Record<string, string>; totalCostUsd?: number; model?: string; judgeModel?: string };
 type Outcome = { skill: string; hash: string; passed: false; report?: undefined } | { skill: string; hash: string; passed: boolean; report: Report };
 type Options = { skills: string[]; full: boolean; passthrough: string[]; waive: string | null; reason: string | null; error: string | null };
 
@@ -270,6 +270,8 @@ const writeStamp = (root: string, { skill, hash, report }: { skill: string; hash
     scenarios: Object.keys(report.verdicts),
     verdicts: report.verdicts,
     totalCostUsd: report.totalCostUsd,
+    model: report.model,
+    judgeModel: report.judgeModel,
     ranAt: new Date().toISOString(),
   };
   writeFileSync(path, `${JSON.stringify(stamp, null, 2)}\n`);

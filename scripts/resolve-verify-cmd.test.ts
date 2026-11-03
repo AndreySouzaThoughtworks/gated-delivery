@@ -18,7 +18,7 @@ const INSTRUCTIONS_OF = Object.fromEntries(
 );
 const WITHOUT_COMMAND = "# Rules\n\n## Verification\n\nno command here\n";
 
-const write = (path, body) => {
+const write = (path: string, body: string) => {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, body);
   assert(readFileSync(path, "utf8") === body, `${path} must hold the text just written, got ${readFileSync(path, "utf8").length} characters instead of ${body.length}`);
@@ -97,7 +97,7 @@ test("the first of check, lint, test in package.json runs through pnpm", () => {
 
 test("the command line prints the command, or fails with a plain message", () => {
   const w = world();
-  const base = { cwd: w.repo, encoding: "utf8" };
+  const base = { cwd: w.repo, encoding: "utf8" } as const;
   const printed = spawnSync("node", [SCRIPT], { ...base, env: { PATH: process.env.PATH, HOME: w.home, [VERIFY_ENV]: FROM_ENV } });
   assert.deepEqual([printed.status, printed.stdout], [0, `${FROM_ENV}\n`], "the command must be printed alone");
   const failed = spawnSync("node", [SCRIPT], { ...base, env: { PATH: process.env.PATH, HOME: w.home } });

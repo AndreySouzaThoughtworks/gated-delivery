@@ -1,4 +1,4 @@
-// Behaviour check for the consistency guard. Run: node --test scripts/audit/consistency.test.mjs
+// Behaviour check for the consistency guard. Run: node --test scripts/audit/consistency.test.ts
 //
 // This script gates every PR and nothing tested it. Each test builds a minimal valid plugin repo in
 // a temp dir, breaks exactly one thing, and asserts the guard reports that one thing — and, just as
@@ -13,11 +13,14 @@ import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { skillHash } from "../eval/changed-skills.mjs";
+import { skillHash } from "../eval/changed-skills.ts";
 
-const GUARD = join(dirname(fileURLToPath(import.meta.url)), "consistency.mjs");
+const GUARD = join(dirname(fileURLToPath(import.meta.url)), "consistency.ts");
 
-const write = (dir, relPath, body) => {
+type GuardResult = { code: number; out: string };
+type ExecFailure = { status?: number; stdout?: string; stderr?: string };
+
+const write = (dir: string, relPath: string, body: string) => {
   assert(typeof body === "string", `${relPath} needs text content, got ${typeof body}`);
   const full = join(dir, relPath);
   assert(full.startsWith(dir), `${relPath} must stay inside ${dir}`);
@@ -57,13 +60,14 @@ const validRepo = () => {
 };
 
 /** Runs the guard in `dir`. Returns { code, out } and never throws, so a red run stays assertable. */
-const runGuard = (dir, env = {}) => {
+const runGuard = (dir: string, env: Record<string, string> = {}) => {
   assert(typeof dir === "string", `the guard runs in a directory, got ${typeof dir}`);
-  let result;
+  let result: GuardResult;
   try {
     result = { code: 0, out: execFileSync("node", [GUARD], { cwd: dir, encoding: "utf8", env: { ...process.env, GATED_DELIVERY_BASE_REF: "", ...env } }) };
   } catch (e) {
-    result = { code: e.status ?? 1, out: (e.stdout ?? "") + (e.stderr ?? "") };
+    const failure = e as ExecFailure;
+    result = { code: failure.status ?? 1, out: (failure.stdout ?? "") + (failure.stderr ?? "") };
   }
   assert(Number.isInteger(result.code), `the guard must report an integer exit code, got ${result.code}`);
   return result;
@@ -329,7 +333,7 @@ test("does not warn on a measure that avoids the skill's headings", () => {
 });
 
 /** `validRepo()` plus one indexed domain reference, documented in the canonical inventory. */
-const withReference = (dir) => {
+const withReference = (dir: string) => {
   assert(typeof dir === "string", `a fixture is a directory path, got ${typeof dir}`);
   write(dir, "plugin/references/reference-graph.md", "| [`thing.md`](./thing.md) | a technology | when it matters |\n");
   write(dir, "plugin/references/thing.md", "# Thing\n");
@@ -554,7 +558,7 @@ test("zanity is a required check and its config cannot be loosened", () => {
   }
 });
 
-const mustReject = (dir, pattern) => {
+const mustReject = (dir: string, pattern: RegExp) => {
   assert(existsSync(dir), `the guard must run on a repo that exists, got none at ${dir}; build the fixture first`);
   assert(pattern.source.length > 0, `a rejection pattern must not be empty, got ${pattern}; it would match any output`);
   const { code, out } = runGuard(dir);
@@ -651,6 +655,17 @@ test("a GATED_DELIVERY_ variable the code reads must be named in the docs", () =
   assert.equal(documented.code, 0, documented.out);
 });
 
+test("a GATED_DELIVERY_ variable read by a .ts script must be named, a .test.ts file is exempt", () => {
+  const dir = validRepo();
+  write(dir, "scripts/tool.ts", "process.exit(Number(process.env.GATED_DELIVERY_TS_KNOB) || 0);\n");
+  write(dir, "scripts/tool.test.ts", "process.exit(Number(process.env.GATED_DELIVERY_TEST_ONLY_KNOB) || 0);\n");
+  const { code, out } = runGuard(dir);
+  assert.equal(code, 1);
+  assert.match(out, /scripts\/tool\.ts reads GATED_DELIVERY_TS_KNOB/);
+  assert.doesNotMatch(out, /GATED_DELIVERY_TEST_ONLY_KNOB/);
+});
+
+
 test("a condition that never varies is rejected, one that can change is accepted", () => {
   const constant = {
     "a literal assert": 'assert(true, "m");',
@@ -682,7 +697,7 @@ test("a condition that never varies is rejected, one that can change is accepted
 
 const BASE_REF = "main";
 const GIT_IDENTITY = { GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" };
-const git = (dir, args) => {
+const git = (dir: string, args: string[]) => {
   assert(existsSync(dir), `git must run in a folder that exists, got ${dir}; build the fixture first`);
   assert(args.length > 0, `git needs a subcommand, got ${JSON.stringify(args)}; name one`);
   return execFileSync("git", args, { cwd: dir, encoding: "utf8", env: { ...process.env, ...GIT_IDENTITY } });
@@ -690,7 +705,7 @@ const git = (dir, args) => {
 
 const FEATURE_BRANCH = "feature";
 
-const featureBranchEditing = (file, body) => {
+const featureBranchEditing = (file: string, body: string) => {
   assert(!file.startsWith("/"), `the edited file must be relative to the repo, got ${file}; drop the leading slash`);
   const dir = validRepo();
   git(dir, ["init", "-b", BASE_REF]);
@@ -705,8 +720,8 @@ const featureBranchEditing = (file, body) => {
   return dir;
 };
 
-const SKILL_EDIT = ["plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\n\n## Heading One\n\nEdited.\n"];
-const stamp = (dir, hash) => {
+const SKILL_EDIT: [string, string] = ["plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\n\n## Heading One\n\nEdited.\n"];
+const stamp = (dir: string, hash: string) => {
   assert(hash.length > 0, `a stamp hash must not be blank, got ${JSON.stringify(hash)}; a blank one reads as a missing stamp`);
   write(dir, "evals/results/alpha.json", JSON.stringify({ hash }));
   assert(existsSync(join(dir, "evals/results/alpha.json")), `the stamp must exist after it is written, got none in ${dir}`);
@@ -716,7 +731,7 @@ test("a skill changed against the base ref needs an eval stamp with a matching h
   const dir = featureBranchEditing(...SKILL_EDIT);
   const missing = runGuard(dir, { GATED_DELIVERY_BASE_REF: BASE_REF });
   assert.equal(missing.code, 1);
-  assert.match(missing.out, /skill alpha changed since its evals last passed; run node scripts\/eval\/changed-skills\.mjs and commit evals\/results\/alpha\.json/);
+  assert.match(missing.out, /skill alpha changed since its evals last passed; run node scripts\/eval\/changed-skills\.ts and commit evals\/results\/alpha\.json/);
   stamp(dir, "not-the-hash");
   const stale = runGuard(dir, { GATED_DELIVERY_BASE_REF: BASE_REF });
   assert.equal(stale.code, 1);
@@ -743,16 +758,16 @@ test("a skill nobody changed, or whose only change is evals.md, needs no stamp",
 
 const RELEASED_VERSION = "1.0.0";
 const BUMPED_VERSION = "1.0.1";
-const SHIPPED_EDIT = ["plugin/bootstrap/helper.mjs", "export const answer = 41;\n"];
+const SHIPPED_EDIT: [string, string] = ["plugin/bootstrap/helper.mjs", "export const answer = 41;\n"];
 
-const manifestsAt = (dir, version) => {
+const manifestsAt = (dir: string, version: string) => {
   assert(version.length > 0, `a manifest version must not be blank, got ${JSON.stringify(version)}; a blank one reads as unversioned`);
   write(dir, "plugin/.claude-plugin/plugin.json", JSON.stringify({ name: "p", version }));
   write(dir, ".claude-plugin/marketplace.json", JSON.stringify({ metadata: { version }, plugins: [{ name: "p", source: "plugin" }] }));
   assert(existsSync(join(dir, ".claude-plugin/marketplace.json")), `both manifests must exist after writing, got none in ${dir}`);
 };
 
-const releasedFeatureBranchEditing = (file, body) => {
+const releasedFeatureBranchEditing = (file: string, body: string) => {
   assert(!file.startsWith("/"), `the edited file must be relative to the repo, got ${file}; drop the leading slash`);
   const dir = validRepo();
   manifestsAt(dir, RELEASED_VERSION);

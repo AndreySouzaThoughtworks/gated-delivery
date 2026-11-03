@@ -5,9 +5,9 @@
 // shipped (a `\|` that matches a literal pipe, a key that also names a heading) was invisible
 // precisely because no command was ever executed.
 //
-//   node scripts/eval/run-checks.mjs --lint                           every skill: prove each command RUNS
-//   node scripts/eval/run-checks.mjs <skill> <file>                   one skill: report each command's result
-//   node scripts/eval/run-checks.mjs <skill> <file> --scenario <id>   grade the checks whose `# expect:` names <id>
+//   node scripts/eval/run-checks.ts --lint                           every skill: prove each command RUNS
+//   node scripts/eval/run-checks.ts <skill> <file>                   one skill: report each command's result
+//   node scripts/eval/run-checks.ts <skill> <file> --scenario <id>   grade the checks whose `# expect:` names <id>
 
 import assert from "node:assert";
 import { execFileSync } from "node:child_process";
@@ -16,9 +16,16 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 
+type Quote = { inSingle: boolean; inDouble: boolean };
+type Substitution = Quote & { depth: number };
+type Expect = { raw: string; manual?: true; error?: string; op?: string; n?: number; ids?: string[] };
+type Check = { label: string; command: string; expects: Expect[] };
+type Outcome = { label: string; command: string; ok: boolean; result: string };
+type ExecFailure = { status?: number; stdout?: string; stderr?: string };
+
 const SKILLS_DIR = join(process.cwd(), "plugin", "skills");
 
-const evalsPathOf = (skill) => {
+const evalsPathOf = (skill: string) => {
   const path = join(SKILLS_DIR, skill, "evals.md");
   return path;
 };
@@ -36,7 +43,7 @@ const SHELL = existsSync("/bin/bash")
 
 // Variables the runner supplies, so fences can refer to the repo under test. Documented contract:
 // a fence may use "$WORKTREE" without assigning it. Anything else must be assigned in the fence.
-const PROVIDED = { WORKTREE: process.cwd() };
+const PROVIDED: Record<string, string> = { WORKTREE: process.cwd() };
 
 /**
  * POSIX shell quoting. `JSON.stringify` is JSON encoding, not shell quoting: it wraps in double
@@ -46,7 +53,7 @@ const PROVIDED = { WORKTREE: process.cwd() };
  */
 const SINGLE_QUOTE = "'";
 const ESCAPED_SINGLE_QUOTE = "'\\''";
-const shellQuote = (s) => {
+const shellQuote = (s: string) => {
   const quoted = `${SINGLE_QUOTE}${String(s).replaceAll(SINGLE_QUOTE, ESCAPED_SINGLE_QUOTE)}${SINGLE_QUOTE}`;
   return quoted;
 };
@@ -69,7 +76,7 @@ const shellQuote = (s) => {
  *   ${VAR+w} ${VAR:+w} ${VAR} $VAR          empty when unset       -> flag
  * The `+` forms are the trap: they look like defaults and are the exact silent-empty case.
  */
-const toggleQuote = (quote, c) => {
+const toggleQuote = (quote: Quote, c: string) => {
   let toggled = true;
   if (c === "'" && !quote.inDouble) quote.inSingle = !quote.inSingle;
   else if (c === '"' && !quote.inSingle) quote.inDouble = !quote.inDouble;
@@ -77,24 +84,23 @@ const toggleQuote = (quote, c) => {
   return toggled;
 };
 
-const trackParen = (enclosing, quote, c) => {
+const trackParen = (enclosing: Substitution[], quote: Quote, c: string) => {
   const substitution = enclosing.at(-1);
-  const consumes = Boolean(substitution) && !quote.inDouble && (c === "(" || c === ")");
-  if (!consumes) return false;
+  if (!substitution || quote.inDouble || (c !== "(" && c !== ")")) return false;
   if (c === "(") substitution.depth++;
   // `$(( ))` and subshells nest parens inside the substitution: only the `)` that balances the
   // opening `$(` ends it. Restoring on the first one handed the outer quote state back early,
   // and the apostrophe that followed then hid the variable after it.
   else if (substitution.depth) substitution.depth--;
   else {
-    const { inSingle, inDouble } = enclosing.pop();
-    quote.inSingle = inSingle;
-    quote.inDouble = inDouble;
+    enclosing.pop();
+    quote.inSingle = substitution.inSingle;
+    quote.inDouble = substitution.inDouble;
   }
   return true;
 };
 
-const variableAt = (command, at) => {
+const variableAt = (command: string, at: number) => {
   const rest = command.slice(at + 1);
   const braced = rest.startsWith("{");
   const body = braced ? rest.slice(1) : rest;
@@ -108,9 +114,9 @@ const variableAt = (command, at) => {
   return variable;
 };
 
-const unresolvedVars = (command, assigned) => {
-  const found = new Set();
-  const enclosing = [];
+const unresolvedVars = (command: string, assigned: Set<string>) => {
+  const found = new Set<string>();
+  const enclosing: Substitution[] = [];
   const quote = { inSingle: false, inDouble: false };
   for (let i = 0; i < command.length; i++) {
     const c = command[i];
@@ -145,8 +151,8 @@ const unresolvedVars = (command, assigned) => {
 // Scanned line by line, not matched: `## note` is a legal shell comment, and a regex bounded on
 // `^## ` truncated the section at the first one — dropping every check after it, silently.
 const SECTION_HEADING = "## Deterministic Checks";
-const sectionOf = (markdown) => {
-  const out = [];
+const sectionOf = (markdown: string) => {
+  const out: string[] = [];
   let inSection = false;
   let inFence = false;
   for (const line of markdown.split("\n")) {
@@ -167,16 +173,16 @@ const ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/;
 const EXPECT_PREFIX = /^expect:/;
 const EXPECT_MANUAL = /^expect: manual$/;
 const EXPECT_SHAPE = /^expect: (>=|==|<=)(\d+) on ([^,\s]+(?:,[^,\s]+)*)$/;
-const COMPARE = {
-  ">=": (count, n) => count >= n,
-  "==": (count, n) => count === n,
-  "<=": (count, n) => count <= n,
+const COMPARE: Record<string, (count: number, n: number) => boolean> = {
+  ">=": (count: number, n: number) => count >= n,
+  "==": (count: number, n: number) => count === n,
+  "<=": (count: number, n: number) => count <= n,
 };
 
-export function parseExpect(text) {
+export function parseExpect(text: string): Expect {
   const shape = text.match(EXPECT_SHAPE);
-  const ids = shape?.[3].split(",");
-  let expect;
+  const ids = shape?.[3].split(",") ?? [];
+  let expect: Expect;
   if (EXPECT_MANUAL.test(text)) expect = { raw: text, manual: true };
   else if (!shape) expect = { raw: text, error: `malformed expect "${text}"` };
   else if (new Set(ids).size !== ids.length) expect = { raw: text, error: `malformed expect "${text}": repeated id` };
@@ -188,8 +194,8 @@ const SCENARIOS_HEADING = "## Test Scenarios";
 const TABLE_ROW_ID = /^\|\s*([^|]*?)\s*\|/;
 const NOT_AN_ID = /^(#|:?-+:?)?$/;
 
-export function scenarioIds(evalsMarkdown) {
-  const ids = new Set();
+export function scenarioIds(evalsMarkdown: string) {
+  const ids = new Set<string>();
   let inSection = false;
   for (const line of evalsMarkdown.replace(/\r/g, "").split("\n")) {
     if (line.startsWith("## ")) {
@@ -210,13 +216,13 @@ export function scenarioIds(evalsMarkdown) {
  * setup, not checks: they are collected as a `prelude` and replayed before each command, because
  * every command runs in its own shell and would otherwise see an empty variable.
  */
-export function parseChecks(evalsMarkdown) {
+export function parseChecks(evalsMarkdown: string): { prelude: string[]; checks: Check[] } {
   const fence = sectionOf(evalsMarkdown.replace(/\r/g, "")).match(FENCE);
   if (!fence) return { prelude: [], checks: [] };
-  const checks = [];
-  const prelude = [];
-  let label = [];
-  let expects = [];
+  const checks: Check[] = [];
+  const prelude: string[] = [];
+  let label: string[] = [];
+  let expects: Expect[] = [];
   for (const line of fence[1].split("\n")) {
     const trimmed = line.trim();
     if (!trimmed) continue;
@@ -241,42 +247,43 @@ export function parseChecks(evalsMarkdown) {
  * Runs one check against `outputFile`.
  * `grep` exits 1 for "no match" — that is a result, not a failure. Only >=2 is a broken command.
  */
-export function runCheck({ label, command }, outputFile, prelude = []) {
+export function runCheck({ label, command }: Pick<Check, "label" | "command">, outputFile: string, prelude: string[] = []): Outcome {
   // Substitute the `output.md` placeholder only. Substituting a bare `output` too would corrupt any
   // command legitimately containing the word — `grep -c "output format" output.md` became
   // `grep -c ""<path>" format" "<path>"` and returned a wrong count rather than an error.
-  const assigned = new Set(prelude.map((a) => a.slice(0, a.indexOf("="))));
+  const assigned = new Set(prelude.map((a: string) => a.slice(0, a.indexOf("="))));
   // Consume any quotes already around the placeholder — `cat "output.md"` would otherwise become
   // `cat "'/path'"`, a filename that does not exist. A replacement *callback* is required: a plain
   // replacement string interprets `$&` and `$1` in the path itself.
   const transcriptFile = join(dirname(outputFile), TRANSCRIPT_FILE);
-  const substituted = command.replace(PLACEHOLDER, (_, __, name) => shellQuote(name === TRANSCRIPT_FILE ? transcriptFile : outputFile));
+  const substituted = command.replace(PLACEHOLDER, (_: string, __: string, name: string) => shellQuote(name === TRANSCRIPT_FILE ? transcriptFile : outputFile));
 
   // An unset variable expands to empty and the check then passes for a reason unrelated to what it
   // measures — green, but meaningless. Report it rather than let it read as runnable.
   const unresolved = unresolvedVars(substituted, assigned);
-  let outcome;
+  let outcome: Outcome;
   if (unresolved.length) {
     outcome = { label, command, ok: false, result: `unset variable(s): ${unresolved.join(", ")}` };
   } else if (TRANSCRIPT_PLACEHOLDER.test(command) && !existsSync(transcriptFile)) {
     outcome = { label, command, ok: false, result: `no ${TRANSCRIPT_FILE} beside ${outputFile}` };
   } else {
     try {
-      const setup = prelude.map((a) => a.replace(/=.*$/, `=${shellQuote(outputFile)}`)).join("; ");
+      const setup = prelude.map((a: string) => a.replace(/=.*$/, `=${shellQuote(outputFile)}`)).join("; ");
       const cmd = setup ? `${setup}; ${substituted}` : substituted;
       const env = { ...process.env, ...PROVIDED };
       const stdout = execFileSync(SHELL.cmd, [...SHELL.args, cmd], { encoding: "utf8", env });
       outcome = { label, command, ok: true, result: stdout.trim() };
     } catch (e) {
-      const status = e.status ?? 1;
-      if (status === 1) outcome = { label, command, ok: true, result: (e.stdout ?? "").trim() || "0" };
-      else outcome = { label, command, ok: false, result: (e.stderr ?? "").trim() || `exit ${status}` };
+      const failure = e as ExecFailure;
+      const status = failure.status ?? 1;
+      if (status === 1) outcome = { label, command, ok: true, result: (failure.stdout ?? "").trim() || "0" };
+      else outcome = { label, command, ok: false, result: (failure.stderr ?? "").trim() || `exit ${status}` };
     }
   }
   return outcome;
 }
 
-function report(skill, outputFile) {
+function report(skill: string, outputFile: string) {
   const evalsPath = evalsPathOf(skill);
   if (!existsSync(evalsPath)) {
     console.error(`No such skill: ${skill}`);
@@ -298,9 +305,9 @@ function report(skill, outputFile) {
   return broken;
 }
 
-function expectProblems({ expects }, ids) {
+function expectProblems({ expects }: Check, ids: Set<string>) {
   const seen = new Set();
-  const problems = [];
+  const problems: string[] = [];
   for (const expect of expects) {
     if (expect.error) problems.push(expect.error);
     for (const id of expect.ids ?? []) {
@@ -317,17 +324,17 @@ const PAGE_LABEL = /^Page:/i;
 const INTEGER = /^-?\d+$/;
 const LABEL_WIDTH = 100;
 
-const gradeCheck = (check, expect, file, prelude) => {
+const gradeCheck = (check: Check, expect: Expect, file: string, prelude: string[]) => {
   const { ok, result } = runCheck(check, file, prelude);
-  const count = ok ? (INTEGER.test(result) ? Number(result) : result.split("\n").filter((l) => l.trim()).length) : "broken";
-  const pass = ok && COMPARE[expect.op](count, expect.n);
+  const count = ok ? (INTEGER.test(result) ? Number(result) : result.split("\n").filter((l: string) => l.trim()).length) : "broken";
+  const pass = ok && typeof count === "number" && COMPARE[expect.op!](count, expect.n!);
   if (!ok) console.error(`  ${check.command}\n  ${result}`);
   const label = check.label.length > LABEL_WIDTH ? `${check.label.slice(0, LABEL_WIDTH - 3)}...` : check.label;
   console.log(`${pass ? "PASS" : "FAIL"} ${count} ${expect.op}${expect.n} ${label}`);
   return pass;
 };
 
-function gradeScenario(skill, file, id) {
+function gradeScenario(skill: string, file: string, id: string) {
   const evalsPath = evalsPathOf(skill);
   if (!existsSync(evalsPath)) return usage(`No such skill: ${skill}`);
   if (!existsSync(file)) return usage(`No such output file: ${file}`);
@@ -353,13 +360,13 @@ const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g;
 const LINE_BREAK = /\r?\n|\r/g;
 const USAGE = [
   "usage:",
-  "  run-checks.mjs --lint",
-  "  run-checks.mjs <skill> <output-file>",
-  "  run-checks.mjs <skill> <output-file> --scenario <id>",
+  "  run-checks.ts --lint",
+  "  run-checks.ts <skill> <output-file>",
+  "  run-checks.ts <skill> <output-file> --scenario <id>",
   "exit codes: 0 every check held, 1 a check failed or the skill is unknown, 2 usage error, 3 harness error (an internal check or file read failed)",
 ].join("\n");
 
-function usage(message) {
+function usage(message: string) {
   const printable = message.replace(LINE_BREAK, "\\n").replace(CONTROL_CHARACTERS, "?");
   console.error(printable);
   return EXIT_USAGE;

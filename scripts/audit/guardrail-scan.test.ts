@@ -38,7 +38,7 @@ test("every built-in arm flags its sample", () => {
   assert.deepEqual([...new Set(FLAGGED.map(([arm]) => arm))].sort(), ARMS.map(([name]) => name).sort(), "every arm needs a flagged sample");
   for (const [arm, sample] of FLAGGED) {
     const hits = scanText(sample);
-    assert(hits.some((hit) => hit.arm === arm), `${JSON.stringify(sample)} must hit the "${arm}" arm, got ${JSON.stringify(hits)}`);
+    assert(hits.some((hit: { arm: string }) => hit.arm === arm), `${JSON.stringify(sample)} must hit the "${arm}" arm, got ${JSON.stringify(hits)}`);
   }
 });
 

@@ -1,4 +1,4 @@
-// Behaviour check for the eval-fence runner. Run: node --test scripts/eval/run-checks.test.mjs
+// Behaviour check for the eval-fence runner. Run: node --test scripts/eval/run-checks.test.ts
 //
 // The runner exists to catch checks that cannot run. Shipping it untested would repeat the mistake
 // it was written to prevent, so the cases below cover both directions: a broken command must be
@@ -11,7 +11,7 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { basename, join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseChecks, parseExpect, runCheck, scenarioIds } from "./run-checks.mjs";
+import { parseChecks, parseExpect, runCheck, scenarioIds } from "./run-checks.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, "..", "..");
@@ -20,7 +20,9 @@ const OUTPUT_NAME = "output.md";
 const TRANSCRIPT_NAME = "transcript.jsonl";
 const CODE_FENCE = "```";
 
-const fence = (body) => {
+type ExecFailure = { status?: number; stdout?: string; stderr?: string };
+
+const fence = (body: string) => {
   assert(!body.includes(CODE_FENCE), `fence got body ${JSON.stringify(body)}; expected no ${JSON.stringify(CODE_FENCE)} inside it, since it would close the fence early`);
   const markdown = `## Deterministic Checks\n\n\`\`\`bash\n${body}\n\`\`\`\n`;
   assert(markdown.startsWith("## Deterministic Checks\n"), "fence does not open with the Deterministic Checks heading; expected the section parseChecks reads");
@@ -28,10 +30,10 @@ const fence = (body) => {
   return markdown;
 };
 
-const withEnv = (name, value, body) => {
+const withEnv = <T>(name: string, value: string, body: () => T) => {
   assert(process.env[name] === undefined, `withEnv would overwrite ${name}, already set to ${process.env[name]}; expected an unset variable`);
   process.env[name] = value;
-  let result;
+  let result: T;
   try {
     result = body();
   } finally {
@@ -41,7 +43,7 @@ const withEnv = (name, value, body) => {
   return result;
 };
 
-const outputFile = (body) => {
+const outputFile = (body: string) => {
   const f = join(mkdtempSync(join(tmpdir(), "gated-delivery-runner-test-")), OUTPUT_NAME);
   writeFileSync(f, body);
   assert(basename(f) === OUTPUT_NAME, `outputFile named the file ${basename(f)}; expected ${OUTPUT_NAME}, the name fences refer to`);
@@ -251,7 +253,7 @@ test("--lint passes over the real skills and goes red when a check is broken", (
 
 const SCENARIO_TABLE = "## Test Scenarios\n\n| # | Prompt | Persona | Pass Criteria |\n|---|---|---|---|\n| 1 | p | q | r |\n| 2b | p | q | r |\n\n";
 
-const repoWith = (skill, evalsBody) => {
+const repoWith = (skill: string, evalsBody: string) => {
   assert(!skill.includes("/"), `repoWith got skill ${JSON.stringify(skill)}; expected a bare folder name`);
   const dir = mkdtempSync(join(tmpdir(), "gated-delivery-runner-scenario-"));
   const skillDir = join(dir, "plugin", "skills", skill);
@@ -261,13 +263,14 @@ const repoWith = (skill, evalsBody) => {
   return dir;
 };
 
-const cli = (cwd, args) => {
+const cli = (cwd: string, args: string[]) => {
   assert(existsSync(cwd), `cli ran in ${cwd}, which does not exist; expected an existing folder`);
   assert(args.length > 0, `cli got ${args.length} arguments; expected --lint or a skill and an output file`);
   try {
-    return { code: 0, out: execFileSync("node", [join(HERE, "run-checks.mjs"), ...args], { cwd, encoding: "utf8" }) };
+    return { code: 0, out: execFileSync("node", [join(HERE, "run-checks.ts"), ...args], { cwd, encoding: "utf8" }) };
   } catch (e) {
-    return { code: e.status ?? 1, out: (e.stdout ?? "") + (e.stderr ?? "") };
+    const failure = e as ExecFailure;
+    return { code: failure.status ?? 1, out: (failure.stdout ?? "") + (failure.stderr ?? "") };
   }
 };
 
@@ -400,7 +403,7 @@ test("--lint rejects a malformed expect line and an unknown scenario id, and acc
 const TOOL_USE_WRITE = '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Write","input":{"file_path":"/x/a.html"}}]}}\n';
 const COUNT_WRITES = "grep -c '\"name\":\"Write\"' transcript.jsonl";
 
-const outputWithTranscript = (transcript) => {
+const outputWithTranscript = (transcript?: string) => {
   const file = outputFile("hello\n");
   if (transcript !== undefined) writeFileSync(join(dirname(file), TRANSCRIPT_NAME), transcript);
   assert(existsSync(file), `outputWithTranscript wrote no ${OUTPUT_NAME}; expected the graded file`);

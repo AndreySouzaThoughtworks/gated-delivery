@@ -308,7 +308,7 @@ awk 'f && (/^[> ]*#{1,3} / || (b && /^[> ]*\*\*[A-Z]/)) {exit} /^[> ]*(#{2,3} +(
 # (scenario 15, since retired, scored 4 and its baseline 2, both on prose). The NANP arm requires a - or . between groups on
 # purpose — an any-separator 3-3-4 also matches component counts, conversation ids, epochs and
 # latency budgets. Scope it to the draft: where the run saved its tracker draft to a file, run this
-# line over that file (`run-checks.mjs issue-writing <draft-file>` takes any file), because the
+# line over that file (`run-checks.ts issue-writing <draft-file>` takes any file), because the
 # response also carries text bound for the repo, where an internal host belongs — both 15 runs scored
 # 3 on output.md, on a proposed repo note and a redaction label, and 0 on their saved drafts. Over
 # output.md, a redaction label (`**Password:** removed`) is dropped first: it reports a removal and

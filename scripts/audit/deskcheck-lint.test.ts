@@ -12,15 +12,17 @@ const FIXTURE_DIR = join(HERE, "fixtures", "deskcheck");
 const LINT = join(HERE, "..", "..", "plugin", "skills", "deskcheck", "scripts", "deskcheck-lint.mjs");
 const VALID = readFileSync(join(FIXTURE_DIR, "valid.html"), "utf8");
 const TEMPLATE = readFileSync(TEMPLATE_PATH, "utf8");
-const CSP_TAG = VALID.match(/<meta http-equiv="Content-Security-Policy"[^>]*>/)[0];
+const CSP_TAG = VALID.match(/<meta http-equiv="Content-Security-Policy"[^>]*>/)?.[0] ?? "";
 
-const swap = (from, to) => (text) => {
+const lintPage = lintDeskcheck as (html: string, options: { dir: string }) => string[];
+
+const swap = (from: string, to: string) => (text: string) => {
   assert(text.includes(from), `the fixture must contain ${JSON.stringify(from)} so the mutation can apply, got ${text.length} characters without it`);
   assert(from !== to, `a mutation must change the text, got ${JSON.stringify(from)} replaced by itself`);
   return text.replace(from, to);
 };
 
-const REJECTED = [
+const REJECTED: [string, (text: string) => string, string][] = [
   ["a placeholder left open", swap("PROJ-123 deskcheck", "{{TICKET_ID}} deskcheck"), "placeholder marker {{"],
   ["a placeholder left closed", swap("Prepared 2026-01-15", "Prepared 2026-01-15 }}"), "placeholder marker }}"],
   ["a second h1", swap("<h2>Evidence</h2>", "<h1>Evidence</h1>"), "exactly one h1, got 2"],
@@ -46,21 +48,21 @@ const REJECTED = [
 ];
 
 test("the valid fixture passes with no problems", () => {
-  const problems = lintDeskcheck(VALID, { dir: FIXTURE_DIR });
+  const problems = lintPage(VALID, { dir: FIXTURE_DIR });
   assert.deepEqual(problems, [], `a deskcheck that follows the skill must report nothing, got ${problems.join(" | ")}`);
-  assert.equal(lintDeskcheck(VALID.replace("2026-01-15", "2026-02-01"), { dir: FIXTURE_DIR }).length, 0, "changing prose must not create problems");
+  assert.equal(lintPage(VALID.replace("2026-01-15", "2026-02-01"), { dir: FIXTURE_DIR }).length, 0, "changing prose must not create problems");
 });
 
 for (const [name, mutate, expected] of REJECTED) {
   test(`rejects ${name}`, () => {
-    const problems = lintDeskcheck(mutate(VALID), { dir: FIXTURE_DIR });
+    const problems = lintPage(mutate(VALID), { dir: FIXTURE_DIR });
     assert(problems.some((p) => p.includes(expected)), `expected a problem containing ${JSON.stringify(expected)}, got ${JSON.stringify(problems)}`);
     assert(problems.length > 0, `a mutated page (${name}) must not come back clean, got ${problems.length} problems`);
   });
 }
 
 test("the unfilled template is rejected", () => {
-  const problems = lintDeskcheck(TEMPLATE, { dir: dirname(TEMPLATE_PATH) });
+  const problems = lintPage(TEMPLATE, { dir: dirname(TEMPLATE_PATH) });
   assert(problems.some((p) => p.includes("placeholder marker {{")), `the template's placeholders must be flagged, got ${JSON.stringify(problems)}`);
   assert(!problems.some((p) => p.includes("Content-Security-Policy")), `the template's own CSP is the reference and must not be flagged, got ${JSON.stringify(problems)}`);
 });

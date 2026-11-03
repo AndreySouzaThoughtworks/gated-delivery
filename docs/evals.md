@@ -4,29 +4,29 @@ Each skill's `evals.md` holds its scenarios (prompt, persona, Pass Criteria), th
 
 ## Run them with the runner
 
-`scripts/eval/run-scenarios.mjs` does §1 to §3 for you, then grades each run:
+`scripts/eval/run-scenarios.ts` does §1 to §3 for you, then grades each run:
 
 ```bash
-node scripts/eval/run-scenarios.mjs <skill> [--scenario <id>…] [--repeat 2] [--jobs N] [--baseline] [--out DIR] [--smoke] [--rerun-failures] [--budget-usd N] [--total-budget-usd N] [--model M]
+node scripts/eval/run-scenarios.ts <skill> [--scenario <id>…] [--repeat 2] [--jobs N] [--baseline] [--out DIR] [--smoke] [--rerun-failures] [--budget-usd N] [--total-budget-usd N] [--model M]
 ```
 
 It runs every row of the skill's Test Scenarios unless `--scenario` names some, each `--repeat` times (default 2, or 1 with `--rerun-failures`; see §5), `--jobs` at once (default 4). `--baseline` fills the Baseline Agent template instead and loads no plugin (§8). Each run is stopped after 1200 seconds of wall-clock time; there is no spend cap unless you set one (see the next section). Set `GATED_DELIVERY_CLAUDE_BIN` to use another `claude` binary. Run it from the repository root.
 
 Each run lands in `<out>/<skill>/<id>/<arm>-<n>/` with `prompt.txt`, `transcript.jsonl`, `output.md`, `checks.txt`, `judge.json` and `run-tmp/`, the run's own temp directory. `<out>/summary.tsv` has one line per run: skill, id, arm, run, harness, checks, judge, cost, secs. The table it prints ends with a `DISAGREE` line for every scenario whose repeats graded differently.
 
-The `harness` column is `ok` or names what makes the run unusable as a result: `no-skill` (a skill run with no `"name":"Skill"` call), `read-skill` (a baseline that read `skills/<skill>/`), `no-result`, `timeout`, or `setup-failed`. Any of them makes the runner exit 1. A run with `permission_denials` gets a `denied=N` note, such as `ok,denied=2`, and is not a harness failure: a refused side lookup is common and blocks nothing. Read the denials in the transcript's last line, and treat the run as a harness failure only when one blocked the behaviour under test (§3). `checks` comes from `run-checks.mjs <skill> <file> --scenario <id>` on `output.md` and on every `.html` page the run wrote outside `run-tmp/`; `judge` from `judge.mjs <skill> <id> <run-dir>`. Either is `n/a` when its script is not there.
+The `harness` column is `ok` or names what makes the run unusable as a result: `no-skill` (a skill run with no `"name":"Skill"` call), `read-skill` (a baseline that read `skills/<skill>/`), `no-result`, `timeout`, or `setup-failed`. Any of them makes the runner exit 1. A run with `permission_denials` gets a `denied=N` note, such as `ok,denied=2`, and is not a harness failure: a refused side lookup is common and blocks nothing. Read the denials in the transcript's last line, and treat the run as a harness failure only when one blocked the behaviour under test (§3). `checks` comes from `run-checks.ts <skill> <file> --scenario <id>` on `output.md` and on every `.html` page the run wrote outside `run-tmp/`; `judge` from `judge.ts <skill> <id> <run-dir>`. Either is `n/a` when its script is not there.
 
 ## Before a PR that changes a skill
 
 ```bash
-node scripts/eval/changed-skills.mjs
+node scripts/eval/changed-skills.ts
 ```
 
-It finds the skills that changed against `GATED_DELIVERY_BASE_REF` (default `origin/main`), through the merge base, including uncommitted and untracked files. A skill counts as changed when a file under `plugin/skills/<skill>/` changed, or a `plugin/agents/*.md` file whose name the skill's `SKILL.md` mentions. Edits to `evals.md`, to test files under the skill's `scripts/` folder and to `evals/fixtures` do not count. `run-checks.mjs --lint` checks those for free. Name skills as arguments to run them without the git lookup.
+It finds the skills that changed against `GATED_DELIVERY_BASE_REF` (default `origin/main`), through the merge base, including uncommitted and untracked files. A skill counts as changed when a file under `plugin/skills/<skill>/` changed, or a `plugin/agents/*.md` file whose name the skill's `SKILL.md` mentions. Edits to `evals.md`, to test files under the skill's `scripts/` folder and to `evals/fixtures` do not count. `run-checks.ts --lint` checks those for free. Name skills as arguments to run them without the git lookup.
 
 **Tiers.** The default is smoke: `--smoke --rerun-failures --budget-usd 2 --total-budget-usd 20`. Smoke runs the fewest scenarios whose `# expect:` lines cover every deterministic check at least once. Ties go to the earlier row. A skill with no covered check gets its first scenario. Smoke does not run the other scenarios, so their judged Pass Criteria are not graded. `--full` runs every scenario, twice, with no caps, and is the tier to use before a release or after a rewrite.
 
-**Credentials.** The runner passes `--setting-sources project,local` and the judge passes `""`, so a run ignores the OAuth login kept in the user settings source. It needs a working `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) in the environment, and `claude auth status` cannot tell you whether it has one. Before any scenario, `changed-skills.mjs` runs one tiny probe (`claude -p` with the same flags, a `--max-budget-usd 0.05` cap and your model), which costs about nothing, and exits 3 if the probe fails.
+**Credentials.** The runner passes `--setting-sources project,local` and the judge passes `""`, so a run ignores the OAuth login kept in the user settings source. It needs a working `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) in the environment, and `claude auth status` cannot tell you whether it has one. Before any scenario, `changed-skills.ts` runs one tiny probe (`claude -p` with the same flags, a `--max-budget-usd 0.05` cap and your model), which costs about nothing, and exits 3 if the probe fails.
 
 **Exit codes.**
 
@@ -37,7 +37,7 @@ It finds the skills that changed against `GATED_DELIVERY_BASE_REF` (default `ori
 
 **Stamp.** Each skill that passes gets `evals/results/<skill>.json`: `hash`, `tier`, `scenarios`, `verdicts`, `totalCostUsd` and `ranAt`. Commit it with the change. The hash is a sha256 over every file under `plugin/skills/<skill>/` and every `plugin/agents/*.md` file the skill's `SKILL.md` names. Each file contributes its repository-relative path and its bytes, in sorted path order. `evals.md` and test files under `scripts/` are left out.
 
-**Waiver.** When no working credentials exist, record an exception: `node scripts/eval/changed-skills.mjs --waive <skill> --reason "<why>"`. It writes `evals/results/<skill>.json` with the hash, the reason and `ranAt`, and runs nothing. The guard accepts a waiver only for the exact current hash, so any later edit to the skill makes it stale. It shows as a warning, not a pass. `/evals/results/` is in CODEOWNERS, so the owner reviews each one.
+**Waiver.** When no working credentials exist, record an exception: `node scripts/eval/changed-skills.ts --waive <skill> --reason "<why>"`. It writes `evals/results/<skill>.json` with the hash, the reason and `ranAt`, and runs nothing. The guard accepts a waiver only for the exact current hash, so any later edit to the skill makes it stale. It shows as a warning, not a pass. `/evals/results/` is in CODEOWNERS, so the owner reviews each one.
 
 **Guard.** When `GATED_DELIVERY_BASE_REF` is set, the consistency guard (check 18) requires a stamp with a matching hash for every skill changed against that ref. CI sets it on pull requests. Locally it is unset and the check is skipped. A skill nobody changed needs no stamp. `.github/workflows/evals.yml` runs the same script in CI when the repository has a `CLAUDE_CODE_OAUTH_TOKEN` secret. It is not a required check.
 
@@ -51,7 +51,7 @@ It finds the skills that changed against `GATED_DELIVERY_BASE_REF` (default `ori
 | `--total-budget-usd N` | Stop launching runs once finished runs cost `N`. Scenarios never launched are `not-run` and the exit is nonzero. |
 | `--model M` | Pass `--model M` to each run. `GATED_DELIVERY_RUN_MODEL` sets the default. |
 
-Each flag works on `run-scenarios.mjs` directly. `changed-skills.mjs` forwards `--budget-usd`, `--total-budget-usd`, `--model` and `--jobs`. A scenario passes when its harness flags are clean and its checks and judge each say `PASS` or `n/a`. `UNCLEAR` is not a pass. A row whose Pass Criteria cell is exactly `—` has all its criteria in the fence: the judge is not called and its grade is `n/a`. The runner also writes `verdicts.json` beside `summary.tsv` and prints a `VERDICT` line per scenario.
+Each flag works on `run-scenarios.ts` directly. `changed-skills.ts` forwards `--budget-usd`, `--total-budget-usd`, `--model` and `--jobs`. A scenario passes when its harness flags are clean and its checks and judge each say `PASS` or `n/a`. `UNCLEAR` is not a pass. A row whose Pass Criteria cell is exactly `—` has all its criteria in the fence: the judge is not called and its grade is `n/a`. The runner also writes `verdicts.json` beside `summary.tsv` and prints a `VERDICT` line per scenario.
 
 The sections below are what the runner does and why, for reading its runs and for running one by hand.
 
@@ -108,7 +108,7 @@ Pass `--allowedTools` for what the scenario needs. The runner passes every rule 
 | `Bash(base64:*)`, `Bash(tr:*)`, `Bash(mkdir:*)`, and an assembler: `Bash(python3:*)`, `Bash(awk:*)` or `Bash(sed:*)` | Pages that embed a screenshot: the skill encodes the image, strips line breaks, makes the page's directory and splices the encoded image into the page. Also pass `--add-dir` for a writable temp directory, such as `/private/tmp/claude-501` and its `/tmp/claude-501` alias, where the encoded image and the assembler script land. |
 | `Bash("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome":*)` | Skills that inspect a rendered page in headless Chrome, such as the deskcheck render scenarios. Keep the quotes: the path has spaces, and the unquoted rule never matched. Name that path in the persona, and tell the run to call each command bare: a deskcheck scenario 9 run lost its 390-pixel check to a refused `D=…;` chain. |
 | `Bash(git add:*)`, `Bash(git commit:*)` | Fixtures that are git repositories the skill commits into |
-| `Bash(node scripts/audit/consistency.mjs)` | Flow audits. The rule matches the command only when it is called bare from the repository root; a `cd … &&` prefix or a chained command is refused. Set the run's working directory to the repository instead. |
+| `Bash(node scripts/audit/consistency.ts)` | Flow audits. The rule matches the command only when it is called bare from the repository root; a `cd … &&` prefix or a chained command is refused. Set the run's working directory to the repository instead. |
 
 Compound commands are refused under `acceptEdits` even when every part is allowed. In the deskcheck scenario 9 runs, `ls -la && ls -la evidence` was denied with `Bash(ls:*)` allowed, and `R=…; mkdir -p … && python3 -I assemble.py …` with `Bash(mkdir:*)` and `Bash(python3:*)` allowed; `cd … && …` and `…; …` chains were denied the same way. Runs must call each command bare, from the run's working directory; a refused chain reads as a skill defect it is not.
 
@@ -128,7 +128,7 @@ Runs vary. In one confirmation sweep, 7 of 44 scenarios passed once and failed o
 
 1. Confirm the skill was invoked: `grep -c '"name":"Skill"' transcript.jsonl`. No invocation is a harness failure.
 2. Grade against the scenario's Pass Criteria, including every "Fails if" clause. For anything the skill should have written or run, check the run directory and the transcript, not the prose in `output.md`.
-3. Grade the Deterministic Checks from the repository root: `node scripts/eval/run-checks.mjs <skill> <file> --scenario <id>`. It runs each check whose `# expect:` line names the scenario and prints `PASS|FAIL <count> <expect> <label>`. It exits 0 when all pass, 1 on any FAIL and 2 on a usage error. Run it once on `output.md` for checks on the response, and once on the rendered artifact, such as `deskcheck.html`, for checks labelled `Page:`. In a skill that has `Page:` checks, the file name picks the set: `output.md` gets the response checks, any other file gets the `Page:` checks. Checks marked `# expect: manual` are skipped; read those counts with `node scripts/eval/run-checks.mjs <skill> <file>`.
+3. Grade the Deterministic Checks from the repository root: `node scripts/eval/run-checks.ts <skill> <file> --scenario <id>`. It runs each check whose `# expect:` line names the scenario and prints `PASS|FAIL <count> <expect> <label>`. It exits 0 when all pass, 1 on any FAIL and 2 on a usage error. Run it once on `output.md` for checks on the response, and once on the rendered artifact, such as `deskcheck.html`, for checks labelled `Page:`. In a skill that has `Page:` checks, the file name picks the set: `output.md` gets the response checks, any other file gets the `Page:` checks. Checks marked `# expect: manual` are skipped; read those counts with `node scripts/eval/run-checks.ts <skill> <file>`.
 4. A FAIL that disagrees with your reading of the output is a misfire: fix the check or its expect line, not the grade.
 
 An expect line sits in the fence, directly above its command: `# expect: <op><n> on <id>[,<id>…]`, where op is `>=`, `==` or `<=`. A check may carry several, one per expectation, and names each scenario at most once. A check that prints lines instead of a number is counted by its non-empty lines, so `==0` means no output. `--lint` rejects a malformed expect line and an id that is not in the skill's `## Test Scenarios` table. The consistency guard warns on a check with no expect line.
@@ -137,7 +137,7 @@ A fence command can also read the run's tool calls through the `transcript.jsonl
 
 ## 7. Prove every check
 
-Before a check lands, run it on a passing output and on a failing one, and see the result differ. Use real run output for the pass; for the fail, use a failing run or a copy with the defect edited in. A check that returns the same value on both proves nothing. `node scripts/eval/run-checks.mjs --lint` only proves each command runs.
+Before a check lands, run it on a passing output and on a failing one, and see the result differ. Use real run output for the pass; for the fail, use a failing run or a copy with the defect edited in. A check that returns the same value on both proves nothing. `node scripts/eval/run-checks.ts --lint` only proves each command runs.
 
 ## 8. Keep the skill's text away from the baseline
 
@@ -147,10 +147,10 @@ When the fixture is a clone of this repository, delete the skill's directory fro
 
 ## 9. Judge the Pass Criteria
 
-`scripts/eval/judge.mjs` grades one saved run against its scenario row, so step 6.2 no longer has to be done by hand for every run:
+`scripts/eval/judge.ts` grades one saved run against its scenario row, so step 6.2 no longer has to be done by hand for every run:
 
 ```bash
-node scripts/eval/judge.mjs <skill> <id> <run-dir>
+node scripts/eval/judge.ts <skill> <id> <run-dir>
 ```
 
 Run it from the repository root. `<run-dir>` holds `output.md` and, when there are any, `transcript.jsonl` and the files the run wrote. Copy the run's workspace and its outputs into one directory first if your harness keeps them apart.

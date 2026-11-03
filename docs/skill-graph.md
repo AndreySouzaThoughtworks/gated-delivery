@@ -1,6 +1,6 @@
 # gated-delivery — skills, agents & hooks
 
-**The** inventory of what the `gated-delivery` plugin ships and how the pieces call each other — other docs link here, not restate. `scripts/audit/consistency.mjs` fails CI if a skill or agent is missing below. Skills are invoked by `/skill-name` or `Skill(name)`; agents by `Agent(subagent_type: name)`; hooks fire automatically on lifecycle events. Client specifics — tracker, notes homes, stack recipes, reviewers — come from the client's CLAUDE.md as described in [client-context.md](../plugin/references/client-context.md).
+**The** inventory of what the `gated-delivery` plugin ships and how the pieces call each other — other docs link here, not restate. `scripts/audit/consistency.ts` fails CI if a skill or agent is missing below. Skills are invoked by `/skill-name` or `Skill(name)`; agents by `Agent(subagent_type: name)`; hooks fire automatically on lifecycle events. Client specifics — tracker, notes homes, stack recipes, reviewers — come from the client's CLAUDE.md as described in [client-context.md](../plugin/references/client-context.md).
 
 ## Workflow skills
 
@@ -12,7 +12,7 @@
 | `/repo-forensics` | Inspect-first pass before a change exists: verified versus inferred, where surfaces disagree, blast radius and the smallest safe next step, never code. | `/slice` step 0 (quick posture), `/spec` step 3 (full pass), or before touching existing code. |
 | `/senior-review-lens` | Structural self-audit over code or design decisions. Runs on multi-batch diffs, complete slices, and the merged ticket; Lens H examines open design decisions. | During `/slice`, `/spec`, or standalone structural review. |
 | `/learn-flow` | Reflect at a session break; turn each mistake into a proposed deterministic check (extend an existing guard, else a new check in CI and the watcher) with a failing example that proves it rejects the bad case. Only a judgment lesson stays prose, routed by scope: this repo as an issue or PR, the client's CLAUDE.md, the repo `CLAUDE.md`, or the global `CLAUDE.md`. Propose, don't write. | End of a `/slice` / `/spec` session, or when the user says "what did we learn". |
-| `/audit-flow` | Audit the flow itself: deterministic consistency guard (`scripts/audit/consistency.mjs`) plus a judgment pass for overlap / conflict / gaps / bloat across skills, hooks, lenses. Bias toward trimming; propose fixes as PRs. | Before a release, when the flow feels bloated, or "audit the flow". |
+| `/audit-flow` | Audit the flow itself: deterministic consistency guard (`scripts/audit/consistency.ts`) plus a judgment pass for overlap / conflict / gaps / bloat across skills, hooks, lenses. Bias toward trimming; propose fixes as PRs. | Before a release, when the flow feels bloated, or "audit the flow". |
 | `/primer` | Research a topic and render a styled, WCAG-AA HTML "primer" — a skim-able top-to-bottom explainer (numbered sections, key box, SVG diagrams, tables, glossary). Labels claims Verified/Inferred; signs off the outline before rendering into `templates/primer.html`. Stands apart from the dev-flow loop — a knowledge/doc tool. | "Make me a primer / mental-model doc / explainer on X" when a shareable artifact is wanted. |
 | `/deskcheck` | Render completed work as a self-contained HTML walkthrough of value, criteria, a runnable demonstration and settled decisions, then record the feedback in the same file. | "Deskcheck PROJ-123" or preparing a demo of finished work. |
 | `/issue-writing` | Draft, refine, review and safely publish a tracker issue as a Story, Task, Bug or Spike against its own template in `templates/`. | Authoring or grooming any ticket; `/spec` 10 and `/slice` 7.6 and 9 route tracker writes through it. |
@@ -47,7 +47,7 @@ Knowledge rather than workflow. Indexed separately because a skill reads the ind
 
 | Index | Covers |
 |-------|--------|
-| [`reference-graph.md`](../plugin/references/reference-graph.md) | Every domain reference this plugin ships, with the work that should trigger reading it. Both directions guarded by `scripts/audit/consistency.mjs`. |
+| [`reference-graph.md`](../plugin/references/reference-graph.md) | Every domain reference this plugin ships, with the work that should trigger reading it. Both directions guarded by `scripts/audit/consistency.ts`. |
 | [`client-context.md`](../plugin/references/client-context.md) | The client-context contract: every CLAUDE.md section and key a skill reads, with its default. Not a domain reference; skills that read client keys point at it by path, and `reference-graph.md` indexes it so the guard keeps it reachable. |
 
 ## Referenced but NOT bundled here

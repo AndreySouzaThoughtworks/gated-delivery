@@ -13,7 +13,7 @@ Default to **trim**: win come from removing redundancy and resolving conflicts, 
 Run consistency checker, report findings, **quote its summary line verbatim** (the `gated-delivery audit: N skills, N agents, N hooks` line) as proof it ran. Reported result with no quoted output indistinguishable from guessed one. Same gate CI runs:
 
 ```bash
-node scripts/audit/consistency.mjs
+node scripts/audit/consistency.ts
 ```
 
 **Errors** are mechanical. Fix them, or, if the flow lives in a different checkout, file them. Don't proceed to Step 2 with the guard red.

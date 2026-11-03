@@ -4,7 +4,7 @@ Claude Code plugin — issue-driven, test-first delivery flow. The orchestration
 
 ## What it ships
 
-What ships, what each piece does and how the pieces call each other — all in **[`docs/skill-graph.md`](../docs/skill-graph.md)**, one inventory, kept honest by `scripts/audit/consistency.mjs` in CI.
+What ships, what each piece does and how the pieces call each other — all in **[`docs/skill-graph.md`](../docs/skill-graph.md)**, one inventory, kept honest by `scripts/audit/consistency.ts` in CI.
 
 ## Dev flow at a glance
 

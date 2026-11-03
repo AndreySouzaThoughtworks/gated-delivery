@@ -41,27 +41,31 @@ const PROBE_TIMEOUT_MS = 120000;
 const PROBE_DETAIL_CHARS = 200;
 const CREDENTIAL_HINT = "runs ignore the user settings source, so set a working ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN (claude setup-token)";
 const VERDICTS_FILE = "verdicts.json";
-const RUNNER = join("scripts", "eval", "run-scenarios.mjs");
+const RUNNER = join("scripts", "eval", "run-scenarios.ts");
 
 const USAGE = [
-  "usage: changed-skills.mjs [skill…] [--full] [--budget-usd N] [--total-budget-usd N] [--model M] [--jobs N]",
-  '       changed-skills.mjs --waive <skill> --reason "<text>"',
+  "usage: changed-skills.ts [skill…] [--full] [--budget-usd N] [--total-budget-usd N] [--model M] [--jobs N]",
+  '       changed-skills.ts --waive <skill> --reason "<text>"',
   "exit codes: 0 passed, waived or nothing to run, 1 evals failed, 2 usage error, 3 claude cannot run so no eval ran, 4 harness error (an internal check or file operation failed)",
 ].join("\n");
 const WAIVER_KEY = "waived";
 const VALUE_FLAGS = ["--budget-usd", "--total-budget-usd", "--model", "--jobs"];
 
-const isHashedSkillFile = (pathInsideSkill) => {
+type Report = { verdicts: Record<string, string>; totalCostUsd?: number };
+type Outcome = { skill: string; hash: string; passed: false; report?: undefined } | { skill: string; hash: string; passed: boolean; report: Report };
+type Options = { skills: string[]; full: boolean; passthrough: string[]; waive: string | null; reason: string | null; error: string | null };
+
+const isHashedSkillFile = (pathInsideSkill: string) => {
   if (pathInsideSkill === EVALS_FILE) return false;
   return !(pathInsideSkill.startsWith(SCRIPTS_PREFIX) && TEST_FILE.test(pathInsideSkill));
 };
 
-const filesUnder = (dir) => {
-  const files = existsSync(dir) ? readdirSync(dir, { recursive: true }).filter((name) => statSync(join(dir, name)).isFile()) : [];
+const filesUnder = (dir: string) => {
+  const files = existsSync(dir) ? readdirSync(dir, { recursive: true, encoding: "utf8" }).filter((name) => statSync(join(dir, name)).isFile()) : [];
   return files;
 };
 
-const agentsNamedBy = (root, skill) => {
+const agentsNamedBy = (root: string, skill: string) => {
   const skillText = readFileSync(join(root, SKILLS_PREFIX, skill, SKILL_FILE), "utf8");
   const agents = filesUnder(join(root, AGENTS_PREFIX))
     .filter((name) => name.endsWith(".md"))
@@ -70,7 +74,7 @@ const agentsNamedBy = (root, skill) => {
   return agents;
 };
 
-export const skillHash = (root, skill) => {
+export const skillHash = (root: string, skill: string) => {
   const own = filesUnder(join(root, SKILLS_PREFIX, skill))
     .map((name) => name.split("\\").join("/"))
     .filter(isHashedSkillFile)
@@ -86,13 +90,13 @@ export const skillHash = (root, skill) => {
   return hash;
 };
 
-const git = (root, args) => {
+const git = (root: string, args: string[]) => {
   return execFileSync("git", args, { cwd: root, encoding: "utf8" });
 };
 
-const lines = (text) => text.split(LINE_BREAK).filter(Boolean); // zanity: ignore[assertion-density] -- text is git command output and the result is one split-and-filter whose only possible failures are the splitter's own guarantees
+const lines = (text: string) => text.split(LINE_BREAK).filter(Boolean); // zanity: ignore[assertion-density] -- text is git command output and the result is one split-and-filter whose only possible failures are the splitter's own guarantees
 
-export const changedPaths = (root, baseRef) => {
+export const changedPaths = (root: string, baseRef: string) => {
   const mergeBase = git(root, ["merge-base", baseRef, "HEAD"]).trim();
   assert(mergeBase !== "", `no merge base between ${baseRef} and HEAD; expected a commit, since an empty one diffs from the wrong point`);
   const paths = new Set([
@@ -100,11 +104,12 @@ export const changedPaths = (root, baseRef) => {
     ...lines(git(root, ["diff", "--name-only", "HEAD"])),
     ...lines(git(root, ["ls-files", "--others", "--exclude-standard"])),
   ]);
-  assert([...paths].every((path) => !isAbsolute(path)), "changedPaths returned an absolute path; expected paths relative to the repository root");
+  const absolutePaths = [...paths].filter((path) => isAbsolute(path));
+  assert(absolutePaths.length === 0, `changedPaths returned ${absolutePaths.length} absolute paths (${absolutePaths.join(", ")}); expected paths relative to the repository root`);
   return paths;
 };
 
-export const fileAtBase = (root, baseRef, path) => {
+export const fileAtBase = (root: string, baseRef: string, path: string) => {
   assert(baseRef !== "", `fileAtBase needs a base ref, got ${JSON.stringify(baseRef)}; expected a branch or commit name`);
   assert(!isAbsolute(path), `fileAtBase needs a path relative to the repository root, got ${path}`);
   const mergeBase = git(root, ["merge-base", baseRef, "HEAD"]).trim();
@@ -113,12 +118,12 @@ export const fileAtBase = (root, baseRef, path) => {
   return shown.status === 0 ? shown.stdout : null;
 };
 
-export const changedSkills = (root, baseRef) => {
+export const changedSkills = (root: string, baseRef: string) => {
   const skills = filesUnder(join(root, SKILLS_PREFIX))
     .map((name) => name.split(/[\\/]/)[0])
     .filter((name, index, all) => all.indexOf(name) === index)
     .filter((name) => existsSync(join(root, SKILLS_PREFIX, name, SKILL_FILE)));
-  const touched = new Set();
+  const touched = new Set<string>();
   for (const path of changedPaths(root, baseRef)) {
     const inSkill = path.match(SKILL_PATH);
     if (inSkill && isHashedSkillFile(inSkill[2])) touched.add(inSkill[1]);
@@ -129,20 +134,20 @@ export const changedSkills = (root, baseRef) => {
   return changed;
 };
 
-const stampPath = (root, skill) => {
+const stampPath = (root: string, skill: string) => {
   const path = join(root, RESULTS_DIR, `${skill}.json`);
   return path;
 };
 
-const readStamp = (root, skill) => {
+const readStamp = (root: string, skill: string): Record<string, unknown> => {
   return JSON.parse(readFileSync(stampPath(root, skill), "utf8"));
 };
 
-export const waiverReason = (root, skill) => {
+export const waiverReason = (root: string, skill: string) => {
   return readStamp(root, skill).waived;
 };
 
-export const stampStatus = (root, skill) => {
+export const stampStatus = (root: string, skill: string) => {
   if (!existsSync(stampPath(root, skill))) return "missing";
   const stamp = readStamp(root, skill);
   const waiver = stamp[WAIVER_KEY];
@@ -151,8 +156,8 @@ export const stampStatus = (root, skill) => {
   return Object.hasOwn(stamp, WAIVER_KEY) ? "waived" : "ok";
 };
 
-const parseArgs = (argv) => {
-  const options = { skills: [], full: false, passthrough: [], waive: null, reason: null };
+const parseArgs = (argv: string[]): Options => {
+  const options: Options = { skills: [], full: false, passthrough: [], waive: null, reason: null, error: null };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--full") options.full = true;
@@ -160,14 +165,14 @@ const parseArgs = (argv) => {
     else if (arg === "--reason" && argv[i + 1] !== undefined) options.reason = argv[++i];
     else if (VALUE_FLAGS.includes(arg) && argv[i + 1] !== undefined) options.passthrough.push(arg, argv[++i]);
     else if (!arg.startsWith("--")) options.skills.push(arg);
-    else return { error: `Unknown or incomplete argument: ${arg}` };
+    else return { ...options, error: `Unknown or incomplete argument: ${arg}` };
   }
   return options;
 };
 
 const EMPTY_PROBE_DETAIL = "claude reported an error and gave no detail";
 
-const probeProblem = (passthrough) => {
+const probeProblem = (passthrough: string[]) => {
   const scratch = mkdtempSync(join(tmpdir(), "gated-delivery-probe-"));
   let problem = null;
   try {
@@ -196,7 +201,7 @@ const probeProblem = (passthrough) => {
   return problem;
 };
 
-const runSkill = (root, skill, options) => {
+const runSkill = (root: string, skill: string, options: Options): Outcome => {
   const out = mkdtempSync(join(tmpdir(), `gated-delivery-changed-${skill}-`));
   const smokeDefaults = [
     ["--budget-usd", SMOKE_BUDGET_USD],
@@ -211,7 +216,7 @@ const runSkill = (root, skill, options) => {
   });
   const verdictsPath = join(out, VERDICTS_FILE);
   if (!existsSync(verdictsPath)) return { skill, passed: false, hash };
-  const report = JSON.parse(readFileSync(verdictsPath, "utf8"));
+  const report: Report = JSON.parse(readFileSync(verdictsPath, "utf8"));
   const verdicts = Object.values(report.verdicts);
   return {
     skill,
@@ -221,7 +226,7 @@ const runSkill = (root, skill, options) => {
   };
 };
 
-const writeStamp = (root, { skill, hash, report }, tier) => {
+const writeStamp = (root: string, { skill, hash, report }: { skill: string; hash: string; report: Report }, tier: string) => {
   const path = stampPath(root, skill);
   mkdirSync(dirname(path), { recursive: true });
   const stamp = {
@@ -235,7 +240,7 @@ const writeStamp = (root, { skill, hash, report }, tier) => {
   writeFileSync(path, `${JSON.stringify(stamp, null, 2)}\n`);
 };
 
-const optionsProblem = (options, root) => {
+const optionsProblem = (options: Options, root: string) => {
   if (options.waive === null && options.reason !== null) return "--reason belongs to --waive";
   if (options.waive !== null) {
     if (options.skills.length || options.full || options.passthrough.length) return "--waive takes no other skills or flags";
@@ -248,22 +253,22 @@ const optionsProblem = (options, root) => {
   return null;
 };
 
-const writeWaiver = (root, skill, reason) => {
+const writeWaiver = (root: string, skill: string, reason: string | null) => {
   const path = stampPath(root, skill);
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, `${JSON.stringify({ hash: skillHash(root, skill), [WAIVER_KEY]: reason, ranAt: new Date().toISOString() }, null, 2)}\n`);
   const status = stampStatus(root, skill);
 };
 
-const reportOutcome = (root, outcome, tier) => {
+const reportOutcome = (root: string, outcome: Outcome, tier: string) => {
   for (const [id, verdict] of Object.entries(outcome.report?.verdicts ?? {})) {
     if (verdict === VERDICT_FLAKY) console.log(`FLAKY ${outcome.skill} ${id}: failed once, passed on rerun`);
   }
-  if (outcome.passed) writeStamp(root, outcome, tier);
+  if (outcome.report !== undefined && outcome.passed) writeStamp(root, outcome, tier);
   console.log(`${outcome.passed ? "PASSED" : "FAILED"} ${outcome.skill} (${tier})`);
 };
 
-const main = (argv, root = process.cwd()) => {
+const main = (argv: string[], root = process.cwd()) => {
   const options = parseArgs(argv);
   const problem = options.error ?? optionsProblem(options, root);
   if (problem) {

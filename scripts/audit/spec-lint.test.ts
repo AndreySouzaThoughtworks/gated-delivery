@@ -12,13 +12,13 @@ const LINT = join(HERE, "..", "..", "plugin", "skills", "spec", "scripts", "spec
 const VALID = readFileSync(join(HERE, "fixtures", "valid-spec.md"), "utf8");
 const TEMPLATE = readFileSync(join(HERE, "..", "..", "plugin", "skills", "spec", "templates", "change.md"), "utf8");
 
-const swap = (from, to) => (text) => {
+const swap = (from: string, to: string) => (text: string) => {
   assert(text.includes(from), `the fixture must contain ${JSON.stringify(from)} so the mutation can apply, got ${text.length} characters without it`);
   assert(from !== to, `a mutation must change the text, got ${JSON.stringify(from)} replaced by itself`);
   return text.replace(from, to);
 };
 
-const REJECTED = [
+const REJECTED: [string, (text: string) => string, string][] = [
   ["a missing ticket key", swap("ticket: PROJ-123", "ticket: nope"), "frontmatter ticket"],
   ["a wrong type", swap("type: change", "type: bug"), "frontmatter type"],
   ["an unknown status", swap("status: Ready", "status: Done"), "frontmatter status"],

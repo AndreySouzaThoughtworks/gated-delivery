@@ -19,7 +19,7 @@ the same way as the rows above.
 
 ## Adding one
 
-Add a row above and a file beside it. Nothing in any skill changes. `scripts/audit/consistency.mjs`
+Add a row above and a file beside it. Nothing in any skill changes. `scripts/audit/consistency.ts`
 fails CI on a file with no row, a row with no file, and this index missing from `docs/skill-graph.md`.
 
 Add a reference when its subject has constraints a competent engineer would not guess and

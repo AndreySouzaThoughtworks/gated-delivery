@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const GUARD = join(dirname(fileURLToPath(import.meta.url)), "suppressions.mjs");
+const GUARD = join(dirname(fileURLToPath(import.meta.url)), "suppressions.ts");
 const COUNT_FILE = "scripts/audit/suppressions.count";
 const GOOD_REASON = "the retry loop already logs every failure upstream";
 
@@ -19,7 +19,7 @@ const SEMGREP = ["no", "semgrep"].join("");
 const C8 = ["c8", "ignore next"].join(" ");
 const SHELLCHECK = ["shellcheck", "disable=SC2086"].join(" ");
 
-const gitRepo = (files, allowed) => {
+const gitRepo = (files: Record<string, string>, allowed: number) => {
   assert(typeof allowed === "number", `the allowed count must be a number, got ${typeof allowed}`);
   assert(Object.keys(files).length > 0, `a fixture repo needs at least one file, got ${Object.keys(files).length}`);
   const dir = mkdtempSync(join(tmpdir(), "suppressions-test-"));
@@ -33,14 +33,14 @@ const gitRepo = (files, allowed) => {
   return dir;
 };
 
-const runGuard = (dir) => {
+const runGuard = (dir: string) => {
   assert(typeof dir === "string", `the guard runs in a directory path, got ${typeof dir}`);
   const result = spawnSync("node", [GUARD, "--repo", dir], { encoding: "utf8" });
   assert(result.status !== null, `the guard must exit on its own, got signal ${result.signal}`);
   return { code: result.status, out: result.stdout + result.stderr };
 };
 
-const verdict = (line, allowed = 1) => {
+const verdict = (line: string, allowed = 1) => {
   assert(typeof line === "string" && line.length > 0, `a fixture line must be non-empty text, got "${line}"`);
   assert(Number.isInteger(allowed), `the allowed count must be an integer, got ${allowed}`);
   return runGuard(gitRepo({ "src/a.mjs": `${line}\n` }, allowed));

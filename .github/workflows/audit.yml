@@ -42,6 +42,8 @@ jobs:
         run: node scripts/audit/consistency.ts
       - name: Suppression guard
         run: node scripts/audit/suppressions.ts
+      - name: JSDoc holds types only
+        run: node scripts/audit/jsdoc-types-only.ts
       - name: Zanity baseline only shrinks
         if: github.event_name == 'pull_request'
         run: node plugin/bootstrap/guards/ratchet.mjs --baseline zanity-baseline.json --base-ref "$GATED_DELIVERY_BASE_REF"
@@ -116,6 +118,8 @@ jobs:
         run: node scripts/audit/consistency.ts
       - name: Suppression guard
         run: node scripts/audit/suppressions.ts
+      - name: JSDoc holds types only
+        run: node scripts/audit/jsdoc-types-only.ts
       - name: Zanity baseline only shrinks
         if: github.event_name == 'pull_request'
         run: node plugin/bootstrap/guards/ratchet.mjs --baseline zanity-baseline.json --base-ref "$GATED_DELIVERY_BASE_REF"

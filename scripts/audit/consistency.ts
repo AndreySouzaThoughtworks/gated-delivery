@@ -660,6 +660,44 @@ for (const file of pluginScripts) {
   }
 }
 
+// --- 21. Cursor config and AGENTS.md point at real files, and the shell guard fails closed ---
+const CURSOR_HOOKS_FILE = ".cursor/hooks.json";
+const CURSOR_RULES_DIR = ".cursor/rules";
+const AGENTS_FILE = "AGENTS.md";
+const HOOK_SCRIPT_REFERENCE = /[\w./-]+\.(?:mjs|ts|sh|js)\b/g;
+const BACKTICKED_FILE = /`([\w./-]+\.(?:mjs|ts|json|md|mdc|toml|yml))`/g;
+const SHELL_GUARD_EVENT = "beforeShellExecution";
+const cursorHooksPath = join(ROOT, CURSOR_HOOKS_FILE);
+const cursorRulesPath = join(ROOT, CURSOR_RULES_DIR);
+const agentsPath = join(ROOT, AGENTS_FILE);
+if (existsSync(cursorHooksPath)) {
+  const events: Record<string, { command?: string; failClosed?: boolean }[]> = JSON.parse(read(cursorHooksPath)).hooks ?? {};
+  for (const [event, hooks] of Object.entries(events)) {
+    for (const hook of hooks) {
+      for (const script of hook.command?.match(HOOK_SCRIPT_REFERENCE) ?? []) {
+        if (!existsSync(join(ROOT, script))) errors.push(`${CURSOR_HOOKS_FILE}: ${event} runs ${script}, which does not exist. Hint: point the hook at a real script or remove it.`);
+      }
+      if (event === SHELL_GUARD_EVENT && hook.failClosed !== true) {
+        errors.push(`${CURSOR_HOOKS_FILE}: the ${event} hook "${hook.command}" must set "failClosed": true. Hint: Cursor lets the command run when a hook crashes unless failClosed is set.`);
+      }
+    }
+  }
+}
+if (existsSync(cursorRulesPath)) {
+  for (const name of readdirSync(cursorRulesPath)) {
+    if (!name.endsWith(".mdc")) errors.push(`${CURSOR_RULES_DIR}/${name} is not .mdc, so Cursor ignores it. Hint: rename it to .mdc.`);
+    else if (!read(join(cursorRulesPath, name)).includes(AGENTS_FILE)) errors.push(`${CURSOR_RULES_DIR}/${name} does not point at ${AGENTS_FILE}. Hint: keep the rules in ${AGENTS_FILE} and have this file refer to it.`);
+  }
+}
+if (existsSync(cursorHooksPath) || existsSync(cursorRulesPath)) {
+  if (!existsSync(agentsPath)) errors.push(`${AGENTS_FILE} is missing but .cursor/ points at it. Hint: restore ${AGENTS_FILE}.`);
+}
+if (existsSync(agentsPath)) {
+  for (const [, path] of read(agentsPath).matchAll(BACKTICKED_FILE)) {
+    if (!existsSync(join(ROOT, path))) errors.push(`${AGENTS_FILE} names ${path}, which does not exist. Hint: fix the path or drop the rule's reference.`);
+  }
+}
+
 // --- report ---
 console.log(
   `gated-delivery audit: ${skills.length} skills, ${agents.length} agents, ${hookFiles.size} hooks` +

@@ -1,0 +1,6 @@
+---
+description: Repo rules for gated-delivery; the single source is AGENTS.md
+alwaysApply: true
+---
+
+Follow every rule in AGENTS.md at the repo root. Do not restate them here.

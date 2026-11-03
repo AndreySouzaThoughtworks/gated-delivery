@@ -50,7 +50,7 @@ jobs:
       - name: Hook behaviour tests
         run: node --test plugin/hooks/*.test.mjs
       - name: Script tests (the guard and the eval runner)
-        run: node --test scripts/audit/*.test.ts scripts/eval/*.test.ts
+        run: node --test scripts/audit/*.test.ts scripts/eval/*.test.ts scripts/cursor/*.test.ts
       - name: Bootstrap and client guard tests
         run: node --test plugin/bootstrap/*.test.mjs plugin/bootstrap/guards/*.test.mjs
       - name: Eval checks are runnable
@@ -126,7 +126,7 @@ jobs:
       - name: Hook behaviour tests
         run: node --test plugin/hooks/*.test.mjs
       - name: Script tests (the guard and the eval runner)
-        run: node --test scripts/audit/*.test.ts scripts/eval/*.test.ts
+        run: node --test scripts/audit/*.test.ts scripts/eval/*.test.ts scripts/cursor/*.test.ts
       - name: Bootstrap and client guard tests
         run: node --test plugin/bootstrap/*.test.mjs plugin/bootstrap/guards/*.test.mjs
       - name: Eval checks are runnable

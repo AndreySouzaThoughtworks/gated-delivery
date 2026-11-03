@@ -52,6 +52,7 @@ export const commandFromInstructions = ({ cwd, home: configuredHome }) => {
 
 /** @param {{ cwd: string }} location */
 export const commandFromPackage = ({ cwd }) => {
+  assert(typeof cwd === "string" && cwd.length > 0, `cwd must be a non-empty path, got ${JSON.stringify(cwd)}`);
   let scripts;
   try {
     scripts = JSON.parse(readFileSync(resolve(cwd, "package.json"), "utf8")).scripts;
@@ -59,13 +60,17 @@ export const commandFromPackage = ({ cwd }) => {
     scripts = undefined;
   }
   const name = SCRIPT_ORDER.find((candidate) => scripts?.[candidate]);
-  return name && `${RUNNER} ${name}`;
+  const command = name && `${RUNNER} ${name}`;
+  assert(command === undefined || command.startsWith(`${RUNNER} `), `a package command must run through ${RUNNER}, got ${JSON.stringify(command)}`);
+  return command;
 };
 
 /** @param {{ env?: Record<string, string | undefined>, cwd?: string, home?: string }} [options] */
 export const resolveVerifyCmd = ({ env = process.env, cwd = process.cwd(), home = env.HOME || homedir() } = {}) => {
+  assert(typeof cwd === "string" && cwd.length > 0, `cwd must be a non-empty path, got ${JSON.stringify(cwd)}`);
   const fromEnv = env[VERIFY_ENV]?.trim() || undefined;
   const command = fromEnv ?? commandFromInstructions({ cwd, home }) ?? commandFromPackage({ cwd });
+  assert(command === undefined || command.trim().length > 0, `a resolved verify command must not be blank, got ${JSON.stringify(command)}`);
   return command;
 };
 

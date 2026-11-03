@@ -85,6 +85,8 @@ const idsIn = (text) => {
  * @returns {HeadingPart[]}
  */
 const splitByHeading = (text, level) => {
+  assert(typeof text === "string", `the text to split must be a string, got ${typeof text}`);
+  assert(Number.isInteger(level) && level >= 1, `a heading level must be a whole number from 1, got ${level}`);
   const hashes = "#".repeat(level);
   const marks = [...text.matchAll(new RegExp(`^${hashes} (.+)$`, "gm"))];
   const parts = marks.map((mark, i) => ({
@@ -101,6 +103,7 @@ const splitByHeading = (text, level) => {
  * @returns {Spec}
  */
 export const parseSpec = (raw) => {
+  assert(typeof raw === "string", `a spec must be text, got ${typeof raw}`);
   const block = raw.match(/^---\n([\s\S]*?)\n---\n/);
   /** @type {Record<string, string>} */
   const frontmatter = {};
@@ -109,6 +112,7 @@ export const parseSpec = (raw) => {
     if (colon > 0) frontmatter[line.slice(0, colon).trim()] = line.slice(colon + 1).trim();
   }
   const body = raw.slice(block?.[0].length ?? 0);
+  assert(body.length <= raw.length, `the body cannot be longer than the file, got ${body.length} of ${raw.length} characters`);
   const prose = body.replace(FENCE, "");
   const sections = splitByHeading(prose, 2);
   const bodies = Object.fromEntries(sections.map((s) => [s.title, s.body]));
@@ -261,9 +265,11 @@ const RULES = [
  * @param {string} raw
  */
 export const lintSpec = (raw) => {
+  assert(typeof raw === "string", `a spec must be text, got ${typeof raw}`);
   const spec = parseSpec(raw);
   const problems = RULES.flatMap((rule) => rule(spec));
   assert(spec.sections.length > 0 || problems.length > 0, `a file with no sections must be reported, got ${spec.sections.length} sections and ${problems.length} problems; a spec needs the template sections`);
+  assert(problems.every((problem) => typeof problem === "string" && problem.length > 0), `each problem must be a non-empty message, got ${JSON.stringify(problems)}`);
   return problems;
 };
 

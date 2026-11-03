@@ -7,7 +7,7 @@
 import assert from "node:assert";
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
-import { BASE_REF_ENV, changedSkills, stampStatus, waiverReason } from "../eval/changed-skills.mjs";
+import { BASE_REF_ENV, changedPaths, changedSkills, fileAtBase, stampStatus, waiverReason } from "../eval/changed-skills.mjs";
 import { parseChecks, scenarioIds } from "../eval/run-checks.mjs";
 
 const ROOT = process.cwd();
@@ -614,6 +614,27 @@ if (baseRef) {
     } else if (status !== "ok") {
       errors.push(`skill ${skill} ${STAMP_PROBLEM[status]}. Hint: skill ${skill} changed since its evals last passed; run node scripts/eval/changed-skills.mjs and commit evals/results/${skill}.json`);
     }
+  }
+}
+
+// --- 19. A change to shipped plugin files against the base ref carries a version bump ---
+// Installs cache the plugin by version. Behaviour merged under a version that did not change never
+// reaches an install, so a hook deleted from main kept firing from the cached copy and failed every
+// Stop event with MODULE_NOT_FOUND.
+const PLUGIN_PREFIX = "plugin/";
+const VERSION_FILE = "plugin/.claude-plugin/plugin.json";
+const TEST_FILE_NAME = /\.test\.[^/]+$/;
+const MAX_NAMED_FILES = 3;
+if (baseRef) {
+  const shipped = [...changedPaths(ROOT, baseRef)]
+    .filter((path) => path.startsWith(PLUGIN_PREFIX) && path !== VERSION_FILE && !TEST_FILE_NAME.test(path))
+    .sort();
+  const versionAtBase = JSON.parse(fileAtBase(ROOT, baseRef, VERSION_FILE) ?? "{}").version;
+  const versionNow = existsSync(pluginManifest) ? JSON.parse(read(pluginManifest)).version : undefined;
+  if (shipped.length && versionAtBase !== undefined && versionAtBase === versionNow) {
+    const named = shipped.slice(0, MAX_NAMED_FILES).join(", ");
+    const more = shipped.length > MAX_NAMED_FILES ? ` and ${shipped.length - MAX_NAMED_FILES} more` : "";
+    errors.push(`plugin files changed (${named}${more}) but the version is still ${versionNow}. Installs cache the plugin by version, so they never receive these changes. Hint: bump the version in ${VERSION_FILE} and .claude-plugin/marketplace.json in this PR`);
   }
 }
 

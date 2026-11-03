@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "node scripts/cursor/guard-shell.mjs",
+        "type": "command",
+        "failClosed": true
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "node scripts/cursor/format-edit.mjs",
+        "type": "command"
+      }
+    ]
+  }
+}

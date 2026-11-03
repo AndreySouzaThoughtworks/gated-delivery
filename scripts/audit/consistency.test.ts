@@ -849,3 +849,43 @@ test("a plugin file that imports .mjs or only mentions .ts text stays silent", (
   assert.equal(code, 0, out);
   assert.doesNotMatch(out, /imports TypeScript/);
 });
+
+const CURSOR_HOOKS = ".cursor/hooks.json";
+const cursorHooks = (hook: { command: string; failClosed?: boolean }) => {
+  assert(hook.command.length > 0, `a hook needs a command, got ${JSON.stringify(hook)}`);
+  const config = JSON.stringify({ version: 1, hooks: { beforeShellExecution: [hook] } });
+  assert(config.includes(hook.command), `the config must carry the command ${hook.command}, got ${config}`);
+  return config;
+};
+
+test("a Cursor config that points at real files and fails closed passes; a missing script, an open guard or a stray rule fails", () => {
+  const dir = validRepo();
+  write(dir, "AGENTS.md", "Rules. See `zanity.toml` and `scripts/cursor/guard.mjs`.\n");
+  write(dir, "scripts/cursor/guard.mjs", "process.exit(0);\n");
+  write(dir, CURSOR_HOOKS, cursorHooks({ command: "node scripts/cursor/guard.mjs", failClosed: true }));
+  write(dir, ".cursor/rules/repo.mdc", "---\nalwaysApply: true\n---\nFollow AGENTS.md.\n");
+  const clean = runGuard(dir);
+  assert.equal(clean.code, 0, clean.out);
+
+  write(dir, CURSOR_HOOKS, cursorHooks({ command: "node scripts/cursor/gone.mjs", failClosed: true }));
+  const missing = runGuard(dir);
+  assert.equal(missing.code, 1);
+  assert.match(missing.out, /beforeShellExecution runs scripts\/cursor\/gone\.mjs, which does not exist/);
+
+  write(dir, CURSOR_HOOKS, cursorHooks({ command: "node scripts/cursor/guard.mjs" }));
+  const open = runGuard(dir);
+  assert.equal(open.code, 1);
+  assert.match(open.out, /must set "failClosed": true/);
+
+  write(dir, CURSOR_HOOKS, cursorHooks({ command: "node scripts/cursor/guard.mjs", failClosed: true }));
+  write(dir, ".cursor/rules/stray.md", "ignored by Cursor\n");
+  write(dir, ".cursor/rules/loose.mdc", "---\nalwaysApply: true\n---\nProse that duplicates the rules.\n");
+  const stray = runGuard(dir);
+  assert.equal(stray.code, 1);
+  assert.match(stray.out, /stray\.md is not \.mdc/);
+  assert.match(stray.out, /loose\.mdc does not point at AGENTS\.md/);
+
+  write(dir, "AGENTS.md", "See `docs/gone.md`.\n");
+  const dangling = runGuard(dir);
+  assert.match(dangling.out, /AGENTS\.md names docs\/gone\.md, which does not exist/);
+});

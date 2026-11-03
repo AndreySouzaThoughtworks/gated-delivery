@@ -2,7 +2,7 @@
 import assert from "node:assert";
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 
 const COUNT_FILE = "scripts/audit/suppressions.count";
@@ -36,6 +36,8 @@ const STOPWORDS = new Set(
 const REGEX_SPECIALS = /[.*+?^${}()|[\]\\/]/g;
 
 const boundedPhrase = (phrase: string) => {
+  assert(phrase.trim() !== "", `boundedPhrase needs a phrase, got ${JSON.stringify(phrase)}; an empty one matches everywhere`);
+  assert(phrase === phrase.toLowerCase(), `boundedPhrase needs a lowercase phrase, got ${JSON.stringify(phrase)}; reasons are lowercased before matching`);
   const bounded = new RegExp(`(?<![a-z0-9])${phrase.replace(REGEX_SPECIALS, "\\$&")}(?![a-z0-9])`, "g");
   return bounded;
 };
@@ -47,6 +49,8 @@ const meaningfulWords = (reason: string) => { // zanity: ignore[assertion-densit
 };
 
 const reasonProblem = (rest: string) => {
+  assert(typeof rest === "string", `reasonProblem needs the text after a marker, got ${typeof rest}`);
+  assert(!rest.includes("\n"), `reasonProblem reads one source line, got ${JSON.stringify(rest)}`);
   const found = rest.replace(COMMENT_CLOSERS, "").match(REASON_SEPARATOR);
   if (!found) return `has no reason; write ${REASON_FORMAT}`;
   const words = meaningfulWords(found[1]);
@@ -57,6 +61,8 @@ const reasonProblem = (rest: string) => {
 };
 
 const ruleProblem = (label: string, bracket: string | undefined, markerText: string) => {
+  assert(MARKERS.some((marker) => marker.label === label), `ruleProblem got marker label ${JSON.stringify(label)}; expected one of ${MARKERS.map((marker) => marker.label).join(", ")}`);
+  assert(markerText.trim() !== "", `ruleProblem needs the matched marker text, got ${JSON.stringify(markerText)}`);
   if (label !== "zanity") return null;
   const rules = (bracket ?? "").split(",").map((rule) => rule.trim()).filter(Boolean);
   if (rules.length === 1) return null;
@@ -77,6 +83,8 @@ const trackedFiles = (repo: string) => {
 };
 
 const findSuppressions = (repo: string) => {
+  assert(isAbsolute(repo), `findSuppressions needs an absolute repo path, got ${repo}; resolve it first`);
+  assert(existsSync(join(repo, ".git")), `${repo} has no .git; expected the root of a git checkout, since tracked files come from git ls-files`);
   const found: Suppression[] = [];
   for (const file of trackedFiles(repo)) {
     const body = readFileSync(join(repo, file), "utf8");
@@ -92,6 +100,7 @@ const findSuppressions = (repo: string) => {
 };
 
 const allowedCount = (repo: string) => {
+  assert(isAbsolute(repo), `allowedCount needs an absolute repo path, got ${repo}; resolve it first`);
   const path = join(repo, COUNT_FILE);
   if (!existsSync(path)) return null;
   const allowed = Number.parseInt(readFileSync(path, "utf8").trim(), 10);

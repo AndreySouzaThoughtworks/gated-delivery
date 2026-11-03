@@ -166,6 +166,15 @@ test("a skill is changed by its own files and its named agents, not by evals.md 
   assert.deepEqual(changedSkills(root, BASE), ["demo"]);
 });
 
+test("hash and stamp lookups reject a skill name that is a path or empty, and changedSkills a blank base ref", () => {
+  const root = fakeRepo();
+  for (const skill of ["", "..", "../escape", "nested/skill"]) {
+    assert.throws(() => skillHash(root, skill), /needs a skill folder name/);
+    assert.throws(() => stampStatus(root, skill), /needs a skill folder name/);
+  }
+  assert.throws(() => changedSkills(root, ""), /needs a base ref/);
+});
+
 test("an uncommitted skill edit counts as a change", () => {
   const root = fakeRepo();
   write(root, "plugin/skills/demo/SKILL.md", "# demo\nDispatches the bot agent. Edited.\n");

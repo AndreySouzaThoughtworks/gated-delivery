@@ -32,6 +32,7 @@ const dirs = (p: string) => {
 };
 
 function frontmatterName(file: string) {
+  assert(file.endsWith(MARKDOWN_EXTENSION), `frontmatterName reads markdown frontmatter, got ${file}`);
   // Callers reach here for files they have already reported as missing; reading one threw ENOENT and
   // killed the process before the report block could print the error it had just recorded.
   if (!existsSync(file)) return null;
@@ -144,6 +145,7 @@ const NOT_LOCAL_NAMES = new Set([
 ]);
 const markdownFiles = (dir: string): string[] => {
   assert(existsSync(dir), `${dir} must exist before its markdown is listed, got none; restore it`);
+  assert(statSync(dir).isDirectory(), `${dir} must be a folder before its markdown is listed, got a file; point at the folder`);
   const found = readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
     e.isDirectory() ? markdownFiles(join(dir, e.name)) : e.name.endsWith(MARKDOWN_EXTENSION) ? [join(dir, e.name)] : [],
   );

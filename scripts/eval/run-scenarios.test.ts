@@ -759,3 +759,15 @@ test("a scenario whose Pass Criteria is the em dash never reaches the judge; one
   assert.equal(judged.judge, "UNCLEAR");
   assert.equal(existsSync(join(out, SKILL, "2", "skill-1", "judge.json")), true);
 });
+
+test("fillTemplate refuses a template that would drop the prompt", () => {
+  assert.throws(() => fillTemplate("CONTEXT: {{PERSONA}}", "go", "a reviewer"), /a template must carry \{\{PROMPT\}\}/);
+});
+
+test("scenarioVerdicts refuses repeated scenario ids, which would collapse into one verdict", () => {
+  assert.throws(() => scenarioVerdicts({ ids: ["1", "1"], results: [], unlaunchedIds: new Set(), rerunFailures: false }), /scenario ids must be unique/);
+});
+
+test("smokeScenarioIds refuses an empty scenario list", () => {
+  assert.throws(() => smokeScenarioIds("", []), /needs at least one scenario/);
+});

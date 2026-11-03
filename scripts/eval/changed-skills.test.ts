@@ -5,10 +5,10 @@ import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSy
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { changedSkills, skillHash, stampStatus } from "./changed-skills.mjs";
+import { changedSkills, skillHash, stampStatus } from "./changed-skills.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SCRIPT_NAMES = ["changed-skills.mjs", "run-scenarios.mjs", "run-checks.mjs"];
+const SCRIPT_NAMES = ["changed-skills.ts", "run-scenarios.ts", "run-checks.ts"];
 const EXECUTABLE_MODE = 0o755;
 const BASE = "main";
 const FEATURE_BRANCH = "feature";
@@ -58,13 +58,13 @@ console.log(JSON.stringify({ type: "assistant", message: { content: [{ type: "to
 console.log(JSON.stringify({ type: "result", result: text, total_cost_usd: 0.1, permission_denials: [] }));
 `;
 
-const git = (cwd, args) => {
+const git = (cwd: string, args: string[]) => {
   assert(existsSync(cwd), `git ran in ${cwd}, which does not exist; expected an existing repository folder`);
   assert(args.length > 0, `git got ${JSON.stringify(args)}; expected at least one subcommand argument`);
   return execFileSync("git", args, { cwd, encoding: "utf8", env: { ...process.env, ...GIT_IDENTITY } });
 };
 
-const write = (root, path, body) => {
+const write = (root: string, path: string, body: string) => {
   assert(!isAbsolute(path), `write got absolute path ${path}; expected a path relative to the fake repository`);
   mkdirSync(dirname(join(root, path)), { recursive: true });
   writeFileSync(join(root, path), body);
@@ -95,7 +95,7 @@ const fakeRepo = () => {
   return root;
 };
 
-const commitAll = (root) => {
+const commitAll = (root: string) => {
   const pending = git(root, ["status", "--porcelain"]);
   assert(pending !== "", `commitAll got status ${JSON.stringify(pending)}; expected uncommitted edits, so the test must edit a file first`);
   git(root, ["add", "."]);
@@ -103,17 +103,18 @@ const commitAll = (root) => {
   assert(git(root, ["status", "--porcelain"]) === "", "commitAll left uncommitted files; expected a clean tree after the commit");
 };
 
-const claudeCalls = (root) => {
+const claudeCalls = (root: string) => {
   assert(existsSync(join(root, "stub-log")), `claudeCalls found no stub-log folder under ${JSON.stringify(root)}; expected fakeRepo to create it`);
   const log = join(root, "stub-log", "calls");
   const calls = existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").map((line) => JSON.parse(line)) : [];
-  assert(calls.every((call) => call.length > 0), "claudeCalls read a call with no arguments; expected every logged call to carry its argv");
+  const emptyCalls = calls.filter((call) => call.length === 0);
+  assert(emptyCalls.length === 0, `claudeCalls read ${emptyCalls.length} calls with no arguments; expected every logged call to carry its argv`);
   return calls;
 };
 
-const runChangedSkills = (root, args = [], env = {}) => {
+const runChangedSkills = (root: string, args: string[] = [], env: Record<string, string> = {}) => {
   assert(existsSync(join(root, "bin", "claude")), `runChangedSkills found no stub claude under ${JSON.stringify(root)}; expected fakeRepo to install one`);
-  const result = spawnSync("node", ["scripts/eval/changed-skills.mjs", ...args], {
+  const result = spawnSync("node", ["scripts/eval/changed-skills.ts", ...args], {
     cwd: root,
     encoding: "utf8",
     env: {
@@ -124,12 +125,12 @@ const runChangedSkills = (root, args = [], env = {}) => {
       ...env,
     },
   });
-  assert(result.error === undefined, `changed-skills.mjs did not start: ${result.error?.message}`);
-  assert(result.signal === null, `changed-skills.mjs was killed by ${result.signal}; expected it to exit on its own`);
+  assert(result.error === undefined, `changed-skills.ts did not start: ${result.error?.message}`);
+  assert(result.signal === null, `changed-skills.ts was killed by ${result.signal}; expected it to exit on its own`);
   return result;
 };
 
-const stampOf = (root) => {
+const stampOf = (root: string) => {
   const stampFile = join(root, "evals", "results", "demo.json");
   assert(existsSync(stampFile), `stampOf found no stamp at ${JSON.stringify(stampFile)}; expected the run to have written one`);
   const stamp = JSON.parse(readFileSync(stampFile, "utf8"));
@@ -171,11 +172,12 @@ test("an uncommitted skill edit counts as a change", () => {
   assert.deepEqual(changedSkills(root, BASE), ["demo"]);
 });
 
-const probeCalls = (root) => {
+const probeCalls = (root: string) => {
   assert(existsSync(join(root, "stub-log")), `probeCalls found no stub-log folder under ${JSON.stringify(root)}; expected fakeRepo to create it`);
   const log = join(root, "stub-log", "calls.probe");
   const calls = existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").map((line) => JSON.parse(line)) : [];
-  assert(calls.every((call) => call.args.includes("--output-format")), "probeCalls read a call without --output-format; expected only probe runs in this log");
+  const nonProbeCalls = calls.filter((call) => !call.args.includes("--output-format"));
+  assert(nonProbeCalls.length === 0, `probeCalls read ${nonProbeCalls.length} calls without --output-format; expected only probe runs in this log`);
   return calls;
 };
 
@@ -292,7 +294,7 @@ test("--budget-usd overrides the smoke default", () => {
   assert.deepEqual(readdirSync(join(root, "evals", "results")), ["demo.json"]);
 });
 
-const writeStamp = (root, stamp) => {
+const writeStamp = (root: string, stamp: Record<string, unknown>) => {
   assert(existsSync(root), `writeStamp got ${root}, which does not exist; expected a fake repository`);
   assert(Object.hasOwn(stamp, "hash"), `writeStamp got ${JSON.stringify(stamp)}; expected every stamp to carry the hash it vouches for`);
   write(root, "evals/results/demo.json", JSON.stringify(stamp));

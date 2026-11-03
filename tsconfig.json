@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "es2023",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+    "strict": true,
+    "noEmit": true,
+    "erasableSyntaxOnly": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "allowJs": true,
+    "checkJs": false
+  },
+  "include": ["scripts/**/*", "plugin/**/*.ts", "plugin/**/*.mjs"],
+  "exclude": ["node_modules", "scripts/audit/fixtures", "plugin/**/fixtures"]
+}

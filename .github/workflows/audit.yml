@@ -39,20 +39,20 @@ jobs:
         with:
           node-version: 22
       - name: Plugin consistency
-        run: node scripts/audit/consistency.mjs
+        run: node scripts/audit/consistency.ts
       - name: Suppression guard
-        run: node scripts/audit/suppressions.mjs
+        run: node scripts/audit/suppressions.ts
       - name: Zanity baseline only shrinks
         if: github.event_name == 'pull_request'
         run: node plugin/bootstrap/guards/ratchet.mjs --baseline zanity-baseline.json --base-ref "$GATED_DELIVERY_BASE_REF"
       - name: Hook behaviour tests
         run: node --test plugin/hooks/*.test.mjs
       - name: Script tests (the guard and the eval runner)
-        run: node --test scripts/audit/*.test.mjs scripts/eval/*.test.mjs
+        run: node --test scripts/audit/*.test.ts scripts/eval/*.test.ts
       - name: Bootstrap and client guard tests
         run: node --test plugin/bootstrap/*.test.mjs plugin/bootstrap/guards/*.test.mjs
       - name: Eval checks are runnable
-        run: node scripts/eval/run-checks.mjs --lint
+        run: node scripts/eval/run-checks.ts --lint
       - name: Leak guard self-test
         run: bash tests/leak-guard.test.sh
       - name: Slice worktree and verify-lock tests
@@ -69,7 +69,7 @@ jobs:
         with:
           node-version: 22
       - name: Verify-command resolver tests
-        run: node --test scripts/*.test.mjs
+        run: node --test scripts/*.test.ts
       - name: Spec lint accepts the known-good spec
         run: node plugin/skills/spec/scripts/spec-lint.mjs scripts/audit/fixtures/valid-spec.md
       - name: Deskcheck lint accepts the known-good page
@@ -79,3 +79,18 @@ jobs:
           for file in plugin/skills/issue-writing/templates/*.md plugin/skills/issue-writing/examples/*.md; do
             node plugin/skills/issue-writing/scripts/guardrail-scan.mjs "$file"
           done
+
+  typecheck:
+    name: typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Install dev dependencies
+        run: npm ci
+      - name: Type check
+        run: npx tsc --noEmit

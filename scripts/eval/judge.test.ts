@@ -1,4 +1,4 @@
-// Behaviour check for the Pass Criteria judge. Run: node --test scripts/eval/judge.test.mjs
+// Behaviour check for the Pass Criteria judge. Run: node --test scripts/eval/judge.test.ts
 //
 // No live model: a stub `claude` reached through GATED_DELIVERY_CLAUDE_BIN prints a canned reply
 // and records the arguments it was given.
@@ -6,14 +6,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import type { SpawnSyncReturns } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { aggregate, findRow, readRun, settle, splitClauses } from "./judge.mjs";
+import { aggregate, findRow, readRun, settle, splitClauses } from "./judge.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const JUDGE = join(HERE, "judge.mjs");
+const JUDGE = join(HERE, "judge.ts");
 
 const EXIT = { PASS: 0, FAIL: 1, HARNESS: 2, UNCLEAR: 3 };
 
@@ -39,6 +40,10 @@ const scratch = () => {
   return dir;
 };
 
+type Quote = { file: string; line?: number; text: string };
+type Clause = { id: number } & Record<string, unknown>;
+type StubCall = { args: string[]; cwd: string; cwdFiles: string[]; stdin: string };
+
 const repoWith = () => {
   const repo = scratch();
   const evalsPath = join(repo, "plugin", "skills", "demo", "evals.md");
@@ -49,7 +54,7 @@ const repoWith = () => {
   return repo;
 };
 
-const runDirWith = (output = "I routed it as a Task and wrote nothing.\n", extraFiles = {}) => {
+const runDirWith = (output = "I routed it as a Task and wrote nothing.\n", extraFiles: Record<string, string> = {}) => {
   assert(!Object.hasOwn(extraFiles, "output.md"), `extra files must not replace output.md, got ${Object.keys(extraFiles)}`);
   assert(Object.keys(extraFiles).every((name) => !name.includes("..")), `extra file names must stay inside the run directory, got ${Object.keys(extraFiles)}`);
   const dir = scratch();
@@ -59,7 +64,7 @@ const runDirWith = (output = "I routed it as a Task and wrote nothing.\n", extra
   return dir;
 };
 
-const stubClaude = (reply, exitCode = 0) => {
+const stubClaude = (reply: unknown, exitCode = 0) => {
   assert(exitCode >= 0 && exitCode <= MAX_EXIT_CODE, `the stub exit code must fit a process status, got ${exitCode}`);
   const dir = scratch();
   const bin = join(dir, "claude");
@@ -77,17 +82,17 @@ process.exit(${exitCode});
   );
   chmodSync(bin, EXECUTABLE_MODE);
   assert((statSync(bin).mode & ANY_EXECUTE_BIT) !== 0, `the stub ${bin} must be executable`);
-  return { bin, call: () => JSON.parse(readFileSync(argsLog, "utf8")) };
+  return { bin, call: (): StubCall => JSON.parse(readFileSync(argsLog, "utf8")) };
 };
 
-const structured = (clauses) => {
+const structured = (clauses: Clause[]) => {
   const ids = clauses.map((clause) => clause.id);
   assert(ids.every(Number.isInteger), `structured got clause ids ${JSON.stringify(ids)}; expected integer ids`);
   assert(new Set(ids).size === ids.length, `structured got clause ids ${JSON.stringify(ids)}; expected one clause per id`);
   return { type: "result", is_error: false, structured_output: { clauses } };
 };
 
-const runJudge = (args, { bin, cwd }) => {
+const runJudge = (args: string[], { bin, cwd }: { bin: string; cwd: string }) => {
   assert(existsSync(bin), `the stub claude must exist, got ${bin}`);
   assert(existsSync(cwd), `the judge working directory must exist, got ${cwd}`);
   const result = spawnSync("node", [JUDGE, ...args], {
@@ -123,8 +128,8 @@ test("a full stop inside a code span or parenthesis does not split", () => {
 
 test("finds a row by id and unescapes table pipes", () => {
   const row = findRow(EVALS, "R2");
-  assert.equal(row.prompt, '"Check | pipes."');
-  assert.match(row.criteria, /^Asks one question/);
+  assert.equal(row?.prompt, '"Check | pipes."');
+  assert.match(row?.criteria, /^Asks one question/);
 });
 
 test("a missing row is null, and an id is matched whole", () => {
@@ -133,7 +138,7 @@ test("a missing row is null, and an id is matched whole", () => {
 });
 
 test("verdict: any FAIL is FAIL, else any UNCLEAR is UNCLEAR, else PASS", () => {
-  const of = (results) => {
+  const of = (results: string[]) => {
     assert(results.every((result) => RESULT_NAMES.includes(result)), `results must be PASS, FAIL or UNCLEAR, got ${results}`);
     const verdict = aggregate(results.map((result) => ({ result })));
     assert(RESULT_NAMES.includes(verdict), `the verdict must be PASS, FAIL or UNCLEAR, got ${verdict}`);
@@ -145,7 +150,7 @@ test("verdict: any FAIL is FAIL, else any UNCLEAR is UNCLEAR, else PASS", () => 
   assert.equal(of([]), "UNCLEAR", "no clauses graded is not a pass");
 });
 
-const runOf = (files) => {
+const runOf = (files: Record<string, string>) => {
   assert(Object.keys(files).every((name) => !name.startsWith("/") && !name.includes("..")), `run file names must be relative and stay inside the run, got ${Object.keys(files)}`);
   const dir = runDirWith(files["output.md"] ?? "I routed it as a Task and wrote nothing.\n");
   for (const [name, body] of Object.entries(files)) {
@@ -157,13 +162,13 @@ const runOf = (files) => {
   return run;
 };
 
-const q = (text, file = "output.md", line) => {
+const q = (text: string, file = "output.md", line?: number): Quote => {
   assert(line === undefined || line >= 1, `a quoted line number starts at 1, got ${line}; 0 would be dropped silently`);
   assert(file.trim() !== "", `a quote must name a file, got ${JSON.stringify(file)}`);
   return { file, text, ...(line && { line }) };
 };
 
-const resultsOf = (quoteLists, files = {}) => {
+const resultsOf = (quoteLists: Quote[][], files: Record<string, string> = {}) => {
   assert(quoteLists.length > 0, `a settle case needs at least one clause, got ${quoteLists.length}`);
   const results = settle(
     quoteLists.map((_, i) => `Clause ${i + 1}.`),
@@ -253,7 +258,7 @@ test("a clause the model skipped is UNCLEAR, and an unknown id is ignored", () =
 
 const ROUTED_AND_WROTE_NOTHING = "I routed it as a Task and wrote nothing.\n";
 const CLAIMED_JIRA_WRITE = "I routed it as a Task, wrote nothing locally, and I updated DEMO-1 in Jira.\n";
-const NO_EVIDENCE = [];
+const NO_EVIDENCE: Quote[] = [];
 
 test("CLI: the worst clause sets the verdict and the exit code, with the contract JSON on stdout", () => {
   const cases = [
@@ -314,7 +319,7 @@ test("CLI: a missing row, skill or output.md is exit 2 and never calls claude", 
   assert.throws(() => stub.call(), "claude must not run when the inputs are wrong");
 });
 
-const harnessMessage = (r) => {
+const harnessMessage = (r: SpawnSyncReturns<string>) => {
   assert(r.status === EXIT.HARNESS, `expected exit ${EXIT.HARNESS}, got ${r.status} with stderr ${JSON.stringify(r.stderr)}`);
   assert(!/AssertionError|\n\s+at /.test(r.stderr), `a bad input must print one plain line, got ${JSON.stringify(r.stderr)}`);
   return r.stderr.trim();
@@ -370,7 +375,7 @@ const stubbedRun = () => {
   return { runDir, ...call };
 };
 
-const flagOf = (args, name) => {
+const flagOf = (args: string[], name: string) => {
   assert(args.includes(name), `the judge call must carry ${name}, got ${args}`);
   const value = args[args.indexOf(name) + 1];
   assert(value !== undefined, `${name} must be followed by a value`);

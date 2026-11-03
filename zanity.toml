@@ -30,6 +30,9 @@ threshold = 0.8
 [paths."**/*.test.mjs"]
 disable = ["filesystem-in-test", "process-in-test"]
 
+[paths."**/*.test.ts"]
+disable = ["filesystem-in-test", "process-in-test"]
+
 # The project's words for things. Names that use a banned word, or an alias of a word the
 # project settled on, are reported. Domains and contexts carry their own words; a context
 # applies after a domain, and a definition can share its name with one in another context.

@@ -7,16 +7,16 @@
 import assert from "node:assert";
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
-import { BASE_REF_ENV, changedPaths, changedSkills, fileAtBase, stampStatus, waiverReason } from "../eval/changed-skills.mjs";
-import { parseChecks, scenarioIds } from "../eval/run-checks.mjs";
+import { BASE_REF_ENV, changedPaths, changedSkills, fileAtBase, stampStatus, waiverReason } from "../eval/changed-skills.ts";
+import { parseChecks, scenarioIds } from "../eval/run-checks.ts";
 
 const ROOT = process.cwd();
 const PLUGIN = join(ROOT, "plugin");
 const NOT_UTF8 = "\uFFFD";
-const errors = [];
-const warnings = [];
+const errors: string[] = [];
+const warnings: string[] = [];
 
-const read = (p) => {
+const read = (p: string) => {
   const inside = resolve(p);
   assert(inside.startsWith(ROOT + sep), `${p} must resolve inside ${ROOT}, got ${inside}; read only repo files`);
   const body = readFileSync(inside, "utf8");
@@ -24,14 +24,14 @@ const read = (p) => {
   return body;
 };
 const MARKDOWN_EXTENSION = ".md";
-const dirs = (p) => {
+const dirs = (p: string) => {
   assert(existsSync(p), `${p} must exist before its folders are listed, got none; restore it`);
   const names = readdirSync(p).filter((d) => statSync(join(p, d)).isDirectory());
   assert(names.length > 0, `${p} must hold at least one folder, got none; restore the folders it lists`);
   return names;
 };
 
-function frontmatterName(file) {
+function frontmatterName(file: string) {
   // Callers reach here for files they have already reported as missing; reading one threw ENOENT and
   // killed the process before the report block could print the error it had just recorded.
   if (!existsSync(file)) return null;
@@ -91,7 +91,7 @@ try {
     if (!hookFiles.has(m[1])) errors.push(`hooks.json references missing hook file "${m[1]}"`);
   }
 } catch (e) {
-  errors.push(`hooks.json invalid JSON: ${e.message}`);
+  errors.push(`hooks.json invalid JSON: ${e instanceof Error ? e.message : e}`);
 }
 for (const f of hookFiles) {
   if (!referenced.has(f)) warnings.push(`hook file "${f}" is not referenced in hooks.json`);
@@ -142,7 +142,7 @@ const NOT_LOCAL_NAMES = new Set([
   // Placeholders in skill-graph.md's explanation of the notation itself.
   "name", "skill-name",
 ]);
-const markdownFiles = (dir) => {
+const markdownFiles = (dir: string): string[] => {
   assert(existsSync(dir), `${dir} must exist before its markdown is listed, got none; restore it`);
   const found = readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
     e.isDirectory() ? markdownFiles(join(dir, e.name)) : e.name.endsWith(MARKDOWN_EXTENSION) ? [join(dir, e.name)] : [],
@@ -183,7 +183,7 @@ for (const file of docFiles) {
 const pluginManifest = join(PLUGIN, ".claude-plugin", "plugin.json");
 const manifestDescriptions = [
   ["plugin/.claude-plugin/plugin.json", existsSync(pluginManifest) ? [JSON.parse(read(pluginManifest)).description] : []],
-  [".claude-plugin/marketplace.json", (marketplace.plugins ?? []).map((p) => p.description)],
+  [".claude-plugin/marketplace.json", (marketplace.plugins ?? []).map((p: { description: string }) => p.description)],
 ];
 for (const [manifest, descriptions] of manifestDescriptions) {
   for (const description of descriptions.filter(Boolean)) {
@@ -254,7 +254,7 @@ for (const skill of skills) {
 
 // --- 6d. Every skill's evals.md carries a runnable fence ---
 // WARN, not ERROR: writing real checks for a new skill is judgment work, not drift. But without
-// this, `run-checks.mjs --lint` reports "all runnable across N skills" while a skill contributes
+// this, `run-checks.ts --lint` reports "all runnable across N skills" while a skill contributes
 // zero checks — a green that means nothing was measured.
 // Asks the runner rather than grepping for the heading: a heading with no ```bash fence under it
 // parses as zero checks, and a substring test would call that skill covered.
@@ -377,10 +377,12 @@ for (const skill of skills) {
 // the test-file table: tests spawn processes and use temp folders.
 const ZANITY_CONFIG = "zanity.toml";
 const ZANITY_ALLOWED_EXCLUDES = ["tests/fixtures/", "evals/fixtures/"];
-const ZANITY_TEST_FILES_TABLE = 'paths."**/*.test.mjs"';
-const ZANITY_ALLOWED_DISABLES = {
-  [ZANITY_TEST_FILES_TABLE]: ["filesystem-in-test", "process-in-test"],
-};
+const ZANITY_TEST_FILES_TABLES = ['paths."**/*.test.mjs"', 'paths."**/*.test.ts"'];
+const ZANITY_TEST_FILES_RELAXED_RULES = ["filesystem-in-test", "process-in-test"];
+const ZANITY_ALLOWED_DISABLES: Record<string, string[]> = Object.fromEntries(
+  ZANITY_TEST_FILES_TABLES.map((table) => [table, ZANITY_TEST_FILES_RELAXED_RULES]),
+);
+const ZANITY_TEST_FILES_TABLE_LIST = ZANITY_TEST_FILES_TABLES.map((table) => `[${table}]`).join(" or ");
 const QUOTED_ITEM = /"([^"]*)"/g;
 const LIST_FILLER = /[\s,]/g;
 const TOML_TABLE_HEADER = /^\[([^\]]+)\]\s*$/m;
@@ -388,7 +390,7 @@ const DISABLE_LIST = /^\s*disable\s*=\s*\[([^\]]*)\]/gm;
 const PATHS_KEY = /^\s*paths\b/m;
 const BYTE_ORDER_MARK = "\uFEFF";
 
-const quotedItems = (list) => {
+const quotedItems = (list: string) => {
   assert(list.replace(QUOTED_ITEM, "").replace(LIST_FILLER, "") === "", `${ZANITY_CONFIG} lists must hold only double-quoted strings, got ${list.trim()}; quote each item with double quotes`);
   const items = [...list.matchAll(QUOTED_ITEM)].map((match) => match[1]);
   assert(items.every((item) => item.length > 0), `${ZANITY_CONFIG} lists must not hold blank items, got ${JSON.stringify(items)}; remove the empty string`);
@@ -412,10 +414,10 @@ if (!existsSync(zanityConfigPath)) {
     const scopesPaths = header === "paths" || header.startsWith("paths.");
     const expected = ZANITY_ALLOWED_DISABLES[header] ?? [];
     const disabled = [...body.matchAll(DISABLE_LIST)].flatMap(([, list]) => quotedItems(list));
-    if (scopesPaths && header !== ZANITY_TEST_FILES_TABLE) {
-      errors.push(`${ZANITY_CONFIG} scopes rules off in [${header}]. Hint: only [${ZANITY_TEST_FILES_TABLE}] may do that, so fix the findings in code instead.`);
+    if (scopesPaths && !ZANITY_TEST_FILES_TABLES.includes(header)) {
+      errors.push(`${ZANITY_CONFIG} scopes rules off in [${header}]. Hint: only ${ZANITY_TEST_FILES_TABLE_LIST} may do that, so fix the findings in code instead.`);
     } else if (!scopesPaths && PATHS_KEY.test(body)) {
-      errors.push(`${ZANITY_CONFIG} sets a paths key outside a [paths...] table. Hint: only [${ZANITY_TEST_FILES_TABLE}] may scope rules off, written as its own table.`);
+      errors.push(`${ZANITY_CONFIG} sets a paths key outside a [paths...] table. Hint: only ${ZANITY_TEST_FILES_TABLE_LIST} may scope rules off, written as its own table.`);
     } else if (disabled.length !== expected.length || !expected.every((rule) => disabled.includes(rule))) {
       errors.push(`${ZANITY_CONFIG} disables ${disabled.join(", ") || "nothing"} under [${header || "top level"}]. Hint: only ${Object.entries(ZANITY_ALLOWED_DISABLES).map(([table, rules]) => `[${table}] may disable exactly ${rules.join(", ")}`).join(" and ")}; fix the findings in code instead.`);
     }
@@ -443,7 +445,7 @@ for (const { label, file } of describedAssets.filter(({ file }) => existsSync(fi
 }
 
 // --- 10. Scenario ids in an evals.md are unique ---
-// run-scenarios.mjs and `# expect: ... on <id>` address a scenario by its id; scenarioIds() returns a
+// run-scenarios.ts and `# expect: ... on <id>` address a scenario by its id; scenarioIds() returns a
 // Set, so a repeated id collapses silently and one scenario is never run or graded.
 const SCENARIOS_HEADING = "## Test Scenarios";
 const SCENARIO_ROW_ID = /^\|\s*(\d+)\s*\|/;
@@ -539,12 +541,14 @@ if (new Set(manifestVersions.map(([, version]) => version)).size > 1) {
 // A knob nobody can find is not a knob: run-scenarios once read a variable that
 // no markdown named until this check existed.
 const ENV_VAR = /GATED_DELIVERY_[A-Z0-9_]+/g;
-const SOURCE_EXTENSIONS = [".mjs", ".sh"];
+const SOURCE_EXTENSIONS = [".mjs", ".ts", ".sh"];
+const SCRIPT_SOURCE_EXTENSIONS = [".mjs", ".ts"];
+const TEST_FILE_SUFFIXES = [".test.mjs", ".test.ts"];
 const sourceFiles = [PLUGIN, join(ROOT, "scripts")]
   .filter((dir) => existsSync(dir))
   .flatMap((dir) =>
-    readdirSync(dir, { recursive: true })
-      .filter((name) => SOURCE_EXTENSIONS.some((extension) => name.endsWith(extension)) && !name.endsWith(".test.mjs"))
+    readdirSync(dir, { recursive: true, encoding: "utf8" })
+      .filter((name) => SOURCE_EXTENSIONS.some((extension) => name.endsWith(extension)) && !TEST_FILE_SUFFIXES.some((suffix) => name.endsWith(suffix)))
       .map((name) => join(dir, name)),
   );
 const documentedVars = new Set(docFiles.flatMap((file) => read(file).match(ENV_VAR) ?? []));
@@ -569,7 +573,7 @@ const BARE_NAME = /(?<![.\w$])[A-Za-z_$][\w$]*/g;
 const CONSTANT_KEYWORDS = new Set(["typeof", "true", "false", "null", "undefined", "void", "in", "instanceof"]);
 const PURE_GLOBALS = new Set(["Number", "String", "Boolean", "Array", "Math", "Object"]);
 
-for (const file of sourceFiles.filter((name) => name.endsWith(".mjs"))) {
+for (const file of sourceFiles.filter((name) => SCRIPT_SOURCE_EXTENSIONS.some((extension) => name.endsWith(extension)))) {
   const text = read(file)
     .replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, " "))
     .replace(/(^|\s)\/\/.*$/gm, (comment) => comment.replace(/[^\n]/g, " "));
@@ -610,9 +614,9 @@ if (baseRef) {
   for (const skill of changedSkills(ROOT, baseRef)) {
     const status = stampStatus(ROOT, skill);
     if (status === "waived") {
-      warnings.push(`skill ${skill} ships on a waiver: ${waiverReason(ROOT, skill)}. Hint: run node scripts/eval/changed-skills.mjs and replace evals/results/${skill}.json once credentials exist`);
+      warnings.push(`skill ${skill} ships on a waiver: ${waiverReason(ROOT, skill)}. Hint: run node scripts/eval/changed-skills.ts and replace evals/results/${skill}.json once credentials exist`);
     } else if (status !== "ok") {
-      errors.push(`skill ${skill} ${STAMP_PROBLEM[status]}. Hint: skill ${skill} changed since its evals last passed; run node scripts/eval/changed-skills.mjs and commit evals/results/${skill}.json`);
+      errors.push(`skill ${skill} ${STAMP_PROBLEM[status]}. Hint: skill ${skill} changed since its evals last passed; run node scripts/eval/changed-skills.ts and commit evals/results/${skill}.json`);
     }
   }
 }

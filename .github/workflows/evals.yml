@@ -41,7 +41,7 @@ jobs:
           npm ci --ignore-scripts
           node node_modules/@anthropic-ai/claude-code/install.cjs
       - if: steps.token.outputs.has_token == 'true'
-        run: node scripts/eval/changed-skills.mjs
+        run: node scripts/eval/changed-skills.ts
         env:
           GATED_DELIVERY_BASE_REF: origin/${{ github.base_ref }}
           GATED_DELIVERY_CLAUDE_BIN: ${{ github.workspace }}/tools/claude-code/node_modules/.bin/claude

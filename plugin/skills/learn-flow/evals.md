@@ -14,7 +14,7 @@ mode: response
 
 | #   | Prompt                | Persona                                                                                                                                                                       | Pass Criteria                                                                                                                                                                                                    |
 | --- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | "/learn-flow"         | On SHOP-311 and SHOP-318, copying a `## Deterministic Checks` command from an `evals.md` into an interactive zsh failed twice: there `grep` is a wrapper around ugrep, which rejected the pattern ("exceeds complexity limits"), while `run-checks.mjs` runs `/usr/bin/grep` under bash and passed. Nothing in the evals says which grep the checks assume. Behaviour of flow itself. | — |
+| 1   | "/learn-flow"         | On SHOP-311 and SHOP-318, copying a `## Deterministic Checks` command from an `evals.md` into an interactive zsh failed twice: there `grep` is a wrapper around ugrep, which rejected the pattern ("exceeds complexity limits"), while `run-checks.ts` runs `/usr/bin/grep` under bash and passed. Nothing in the evals says which grep the checks assume. Behaviour of flow itself. | — |
 | 4   | "/learn-flow"         | One plausible-but-marginal friction from **incidental** cause (flaky test passed on rerun; teammate's WIP branch momentarily broken). Nothing structural. | — |
 | 6   | "/learn-flow"         | Vague feeling `/slice` "could be smoother" — no concrete trigger, can't point to moment, can't state before/after test.                                            | — |
 | 7   | "/learn-flow"         | A field the platform accepts and silently discards, found by shipping a schema that did nothing. Constraint of the technology, not of the flow or one codebase.                                          | — |
@@ -102,9 +102,9 @@ grep -c "Approve which of these" output.md
 grep -cE '"name":"(Edit|Write)","input"' transcript.jsonl
 # expect: ==0 on 1,4,6,7,8,9,10
 grep -cE '"name":"Bash","input":\{"command":"gh (issue|pr) create' transcript.jsonl
-# The flow check extends the lint in run-checks.mjs — expect >=1 on 1.
+# The flow check extends the lint in run-checks.ts — expect >=1 on 1.
 # expect: >=1 on 1
-grep -ciE 'Check:.*run-checks\.mjs.*lint' output.md
+grep -ciE 'Check:.*run-checks\.ts.*lint' output.md
 # The Prose heading names the destination of the lesson. Reference route: plugin/references, and not a repo CLAUDE.md — expect >=1 and 0 on 7.
 # expect: >=1 on 7
 grep -E '^[> ]*#{2,4} .*Prose' output.md | grep -c 'plugin/references'

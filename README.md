@@ -43,7 +43,7 @@ This repo is **both** marketplace and plugin: the marketplace manifest lives at 
 | `spelling` | `typos` on defaults |
 | `gitleaks` | Secret scan |
 
-The rules guard themselves. The consistency guard fails if `zanity.toml` drops `select = ["all"]`, disables anything except the process and filesystem rules for test files, or excludes more than the fixtures. It also fails on an `assert`, `if` or `while` whose condition cannot vary, since a check that cannot fail proves nothing, and on a skill that changed without a passing eval stamp or a recorded waiver. Every mistake made here and the check that now catches it: [docs/mistakes-to-rules.md](docs/mistakes-to-rules.md), kept honest by a test. The guard's own sections are listed in `scripts/audit/consistency.mjs`. `scripts/audit/suppressions.mjs` fails any lint, type or coverage suppression without `<marker> -- <reason of four or more meaningful words>` (a zanity ignore must name exactly one rule) and any count above `scripts/audit/suppressions.count`, which only goes down.
+The rules guard themselves. The consistency guard fails if `zanity.toml` drops `select = ["all"]`, disables anything except the process and filesystem rules for test files, or excludes more than the fixtures. It also fails on an `assert`, `if` or `while` whose condition cannot vary, since a check that cannot fail proves nothing, and on a skill that changed without a passing eval stamp or a recorded waiver. Every mistake made here and the check that now catches it: [docs/mistakes-to-rules.md](docs/mistakes-to-rules.md), kept honest by a test. The guard's own sections are listed in `scripts/audit/consistency.ts`. `scripts/audit/suppressions.ts` fails any lint, type or coverage suppression without `<marker> -- <reason of four or more meaningful words>` (a zanity ignore must name exactly one rule) and any count above `scripts/audit/suppressions.count`, which only goes down.
 
 zanity runs against `zanity-baseline.json` with `--new-only --agent` (zanity 0.1.30 and 0.1.39 panic in their plain output when a baseline is used outside an agent): the findings that existed when the ratchet started are frozen, any new finding fails the build, and `plugin/bootstrap/guards/ratchet.mjs` fails a pull request whose baseline holds more findings than its base, or more findings of one kind than its base. A kind is rule, message (which names the function) and file name without directory or extension, so moving, renaming or converting a file to another extension is accepted while a new or doubled finding is not. The baseline only ever shrinks, by fixing the code it lists.
 
@@ -63,7 +63,7 @@ The core must never name a client. `scripts/leak-guard.sh` greps the staged, tra
 
 Each skill's `evals.md` holds scenarios and a `## Deterministic Checks` fence. Checks read the final answer, the pages a run delivered and the run's tool calls; a judge grades only the clauses no check can decide, and is skipped for a scenario with none. Details and cost levers: [docs/evals.md](docs/evals.md).
 
-- Before a PR that changes a skill, run `node scripts/eval/changed-skills.mjs`. It finds the changed skills, runs a smoke tier (the fewest scenarios that exercise every check) once, reruns only failures, caps spend per run and in total, and writes `evals/results/<skill>.json` when everything passes. Exit codes: 0 passed, 1 failed, 2 usage, 3 not run.
+- Before a PR that changes a skill, run `node scripts/eval/changed-skills.ts`. It finds the changed skills, runs a smoke tier (the fewest scenarios that exercise every check) once, reruns only failures, caps spend per run and in total, and writes `evals/results/<skill>.json` when everything passes. Exit codes: 0 passed, 1 failed, 2 usage, 3 not run.
 - CI checks the stamp for each skill the PR changed. Without working credentials, `--waive <skill> --reason "<text>"` records an exception for the current skill hash; the guard shows it as a warning, and a later change to the skill needs a new waiver or a real run.
 - Runs ignore the login stored in your user settings, so they need a working `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`. The `evals.yml` workflow does the same on PRs and stays dormant until that secret exists.
 
@@ -74,10 +74,11 @@ Each skill's `evals.md` holds scenarios and a `## Deterministic Checks` fence. C
 | `bash tests/leak-guard.test.sh` | No | The guard rejects client terms, skips only well-formed integrity hashes in fixture lockfiles and logs each skip, and fails closed without a denylist |
 | `bash tests/slice-scripts.test.sh` | No | Parallel slice and batch worktrees stay isolated, claims are create-only, batches are picked back in order, and the verify lock serializes runs |
 | `bash tests/pre-push.test.sh` | No | The pre-push hook rejects a push carrying a leak in any pushed commit and lets clean pushes and branch deletions through |
-| `node --test plugin/hooks/*.test.mjs scripts/audit/*.test.mjs scripts/eval/*.test.mjs` | No | Hook behaviour, the consistency guard and the eval tools on broken and valid fixtures |
-| `node scripts/audit/consistency.mjs` | No | Inventory, references, docs, settings and eval stamps agree with the files |
-| `node scripts/eval/run-checks.mjs --lint` | No | Every skill's `## Deterministic Checks` command runs and every `# expect:` line names a scenario |
-| `node scripts/eval/run-scenarios.mjs <skill> [--scenario <id>…]` | Yes | Runs eval scenarios as real `claude -p` sessions and writes each run's grades to `summary.tsv` |
+| `node --test plugin/hooks/*.test.mjs scripts/audit/*.test.ts scripts/eval/*.test.ts` | No | Hook behaviour, the consistency guard and the eval tools on broken and valid fixtures |
+| `npm ci && npx tsc --noEmit` | No | The dev scripts under `scripts/` type-check; they run on Node 22.18 or newer, which strips the types itself |
+| `node scripts/audit/consistency.ts` | No | Inventory, references, docs, settings and eval stamps agree with the files |
+| `node scripts/eval/run-checks.ts --lint` | No | Every skill's `## Deterministic Checks` command runs and every `# expect:` line names a scenario |
+| `node scripts/eval/run-scenarios.ts <skill> [--scenario <id>…]` | Yes | Runs eval scenarios as real `claude -p` sessions and writes each run's grades to `summary.tsv` |
 | `bash tests/profile-isolation.test.sh [project-dir]` | No | A fresh profile installs the core, loads no client plugin or MCP server and has its own login |
 | `bash tests/commit-convention.test.sh`, `tests/code-reviewer-scope.test.sh`, `tests/issue-writing.test.sh` | Yes | The commit command follows the convention, `code-reviewer` reports scope creep, `issue-writing` keeps secrets out of the tracker |
 

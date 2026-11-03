@@ -15,13 +15,13 @@ const TEST_CELL = 3;
 const BACKTICKED = /`([^`]+)`/g;
 const TEST_REFERENCE = /`([^`]+)`\s*"([^"]+)"/g;
 const GUARD_CHECK = /^check (\d+[a-z]?)$/;
-const GUARD_FILE = "scripts/audit/consistency.mjs";
+const GUARD_FILE = "scripts/audit/consistency.ts";
 const ZANITY_CONFIG = "zanity.toml";
 const TABLE_HEAD = `${TABLE_HEADING}\n\n| a | b | c | d |\n|---|---|---|---|\n`;
-const REAL_TEST = '`scripts/audit/consistency.test.mjs` "rejects a reference that nothing reads"';
+const REAL_TEST = '`scripts/audit/consistency.test.ts` "rejects a reference that nothing reads"';
 const REAL_RULE = "`check 8`";
 
-const ruleProblems = (root, rule) => {
+const ruleProblems = (root: string, rule: string) => {
   assert(existsSync(root), `the repo root must exist, got ${root}`);
   assert(typeof rule === "string", `a rule cell must be text, got ${typeof rule}`);
   const problems = [];
@@ -40,7 +40,7 @@ const ruleProblems = (root, rule) => {
   return problems;
 };
 
-const testProblems = (root, cell) => {
+const testProblems = (root: string, cell: string) => {
   assert(existsSync(root), `the repo root must exist, got ${root}`);
   assert(typeof cell === "string", `a test cell must be text, got ${typeof cell}`);
   const references = [...cell.matchAll(TEST_REFERENCE)];
@@ -53,7 +53,7 @@ const testProblems = (root, cell) => {
   return problems;
 };
 
-const tableProblems = (root, markdown) => {
+const tableProblems = (root: string, markdown: string) => {
   assert(existsSync(root), `the repo root must exist, got ${root}`);
   const start = markdown.indexOf(TABLE_HEADING);
   assert(start >= 0, `${DOC} must hold the heading "${TABLE_HEADING}", got ${markdown.length} characters without it`);
@@ -78,7 +78,7 @@ test("a row naming a missing script, guard check, zanity rule or test is rejecte
     "a script that does not exist": ["`scripts/audit/nope.mjs`", REAL_TEST],
     "a guard check that does not exist": ["`check 99`", REAL_TEST],
     "a zanity rule that does not exist": ["`no-such-rule`", REAL_TEST],
-    "a test title that does not exist": [REAL_RULE, '`scripts/audit/consistency.test.mjs` "no such test title"'],
+    "a test title that does not exist": [REAL_RULE, '`scripts/audit/consistency.test.ts` "no such test title"'],
     "a test file that does not exist": [REAL_RULE, '`scripts/audit/nope.test.mjs` "anything"'],
     "a row with no test": [REAL_RULE, "none"],
   };
@@ -89,7 +89,7 @@ test("a row naming a missing script, guard check, zanity rule or test is rejecte
 });
 
 test("a row naming real references is accepted", () => {
-  const rule = [REAL_RULE, "`assertion-density`", "`scripts/audit/suppressions.mjs`"].join(", ");
+  const rule = [REAL_RULE, "`assertion-density`", "`scripts/audit/suppressions.ts`"].join(", ");
   const problems = tableProblems(ROOT, `${TABLE_HEAD}| mistake | category | ${rule} | ${REAL_TEST} |\n`);
   assert.deepStrictEqual(problems, [], `a real row was rejected: ${problems.join("; ")}`);
 });

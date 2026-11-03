@@ -4,7 +4,7 @@
 
 `audit-flow` = **flow-health audit** (encoded_preference): audit flow itself (plugin skills/agents/hooks), not user code. Success = run deterministic guard first, then judgment pass surfacing **overlap / conflict / gaps / bloat**, bias toward **trimming**, **honest about missing usage telemetry**, and **propose** changes (flow edits route as PRs) — never silently rewrite flow.
 
-> Deterministic half exercised by `scripts/audit/consistency.mjs` (plus its CI job); these scenarios judge skill routing and judgment/honesty invariants from response.
+> Deterministic half exercised by `scripts/audit/consistency.ts` (plus its CI job); these scenarios judge skill routing and judgment/honesty invariants from response.
 
 ## Execution Model
 
@@ -74,7 +74,7 @@ grep -ciE "(PR|pull request|issue)[^.]{0,30}(against|to|in) (the )?gated-deliver
 # The guard was run as a tool call, not only quoted — expect >=1 on 1 and 4. The transcript is the only
 # place a run that claims a result without running anything is visible.
 # expect: >=1 on 1,4
-grep -c '"name":"Bash","input":{"command":"node scripts/audit/consistency.mjs"' transcript.jsonl
+grep -c '"name":"Bash","input":{"command":"node scripts/audit/consistency.ts"' transcript.jsonl
 # The guard summary precedes the judgment pass in the response — expect 1 on 1.
 # expect: ==1 on 1
 awk '!a && /gated-delivery audit: [0-9]+ skills/ {a=NR} !b && /^[> ]*#{2,4} +Overlap/ {b=NR} END {print (a && b && a < b) ? 1 : 0}' output.md

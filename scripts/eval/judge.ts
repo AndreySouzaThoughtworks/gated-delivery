@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Grades one saved eval run against its scenario row's Pass Criteria.
 //
-//   node scripts/eval/judge.mjs <skill> <id> <run-dir>
+//   node scripts/eval/judge.ts <skill> <id> <run-dir>
 //
 // The model reads the run read-only and returns, per clause, PASS, FAIL or UNCLEAR with quoted
 // evidence. Code, not the model, settles the verdict, and a result with no quote becomes UNCLEAR.
@@ -70,13 +70,20 @@ const SCHEMA = {
   additionalProperties: false,
 };
 
-const QUOTE_SHAPE = [
+type Quote = { file: string; line?: number; text: string };
+type Graded = { id: number; result: string; quotes: Quote[]; note: string };
+type Row = { prompt: string; persona: string; criteria: string };
+type RunFile = { path: string; text: string; lines: number };
+type Run = { files: RunFile[] };
+type Shape<T> = (value: T) => unknown;
+
+const QUOTE_SHAPE: Shape<Quote>[] = [
   (q) => q,
   (q) => typeof q.file === "string",
   (q) => typeof q.text === "string",
   (q) => q.line === undefined || Number.isInteger(q.line),
 ];
-const CLAUSE_SHAPE = [
+const CLAUSE_SHAPE: Shape<Graded>[] = [
   (g) => Number.isInteger(g.id),
   (g) => RESULTS.includes(g.result),
   (g) => Array.isArray(g.quotes) && g.quotes.every((q) => QUOTE_SHAPE.every((fits) => fits(q))),
@@ -85,8 +92,8 @@ const CLAUSE_SHAPE = [
 
 class HarnessError extends Error {}
 
-export function findRow(markdown, id) {
-  let header = null;
+export function findRow(markdown: string, id: string): Row | null {
+  let header: string[] | null = null;
   for (const line of markdown.replace(/\r/g, "").split("\n")) {
     if (!line.trimStart().startsWith("|")) {
       header = null;
@@ -103,14 +110,15 @@ export function findRow(markdown, id) {
       continue;
     }
     if (!header || cells[0] !== id) continue;
-    const [prompt, persona, criteria] = ["Prompt", "Persona", CRITERIA_HEADING].map((name) => cells[header.indexOf(name)] ?? "");
+    const columns = header;
+    const [prompt, persona, criteria] = ["Prompt", "Persona", CRITERIA_HEADING].map((name) => cells[columns.indexOf(name)] ?? "");
     return { prompt, persona, criteria };
   }
   return null;
 }
 
-export const splitClauses = (criteria) => {
-  const sentences = [];
+export const splitClauses = (criteria: string) => {
+  const sentences: string[] = [];
   const text = criteria.trim();
   let start = 0;
   let depth = 0;
@@ -136,7 +144,7 @@ export const splitClauses = (criteria) => {
   return clauses;
 };
 
-export const aggregate = (clauses) => {
+export const aggregate = (clauses: { result: string }[]) => {
   const verdict = !clauses.length
     ? UNCLEAR
     : clauses.some((c) => c.result === FAIL)
@@ -147,7 +155,7 @@ export const aggregate = (clauses) => {
   return verdict;
 };
 
-const normalize = (text) => {
+const normalize = (text: string) => {
   const normalized = text
     .replace(/\\[nt]/g, " ")
     .replace(/\\"/g, '"')
@@ -157,7 +165,7 @@ const normalize = (text) => {
   return normalized;
 };
 
-const filesUnder = (dir) => {
+const filesUnder = (dir: string): string[] => {
   const files = readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) return SKIPPED_DIRS.has(entry.name) ? [] : filesUnder(path);
@@ -166,7 +174,7 @@ const filesUnder = (dir) => {
   return files;
 };
 
-export const readRun = (runDir) => {
+export const readRun = (runDir: string): Run => {
   const root = resolve(runDir);
   const files = filesUnder(root).map((path) => {
     const inside = relative(root, path);
@@ -176,7 +184,7 @@ export const readRun = (runDir) => {
   return { files };
 };
 
-export const settle = (clauses, graded, run) => {
+export const settle = (clauses: string[], graded: Graded[], run: Run) => {
   const settled = clauses.map((clause, index) => {
     const found = graded.find((g) => g.id === index + 1);
     if (!found) return { clause, result: UNCLEAR, evidence: "" };
@@ -202,7 +210,7 @@ export const settle = (clauses, graded, run) => {
   return settled;
 };
 
-const promptFor = ({ prompt, persona }, clauses, runDir) => {
+const promptFor = ({ prompt, persona }: Row, clauses: string[], runDir: string) => {
   const files = readdirSync(runDir).filter((f) => f !== OUTPUT_FILE);
   const text = `You grade one recorded run of an AI coding assistant against a fixed list of clauses.
 
@@ -250,7 +258,7 @@ ${readFileSync(join(runDir, OUTPUT_FILE), "utf8")}
   return text;
 };
 
-const parseReply = (stdout) => {
+const parseReply = (stdout: string): Graded[] => {
   let reply;
   try {
     reply = JSON.parse(stdout);
@@ -266,7 +274,7 @@ const parseReply = (stdout) => {
   return graded;
 };
 
-export function judge(skill, id, runDir) {
+export function judge(skill: string, id: string, runDir: string) {
   const evalsPath = join(SKILLS_DIR, skill, "evals.md");
   if (!existsSync(evalsPath)) throw new HarnessError(`No such skill: ${skill}`);
   const markdown = readFileSync(evalsPath, "utf8");
@@ -316,7 +324,7 @@ export function judge(skill, id, runDir) {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [skill, id, runDir] = process.argv.slice(2);
   const argumentProblem = !skill || !id || !runDir
-    ? "usage: judge.mjs <skill> <id> <run-dir>"
+    ? "usage: judge.ts <skill> <id> <run-dir>"
     : skill === PARENT_SEGMENT || /[\\/]/.test(skill)
       ? `skill must name one skills folder, got ${JSON.stringify(skill)}; pass a skill name, not a path`
       : !id.trim() || !runDir.trim()
@@ -331,7 +339,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     console.log(JSON.stringify(result));
     process.exit(EXIT[result.verdict]);
   } catch (e) {
-    console.error(e instanceof HarnessError ? e.message : e.stack);
+    console.error(e instanceof HarnessError ? e.message : e instanceof Error ? e.stack : e);
     process.exit(HARNESS_EXIT);
   }
 }

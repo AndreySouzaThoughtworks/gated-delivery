@@ -49,6 +49,7 @@ const USAGE = [
   "exit codes: 0 passed, waived or nothing to run, 1 evals failed, 2 usage error, 3 claude cannot run so no eval ran, 4 harness error (an internal check or file operation failed)",
 ].join("\n");
 const WAIVER_KEY = "waived";
+const STATUS_WAIVED = "waived";
 const VALUE_FLAGS = ["--budget-usd", "--total-budget-usd", "--model", "--jobs"];
 
 type Report = { verdicts: Record<string, string>; totalCostUsd?: number };
@@ -56,17 +57,24 @@ type Outcome = { skill: string; hash: string; passed: false; report?: undefined 
 type Options = { skills: string[]; full: boolean; passthrough: string[]; waive: string | null; reason: string | null; error: string | null };
 
 const isHashedSkillFile = (pathInsideSkill: string) => {
+  assert(pathInsideSkill !== "", `isHashedSkillFile needs a path inside a skill, got ${JSON.stringify(pathInsideSkill)}`);
+  assert(!isAbsolute(pathInsideSkill), `isHashedSkillFile needs a path relative to the skill folder, got ${pathInsideSkill}`);
   if (pathInsideSkill === EVALS_FILE) return false;
   return !(pathInsideSkill.startsWith(SCRIPTS_PREFIX) && TEST_FILE.test(pathInsideSkill));
 };
 
 const filesUnder = (dir: string) => {
+  assert(dir !== "", `filesUnder needs a directory, got ${JSON.stringify(dir)}; an empty one would list the working directory`);
   const files = existsSync(dir) ? readdirSync(dir, { recursive: true, encoding: "utf8" }).filter((name) => statSync(join(dir, name)).isFile()) : [];
+  const absoluteNames = files.filter((name) => isAbsolute(name));
+  assert(absoluteNames.length === 0, `filesUnder(${dir}) returned absolute names (${absoluteNames.join(", ")}); expected names relative to that directory`);
   return files;
 };
 
 const agentsNamedBy = (root: string, skill: string) => {
+  assert(SKILL_NAME.test(skill), `agentsNamedBy needs a skill folder name, got ${JSON.stringify(skill)}`);
   const skillText = readFileSync(join(root, SKILLS_PREFIX, skill, SKILL_FILE), "utf8");
+  assert(skillText.trim() !== "", `${SKILLS_PREFIX}/${skill}/${SKILL_FILE} is empty; expected the skill text the agent names are matched against`);
   const agents = filesUnder(join(root, AGENTS_PREFIX))
     .filter((name) => name.endsWith(".md"))
     .filter((name) => new RegExp(`(?<![\\w-])${name.slice(0, -".md".length)}(?![\\w-])`).test(skillText))
@@ -75,11 +83,13 @@ const agentsNamedBy = (root: string, skill: string) => {
 };
 
 export const skillHash = (root: string, skill: string) => {
+  assert(SKILL_NAME.test(skill), `skillHash needs a skill folder name, got ${JSON.stringify(skill)}`);
   const own = filesUnder(join(root, SKILLS_PREFIX, skill))
     .map((name) => name.split("\\").join("/"))
     .filter(isHashedSkillFile)
     .map((name) => `${SKILLS_PREFIX}/${skill}/${name}`);
   const files = [...new Set([...own, ...agentsNamedBy(root, skill)])].sort();
+  assert(files.length > 0, `skill ${skill} has no files under ${join(root, SKILLS_PREFIX, skill)}; a hash of nothing would match any other empty skill`);
   const digest = createHash("sha256");
   for (const path of files) {
     digest.update(`${path}\0`);
@@ -91,6 +101,8 @@ export const skillHash = (root: string, skill: string) => {
 };
 
 const git = (root: string, args: string[]) => {
+  assert(existsSync(root), `git needs an existing repository directory, got ${root}`);
+  assert(args.length > 0, `git needs a subcommand, got no arguments in ${root}`);
   return execFileSync("git", args, { cwd: root, encoding: "utf8" });
 };
 
@@ -119,6 +131,8 @@ export const fileAtBase = (root: string, baseRef: string, path: string) => {
 };
 
 export const changedSkills = (root: string, baseRef: string) => {
+  assert(root !== "", `changedSkills needs the repository root, got ${JSON.stringify(root)}`);
+  assert(baseRef !== "", `changedSkills needs a base ref, got ${JSON.stringify(baseRef)}; expected a branch or commit name`);
   const skills = filesUnder(join(root, SKILLS_PREFIX))
     .map((name) => name.split(/[\\/]/)[0])
     .filter((name, index, all) => all.indexOf(name) === index)
@@ -135,28 +149,41 @@ export const changedSkills = (root: string, baseRef: string) => {
 };
 
 const stampPath = (root: string, skill: string) => {
+  assert(root !== "", `stampPath needs the repository root, got ${JSON.stringify(root)}`);
+  assert(SKILL_NAME.test(skill), `stampPath needs a skill folder name, got ${JSON.stringify(skill)}; anything else could point outside ${RESULTS_DIR}`);
   const path = join(root, RESULTS_DIR, `${skill}.json`);
   return path;
 };
 
 const readStamp = (root: string, skill: string): Record<string, unknown> => {
-  return JSON.parse(readFileSync(stampPath(root, skill), "utf8"));
+  const path = stampPath(root, skill);
+  assert(existsSync(path), `no stamp for ${skill} at ${path}`);
+  const stamp = JSON.parse(readFileSync(path, "utf8"));
+  assert(typeof stamp === "object" && stamp !== null && !Array.isArray(stamp), `stamp ${path} holds ${JSON.stringify(stamp)}; expected a JSON object`);
+  return stamp;
 };
 
 export const waiverReason = (root: string, skill: string) => {
-  return readStamp(root, skill).waived;
+  const stamp = readStamp(root, skill);
+  assert(Object.hasOwn(stamp, WAIVER_KEY), `stamp for ${skill} has no ${WAIVER_KEY} entry; expected a waiver`);
+  assert(typeof stamp[WAIVER_KEY] === "string", `stamp for ${skill} has ${WAIVER_KEY}=${JSON.stringify(stamp[WAIVER_KEY])}; expected the waiver reason text`);
+  return stamp[WAIVER_KEY];
 };
 
 export const stampStatus = (root: string, skill: string) => {
+  assert(root !== "", `stampStatus needs the repository root, got ${JSON.stringify(root)}`);
+  assert(SKILL_NAME.test(skill), `stampStatus needs a skill folder name, got ${JSON.stringify(skill)}`);
   if (!existsSync(stampPath(root, skill))) return "missing";
   const stamp = readStamp(root, skill);
   const waiver = stamp[WAIVER_KEY];
   if (Object.hasOwn(stamp, WAIVER_KEY) && (typeof waiver !== "string" || waiver.trim() === "")) return "blank-waiver";
   if (stamp.hash !== skillHash(root, skill)) return "stale";
-  return Object.hasOwn(stamp, WAIVER_KEY) ? "waived" : "ok";
+  return Object.hasOwn(stamp, WAIVER_KEY) ? STATUS_WAIVED : "ok";
 };
 
 const parseArgs = (argv: string[]): Options => {
+  assert(Array.isArray(argv), `parseArgs needs the argument list, got ${typeof argv}`);
+  assert(argv.every((arg) => typeof arg === "string"), `parseArgs needs string arguments, got ${JSON.stringify(argv)}`);
   const options: Options = { skills: [], full: false, passthrough: [], waive: null, reason: null, error: null };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -173,10 +200,12 @@ const parseArgs = (argv: string[]): Options => {
 const EMPTY_PROBE_DETAIL = "claude reported an error and gave no detail";
 
 const probeProblem = (passthrough: string[]) => {
+  assert(Array.isArray(passthrough), `probeProblem needs the passthrough flag list, got ${typeof passthrough}`);
+  const modelAt = passthrough.indexOf("--model");
+  assert(modelAt === -1 || passthrough[modelAt + 1] !== undefined, `--model is the last of ${JSON.stringify(passthrough)}; expected a model name after it`);
   const scratch = mkdtempSync(join(tmpdir(), "gated-delivery-probe-"));
   let problem = null;
   try {
-    const modelAt = passthrough.indexOf("--model");
     const model = modelAt === -1 ? process.env.GATED_DELIVERY_RUN_MODEL : passthrough[modelAt + 1];
     const modelFlags = model ? ["--model", model] : [];
     const probe = spawnSync(CLAUDE_BIN, [...PROBE_ARGS, ...modelFlags], {
@@ -198,10 +227,13 @@ const probeProblem = (passthrough: string[]) => {
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
+  assert(problem === null || problem.trim() !== "", `probeProblem built a blank problem ${JSON.stringify(problem)}; expected null or a readable detail`);
   return problem;
 };
 
 const runSkill = (root: string, skill: string, options: Options): Outcome => {
+  assert(SKILL_NAME.test(skill), `runSkill needs a skill folder name, got ${JSON.stringify(skill)}`);
+  assert(existsSync(join(root, SKILLS_PREFIX, skill, SKILL_FILE)), `runSkill: no ${SKILL_FILE} for skill ${skill} under ${root}`);
   const out = mkdtempSync(join(tmpdir(), `gated-delivery-changed-${skill}-`));
   const smokeDefaults = [
     ["--budget-usd", SMOKE_BUDGET_USD],
@@ -217,6 +249,7 @@ const runSkill = (root: string, skill: string, options: Options): Outcome => {
   const verdictsPath = join(out, VERDICTS_FILE);
   if (!existsSync(verdictsPath)) return { skill, passed: false, hash };
   const report: Report = JSON.parse(readFileSync(verdictsPath, "utf8"));
+  assert(typeof report.verdicts === "object" && report.verdicts !== null, `${verdictsPath} has verdicts=${JSON.stringify(report.verdicts)}; expected an object of scenario verdicts`);
   const verdicts = Object.values(report.verdicts);
   return {
     skill,
@@ -227,6 +260,8 @@ const runSkill = (root: string, skill: string, options: Options): Outcome => {
 };
 
 const writeStamp = (root: string, { skill, hash, report }: { skill: string; hash: string; report: Report }, tier: string) => {
+  assert(TIERS.includes(tier), `writeStamp needs a tier from ${TIERS.join(", ")}, got ${JSON.stringify(tier)}`);
+  assert(Object.keys(report.verdicts).length > 0, `writeStamp for ${skill} has no scenario verdicts; a stamp with none would vouch for nothing`);
   const path = stampPath(root, skill);
   mkdirSync(dirname(path), { recursive: true });
   const stamp = {
@@ -241,6 +276,8 @@ const writeStamp = (root: string, { skill, hash, report }: { skill: string; hash
 };
 
 const optionsProblem = (options: Options, root: string) => {
+  assert(options.error === null, `optionsProblem got a parse error (${options.error}); report that instead of validating the options`);
+  assert(root !== "", `optionsProblem needs the repository root, got ${JSON.stringify(root)}`);
   if (options.waive === null && options.reason !== null) return "--reason belongs to --waive";
   if (options.waive !== null) {
     if (options.skills.length || options.full || options.passthrough.length) return "--waive takes no other skills or flags";
@@ -254,13 +291,17 @@ const optionsProblem = (options: Options, root: string) => {
 };
 
 const writeWaiver = (root: string, skill: string, reason: string | null) => {
+  assert(reason !== null && reason.trim() !== "", `writeWaiver for ${skill} needs a non-blank reason, got ${JSON.stringify(reason)}`);
   const path = stampPath(root, skill);
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, `${JSON.stringify({ hash: skillHash(root, skill), [WAIVER_KEY]: reason, ranAt: new Date().toISOString() }, null, 2)}\n`);
   const status = stampStatus(root, skill);
+  assert(status === STATUS_WAIVED, `wrote a waiver for ${skill} but its stamp reads ${status}; expected ${STATUS_WAIVED}`);
 };
 
 const reportOutcome = (root: string, outcome: Outcome, tier: string) => {
+  assert(TIERS.includes(tier), `reportOutcome needs a tier from ${TIERS.join(", ")}, got ${JSON.stringify(tier)}`);
+  assert(!outcome.passed || outcome.report !== undefined, `outcome for ${outcome.skill} passed without a report; there is nothing to stamp`);
   for (const [id, verdict] of Object.entries(outcome.report?.verdicts ?? {})) {
     if (verdict === VERDICT_FLAKY) console.log(`FLAKY ${outcome.skill} ${id}: failed once, passed on rerun`);
   }
@@ -269,6 +310,8 @@ const reportOutcome = (root: string, outcome: Outcome, tier: string) => {
 };
 
 const main = (argv: string[], root = process.cwd()) => {
+  assert(Array.isArray(argv), `main needs the argument list, got ${typeof argv}`);
+  assert(root !== "", `main needs the repository root, got ${JSON.stringify(root)}`);
   const options = parseArgs(argv);
   const problem = options.error ?? optionsProblem(options, root);
   if (problem) {

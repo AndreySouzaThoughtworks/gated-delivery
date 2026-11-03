@@ -408,3 +408,12 @@ test("CLI: a CLAUDE.md in the run dir is not in the judge's cwd", () => {
   runJudge(["demo", "1", runDir], { bin: stub.bin, cwd: repoWith() });
   assert.deepEqual(stub.call().cwdFiles, [], "the judge starts in an empty directory");
 });
+
+test("the pure helpers reject input that would grade nothing or grade wrongly", () => {
+  assert.throws(() => splitClauses("   "), /needs Pass Criteria text/);
+  assert.throws(() => findRow(EVALS, " "), /needs a scenario id/);
+  assert.throws(() => findRow(`${EVALS}\u0000`, "1"), /pipe placeholder at index/);
+  assert.throws(() => aggregate([{ result: "MAYBE" }]), /expected only PASS, FAIL, UNCLEAR/);
+  assert.throws(() => readRun(" "), /needs a run folder/);
+  assert.throws(() => readRun(scratch()), /has no files/);
+});

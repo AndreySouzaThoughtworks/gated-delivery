@@ -6,6 +6,7 @@
 // The model reads the run read-only and returns, per clause, PASS, FAIL or UNCLEAR with quoted
 // evidence. Code, not the model, settles the verdict, and a result with no quote becomes UNCLEAR.
 
+import assert from "node:assert";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -93,6 +94,8 @@ const CLAUSE_SHAPE: Shape<Graded>[] = [
 class HarnessError extends Error {}
 
 export function findRow(markdown: string, id: string): Row | null {
+  assert(id.trim() !== "", `findRow needs a scenario id, got ${JSON.stringify(id)}`);
+  assert(!markdown.includes(PIPE_PLACEHOLDER), `findRow input contains the pipe placeholder at index ${markdown.indexOf(PIPE_PLACEHOLDER)}; escaped pipes would be mistaken for it`);
   let header: string[] | null = null;
   for (const line of markdown.replace(/\r/g, "").split("\n")) {
     if (!line.trimStart().startsWith("|")) {
@@ -118,6 +121,7 @@ export function findRow(markdown: string, id: string): Row | null {
 }
 
 export const splitClauses = (criteria: string) => {
+  assert(criteria.trim() !== "", `splitClauses needs Pass Criteria text, got ${JSON.stringify(criteria)}`);
   const sentences: string[] = [];
   const text = criteria.trim();
   let start = 0;
@@ -141,10 +145,14 @@ export const splitClauses = (criteria: string) => {
     .flatMap((s) => s.split(FAILS_IF_SPLIT))
     .map((s) => s.trim())
     .filter(Boolean);
+  assert(clauses.length > 0, `splitClauses found no clause in ${JSON.stringify(criteria)}; expected at least one`);
   return clauses;
 };
 
 export const aggregate = (clauses: { result: string }[]) => {
+  assert(Array.isArray(clauses), `aggregate needs a list of graded clauses, got ${typeof clauses}`);
+  const unknownResults = clauses.filter((c) => !RESULTS.includes(c.result)).map((c) => c.result);
+  assert(unknownResults.length === 0, `aggregate got results ${JSON.stringify(unknownResults)}; expected only ${RESULTS.join(", ")}`);
   const verdict = !clauses.length
     ? UNCLEAR
     : clauses.some((c) => c.result === FAIL)
@@ -156,35 +164,43 @@ export const aggregate = (clauses: { result: string }[]) => {
 };
 
 const normalize = (text: string) => {
+  assert(typeof text === "string", `normalize needs text, got ${typeof text}`);
   const normalized = text
     .replace(/\\[nt]/g, " ")
     .replace(/\\"/g, '"')
     .replace(/[*_`]/g, "")
     .replace(/\s+/g, " ")
     .trim();
+  assert(!/\s{2}/.test(normalized), `normalize left a run of whitespace in ${JSON.stringify(normalized)}; quote matching depends on single spaces`);
   return normalized;
 };
 
 const filesUnder = (dir: string): string[] => {
+  assert(existsSync(dir), `filesUnder needs an existing directory, got ${JSON.stringify(dir)}`);
   const files = readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) return SKIPPED_DIRS.has(entry.name) ? [] : filesUnder(path);
     return entry.isFile() ? [path] : [];
   });
+  assert(files.every((path) => path.startsWith(dir)), `filesUnder(${dir}) returned paths outside it: ${JSON.stringify(files.filter((path) => !path.startsWith(dir)))}`);
   return files;
 };
 
 export const readRun = (runDir: string): Run => {
+  assert(runDir.trim() !== "", `readRun needs a run folder, got ${JSON.stringify(runDir)}`);
   const root = resolve(runDir);
   const files = filesUnder(root).map((path) => {
     const inside = relative(root, path);
     const body = readFileSync(join(root, inside), "utf8");
     return { path: inside, text: normalize(body), lines: body.split("\n").length };
   });
+  assert(files.length > 0, `run folder ${root} has no files; there is nothing to check quotes against`);
   return { files };
 };
 
 export const settle = (clauses: string[], graded: Graded[], run: Run) => {
+  assert(Array.isArray(graded), `settle needs the graded clauses as a list, got ${typeof graded}`);
+  assert(Array.isArray(run.files), `settle needs the run's files as a list, got ${typeof run.files}`);
   const settled = clauses.map((clause, index) => {
     const found = graded.find((g) => g.id === index + 1);
     if (!found) return { clause, result: UNCLEAR, evidence: "" };
@@ -207,10 +223,14 @@ export const settle = (clauses: string[], graded: Graded[], run: Run) => {
       .join(" — ");
     return { clause, result: proven ? found.result : UNCLEAR, evidence };
   });
+  const unknownResults = settled.filter((s) => !RESULTS.includes(s.result)).map((s) => s.result);
+  assert(unknownResults.length === 0, `settle produced results ${JSON.stringify(unknownResults)}; expected only ${RESULTS.join(", ")}`);
   return settled;
 };
 
 const promptFor = ({ prompt, persona }: Row, clauses: string[], runDir: string) => {
+  assert(clauses.length > 0, `promptFor needs at least one clause to grade, got ${JSON.stringify(clauses)}`);
+  assert(existsSync(join(runDir, OUTPUT_FILE)), `promptFor needs ${OUTPUT_FILE} in ${runDir}`);
   const files = readdirSync(runDir).filter((f) => f !== OUTPUT_FILE);
   const text = `You grade one recorded run of an AI coding assistant against a fixed list of clauses.
 
@@ -259,12 +279,14 @@ ${readFileSync(join(runDir, OUTPUT_FILE), "utf8")}
 };
 
 const parseReply = (stdout: string): Graded[] => {
+  assert(typeof stdout === "string", `parseReply needs the judge's stdout text, got ${typeof stdout}`);
   let reply;
   try {
     reply = JSON.parse(stdout);
   } catch {
     throw new HarnessError(`judge output is not JSON: ${stdout.slice(0, SHOWN_CHARS)}`);
   }
+  assert(typeof reply === "object" && reply !== null, `judge output is JSON but not an object: ${stdout.slice(0, SHOWN_CHARS)}`);
   if (reply.is_error) throw new HarnessError(`judge reported an error: ${reply.result ?? ""}`);
   const graded = reply.structured_output?.clauses;
   const wellFormed = Array.isArray(graded) && graded.every((g) => g && CLAUSE_SHAPE.every((fits) => fits(g)));
@@ -275,6 +297,8 @@ const parseReply = (stdout: string): Graded[] => {
 };
 
 export function judge(skill: string, id: string, runDir: string) {
+  assert(skill !== PARENT_SEGMENT && !/[\\/]/.test(skill), `judge needs one skills folder name, got ${JSON.stringify(skill)}; pass a skill name, not a path`);
+  assert(id.trim() !== "" && runDir.trim() !== "", `judge needs a scenario id and a run folder, got ${JSON.stringify(id)} and ${JSON.stringify(runDir)}`);
   const evalsPath = join(SKILLS_DIR, skill, "evals.md");
   if (!existsSync(evalsPath)) throw new HarnessError(`No such skill: ${skill}`);
   const markdown = readFileSync(evalsPath, "utf8");

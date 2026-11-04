@@ -1,0 +1,2 @@
+[files]
+extend-exclude = ["assertion-effectiveness-baseline.json"]

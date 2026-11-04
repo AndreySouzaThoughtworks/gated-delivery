@@ -20,7 +20,6 @@ import {
 import { constants, tmpdir } from "node:os";
 import { basename, join, sep } from "node:path";
 import { pathToFileURL } from "node:url";
-import { judgeModel } from "./judge-model.ts";
 import { parseChecks } from "./run-checks.ts";
 
 const ROOT = process.cwd();
@@ -41,7 +40,6 @@ const DEFAULT_JOBS = 4;
 const RERUN_REPEAT = 1;
 const RERUN_START = 2;
 const VERDICTS_FILE = "verdicts.json";
-const ACCOUNT_DEFAULT_MODEL = "unset (the provider default)";
 const BUDGET_STOPPED_SUBTYPE = "error_max_budget_usd";
 const VERDICT_PASS = "pass";
 const VERDICT_FLAKY = "flaky";
@@ -717,13 +715,6 @@ const runQueue = async (items: RunJob[], jobs: number, ledger: Ledger) => {
   return { results, unlaunched: queue };
 };
 
-const writeVerdicts = ({ out, verdicts, totalCostUsd, runs, runModel }: { out: string; verdicts: Verdicts; totalCostUsd: number; runs: number; runModel: string | null }) => {
-  assert(existsSync(out), `verdicts are written into an existing output directory, got ${out}`);
-  const model = runModel ?? ACCOUNT_DEFAULT_MODEL;
-  assert(model.trim() !== "", `the run model recorded in ${VERDICTS_FILE} must not be blank, got ${JSON.stringify(runModel)}`);
-  writeFileSync(join(out, VERDICTS_FILE), JSON.stringify({ verdicts, totalCostUsd, runs, model, judgeModel: judgeModel() }));
-};
-
 const report = ({ options, out, results, verdicts }: { options: ParsedOptions; out: string; results: RunRow[]; verdicts: Verdicts }) => {
   assert(existsSync(out), `the report is written into an output directory that exists, got ${out}`);
   assert(results.every((row) => Object.hasOwn(verdicts, row.id)), `every run needs a verdict for its scenario, got ${JSON.stringify(verdicts)} for ${JSON.stringify(results.map((row) => row.id))}`);
@@ -805,7 +796,7 @@ async function main() {
     rerunFailures: options.rerunFailures,
   });
   assert(Object.keys(verdicts).length === selected.length, `every selected scenario needs a verdict, got ${JSON.stringify(verdicts)}`);
-  writeVerdicts({ out, verdicts, totalCostUsd: ledger.spent, runs: results.length, runModel: options.model });
+  writeFileSync(join(out, VERDICTS_FILE), JSON.stringify({ verdicts, totalCostUsd: ledger.spent, runs: results.length }));
 
   return report({ options, out, results, verdicts });
 }

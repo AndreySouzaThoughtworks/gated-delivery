@@ -35,7 +35,7 @@ It finds the skills that changed against `GATED_DELIVERY_BASE_REF` (default `ori
 - `3`: nothing ran, because `claude` is missing or the probe failed, was not JSON or reported `is_error`. The script prints a `SKIPPED` line and a credentials hint. It never exits 0 in that case.
 - `2`: a usage error.
 
-**Stamp.** Each skill that passes gets `evals/results/<skill>.json`: `hash`, `tier`, `scenarios`, `verdicts`, `totalCostUsd`, `model`, `judgeModel` and `ranAt`. `model` is the `--model` value (or `GATED_DELIVERY_RUN_MODEL`) that ran the scenarios, or `unset (the provider default)`; `judgeModel` is the model that judged them. Neither enters the hash, and stamps written before these fields existed stay valid. Commit it with the change. The hash is a sha256 over every file under `plugin/skills/<skill>/` and every `plugin/agents/*.md` file the skill's `SKILL.md` names. Each file contributes its repository-relative path and its bytes, in sorted path order. `evals.md` and test files under `scripts/` are left out.
+**Stamp.** Each skill that passes gets `evals/results/<skill>.json`: `hash`, `tier`, `scenarios`, `verdicts`, `totalCostUsd` and `ranAt`. Commit it with the change. The hash is a sha256 over every file under `plugin/skills/<skill>/` and every `plugin/agents/*.md` file the skill's `SKILL.md` names. Each file contributes its repository-relative path and its bytes, in sorted path order. `evals.md` and test files under `scripts/` are left out.
 
 **Waiver.** When no working credentials exist, record an exception: `node scripts/eval/changed-skills.ts --waive <skill> --reason "<why>"`. It writes `evals/results/<skill>.json` with the hash, the reason and `ranAt`, and runs nothing. The guard accepts a waiver only for the exact current hash, so any later edit to the skill makes it stale. It shows as a warning, not a pass. `/evals/results/` is in CODEOWNERS, so the owner reviews each one.
 
@@ -50,40 +50,8 @@ It finds the skills that changed against `GATED_DELIVERY_BASE_REF` (default `ori
 | `--budget-usd N` | Pass `--max-budget-usd N` to each run. A run the cap stops is a harness failure, flagged `over-budget`. The `error_max_budget_usd` subtype it keys on is unverified against a real capped session, so any result with `is_error: true` is also a harness failure, flagged `api-error`. |
 | `--total-budget-usd N` | Stop launching runs once finished runs cost `N`. Scenarios never launched are `not-run` and the exit is nonzero. |
 | `--model M` | Pass `--model M` to each run. `GATED_DELIVERY_RUN_MODEL` sets the default. |
-| `GATED_DELIVERY_JUDGE_MODEL` | The judge's model (default `haiku`). There is no flag; the judge reads this variable. |
 
 Each flag works on `run-scenarios.ts` directly. `changed-skills.ts` forwards `--budget-usd`, `--total-budget-usd`, `--model` and `--jobs`. A scenario passes when its harness flags are clean and its checks and judge each say `PASS` or `n/a`. `UNCLEAR` is not a pass. A row whose Pass Criteria cell is exactly `—` has all its criteria in the fence: the judge is not called and its grade is `n/a`. The runner also writes `verdicts.json` beside `summary.tsv` and prints a `VERDICT` line per scenario.
-
-## Running the evals through Z.ai GLM
-
-Z.ai serves GLM models on an Anthropic-compatible endpoint, so the same `claude -p` runs can go to GLM. Z.ai's [model page](https://docs.z.ai/devpack/latest-model) lists the ids `glm-5.3` (text only) and `glm-5.3-flash` (multimodal) and the base URL `https://api.z.ai/api/anthropic`. Nothing changes by default; this path is opt-in through the environment.
-
-```bash
-export ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic
-export ANTHROPIC_AUTH_TOKEN=<your Z.ai key>
-export ANTHROPIC_DEFAULT_HAIKU_MODEL='glm-5.3-flash[1m]'
-export ANTHROPIC_DEFAULT_SONNET_MODEL='glm-5.3-flash[1m]'
-export ANTHROPIC_DEFAULT_OPUS_MODEL='glm-5.3-flash[1m]'
-export GATED_DELIVERY_RUN_MODEL='glm-5.3-flash[1m]'
-export GATED_DELIVERY_JUDGE_MODEL='glm-5.3-flash[1m]'
-node scripts/eval/changed-skills.ts
-```
-
-Why each variable:
-
-- The runner, the judge and the probe start `claude` with the caller's environment unchanged, so `ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN` reach all three. The runs pass `--setting-sources` without `user`, so a provider written in `~/.claude/settings.json` is ignored. Provider configuration has to be in the environment.
-- The judge defaults to the Claude alias `haiku`, which the Z.ai endpoint does not serve. `GATED_DELIVERY_JUDGE_MODEL` replaces it. Use `GATED_DELIVERY_RUN_MODEL` or `--model` for the scenario runs.
-- The `ANTHROPIC_DEFAULT_*_MODEL` lines, taken from Z.ai's Claude Code example, keep Claude Code's own background calls off Claude ids.
-- A model id Claude Code does not recognize makes it print `unrecognized_model` and assume a 200k context window. The [model configuration page](https://code.claude.com/docs/en/model-config#correct-the-window-for-a-gateway-or-custom-model-id) gives the fix: append `[1m]` for a model with a 1M window, which is what Z.ai's example does for `glm-5.3-flash`, or set `CLAUDE_CODE_MAX_CONTEXT_TOKENS` to the real window for any other size. Claude Code strips the `[1m]` before it sends the id. Z.ai's page shows a `[1m]` example only for `glm-5.3-flash`, so give `glm-5.3` no suffix until its documentation states a window.
-
-Every stamp and `verdicts.json` records `model` and `judgeModel`, so a GLM run is visible in the stamp. The consistency guard checks only the hash. It accepts a GLM stamp as readily as a Claude one, so a reviewer has to read those two fields.
-
-Caveats:
-
-- The skills are written and tuned for Claude. A GLM pass says the skill works on GLM. It does not stand in for a Claude pass, and a GLM failure may not be a Claude failure. Do not commit a GLM stamp as evidence of Claude behaviour.
-- When GLM both runs and judges, the judge shares the runner's blind spots, so agreement between them is inflated. Use a different judge model when you can.
-- `--budget-usd` caps spend using the price Claude Code computes for the model. Whether it computes anything meaningful for a GLM id is untested, so do not rely on the cap.
-- This path is untested end to end. The Z.ai key available so far authenticates and both model ids exist, but every request returns error 1113, "Insufficient balance or no resource package". No scenario has run through GLM. What is tested is that the judge honours `GATED_DELIVERY_JUDGE_MODEL`, that the environment reaches `claude` unmodified, and that the stamp records both models, all against a stub `claude`.
 
 The sections below are what the runner does and why, for reading its runs and for running one by hand.
 

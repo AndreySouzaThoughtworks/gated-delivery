@@ -52,6 +52,7 @@ const SLICE_HEADING = /^### Slice (\d+) — (.+?) — exposure: (\S+)\s*$/;
 const FLAG_LINE = /^Flag[^:\n]*:\s*(.+?)\s+—\s+default\s+(on|off)\s+—\s+removed when\s+(.+)$/m;
 const AC_REFERENCE = /AC\[?(\d+)\]?(?:\s*[–-]\s*(?:AC\[?)?(\d+)\]?)?/g;
 const WAVE_ROW = /^\|\s*(\d+)\s*\|([^|]*)\|/gm;
+const FRONTMATTER_BLOCK = /^---\n([\s\S]*?)\n---\n/;
 const FENCE = /^```[\s\S]*?^```/gm;
 const INLINE_CODE = /`[^`\n]*`/g;
 /**
@@ -100,11 +101,13 @@ const splitByHeading = (text, level) => {
 
 /**
  * @param {string} raw
- * @returns {Spec}
+ * @param {RegExp} [blockPattern]
+ * @returns {{ frontmatter: Record<string, string>, body: string }}
  */
-export const parseSpec = (raw) => {
+export const splitFrontmatter = (raw, blockPattern = FRONTMATTER_BLOCK) => {
   assert(typeof raw === "string", `a spec must be text, got ${typeof raw}`);
-  const block = raw.match(/^---\n([\s\S]*?)\n---\n/);
+  const block = raw.match(blockPattern);
+  assert(block === null || block.index === 0, `the frontmatter block must start at the first character, got offset ${block?.index}`);
   /** @type {Record<string, string>} */
   const frontmatter = {};
   for (const line of (block?.[1] ?? "").split("\n")) {
@@ -112,7 +115,18 @@ export const parseSpec = (raw) => {
     if (colon > 0) frontmatter[line.slice(0, colon).trim()] = line.slice(colon + 1).trim();
   }
   const body = raw.slice(block?.[0].length ?? 0);
-  assert(body.length <= raw.length, `the body cannot be longer than the file, got ${body.length} of ${raw.length} characters`);
+  assert((block?.[0].length ?? 0) + body.length === raw.length, `the frontmatter block of ${block?.[0].length ?? 0} characters plus the body of ${body.length} must rebuild the ${raw.length}-character file`);
+  return { frontmatter, body };
+};
+
+/**
+ * @param {string} raw
+ * @returns {Spec}
+ */
+export const parseSpec = (raw) => {
+  assert(typeof raw === "string", `a spec must be text, got ${typeof raw}`);
+  const { frontmatter, body } = splitFrontmatter(raw);
+  assert(raw.endsWith(body) && Object.values(frontmatter).every((value) => typeof value === "string"), `the body must be the tail of the file and every frontmatter value text, got ${body.length} of ${raw.length} characters`);
   const prose = body.replace(FENCE, "");
   const sections = splitByHeading(prose, 2);
   const bodies = Object.fromEntries(sections.map((s) => [s.title, s.body]));

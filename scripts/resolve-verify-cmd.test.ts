@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlink
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import * as resolver from "../plugin/skills/slice/scripts/resolve-verify-cmd.mjs";
 import { NO_COMMAND_MESSAGE, VERIFY_ENV, resolveVerifyCmd } from "../plugin/skills/slice/scripts/resolve-verify-cmd.mjs";
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "..", "plugin", "skills", "slice", "scripts", "resolve-verify-cmd.mjs");
@@ -102,4 +103,45 @@ test("the command line prints the command, or fails with a plain message", () =>
   assert.deepEqual([printed.status, printed.stdout], [0, `${FROM_ENV}\n`], "the command must be printed alone");
   const failed = spawnSync("node", [SCRIPT], { ...base, env: { PATH: process.env.PATH, HOME: w.home } });
   assert.deepEqual([failed.status, failed.stderr], [1, `${NO_COMMAND_MESSAGE}\n`], "no source must exit 1 with the message");
+});
+
+const SKIPPED_SCRIPT_PACKAGE = '{"scripts":{"check":"","lint":"eslint ."}}';
+const BLANK_VALUES = ["", "   ", "\t\n"];
+
+test("regression: a blank environment variable falls through to the next source", () => {
+  const w = world();
+  write(join(w.repo, "package.json"), '{"scripts":{"check":"x"}}');
+  for (const blank of BLANK_VALUES) {
+    const command = resolveVerifyCmd({ ...w.options, env: { HOME: w.home, [VERIFY_ENV]: blank } });
+    assert.equal(command, "pnpm check", `blank ${JSON.stringify(blank)} must fall through to package.json, got ${command}`);
+  }
+  write(join(w.folder, "CLAUDE.md"), INSTRUCTIONS_OF[FROM_INSTRUCTIONS]);
+  assert.equal(resolveVerifyCmd({ ...w.options, env: { HOME: w.home, [VERIFY_ENV]: "" } }), FROM_INSTRUCTIONS, "a blank variable must fall through to the CLAUDE.md");
+});
+
+test("regression: an empty package script is skipped for the next defined one", () => {
+  const w = world();
+  write(join(w.repo, "package.json"), SKIPPED_SCRIPT_PACKAGE);
+  assert.equal(resolveVerifyCmd(w.options), "pnpm lint");
+});
+
+test("pickScript rejects an order that is empty, repeats a name, or holds a non-name", () => {
+  for (const order of [[], ["check", "check"], ["check", ""], ["check", 3]] as unknown as string[][]) {
+    assert.throws(() => resolver.pickScript({ check: "x" }, order), /script order/, `order ${JSON.stringify(order)} must be rejected`);
+  }
+  assert.equal(resolver.pickScript({ check: "", test: "x" }), "test");
+  assert.equal(resolver.pickScript(undefined), undefined);
+});
+
+test("commandFromEnv rejects non-text values and a non-object env, and trims text", () => {
+  assert.throws(() => resolver.commandFromEnv({ [VERIFY_ENV]: 7 } as never), /must be text when set, got number/);
+  assert.throws(() => resolver.commandFromEnv(null as never), /env must be an object/);
+  assert.equal(resolver.commandFromEnv({ [VERIFY_ENV]: "  make x \n" }), "make x");
+  assert.equal(resolver.commandFromEnv({ [VERIFY_ENV]: "  " }), undefined);
+  assert.equal(resolver.commandFromEnv({ [VERIFY_ENV]: undefined }), undefined);
+});
+
+test("commandFromPackage and resolveVerifyCmd reject a non-string cwd", () => {
+  assert.throws(() => resolver.commandFromPackage({ cwd: 5 as never }), /cwd must be a non-empty path/);
+  assert.throws(() => resolveVerifyCmd({ cwd: "" }), /cwd must be a non-empty path/);
 });

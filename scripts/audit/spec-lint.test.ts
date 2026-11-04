@@ -5,6 +5,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import * as specLint from "../../plugin/skills/spec/scripts/spec-lint.mjs";
 import { lintSpec } from "../../plugin/skills/spec/scripts/spec-lint.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -85,4 +86,31 @@ test("the command line exits 1 on a bad spec and 0 on a good one", () => {
   assert(failed.status === 1 && failed.stdout.includes(`${bad}: frontmatter type`), `a bad spec must exit 1 naming the file, got ${failed.status} ${failed.stdout}`);
   const passed = spawnSync("node", [LINT, join(HERE, "fixtures", "valid-spec.md")], { encoding: "utf8" });
   assert(passed.status === 0 && passed.stdout === "", `a good spec must exit 0 silently, got ${passed.status} ${passed.stdout}`);
+});
+
+const TOLERATED_FRONTMATTER = "ticket: PROJ-123\nlinks:\n  - one\n  - two\n# note\n# keyed: comment\n  : orphan value\ntype: change\n";
+
+test("regression: frontmatter list items and comment lines parse without throwing", () => {
+  const raw = VALID.replace("ticket: PROJ-123\ntype: change\n", TOLERATED_FRONTMATTER);
+  assert(raw !== VALID, `the mutation must change the fixture, got ${raw.length} characters both before and after`);
+  const spec = specLint.parseSpec(raw);
+  assert.deepEqual(spec.frontmatter, { ticket: "PROJ-123", links: "", "# keyed": "comment", "": "orphan value", type: "change", status: "Ready", created: "2026-01-15" });
+  assert.equal(spec.body, VALID.slice(VALID.indexOf("# PROJ-123")));
+  assert.deepEqual(lintSpec(raw), []);
+});
+
+test("regression: text without a frontmatter block parses to an empty frontmatter and the whole text as body", () => {
+  const spec = specLint.parseSpec("# no block\n");
+  assert.deepEqual([spec.frontmatter, spec.body], [{}, "# no block\n"]);
+});
+
+test("splitFrontmatter rejects a block pattern that matches past the first character", () => {
+  const unanchored = /---\n([\s\S]*?)\n---\n/;
+  assert.throws(() => specLint.splitFrontmatter("intro\n---\na: b\n---\nbody", unanchored), /must start at the first character, got offset 6/);
+  assert.deepEqual(specLint.splitFrontmatter("---\na: b\n---\nbody"), { frontmatter: { a: "b" }, body: "body" });
+});
+
+test("splitFrontmatter and parseSpec reject non-text input", () => {
+  assert.throws(() => specLint.splitFrontmatter(42 as never), /a spec must be text, got number/);
+  assert.throws(() => specLint.parseSpec(undefined as never), /a spec must be text, got undefined/);
 });

@@ -1,5 +1,5 @@
 {
-  "hash": "31f6f25ca539352cbb0ac18cef293e110feb5324a2c4e8ac278adb972bab589f",
-  "waived": "no live eval run: the script shipped under the skill gained assertions on its arguments and results with no change for valid input; no prose changed; its tests and lint runs pass",
-  "ranAt": "2026-11-03T11:06:59.895Z"
+  "hash": "2809e487faf78909c72e874fc79fbb26e04624a71da97cd89916a00ba2d4d561",
+  "waived": "assertions reworked, behaviour for tolerated input unchanged and covered by regression tests; live eval pending",
+  "ranAt": "2026-11-04T09:28:43.567Z"
 }

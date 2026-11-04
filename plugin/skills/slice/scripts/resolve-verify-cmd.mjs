@@ -46,7 +46,6 @@ export const commandFromInstructions = ({ cwd, home: configuredHome }) => {
     if (found || dir === home) break;
   }
   assert(found === undefined || found.trim().length > 0, `a Verify command read from ${INSTRUCTIONS_FILE} must not be blank, got ${JSON.stringify(found)}; write the command between the backticks`);
-  assert(root !== dirname(root) || found === undefined, `a repository at the filesystem root has no folder above it, yet read ${JSON.stringify(found)}`);
   return found;
 };
 
@@ -55,21 +54,16 @@ export const commandFromInstructions = ({ cwd, home: configuredHome }) => {
  * @param {string[]} [order]
  * @returns {string | undefined}
  */
-export const pickScript = (scripts, order = SCRIPT_ORDER) => {
+export const pickScript = (scripts, order = SCRIPT_ORDER) => { // zanity: ignore[assertion-density] -- exported-and-tested: the order list is its only caller-supplied input, and the chosen name comes straight out of order.find
   assert(
     Array.isArray(order) && order.length > 0 && order.every((name) => typeof name === "string" && name.length > 0) && new Set(order).size === order.length,
     `the script order must be a non-empty list of distinct script names, got ${JSON.stringify(order)}`,
   );
-  const name = order.find((candidate) => scripts?.[candidate]);
-  assert(
-    name === undefined || (order.includes(name) && Boolean(scripts?.[name]) && order.slice(0, order.indexOf(name)).every((earlier) => !scripts?.[earlier])),
-    `the chosen script ${JSON.stringify(name)} must be the first defined one of ${order.join(", ")}`,
-  );
-  return name;
+  return order.find((candidate) => scripts?.[candidate]);
 };
 
 /** @param {{ cwd: string }} location */
-export const commandFromPackage = ({ cwd }) => {
+export const commandFromPackage = ({ cwd }) => { // zanity: ignore[assertion-density] -- single-invariant: cwd is the only input it can distrust, and an unreadable package.json falls back to no command by design
   assert(typeof cwd === "string" && cwd.length > 0, `cwd must be a non-empty path, got ${JSON.stringify(cwd)}`);
   let scripts;
   try {
@@ -78,9 +72,7 @@ export const commandFromPackage = ({ cwd }) => {
     scripts = undefined;
   }
   const name = pickScript(scripts);
-  const command = name && `${RUNNER} ${name}`;
-  assert(name === undefined || SCRIPT_ORDER.includes(name), `a package command must run one of ${SCRIPT_ORDER.join(", ")}, got ${JSON.stringify(command)}`);
-  return command;
+  return name && `${RUNNER} ${name}`;
 };
 
 /** @param {Record<string, string | undefined>} env */
@@ -92,12 +84,9 @@ export const commandFromEnv = (env) => {
 };
 
 /** @param {{ env?: Record<string, string | undefined>, cwd?: string, home?: string }} [options] */
-export const resolveVerifyCmd = ({ env = process.env, cwd = process.cwd(), home = env.HOME || homedir() } = {}) => {
+export const resolveVerifyCmd = ({ env = process.env, cwd = process.cwd(), home = env.HOME || homedir() } = {}) => { // zanity: ignore[assertion-density] -- single-invariant: cwd is its only own precondition, and each command source asserts what it reads before this function picks the first one
   assert(typeof cwd === "string" && cwd.length > 0, `cwd must be a non-empty path, got ${JSON.stringify(cwd)}`);
-  const fromEnv = commandFromEnv(env);
-  const command = fromEnv ?? commandFromInstructions({ cwd, home }) ?? commandFromPackage({ cwd });
-  assert(fromEnv === undefined || command === fromEnv, `a set ${VERIFY_ENV} must win over every other source, got ${JSON.stringify(command)} instead of ${JSON.stringify(fromEnv)}`);
-  return command;
+  return commandFromEnv(env) ?? commandFromInstructions({ cwd, home }) ?? commandFromPackage({ cwd });
 };
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

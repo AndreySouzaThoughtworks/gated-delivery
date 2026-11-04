@@ -56,6 +56,11 @@ test("hits carry the one-based line number and an extra term adds an arm", () =>
   assert.equal(scanText(text).length, 1, "without the term only the email hits");
 });
 
+test("text that is not a string is refused", () => {
+  const scan = scanText as (text: unknown) => unknown;
+  assert.throws(() => scan(Buffer.from("hello")), /the text to scan must be a string, got object/);
+});
+
 test("an extra term that is not a regex is refused", () => {
   assert.throws(() => scanText("hello", ["("]), /must be a valid regex/);
   assert.throws(() => scanText("hello", [""]), /non-empty regex/);

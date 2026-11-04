@@ -116,3 +116,18 @@ test("accepts every extension it claims to format", () => {
     assert.notEqual(invocations(), "", `${extension} never reached prettier`);
   }
 });
+
+const READ_HOOK_INPUT = join(dirname(fileURLToPath(import.meta.url)), "lib", "read-hook-input.mjs");
+const READ_HOOK_INPUT_SCRIPT = `import(${JSON.stringify(READ_HOOK_INPUT)}).then(({ readHookInput }) => process.stdout.write(JSON.stringify(readHookInput())))`;
+
+const PAYLOAD_CASES = [
+  ["{\"tool_input\":{\"file_path\":\"a.ts\"}}", "{\"tool_input\":{\"file_path\":\"a.ts\"}}"],
+  ...["[1]", "null", "\"text\"", "7", "", "not json"].map((input) => [input, "{}"]),
+];
+
+test("a payload that is not a JSON object reads as an empty payload", () => {
+  for (const [input, expected] of PAYLOAD_CASES) {
+    const read = execFileSync("node", ["-e", READ_HOOK_INPUT_SCRIPT], { encoding: "utf8", input });
+    assert.equal(read, expected, `expected ${expected} for: ${input || "<empty>"}`);
+  }
+});

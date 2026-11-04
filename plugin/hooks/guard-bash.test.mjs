@@ -128,6 +128,16 @@ test("closes the gate when deciding throws", () => {
   assert.ok(stderr.includes("decider exploded") && stderr.includes(ESCAPE_VARIABLE), `got ${stderr}`);
 });
 
+test("closes the gate when the input reader or the decider returns the wrong kind of value", () => {
+  const payloadAsBytes = evaluate(() => Buffer.from('{"tool_input":{"command":"ls"}}'), {});
+  assert.equal(payloadAsBytes.status, EXIT_BLOCK);
+  assert.ok(payloadAsBytes.stderr.includes("readInput must return the payload text"), `got ${payloadAsBytes.stderr}`);
+  const reasonUndefined = evaluate(() => '{"tool_input":{"command":"ls"}}', {}, () => undefined);
+  assert.equal(reasonUndefined.status, EXIT_BLOCK);
+  assert.equal(reasonUndefined.stdout, "");
+  assert.ok(reasonUndefined.stderr.includes("the decider must return a reason or null"), `got ${reasonUndefined.stderr}`);
+});
+
 test("closes the gate when reading stdin throws", () => {
   const unreadable = evaluate(() => {
     throw new Error("stdin unreadable");

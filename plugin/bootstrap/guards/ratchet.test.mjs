@@ -139,7 +139,10 @@ test("rejects a baseline whose findings lack path, rule or message and an unknow
   const dir = repoWithBaseRef([alpha]);
   writeFileSync(join(dir, BASELINE), JSON.stringify({ findings: [{ id: "x" }] }));
   const noIds = runGuard(dir, RATCHET_ARGS);
-  assert(noIds.status === EXIT_USAGE && noIds.stderr.includes("not a zanity baseline"), `entries without fields must exit ${EXIT_USAGE}, got ${noIds.status}: ${noIds.stderr}`);
+  assert(noIds.status === EXIT_USAGE && noIds.stderr.includes("not a findings baseline"), `entries without fields must exit ${EXIT_USAGE}, got ${noIds.status}: ${noIds.stderr}`);
+  writeFileSync(join(dir, BASELINE), JSON.stringify({ schema_version: 1 }));
+  const noFindings = runGuard(dir, RATCHET_ARGS);
+  assert(noFindings.status === EXIT_USAGE && noFindings.stderr.includes("needs a findings array"), `a baseline without findings must exit ${EXIT_USAGE}, got ${noFindings.status}: ${noFindings.stderr}`);
   writeFileSync(join(dir, BASELINE), baselineText([alpha]));
   const unknownRef = runGuard(dir, ["--baseline", BASELINE, "--base-ref", "nowhere"]);
   assert(unknownRef.status === EXIT_USAGE && unknownRef.stderr.includes("nowhere"), `unknown ref must exit ${EXIT_USAGE} naming it, got ${unknownRef.status}: ${unknownRef.stderr}`);
@@ -157,4 +160,28 @@ test("rejects missing or unknown arguments with the usage line", () => {
   assert(noArgs.status === EXIT_USAGE && noArgs.stderr.includes("usage:"), `no arguments must exit ${EXIT_USAGE} with usage, got ${noArgs.status}: ${noArgs.stderr}`);
   const unknown = runGuard(dir, [...RATCHET_ARGS, "--force", "1"]);
   assert(unknown.status === EXIT_USAGE && unknown.stderr.includes("usage:"), `unknown option must exit ${EXIT_USAGE} with usage, got ${unknown.status}: ${unknown.stderr}`);
+});
+
+const repoWithRawBaseline = (text) => {
+  const dir = mkdtempSync(join(tmpdir(), "ratchet-test-"));
+  vcs(dir, ["init", "-q", "-b", "main"]);
+  writeFileSync(join(dir, BASELINE), text);
+  vcs(dir, ["add", "-A"]);
+  vcs(dir, ["commit", "-q", "-m", "base"]);
+  vcs(dir, ["tag", BASE_REF]);
+  assert(vcs(dir, ["show", `${BASE_REF}:${BASELINE}`]) === text, `${BASELINE} at ${BASE_REF} must hold exactly the given text, got ${JSON.stringify(text)}`);
+  writeFileSync(join(dir, BASELINE), baselineText([alpha]));
+  assert(text !== baselineText([alpha]), `the base text must differ from the HEAD baseline, got ${JSON.stringify(text)}`);
+  return dir;
+};
+
+test("rejects a baseline that is empty or not a JSON object at the base ref, and one that is empty at HEAD", () => {
+  const emptyAtBase = runGuard(repoWithRawBaseline(""), RATCHET_ARGS);
+  assert(emptyAtBase.status === EXIT_USAGE && emptyAtBase.stderr.includes(`at ${BASE_REF} is empty`), `an empty base baseline must exit ${EXIT_USAGE} saying it is empty, got ${emptyAtBase.status}: ${emptyAtBase.stderr}`);
+  const arrayAtBase = runGuard(repoWithRawBaseline("[]"), RATCHET_ARGS);
+  assert(arrayAtBase.status === EXIT_USAGE && arrayAtBase.stderr.includes("must hold a JSON object"), `a non-object base baseline must exit ${EXIT_USAGE}, got ${arrayAtBase.status}: ${arrayAtBase.stderr}`);
+  const dir = repoWithBaseRef([alpha]);
+  writeFileSync(join(dir, BASELINE), "");
+  const emptyAtHead = runGuard(dir, RATCHET_ARGS);
+  assert(emptyAtHead.status === EXIT_USAGE && emptyAtHead.stderr.includes(`${BASELINE} is empty`), `an empty HEAD baseline must exit ${EXIT_USAGE} saying it is empty, got ${emptyAtHead.status}: ${emptyAtHead.stderr}`);
 });

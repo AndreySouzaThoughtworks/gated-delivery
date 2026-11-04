@@ -206,3 +206,67 @@ test("treats a malformed manifest line as unusable input", () => {
   assert(result.status === EXIT_USAGE, `a malformed manifest must exit ${EXIT_USAGE}, got ${result.status}: ${result.stderr}`);
   assert(result.stderr.includes("must read"), `stderr must say what the line must read, got ${result.stderr}`);
 });
+
+const expectUnusable = (dir, fragment) => {
+  const result = guard(dir);
+  assert(result.status === EXIT_USAGE, `must exit ${EXIT_USAGE}, got ${result.status}: ${result.stderr}`);
+  assert(result.stderr.includes(fragment), `stderr must include "${fragment}", got ${result.stderr}`);
+};
+
+test("rejects an empty --repo value", () => {
+  const result = spawnSync("node", [GUARD, "--repo", ""], { encoding: "utf8" });
+  assert(result.status === EXIT_USAGE && result.stderr.includes("must name a directory"), `an empty --repo must exit ${EXIT_USAGE} asking for a directory, got ${result.status}: ${result.stderr}`);
+});
+
+test("rejects an allowlist whose lists hold stray whitespace or repeats, or whose shape is wrong", () => {
+  const dir = validRepo();
+  write(dir, ".guardrails/allowed.json", JSON.stringify({ ...ALLOWLIST, zanityExcludes: [" tests/fixtures/ "] }));
+  expectUnusable(dir, "stray whitespace");
+  write(dir, ".guardrails/allowed.json", JSON.stringify({ ...ALLOWLIST, requiredCiJobs: [REQUIRED_JOB, REQUIRED_JOB] }));
+  expectUnusable(dir, "must not repeat an item");
+  write(dir, ".guardrails/allowed.json", "[]");
+  expectUnusable(dir, "must hold a JSON object");
+  write(dir, ".guardrails/allowed.json", JSON.stringify({ zanityDisables: [] }));
+  expectUnusable(dir, "zanityDisables must map");
+  write(dir, ".guardrails/allowed.json", JSON.stringify(ALLOWLIST));
+  expectAccepted(dir);
+});
+
+test("rejects a zanity.toml with single-quoted items, blank items or a byte order mark", () => {
+  const dir = validRepo();
+  write(dir, "zanity.toml", STRICT_CONFIG.replace('disable = ["process-in-test"]', "disable = ['process-in-test']"));
+  expectUnusable(dir, "only double-quoted strings");
+  write(dir, "zanity.toml", STRICT_CONFIG.replace('disable = ["process-in-test"]', 'disable = [""]'));
+  expectUnusable(dir, "must not hold blank items");
+  write(dir, "zanity.toml", `﻿${STRICT_CONFIG}`);
+  expectUnusable(dir, "byte order mark");
+  write(dir, "zanity.toml", STRICT_CONFIG);
+  expectAccepted(dir);
+});
+
+test("rejects a workflow job with two names or a name padded inside its quotes", () => {
+  const dir = validRepo();
+  write(dir, ".github/workflows/ci.yml", PINNED_WORKFLOW.replace(`  ${REQUIRED_JOB}:\n`, `  ${REQUIRED_JOB}:\n    name: one\n    name: two\n`));
+  expectUnusable(dir, "a job has at most one name");
+  write(dir, ".github/workflows/ci.yml", PINNED_WORKFLOW.replace(`  ${REQUIRED_JOB}:\n`, `  ${REQUIRED_JOB}:\n    name: " padded "\n`));
+  expectUnusable(dir, "must be non-blank and trimmed");
+  write(dir, ".github/workflows/ci.yml", PINNED_WORKFLOW);
+  expectAccepted(dir);
+});
+
+test("rejects a manifest that lists a directory reference or the same guard twice", () => {
+  const dir = repoWithGuards();
+  const valid = manifestOf(GUARD_FILES);
+  write(dir, MANIFEST, `${valid}${"0".repeat(64)}  guards/..\n`);
+  expectUnusable(dir, "not directory references");
+  write(dir, MANIFEST, `${valid}${valid.split("\n")[0]}\n`);
+  expectUnusable(dir, "lists a file twice");
+  write(dir, MANIFEST, valid);
+  expectAccepted(dir);
+});
+
+test("refuses to print a problem that spans two lines", () => {
+  const dir = repoWithGuards();
+  write(dir, "guards/two\nlines.mjs", "process.exit(0);\n");
+  expectUnusable(dir, "each problem must be one line");
+});

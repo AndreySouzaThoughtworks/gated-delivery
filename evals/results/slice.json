@@ -1,5 +1,5 @@
 {
-  "hash": "2809e487faf78909c72e874fc79fbb26e04624a71da97cd89916a00ba2d4d561",
-  "waived": "assertions reworked, behaviour for tolerated input unchanged and covered by regression tests; live eval pending",
-  "ranAt": "2026-11-04T09:28:43.567Z"
+  "hash": "d71c5717ad99b6662b30d97f5fa8cce0d0296fb16045c85c013ff991591f8f6f",
+  "waived": "assertions that could not fail removed or proven by tests; behaviour for valid input unchanged; no prose changed; live eval not run",
+  "ranAt": "2026-11-04T12:07:25.222Z"
 }

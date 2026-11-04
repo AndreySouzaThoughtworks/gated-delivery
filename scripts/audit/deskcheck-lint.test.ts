@@ -67,6 +67,19 @@ test("the unfilled template is rejected", () => {
   assert(!problems.some((p) => p.includes("Content-Security-Policy")), `the template's own CSP is the reference and must not be flagged, got ${JSON.stringify(problems)}`);
 });
 
+test("a page that is not text is refused", () => {
+  const lint = lintDeskcheck as (html: unknown) => string[];
+  assert.throws(() => lint(1), /the page must be text, got number/);
+});
+
+test("a template with no Content-Security-Policy tag, or with two, is refused", () => {
+  const lint = lintDeskcheck as (html: string, options: { templateHtml: string }) => string[];
+  const cspTag = TEMPLATE.match(/<meta\s+http-equiv=["']Content-Security-Policy["'][^>]*>/i)?.[0] ?? "";
+  assert(cspTag.length > 0, `the shipped template must carry a Content-Security-Policy tag to copy, got ${cspTag.length} characters`);
+  assert.throws(() => lint(VALID, { templateHtml: "<html></html>" }), /exactly one Content-Security-Policy meta tag to compare against, got 0/);
+  assert.throws(() => lint(VALID, { templateHtml: `${cspTag}${cspTag}` }), /exactly one Content-Security-Policy meta tag to compare against, got 2/);
+});
+
 test("a template that is not text is refused", () => {
   const lint = lintDeskcheck as (html: string, options: { templateHtml: unknown }) => string[];
   assert.throws(() => lint(VALID, { templateHtml: 1 }), /the template must be text, got number/);

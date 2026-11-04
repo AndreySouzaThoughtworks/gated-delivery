@@ -141,6 +141,18 @@ test("commandFromEnv rejects non-text values and a non-object env, and trims tex
   assert.equal(resolver.commandFromEnv({ [VERIFY_ENV]: undefined }), undefined);
 });
 
+test("a relative home folder is refused when the CLAUDE.md search needs it", () => {
+  const w = world();
+  assert.throws(() => resolveVerifyCmd({ env: {}, cwd: w.repo, home: "relative/home" }), /the home folder must be an absolute path/);
+  assert.equal(resolveVerifyCmd({ env: { [VERIFY_ENV]: FROM_ENV }, cwd: w.repo, home: "relative/home" }), FROM_ENV, "a set variable never reaches the home folder search");
+});
+
+test("a Verify command that is only spaces is refused instead of used", () => {
+  const w = world();
+  write(join(w.folder, "CLAUDE.md"), "# Rules\n\n## Verification\n\n**Verify command:** `   `\n");
+  assert.throws(() => resolveVerifyCmd(w.options), /a Verify command read from CLAUDE.md must not be blank/);
+});
+
 test("commandFromPackage and resolveVerifyCmd reject a non-string cwd", () => {
   assert.throws(() => resolver.commandFromPackage({ cwd: 5 as never }), /cwd must be a non-empty path/);
   assert.throws(() => resolveVerifyCmd({ cwd: "" }), /cwd must be a non-empty path/);

@@ -110,6 +110,14 @@ test("splitFrontmatter rejects a block pattern that matches past the first chara
   assert.deepEqual(specLint.splitFrontmatter("---\na: b\n---\nbody"), { frontmatter: { a: "b" }, body: "body" });
 });
 
+test("an AC range that expands past the limit is refused", () => {
+  assert.throws(() => lintSpec(swap("### Slice 1 — AC1 —", "### Slice 1 — AC1-5000 —")(VALID)), /an AC range must not expand to more than 1000 numbers/);
+});
+
+test("a heading with no title inside a section is refused", () => {
+  assert.throws(() => lintSpec(`${VALID}\n## \nmore text\n`), /a ## part must not contain another ## heading/);
+});
+
 test("splitFrontmatter and parseSpec reject non-text input", () => {
   assert.throws(() => specLint.splitFrontmatter(42 as never), /a spec must be text, got number/);
   assert.throws(() => specLint.parseSpec(undefined as never), /a spec must be text, got undefined/);

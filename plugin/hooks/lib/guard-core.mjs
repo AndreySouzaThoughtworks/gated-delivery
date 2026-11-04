@@ -73,11 +73,12 @@ const decide = (payload) => {
  * @returns {GuardResult}
  */
 const evaluate = (readInput, env, decider = decide) => {
-  assert(typeof readInput === "function", `readInput must be a function, got ${typeof readInput}`);
-  assert(typeof decider === "function", `decider must be a function, got ${typeof decider}`);
   if (env[ESCAPE_VARIABLE] === ESCAPE_VALUE) return ALLOWED_RESULT;
   try {
-    const reason = decider(JSON.parse(readInput()));
+    const rawInput = readInput();
+    assert(typeof rawInput === "string", `readInput must return the payload text, got ${typeof rawInput}`);
+    const reason = decider(JSON.parse(rawInput));
+    assert(reason === null || typeof reason === "string", `the decider must return a reason or null, got ${JSON.stringify(reason)}`);
     if (reason === null) return ALLOWED_RESULT;
     const permissionDecisionReason = `Blocked by gated-delivery guard: ${reason}. If this is genuinely intended, run it outside the agent or adjust the command.`;
     const output = { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason } };

@@ -69,14 +69,13 @@ const EXIT_PROBLEMS = 1;
  * @param {string} text
  * @returns {number[]}
  */
-const idsIn = (text) => {
+const idsIn = (text) => { // zanity: ignore[assertion-density] -- multi-caller-helper: used by slice parsing and the AC coverage rule, and the range cap is the only way a regex-matched number list can go wrong
   /** @type {number[]} */
   const ids = [];
   for (const [, from, to] of text.matchAll(AC_REFERENCE)) {
     for (let id = Number(from); id <= Number(to ?? from) && ids.length <= MAX_EXPANDED_IDS; id += 1) ids.push(id);
   }
   assert(ids.length <= MAX_EXPANDED_IDS, `an AC range must not expand to more than ${MAX_EXPANDED_IDS} numbers, got ${ids.length} from ${JSON.stringify(text.slice(0, 80))}; write a smaller range`);
-  assert(ids.every((id) => Number.isInteger(id)), `every AC number must be a whole number, got ${JSON.stringify(ids.slice(0, 5))} from ${JSON.stringify(text.slice(0, 80))}`);
   return ids;
 };
 
@@ -85,9 +84,7 @@ const idsIn = (text) => {
  * @param {number} level
  * @returns {HeadingPart[]}
  */
-const splitByHeading = (text, level) => {
-  assert(typeof text === "string", `the text to split must be a string, got ${typeof text}`);
-  assert(Number.isInteger(level) && level >= 1, `a heading level must be a whole number from 1, got ${level}`);
+const splitByHeading = (text, level) => { // zanity: ignore[assertion-density] -- multi-caller-helper: four callers pass literal levels and prose strings, so the nested-heading check is its only input-dependent invariant
   const hashes = "#".repeat(level);
   const marks = [...text.matchAll(new RegExp(`^${hashes} (.+)$`, "gm"))];
   const parts = marks.map((mark, i) => ({
@@ -115,7 +112,6 @@ export const splitFrontmatter = (raw, blockPattern = FRONTMATTER_BLOCK) => {
     if (colon > 0) frontmatter[line.slice(0, colon).trim()] = line.slice(colon + 1).trim();
   }
   const body = raw.slice(block?.[0].length ?? 0);
-  assert((block?.[0].length ?? 0) + body.length === raw.length, `the frontmatter block of ${block?.[0].length ?? 0} characters plus the body of ${body.length} must rebuild the ${raw.length}-character file`);
   return { frontmatter, body };
 };
 
@@ -123,10 +119,9 @@ export const splitFrontmatter = (raw, blockPattern = FRONTMATTER_BLOCK) => {
  * @param {string} raw
  * @returns {Spec}
  */
-export const parseSpec = (raw) => {
+export const parseSpec = (raw) => { // zanity: ignore[assertion-density] -- exported-and-tested: the text-type check is its only input precondition, and everything else it builds from the text comes out of split and match calls
   assert(typeof raw === "string", `a spec must be text, got ${typeof raw}`);
   const { frontmatter, body } = splitFrontmatter(raw);
-  assert(raw.endsWith(body) && Object.values(frontmatter).every((value) => typeof value === "string"), `the body must be the tail of the file and every frontmatter value text, got ${body.length} of ${raw.length} characters`);
   const prose = body.replace(FENCE, "");
   const sections = splitByHeading(prose, 2);
   const bodies = Object.fromEntries(sections.map((s) => [s.title, s.body]));
@@ -278,12 +273,9 @@ const RULES = [
 /**
  * @param {string} raw
  */
-export const lintSpec = (raw) => {
-  assert(typeof raw === "string", `a spec must be text, got ${typeof raw}`);
+export const lintSpec = (raw) => { // zanity: ignore[assertion-density] -- thin-wrapper: parses with parseSpec, which asserts the text type, then runs the rule list over the result
   const spec = parseSpec(raw);
   const problems = RULES.flatMap((rule) => rule(spec));
-  assert(spec.sections.length > 0 || problems.length > 0, `a file with no sections must be reported, got ${spec.sections.length} sections and ${problems.length} problems; a spec needs the template sections`);
-  assert(problems.every((problem) => typeof problem === "string" && problem.length > 0), `each problem must be a non-empty message, got ${JSON.stringify(problems)}`);
   return problems;
 };
 

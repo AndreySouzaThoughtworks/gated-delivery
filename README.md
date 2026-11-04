@@ -69,7 +69,7 @@ Each skill's `evals.md` holds scenarios and a `## Deterministic Checks` fence. C
 
 - Before a PR that changes a skill, run `node scripts/eval/changed-skills.ts`. It finds the changed skills, runs a smoke tier (the fewest scenarios that exercise every check) once, reruns only failures, caps spend per run and in total, and writes `evals/results/<skill>.json` when everything passes. Exit codes: 0 passed, 1 failed, 2 usage, 3 not run.
 - CI checks the stamp for each skill the PR changed. Without working credentials, `--waive <skill> --reason "<text>"` records an exception for the current skill hash; the guard shows it as a warning, and a later change to the skill needs a new waiver or a real run.
-- Runs ignore the login stored in your user settings, so they need a working `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`. The `evals.yml` workflow does the same on PRs and stays dormant until that secret exists.
+- Runs authenticate with your logged-in Claude subscription and count against its usage, so no API key is needed locally. The script probes first and exits 3 if `claude` cannot run with the eval flags; setting `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` is the fallback. The `evals.yml` workflow needs the `CLAUDE_CODE_OAUTH_TOKEN` secret on PRs and stays dormant until it exists.
 
 ## Tests
 

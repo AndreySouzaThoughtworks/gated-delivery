@@ -39,7 +39,7 @@ const VERDICT_FLAKY = "flaky";
 const PROBE_ARGS = ["-p", "reply with the word ok", "--setting-sources", "", "--output-format", "json", "--max-budget-usd", "0.05"];
 const PROBE_TIMEOUT_MS = 120000;
 const PROBE_DETAIL_CHARS = 200;
-const CREDENTIAL_HINT = "runs ignore the user settings source, so set a working ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN (claude setup-token)";
+const CREDENTIAL_HINT = "claude is not authenticated for these flags: log in with claude auth login, or set a working ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN (claude setup-token)";
 const VERDICTS_FILE = "verdicts.json";
 const RUNNER = join("scripts", "eval", "run-scenarios.ts");
 

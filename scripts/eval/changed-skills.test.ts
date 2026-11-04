@@ -196,7 +196,7 @@ test("exit 3 and a SKIPPED line when the probe run reports is_error, and no eval
   const result = runChangedSkills(root, [], { STUB_PROBE: "error" });
   assert.equal(result.status, 3);
   assert.match(result.stdout, /SKIPPED: claude cannot run with the eval flags: Not logged in/);
-  assert.match(result.stdout, /ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN/);
+  assert.match(result.stdout, /claude auth login, or set a working ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN/);
   assert.equal(probeCalls(root).length, 1);
   assert.deepEqual(claudeCalls(root), []);
   assert.equal(existsSync(join(root, "evals", "results")), false);

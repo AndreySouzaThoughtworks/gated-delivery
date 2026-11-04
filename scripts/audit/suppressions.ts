@@ -47,7 +47,7 @@ const boundedPhrase = (phrase: string) => {
   return bounded;
 };
 
-const meaningfulWords = (reason: string) => { // zanity: ignore[assertion-density] -- single-invariant: reason is a regex capture that reasonProblem already proved non-blank text and the result is a set built by one filter
+const meaningfulWords = (reason: string) => { // zanity: ignore[assertion-density] -- no-invariant: reason is a regex capture that reasonProblem already proved non-blank text and the result is a set built by one filter
   const withoutEmptyPhrases = EMPTY_REASONS.reduce((text, phrase) => text.replace(boundedPhrase(phrase), " "), reason.toLowerCase());
   const words = (withoutEmptyPhrases.match(/[a-z0-9]+/g) ?? []).filter((word: string) => word.length > 1 && !STOPWORDS.has(word));
   return new Set(words);

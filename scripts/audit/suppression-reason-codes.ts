@@ -5,6 +5,7 @@ export const ASSERTION_DENSITY_REASON_CODE_MEANINGS = {
   "io-wrapper": "spawn or fs wrapper whose one postcondition is asserted",
   "recursive-walker": "recursive walk over a tree",
   "thin-wrapper": "wrapper that adds nothing to assert beyond what it calls",
-  "limit-bound": "inlining or merging would breach zanity's long-function or complexity limit",
-  "single-invariant": "one real assertion; a second would only restate it",
+  "limit-bound": "inlining or merging would breach a zanity structure limit: long-function, complex-function or deep-nesting",
+  "single-invariant": "exactly one real assertion; a second would only restate it",
+  "no-invariant": "zero honest assertions; nothing can be asserted that a bug could break",
 };

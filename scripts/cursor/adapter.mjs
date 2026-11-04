@@ -42,7 +42,7 @@ export const guardShell = (raw, env) => { // zanity: ignore[assertion-density] -
     return { status: EXIT_BLOCK, stdout: denial(verdict.stderr.trim()), stderr: verdict.stderr };
   }
   if (verdict.stdout === "") return { status: EXIT_OK, stdout: JSON.stringify({ permission: "allow" }), stderr: "" };
-  const { permissionDecision, permissionDecisionReason } = JSON.parse(verdict.stdout).hookSpecificOutput;
+  const { permissionDecisionReason } = JSON.parse(verdict.stdout).hookSpecificOutput;
   return { status: EXIT_OK, stdout: denial(permissionDecisionReason), stderr: "" };
 };
 

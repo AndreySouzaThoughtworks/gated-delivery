@@ -710,6 +710,19 @@ if (existsSync(guardSourcePath)) {
   }
 }
 
+// --- 23. tsc keeps the flags that find dead and unchecked code ---
+const TSCONFIG_FILE = "tsconfig.json";
+const REQUIRED_TSC_FLAGS = ["strict", "checkJs", "noUnusedLocals", "noUnusedParameters"];
+const tsconfigPath = join(ROOT, TSCONFIG_FILE);
+if (!existsSync(tsconfigPath)) {
+  errors.push(`${TSCONFIG_FILE} is missing. Hint: restore it; the typecheck job and this guard rely on it.`);
+} else {
+  const compilerOptions = JSON.parse(read(tsconfigPath)).compilerOptions ?? {};
+  for (const flag of REQUIRED_TSC_FLAGS) {
+    if (compilerOptions[flag] !== true) errors.push(`${TSCONFIG_FILE} must set compilerOptions.${flag} to true, got ${JSON.stringify(compilerOptions[flag])}. Hint: fix the code the flag reports instead of turning the flag off.`);
+  }
+}
+
 // --- report ---
 console.log(
   `gated-delivery audit: ${skills.length} skills, ${agents.length} agents, ${hookFiles.size} hooks` +

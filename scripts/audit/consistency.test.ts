@@ -31,7 +31,8 @@ const write = (dir: string, relPath: string, body: string) => {
 const TEST_FILES_TABLE = 'paths."**/*.test.mjs"';
 const RELAXED_TEST_RULES = '["filesystem-in-test", "process-in-test"]';
 const SELECT_ALL = 'select = ["all"]';
-const STRICT_ZANITY_CONFIG = `exclude = ["tests/fixtures/", "evals/fixtures/"]\n[rules]\n${SELECT_ALL}\n[${TEST_FILES_TABLE}]\ndisable = ${RELAXED_TEST_RULES}\n`;
+const STRICT_TSC_FLAGS = { strict: true, checkJs: true, noUnusedLocals: true, noUnusedParameters: true };
+const STRICT_ZANITY_CONFIG =`exclude = ["tests/fixtures/", "evals/fixtures/"]\n[rules]\n${SELECT_ALL}\n[${TEST_FILES_TABLE}]\ndisable = ${RELAXED_TEST_RULES}\n`;
 
 const ONE_SCENARIO = "## Test Scenarios\n\n| # | Prompt |\n|---|---|\n| 1 | a |\n\n";
 
@@ -55,6 +56,7 @@ const validRepo = () => {
   write(dir, "plugin/README.md", "| `/alpha` | a skill |\n| `bot` | an agent |\n");
   write(dir, "docs/skill-graph.md", "| `/alpha` | a skill |\n| `bot` | an agent |\n| `h.mjs` | a hook |\n");
   write(dir, "zanity.toml", STRICT_ZANITY_CONFIG);
+  write(dir, "tsconfig.json", JSON.stringify({ compilerOptions: STRICT_TSC_FLAGS }));
   assert(dir.startsWith(tmpdir()), `${dir} must be a throwaway under ${tmpdir()}`);
   return dir;
 };
@@ -948,4 +950,19 @@ test("a Cursor config that points at real files and fails closed passes; a missi
   write(dir, "AGENTS.md", "See `docs/gone.md`.\n");
   const dangling = runGuard(dir);
   assert.match(dangling.out, /AGENTS\.md names docs\/gone\.md, which does not exist/);
+});
+
+test("tsc must keep the flags that find dead and unchecked code", () => {
+  const accepted = validRepo();
+  assert.equal(runGuard(accepted).code, 0, "the strict tsconfig must pass");
+  for (const flag of Object.keys(STRICT_TSC_FLAGS)) {
+    const dir = validRepo();
+    write(dir, "tsconfig.json", JSON.stringify({ compilerOptions: { ...STRICT_TSC_FLAGS, [flag]: false } }));
+    const { code, out } = runGuard(dir);
+    assert.equal(code, 1, `${flag} turned off must fail the guard, got ${code}: ${out}`);
+    assert.match(out, new RegExp(`compilerOptions\\.${flag} to true, got false`));
+  }
+  const missing = validRepo();
+  write(missing, "tsconfig.json", JSON.stringify({ compilerOptions: {} }));
+  assert.match(runGuard(missing).out, /compilerOptions\.noUnusedLocals to true, got undefined/);
 });

@@ -17,7 +17,7 @@ import {
   renameSync,
   writeFileSync,
 } from "node:fs";
-import { constants, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
 import { basename, join, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseChecks } from "./run-checks.ts";
@@ -45,7 +45,6 @@ const VERDICT_PASS = "pass";
 const VERDICT_FLAKY = "flaky";
 const VERDICT_FAIL = "fail";
 const VERDICT_NOT_RUN = "not-run";
-const VERDICTS = [VERDICT_PASS, VERDICT_FLAKY, VERDICT_FAIL, VERDICT_NOT_RUN];
 
 const EXIT_OK = 0;
 const EXIT_HARNESS_FAILURE = 1;
@@ -54,7 +53,6 @@ const EXIT_INTERNAL_ERROR = 3;
 
 const ARM_SKILL = "skill";
 const ARM_BASELINE = "baseline";
-const ARMS = [ARM_SKILL, ARM_BASELINE];
 const NOT_AVAILABLE = "n/a";
 const NOTHING_TO_JUDGE = "—";
 const HARNESS_OK = "ok";

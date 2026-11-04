@@ -27,7 +27,6 @@ const CLIENT_GUARDS_DIR = "guards";
 const GUARD_MANIFEST_PATH = ".guardrails/guards.sha256";
 const WORKFLOWS_DIR = join(".github", "workflows");
 const DEFAULT_WORKFLOW_NAME = "guardrails.yml";
-const ZANITY_TOML = "zanity.toml";
 const ZANITY_BASELINE = "zanity-baseline.json";
 const ZANITY_STRICT_ARGS = "--fail-on warning --strict";
 const ZANITY_PLAIN_ARGS = `check . ${ZANITY_STRICT_ARGS}`;

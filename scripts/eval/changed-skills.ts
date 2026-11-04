@@ -53,7 +53,7 @@ type Report = { verdicts: Record<string, string>; totalCostUsd?: number };
 type Outcome = { skill: string; hash: string; passed: false; report?: undefined } | { skill: string; hash: string; passed: boolean; report: Report };
 type Options = { skills: string[]; full: boolean; passthrough: string[]; waive: string | null; reason: string | null; error: string | null };
 
-const filesUnder = (dir: string) => (existsSync(dir) ? readdirSync(dir, { recursive: true, encoding: "utf8" }).filter((name) => statSync(join(dir, name)).isFile()) : []);
+const filesUnder = (dir: string) => (existsSync(dir) ? readdirSync(dir, { recursive: true, encoding: "utf8" }).filter((name) => statSync(join(dir, name)).isFile()) : []); // zanity: ignore[assertion-density] -- no-invariant: the directory comes from a validated root and the result is one listing whose only failures are the filesystems own
 
 const agentsNamedBy = (root: string, skill: string) => {
   assert(SKILL_NAME.test(skill), `agentsNamedBy needs a skill folder name, got ${JSON.stringify(skill)}`);
@@ -84,7 +84,7 @@ export const skillHash = (root: string, skill: string) => {
   return hash;
 };
 
-const lines = (text: string) => text.split(LINE_BREAK).filter(Boolean); // zanity: ignore[assertion-density] -- text is git command output and the result is one split-and-filter whose only possible failures are the splitter's own guarantees
+const lines = (text: string) => text.split(LINE_BREAK).filter(Boolean); // zanity: ignore[assertion-density] -- thin-wrapper: text is git command output and the result is one split-and-filter whose only possible failures are the splitter's own guarantees
 
 export const changedPaths = (root: string, baseRef: string) => {
   assert(existsSync(root), `changedPaths needs an existing repository directory, got ${root}`);
@@ -153,7 +153,20 @@ export const stampStatus = (root: string, skill: string) => {
   return Object.hasOwn(stamp, WAIVER_KEY) ? STATUS_WAIVED : "ok";
 };
 
-const parseArgs = (argv: string[], root: string): Options => {
+const optionsProblem = (options: Options, root: string) => { // zanity: ignore[assertion-density] -- no-invariant: every option shape is answered with a usage message so no precondition is left to assert
+  if (options.waive === null && options.reason !== null) return "--reason belongs to --waive";
+  if (options.waive !== null) {
+    if (options.skills.length || options.full || options.passthrough.length) return "--waive takes no other skills or flags";
+    if (!options.reason?.trim()) return "--waive needs a non-blank --reason";
+  }
+  for (const skill of options.waive === null ? options.skills : [options.waive]) {
+    if (!SKILL_NAME.test(skill)) return `not a skill name: ${skill}; pass the folder name under ${SKILLS_PREFIX}, not a path`;
+    if (!existsSync(join(root, SKILLS_PREFIX, skill, SKILL_FILE))) return `no such skill: ${skill}`;
+  }
+  return null;
+};
+
+const parseArgs = (argv: string[], root: string): Options => { // zanity: ignore[assertion-density] -- no-invariant: every argument shape is handled by returning an error so no precondition is left to assert
   const options: Options = { skills: [], full: false, passthrough: [], waive: null, reason: null, error: null };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -164,25 +177,16 @@ const parseArgs = (argv: string[], root: string): Options => {
     else if (!arg.startsWith("--")) options.skills.push(arg);
     else return { ...options, error: `Unknown or incomplete argument: ${arg}` };
   }
-  if (options.waive === null && options.reason !== null) return { ...options, error: "--reason belongs to --waive" };
-  if (options.waive !== null) {
-    if (options.skills.length || options.full || options.passthrough.length) return { ...options, error: "--waive takes no other skills or flags" };
-    if (!options.reason?.trim()) return { ...options, error: "--waive needs a non-blank --reason" };
-  }
-  for (const skill of options.waive === null ? options.skills : [options.waive]) {
-    if (!SKILL_NAME.test(skill)) return { ...options, error: `not a skill name: ${skill}; pass the folder name under ${SKILLS_PREFIX}, not a path` };
-    if (!existsSync(join(root, SKILLS_PREFIX, skill, SKILL_FILE))) return { ...options, error: `no such skill: ${skill}` };
-  }
-  return options;
+  return { ...options, error: optionsProblem(options, root) };
 };
 
 const EMPTY_PROBE_DETAIL = "claude reported an error and gave no detail";
 
-const probeProblem = (passthrough: string[]) => {
-  const modelAt = passthrough.indexOf("--model");
+const probeProblem = (passthrough: string[]) => { // zanity: ignore[assertion-density] -- io-wrapper: spawns the claude probe and its one postcondition on the problem text is asserted
   const scratch = mkdtempSync(join(tmpdir(), "gated-delivery-probe-"));
   let problem = null;
   try {
+    const modelAt = passthrough.indexOf("--model");
     const model = modelAt === -1 ? process.env.GATED_DELIVERY_RUN_MODEL : passthrough[modelAt + 1];
     const modelFlags = model ? ["--model", model] : [];
     const probe = spawnSync(CLAUDE_BIN, [...PROBE_ARGS, ...modelFlags], {
@@ -208,7 +212,7 @@ const probeProblem = (passthrough: string[]) => {
   return problem;
 };
 
-const runSkill = (root: string, skill: string, options: Options): Outcome => {
+const runSkill = (root: string, skill: string, options: Options): Outcome => { // zanity: ignore[assertion-density] -- io-wrapper: spawns the scenario runner and its one postcondition on the verdicts file is asserted
   const out = mkdtempSync(join(tmpdir(), `gated-delivery-changed-${skill}-`));
   const smokeDefaults = [
     ["--budget-usd", SMOKE_BUDGET_USD],
@@ -234,7 +238,7 @@ const runSkill = (root: string, skill: string, options: Options): Outcome => {
   };
 };
 
-const main = (argv: string[], root = process.cwd()) => {
+const main = (argv: string[], root = process.cwd()) => { // zanity: ignore[assertion-density] -- entry-point: CLI entry that orchestrates functions which validate their own inputs
   const options = parseArgs(argv, root);
   if (options.error) {
     console.error(`${options.error}\n${USAGE}`);

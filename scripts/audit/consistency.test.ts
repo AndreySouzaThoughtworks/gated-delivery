@@ -850,6 +850,28 @@ test("a plugin file that imports .mjs or only mentions .ts text stays silent", (
   assert.doesNotMatch(out, /imports TypeScript/);
 });
 
+test("check numbers that repeat or skip one are reported, a contiguous run and lettered sub-checks pass", () => {
+  const dir = validRepo();
+  write(dir, "scripts/audit/consistency.ts", "// --- 1. A ---\n// --- 2. B ---\n// --- 2a. B sub-check ---\n// --- 3. C ---\n");
+  const clean = runGuard(dir);
+  assert.equal(clean.code, 0, clean.out);
+
+  write(dir, "scripts/audit/consistency.ts", "// --- 1. A ---\n// --- 2. B ---\n// --- 2. C ---\n// --- 3. D ---\n");
+  const duplicate = runGuard(dir);
+  assert.equal(duplicate.code, 1, duplicate.out);
+  assert.match(duplicate.out, /numbers 2 checks 2\. Hint:/);
+
+  write(dir, "scripts/audit/consistency.ts", "// --- 1. A ---\n// --- 2. B ---\n// --- 4. D ---\n");
+  const gap = runGuard(dir);
+  assert.equal(gap.code, 1, gap.out);
+  assert.match(gap.out, /has no check 3 but numbers up to 4\. Hint:/);
+
+  write(dir, "scripts/audit/consistency.ts", "// --- 2. B ---\n// --- 3. C ---\n");
+  const missingFirst = runGuard(dir);
+  assert.equal(missingFirst.code, 1, missingFirst.out);
+  assert.match(missingFirst.out, /has no check 1 but numbers up to 3/);
+});
+
 const CURSOR_HOOKS = ".cursor/hooks.json";
 const cursorHooks = (hook: { command: string; failClosed?: boolean }) => {
   assert(hook.command.length > 0, `a hook needs a command, got ${JSON.stringify(hook)}`);

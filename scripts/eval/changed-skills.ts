@@ -106,7 +106,7 @@ const git = (root: string, args: string[]) => {
   return execFileSync("git", args, { cwd: root, encoding: "utf8" });
 };
 
-const lines = (text: string) => text.split(LINE_BREAK).filter(Boolean); // zanity: ignore[assertion-density] -- text is git command output and the result is one split-and-filter whose only possible failures are the splitter's own guarantees
+const lines = (text: string) => text.split(LINE_BREAK).filter(Boolean); // zanity: ignore[assertion-density] -- thin-wrapper: text is git command output and the result is one split-and-filter whose only possible failures are the splitter's own guarantees
 
 export const changedPaths = (root: string, baseRef: string) => {
   const mergeBase = git(root, ["merge-base", baseRef, "HEAD"]).trim();

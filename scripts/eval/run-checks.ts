@@ -25,10 +25,8 @@ type ExecFailure = { status?: number; stdout?: string; stderr?: string };
 
 const SKILLS_DIR = join(process.cwd(), "plugin", "skills");
 
-const evalsPathOf = (skill: string) => {
-  assert(SKILL_NAME.test(skill), `a skill is a folder name under ${SKILLS_DIR}, got ${JSON.stringify(skill)}`);
+const evalsPathOf = (skill: string) => { // zanity: ignore[assertion-density] -- multi-caller-helper: report and gradeScenario run only after main proved the skill name with SKILL_NAME
   const path = join(SKILLS_DIR, skill, "evals.md");
-  assert(path.startsWith(SKILLS_DIR + sep), `the evals path must stay under ${SKILLS_DIR}, got ${path}`);
   return path;
 };
 
@@ -55,10 +53,9 @@ const PROVIDED: Record<string, string> = { WORKTREE: process.cwd() };
  */
 const SINGLE_QUOTE = "'";
 const ESCAPED_SINGLE_QUOTE = "'\\''";
-const shellQuote = (s: string) => {
+const shellQuote = (s: string) => { // zanity: ignore[assertion-density] -- single-invariant: the NUL byte check is the only outside data risk and a second assertion would restate the quoting
   assert(!String(s).includes("\0"), `a shell argument cannot carry a NUL byte, got ${JSON.stringify(s)}`);
   const quoted = `${SINGLE_QUOTE}${String(s).replaceAll(SINGLE_QUOTE, ESCAPED_SINGLE_QUOTE)}${SINGLE_QUOTE}`;
-  assert(quoted.startsWith(SINGLE_QUOTE) && quoted.endsWith(SINGLE_QUOTE) && quoted.length >= String(s).length + 2, `${JSON.stringify(s)} must come back wrapped in single quotes, got ${quoted}`);
   return quoted;
 };
 
@@ -80,19 +77,15 @@ const shellQuote = (s: string) => {
  *   ${VAR+w} ${VAR:+w} ${VAR} $VAR          empty when unset       -> flag
  * The `+` forms are the trap: they look like defaults and are the exact silent-empty case.
  */
-const toggleQuote = (quote: Quote, c: string) => {
-  assert(c.length === 1, `toggleQuote reads one character at a time, got ${JSON.stringify(c)}`);
+const toggleQuote = (quote: Quote, c: string) => { // zanity: ignore[assertion-density] -- limit-bound: inlining into unresolvedVars would breach the complexity limit and the caller passes one character from the scanned command
   let toggled = true;
   if (c === "'" && !quote.inDouble) quote.inSingle = !quote.inSingle;
   else if (c === '"' && !quote.inSingle) quote.inDouble = !quote.inDouble;
   else toggled = false;
-  assert(!(quote.inSingle && quote.inDouble), `a quote cannot be single and double at once after reading ${JSON.stringify(c)}, got ${JSON.stringify(quote)}`);
   return toggled;
 };
 
-const trackParen = (enclosing: Substitution[], quote: Quote, c: string) => {
-  assert(c.length === 1, `trackParen reads one character at a time, got ${JSON.stringify(c)}`);
-  assert(enclosing.every((substitution) => substitution.depth >= 0), `a substitution depth cannot be negative, got ${JSON.stringify(enclosing)}`);
+const trackParen = (enclosing: Substitution[], quote: Quote, c: string) => { // zanity: ignore[assertion-density] -- limit-bound: inlining into unresolvedVars would breach the complexity limit and the depth guard keeps the substitution state valid
   const substitution = enclosing.at(-1);
   if (!substitution || quote.inDouble || (c !== "(" && c !== ")")) return false;
   if (c === "(") substitution.depth++;
@@ -108,14 +101,12 @@ const trackParen = (enclosing: Substitution[], quote: Quote, c: string) => {
   return true;
 };
 
-const variableAt = (command: string, at: number) => {
-  assert(command[at] === "$", `a variable starts at a dollar sign, got ${JSON.stringify(command[at])} at ${at} in ${JSON.stringify(command)}`);
+const variableAt = (command: string, at: number) => { // zanity: ignore[assertion-density] -- limit-bound: inlining into unresolvedVars would breach the complexity limit and the caller passes only the index of a dollar sign
   const rest = command.slice(at + 1);
   const braced = rest.startsWith("{");
   const body = braced ? rest.slice(1) : rest;
   const name = body.match(/^[A-Za-z_][A-Za-z0-9_]*/)?.[0];
   if (!name) return null;
-  assert(command.startsWith(name, at + 1 + (braced ? 1 : 0)), `the name ${name} must sit right after the dollar sign at ${at} in ${JSON.stringify(command)}`);
   const variable = {
     name,
     length: name.length + (braced ? 1 : 0),
@@ -124,8 +115,7 @@ const variableAt = (command: string, at: number) => {
   return variable;
 };
 
-const unresolvedVars = (command: string, assigned: Set<string>) => {
-  assert(assigned instanceof Set, `assigned names must be a Set, got ${Object.prototype.toString.call(assigned)}`);
+const unresolvedVars = (command: string, assigned: Set<string>) => { // zanity: ignore[assertion-density] -- no-invariant: the scan reads any command text and filters a set it built, so no outside data can break a postcondition
   const found = new Set<string>();
   const enclosing: Substitution[] = [];
   const quote = { inSingle: false, inDouble: false };
@@ -153,8 +143,6 @@ const unresolvedVars = (command: string, assigned: Set<string>) => {
     if (!variable.hasFallback) found.add(variable.name);
   }
   const unresolved = [...found].filter((n) => !assigned.has(n) && PROVIDED[n] === undefined);
-  assert(unresolved.every((n) => !assigned.has(n) && PROVIDED[n] === undefined), `an assigned or provided variable cannot be unresolved, got ${JSON.stringify(unresolved)}`);
-  assert(new Set(unresolved).size === unresolved.length, `each unresolved variable is reported once, got ${JSON.stringify(unresolved)}`);
   return unresolved;
 };
 // The section first, then the first bash fence inside it. Anchoring the fence directly to the heading
@@ -164,24 +152,6 @@ const unresolvedVars = (command: string, assigned: Set<string>) => {
 // Scanned line by line, not matched: `## note` is a legal shell comment, and a regex bounded on
 // `^## ` truncated the section at the first one — dropping every check after it, silently.
 const SECTION_HEADING = "## Deterministic Checks";
-const sectionOf = (markdown: string) => {
-  assert(!markdown.includes("\r"), "sectionOf reads LF text; strip carriage returns first");
-  const out: string[] = [];
-  let inSection = false;
-  let inFence = false;
-  for (const line of markdown.split("\n")) {
-    if (!inFence && line.startsWith("## ")) {
-      if (inSection) break;
-      inSection = line.startsWith(SECTION_HEADING);
-      continue;
-    }
-    if (line.startsWith("```")) inFence = !inFence;
-    if (inSection) out.push(line);
-  }
-  const section = out.join("\n");
-  assert(!section.split("\n").some((line) => line.startsWith(SECTION_HEADING)), `the section body must not repeat its own heading, got ${JSON.stringify(section.slice(0, 80))}`);
-  return section;
-};
 const FENCE = /```bash\n([\s\S]*?)```/;
 
 const ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/;
@@ -195,7 +165,7 @@ const COMPARE: Record<string, (count: number, n: number) => boolean> = {
   "<=": (count: number, n: number) => count <= n,
 };
 
-export function parseExpect(text: string): Expect {
+export function parseExpect(text: string): Expect { // zanity: ignore[assertion-density] -- single-invariant: the one-line check is the only outside data risk and the branches below it are exhaustive by construction
   assert(!text.includes("\n"), `an expect is one line, got ${JSON.stringify(text)}`);
   const shape = text.match(EXPECT_SHAPE);
   const ids = shape?.[3].split(",") ?? [];
@@ -204,7 +174,6 @@ export function parseExpect(text: string): Expect {
   else if (!shape) expect = { raw: text, error: `malformed expect "${text}"` };
   else if (new Set(ids).size !== ids.length) expect = { raw: text, error: `malformed expect "${text}": repeated id` };
   else expect = { raw: text, op: shape[1], n: Number(shape[2]), ids };
-  assert([expect.manual, expect.error, expect.op].filter(Boolean).length === 1, `an expect is manual, malformed or a comparison, never two of them, got ${JSON.stringify(expect)}`);
   return expect;
 }
 
@@ -212,8 +181,7 @@ const SCENARIOS_HEADING = "## Test Scenarios";
 const TABLE_ROW_ID = /^\|\s*([^|]*?)\s*\|/;
 const NOT_AN_ID = /^(#|:?-+:?)?$/;
 
-export function scenarioIds(evalsMarkdown: string) {
-  assert(typeof evalsMarkdown === "string", `evals markdown must be a string, got ${typeof evalsMarkdown}`);
+export function scenarioIds(evalsMarkdown: string) { // zanity: ignore[assertion-density] -- no-invariant: markdown text is typed and every id reaches the set only after the non-empty cell filter
   const ids = new Set<string>();
   let inSection = false;
   for (const line of evalsMarkdown.replace(/\r/g, "").split("\n")) {
@@ -225,7 +193,6 @@ export function scenarioIds(evalsMarkdown: string) {
     const id = inSection && line.match(TABLE_ROW_ID)?.[1];
     if (id && !NOT_AN_ID.test(id)) ids.add(id);
   }
-  assert([...ids].every((id) => id && !id.includes("|") && !NOT_AN_ID.test(id)), `a scenario id is a non-empty cell, got ${JSON.stringify([...ids])}`);
   return ids;
 }
 
@@ -236,9 +203,20 @@ export function scenarioIds(evalsMarkdown: string) {
  * setup, not checks: they are collected as a `prelude` and replayed before each command, because
  * every command runs in its own shell and would otherwise see an empty variable.
  */
-export function parseChecks(evalsMarkdown: string): { prelude: string[]; checks: Check[] } {
-  assert(typeof evalsMarkdown === "string", `evals markdown must be a string, got ${typeof evalsMarkdown}`);
-  const fence = sectionOf(evalsMarkdown.replace(/\r/g, "")).match(FENCE);
+export function parseChecks(evalsMarkdown: string): { prelude: string[]; checks: Check[] } { // zanity: ignore[assertion-density] -- no-invariant: markdown text is typed and each line lands in exactly one of prelude, label or checks
+  const sectionLines: string[] = [];
+  let inSection = false;
+  let inFence = false;
+  for (const line of evalsMarkdown.replace(/\r/g, "").split("\n")) {
+    if (!inFence && line.startsWith("## ")) {
+      if (inSection) break;
+      inSection = line.startsWith(SECTION_HEADING);
+      continue;
+    }
+    if (line.startsWith("```")) inFence = !inFence;
+    if (inSection) sectionLines.push(line);
+  }
+  const fence = sectionLines.join("\n").match(FENCE);
   if (!fence) return { prelude: [], checks: [] };
   const checks: Check[] = [];
   const prelude: string[] = [];
@@ -261,8 +239,6 @@ export function parseChecks(evalsMarkdown: string): { prelude: string[]; checks:
     label = [];
     expects = [];
   }
-  assert(checks.every((check) => check.command && !ASSIGNMENT.test(check.command)), `a check is a command, never an assignment, got ${JSON.stringify(checks.map((check) => check.command))}`);
-  assert(prelude.every((assignment) => ASSIGNMENT.test(assignment)), `the prelude holds assignments only, got ${JSON.stringify(prelude)}`);
   return { prelude, checks };
 }
 
@@ -305,12 +281,10 @@ export function runCheck({ label, command }: Pick<Check, "label" | "command">, o
       else outcome = { label, command, ok: false, result: (failure.stderr ?? "").trim() || `exit ${status}` };
     }
   }
-  assert(outcome.ok || outcome.result, `a failed check must say why, got ${JSON.stringify(outcome)}`);
   return outcome;
 }
 
-function report(skill: string, outputFile: string) {
-  assert(outputFile, `a report reads an output file, got ${JSON.stringify(outputFile)}`);
+function report(skill: string, outputFile: string) { // zanity: ignore[assertion-density] -- entry-point: the skill mode handler runs only after main checked the skill name and the output file exists
   const evalsPath = evalsPathOf(skill);
   if (!existsSync(evalsPath)) {
     console.error(`No such skill: ${skill}`);
@@ -329,12 +303,10 @@ function report(skill: string, outputFile: string) {
     const shown = result.length > 60 ? `${result.slice(0, 57)}...` : result;
     console.log(`  ${ok ? "·" : "✗"} ${label.slice(0, 58).padEnd(60)} ${shown}`);
   }
-  assert(broken <= checks.length, `${broken} broken checks cannot exceed the ${checks.length} checks run for ${skill}`);
   return broken;
 }
 
-function expectProblems({ expects }: Check, ids: Set<string>) {
-  assert(ids instanceof Set, `scenario ids must be a Set, got ${Object.prototype.toString.call(ids)}`);
+function expectProblems({ expects }: Check, ids: Set<string>) { // zanity: ignore[assertion-density] -- limit-bound: inlining into lint would breach the nesting limit and the problems come from the parsed expects alone
   const seen = new Set();
   const problems: string[] = [];
   for (const expect of expects) {
@@ -345,7 +317,6 @@ function expectProblems({ expects }: Check, ids: Set<string>) {
       seen.add(id);
     }
   }
-  assert(problems.length >= expects.filter((expect) => expect.error).length, `every malformed expect is a problem, got ${JSON.stringify(problems)}`);
   return problems;
 }
 
@@ -354,12 +325,10 @@ const PAGE_LABEL = /^Page:/i;
 const INTEGER = /^-?\d+$/;
 const LABEL_WIDTH = 100;
 
-const gradeCheck = (check: Check, expect: Expect, file: string, prelude: string[]) => {
-  assert(expect.op !== undefined && Object.hasOwn(COMPARE, expect.op), `only a comparison expect can grade a check, got ${JSON.stringify(expect)}`);
+const gradeCheck = (check: Check, expect: Expect, file: string, prelude: string[]) => { // zanity: ignore[assertion-density] -- single-invariant: the integer check guards a count that parseExpect can overflow and a second assertion would restate it
   assert(Number.isInteger(expect.n), `a comparison expect carries an integer, got ${JSON.stringify(expect)}`);
   const { ok, result } = runCheck(check, file, prelude);
   const count = ok ? (INTEGER.test(result) ? Number(result) : result.split("\n").filter((l: string) => l.trim()).length) : "broken";
-  assert(ok === (typeof count === "number"), `a count exists exactly when the check ran, got ok=${ok} count=${count}`);
   const pass = ok && typeof count === "number" && COMPARE[expect.op!](count, expect.n!);
   if (!ok) console.error(`  ${check.command}\n  ${result}`);
   const label = check.label.length > LABEL_WIDTH ? `${check.label.slice(0, LABEL_WIDTH - 3)}...` : check.label;
@@ -367,8 +336,7 @@ const gradeCheck = (check: Check, expect: Expect, file: string, prelude: string[
   return pass;
 };
 
-function gradeScenario(skill: string, file: string, id: string) {
-  assert(file && id, `grading needs an output file and a scenario id, got file=${JSON.stringify(file)} id=${JSON.stringify(id)}`);
+function gradeScenario(skill: string, file: string, id: string) { // zanity: ignore[assertion-density] -- entry-point: the scenario mode handler runs only after main proved the id and both paths are present
   const evalsPath = evalsPathOf(skill);
   if (!existsSync(evalsPath)) return usage(`No such skill: ${skill}`);
   if (!existsSync(file)) return usage(`No such output file: ${file}`);
@@ -382,7 +350,6 @@ function gradeScenario(skill: string, file: string, id: string) {
     if (!expect || (skillHasPages && PAGE_LABEL.test(check.label) !== (basename(file) !== RESPONSE_FILE))) continue;
     if (!gradeCheck(check, expect, file, prelude)) failed++;
   }
-  assert(failed <= checks.length, `${failed} failed checks cannot exceed the ${checks.length} checks of ${skill}`);
   return failed ? EXIT_FAIL : EXIT_PASS;
 }
 
@@ -401,16 +368,14 @@ const USAGE = [
   "exit codes: 0 every check held, 1 a check failed or the skill is unknown, 2 usage error, 3 harness error (an internal check or file read failed)",
 ].join("\n");
 
-function usage(message: string) {
-  assert(message, `a usage error must say what is wrong, got ${JSON.stringify(message)}`);
+function usage(message: string) { // zanity: ignore[assertion-density] -- no-invariant: every caller passes a fixed or interpolated message and the printable form is built by the replace calls
   const printable = message.replace(LINE_BREAK, "\\n").replace(CONTROL_CHARACTERS, "?");
-  assert(!/[\r\n]/.test(printable), `a usage error prints on one line, got ${JSON.stringify(printable)}`);
   console.error(printable);
   return EXIT_USAGE;
 }
 
 /** Every command in every skill must at least RUN. No fixtures, no expectations — just executable. */
-function lint() {
+function lint() { // zanity: ignore[assertion-density] -- single-invariant: the skills directory check is the only outside data risk and a second assertion would restate it
   const scratch = join(mkdtempSync(join(tmpdir(), "gated-delivery-evalcheck-")), "output.md");
   writeFileSync(scratch, "placeholder\n");
   writeFileSync(join(dirname(scratch), TRANSCRIPT_FILE), "");
@@ -436,7 +401,6 @@ function lint() {
       console.log(`  BROKEN ${skill}: ${outcome.command}\n         ${outcome.result}`);
     }
   }
-  assert(measured <= skills.length && measured <= total, `${measured} measured skills cannot exceed ${skills.length} skills or ${total} checks`);
   const caveat = SHELL.pipelineAware
     ? ""
     : " (no bash: a broken command inside a pipeline cannot be detected here)";

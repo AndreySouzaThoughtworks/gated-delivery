@@ -101,6 +101,44 @@ test("a missing SKILL.md reports rather than crashing", () => {
   assert.doesNotMatch(out, /ENOENT/, "must not surface a raw stack trace");
 });
 
+test("a repo file that is not valid UTF-8 stops the guard and names the file", () => {
+  const dir = validRepo();
+  writeFileSync(join(dir, "README.md"), Buffer.from([0xff, 0xfe, 0x20]));
+  const { code, out } = runGuard(dir);
+  assert.equal(code, 1, out);
+  assert.match(out, /README\.md must be valid UTF-8/);
+});
+
+test("a plugin whose skills folder is missing or holds no folder stops the guard", () => {
+  const missing = validRepo();
+  rmSync(join(missing, "plugin/skills"), { recursive: true });
+  const gone = runGuard(missing);
+  assert.equal(gone.code, 1, gone.out);
+  assert.match(gone.out, /plugin\/skills must exist before its folders are listed/);
+
+  const empty = validRepo();
+  rmSync(join(empty, "plugin/skills/alpha"), { recursive: true });
+  const none = runGuard(empty);
+  assert.equal(none.code, 1, none.out);
+  assert.match(none.out, /plugin\/skills must hold at least one folder/);
+});
+
+test("a skill that declares a blank name stops the guard and names the file", () => {
+  const dir = validRepo();
+  write(dir, "plugin/skills/alpha/SKILL.md", "---\ndescription: x\nname:   \n---\n\n## Heading One\n");
+  const { code, out } = runGuard(dir);
+  assert.equal(code, 1, out);
+  assert.match(out, /alpha\/SKILL\.md declares a blank name/);
+});
+
+test("a zanity config list with a blank quoted item stops the guard", () => {
+  const dir = validRepo();
+  write(dir, "zanity.toml", STRICT_ZANITY_CONFIG.replace('"evals/fixtures/"]', '"evals/fixtures/", ""]'));
+  const { code, out } = runGuard(dir);
+  assert.equal(code, 1, out);
+  assert.match(out, /zanity\.toml lists must not hold blank items/);
+});
+
 test("reports a frontmatter name that disagrees with its directory or filename", () => {
   const dirSkill = validRepo();
   write(dirSkill, "plugin/skills/alpha/SKILL.md", "---\nname: not-alpha\ndescription: x\n---\n");
@@ -848,6 +886,28 @@ test("a plugin file that imports .mjs or only mentions .ts text stays silent", (
   const { code, out } = runGuard(dir);
   assert.equal(code, 0, out);
   assert.doesNotMatch(out, /imports TypeScript/);
+});
+
+test("check numbers that repeat or skip one are reported, a contiguous run and lettered sub-checks pass", () => {
+  const dir = validRepo();
+  write(dir, "scripts/audit/consistency.ts", "// --- 1. A ---\n// --- 2. B ---\n// --- 2a. B sub-check ---\n// --- 3. C ---\n");
+  const clean = runGuard(dir);
+  assert.equal(clean.code, 0, clean.out);
+
+  write(dir, "scripts/audit/consistency.ts", "// --- 1. A ---\n// --- 2. B ---\n// --- 2. C ---\n// --- 3. D ---\n");
+  const duplicate = runGuard(dir);
+  assert.equal(duplicate.code, 1, duplicate.out);
+  assert.match(duplicate.out, /numbers 2 checks 2\. Hint:/);
+
+  write(dir, "scripts/audit/consistency.ts", "// --- 1. A ---\n// --- 2. B ---\n// --- 4. D ---\n");
+  const gap = runGuard(dir);
+  assert.equal(gap.code, 1, gap.out);
+  assert.match(gap.out, /has no check 3 but numbers up to 4\. Hint:/);
+
+  write(dir, "scripts/audit/consistency.ts", "// --- 2. B ---\n// --- 3. C ---\n");
+  const missingFirst = runGuard(dir);
+  assert.equal(missingFirst.code, 1, missingFirst.out);
+  assert.match(missingFirst.out, /has no check 1 but numbers up to 3/);
 });
 
 const CURSOR_HOOKS = ".cursor/hooks.json";

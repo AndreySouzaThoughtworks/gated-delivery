@@ -2,23 +2,26 @@ import { test } from "node:test";
 import { createHash } from "node:crypto";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, symlinkSync, writeFileSync, chmodSync, statSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync, chmodSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { detect } from "./detect.mjs";
 import { installPlan, isVerifiedInstall } from "./install-zanity.mjs";
-import { unpinnedActions } from "./plan.mjs";
+import { applyPlan, buildPlan, resolveInside, unpinnedActions } from "./plan.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, "..", "..");
 const PLAN = join(HERE, "plan.mjs");
+const INSTALL = join(HERE, "install-zanity.mjs");
 const REFUSED_EXIT = 2;
+const CRASH_EXIT = 1;
 const WORK_BRANCH = "bootstrap/guardrails";
 const ALL_GROUPS = ["--group", "config", "--group", "guards", "--group", "ci"];
 const FAKE_ZANITY = `#!/bin/sh
 echo "$@" >> "$FAKE_ZANITY_LOG"
+[ -n "$FAKE_ZANITY_KILL" ] && kill -KILL $$
 case "$1" in
   --version) echo "zanity 0.0.0-fake" ;;
   init) echo 'select = ["all"]' > zanity.toml ;;
@@ -76,10 +79,10 @@ const gitRepo = (files, branch = WORK_BRANCH) => {
   return dir;
 };
 
-const run = (repo, extraArgs = [], env = {}) => {
+const run = (repo, extraArgs = [], env = {}, planPath = PLAN) => {
   const zanity = fakeZanity();
   writeFileSync(zanity.log, "");
-  const result = spawnSync("node", [PLAN, "--repo", repo, "--guards-dir", stubGuards(), ...extraArgs], {
+  const result = spawnSync("node", [planPath, "--repo", repo, "--guards-dir", stubGuards(), ...extraArgs], {
     encoding: "utf8",
     env: { ...process.env, ZANITY_BIN: zanity.bin, FAKE_ZANITY_LOG: zanity.log, FAKE_ZANITY_STATUS: "1", ...env },
   });
@@ -247,4 +250,96 @@ test("the plan adds a manifest whose hashes match the guards it copies", () => {
     const line = `+${stubHash}  guards/${guard}`;
     assert(plan.diff.includes(line), `manifest should list ${guard} with the hash of what is copied, expected ${line} in ${plan.diff.match(/^\+[0-9a-f]{64}.*$/gm)}`);
   }
+});
+
+const bootstrapCopy = (editTemplate) => {
+  const dir = realpathSync(scratch());
+  for (const file of ["plan.mjs", "detect.mjs", "markers.json", "pins.json"]) copyFileSync(join(HERE, file), join(dir, file));
+  mkdirSync(join(dir, "templates"));
+  write(dir, "templates/guardrails.yml", editTemplate(readFileSync(join(HERE, "templates", "guardrails.yml"), "utf8")));
+  assert(existsSync(join(dir, "plan.mjs")), `plan.mjs must be copied into ${dir}`);
+  assert(readFileSync(join(dir, "templates", "guardrails.yml"), "utf8") !== readFileSync(join(HERE, "templates", "guardrails.yml"), "utf8"), `the copied template in ${dir} must differ from the shipped one in ${HERE}`);
+  return join(dir, "plan.mjs");
+};
+
+const failsWith = (result, message) => {
+  assert(result.code === CRASH_EXIT, `expected an assertion crash with ${CRASH_EXIT}, got ${result.code}: ${result.notes}`);
+  assert(result.notes.includes(message), `expected "${message}", got ${result.notes}`);
+};
+
+test("detect refuses an empty path and a missing directory", () => {
+  assert.throws(() => detect(""), /repo must be a non-empty path/);
+  assert.throws(() => detect(join(scratch(), "missing")), /must exist/);
+});
+
+test("resolveInside refuses an empty root or candidate", () => {
+  assert.throws(() => resolveInside("", "a"), /root must be a non-empty path/);
+  assert.throws(() => resolveInside(scratch(), ""), /candidate must be a non-empty path/);
+});
+
+test("unpinnedActions refuses empty text and a workflow without actions", () => {
+  assert.throws(() => unpinnedActions(""), /workflow text must be non-empty/);
+  assert.throws(() => unpinnedActions("name: none\njobs: {}\n"), /at least one action/);
+});
+
+test("buildPlan and applyPlan refuse a missing repo or options", () => {
+  const repo = gitRepo({ "a.py": "x = 1\n" });
+  assert.throws(() => buildPlan(""), /repo must be a non-empty path/);
+  assert.throws(() => buildPlan(repo, null), /options must be an object/);
+  assert.throws(() => applyPlan("", {}), /repo must be a non-empty path/);
+  assert.throws(() => applyPlan(repo, null), /options must be an object/);
+});
+
+test("invalid command-line values crash with a named reason", () => {
+  const repo = gitRepo({ "a.py": "x = 1\n" });
+  failsWith(run(repo, ["--group", ""]), "groups must be names");
+  failsWith(run(repo, ["--repo", ""]), "repo must be a path");
+  failsWith(run(repo, ["--guards-dir", ""]), "guardsDir must be a non-empty path");
+  failsWith(run(repo, ["--workflow-name", "../../guards/ratchet.mjs"]), "planned files must be distinct");
+});
+
+test("an empty guard script is refused", () => {
+  const guards = stubGuards();
+  write(guards, "ratchet.mjs", "");
+  failsWith(run(gitRepo({ "a.py": "x = 1\n" }), ["--guards-dir", guards]), "guard scripts must not be empty");
+});
+
+test("a zanity killed by a signal crashes the plan instead of picking a variant", () => {
+  const repo = gitRepo({ "zanity.toml": 'select = ["all"]\n', "a.py": "x = 1\n" });
+  failsWith(run(repo, [], { FAKE_ZANITY_KILL: "1" }), "must exit or fail to start");
+});
+
+test("a template with a floating action or an unfilled placeholder is refused", () => {
+  const repo = gitRepo({ "a.py": "x = 1\n" });
+  const floating = bootstrapCopy((template) => template.replace(/@[0-9a-f]{40}/, "@v4"));
+  failsWith(run(repo, [], {}, floating), "every action must be pinned");
+  const unfilled = bootstrapCopy((template) => `${template}# {{EXTRA}}\n`);
+  failsWith(run(repo, [], {}, unfilled), "every placeholder must be filled");
+});
+
+test("the zanity installer refuses a bad repository, non-text output and output without an install report", () => {
+  assert.throws(() => installPlan("1.2.3", "not a repository"), /owner\/name/);
+  assert.throws(() => isVerifiedInstall(undefined), /must be text/);
+  assert.throws(() => isVerifiedInstall("nothing happened"), /must report an install/);
+});
+
+const runInstaller = (body) => {
+  const dir = scratch();
+  const preload = join(dir, "stub-fetch.cjs");
+  write(dir, "stub-fetch.cjs", `globalThis.fetch = async () => new Response(process.env.STUB_INSTALL_BODY, { status: 200 });\n`);
+  const result = spawnSync("node", ["-r", preload, INSTALL, "--run"], { encoding: "utf8", env: { ...process.env, HOME: dir, STUB_INSTALL_BODY: body } });
+  assert(result.error === undefined && result.status !== null, `node must run the installer, got ${result.error} ${result.signal}`);
+  assert(dir.startsWith(tmpdir()), `the installer must run against the scratch HOME ${dir}`);
+  return { code: result.status, notes: result.stderr, installed: existsSync(join(dir, ".local", "bin", "zanity")) };
+};
+
+test("the installer script must be non-empty and its output must name the pinned version", () => {
+  const { zanityVersion } = JSON.parse(readFileSync(join(HERE, "pins.json"), "utf8"));
+  const installScriptPrefix = `mkdir -p "$ZANITY_INSTALL_DIR"\necho binary > "$ZANITY_INSTALL_DIR/zanity"\n`;
+  const empty = runInstaller("");
+  assert(empty.code === CRASH_EXIT && empty.notes.includes("returned an empty install script") && !empty.installed, `an empty script must crash and install nothing, got ${empty.code}: ${empty.notes}`);
+  const unnamed = runInstaller(`${installScriptPrefix}echo "Installed zanity"\n`);
+  assert(unnamed.code === CRASH_EXIT && unnamed.notes.includes("installer output must name") && !unnamed.installed, `output without the version must crash before installing, got ${unnamed.code}: ${unnamed.notes}`);
+  const named = runInstaller(`${installScriptPrefix}echo "Installed zanity ${zanityVersion}"\n`);
+  assert(named.code === 0 && named.installed, `a valid install must succeed and install, got ${named.code}: ${named.notes}`);
 });

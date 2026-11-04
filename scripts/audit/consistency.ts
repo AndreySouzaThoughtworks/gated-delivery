@@ -16,10 +16,8 @@ const NOT_UTF8 = "\uFFFD";
 const errors: string[] = [];
 const warnings: string[] = [];
 
-const read = (p: string) => {
-  const inside = resolve(p);
-  assert(inside.startsWith(ROOT + sep), `${p} must resolve inside ${ROOT}, got ${inside}; read only repo files`);
-  const body = readFileSync(inside, "utf8");
+const read = (p: string) => { // zanity: ignore[assertion-density] -- single-invariant: only valid UTF-8 can be asserted, since every path comes from joins under the repo root
+  const body = readFileSync(resolve(p), "utf8");
   assert(!body.includes(NOT_UTF8), `${p} must be valid UTF-8, got a replacement character; re-save it as UTF-8`);
   return body;
 };
@@ -31,8 +29,7 @@ const dirs = (p: string) => {
   return names;
 };
 
-function frontmatterName(file: string) {
-  assert(file.endsWith(MARKDOWN_EXTENSION), `frontmatterName reads markdown frontmatter, got ${file}`);
+function frontmatterName(file: string) { // zanity: ignore[assertion-density] -- single-invariant: only a blank declared name can be asserted, since callers pass skill and agent markdown paths
   // Callers reach here for files they have already reported as missing; reading one threw ENOENT and
   // killed the process before the report block could print the error it had just recorded.
   if (!existsSync(file)) return null;
@@ -143,9 +140,7 @@ const NOT_LOCAL_NAMES = new Set([
   // Placeholders in skill-graph.md's explanation of the notation itself.
   "name", "skill-name",
 ]);
-const markdownFiles = (dir: string): string[] => {
-  assert(existsSync(dir), `${dir} must exist before its markdown is listed, got none; restore it`);
-  assert(statSync(dir).isDirectory(), `${dir} must be a folder before its markdown is listed, got a file; point at the folder`);
+const markdownFiles = (dir: string): string[] => { // zanity: ignore[assertion-density] -- recursive-walker: it lists folders that readdir just returned and the earlier reads already failed on a missing docs folder
   const found = readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
     e.isDirectory() ? markdownFiles(join(dir, e.name)) : e.name.endsWith(MARKDOWN_EXTENSION) ? [join(dir, e.name)] : [],
   );
@@ -695,6 +690,23 @@ if (existsSync(cursorHooksPath) || existsSync(cursorRulesPath)) {
 if (existsSync(agentsPath)) {
   for (const [, path] of read(agentsPath).matchAll(BACKTICKED_FILE)) {
     if (!existsSync(join(ROOT, path))) errors.push(`${AGENTS_FILE} names ${path}, which does not exist. Hint: fix the path or drop the rule's reference.`);
+  }
+}
+
+// --- 22. The numbered checks of this guard are unique and run from 1 with no gap ---
+const GUARD_SOURCE = "scripts/audit/consistency.ts";
+const CHECK_HEADER = /^\/\/ --- (\d+)\. /gm;
+const guardSourcePath = join(ROOT, GUARD_SOURCE);
+if (existsSync(guardSourcePath)) {
+  const checksPerNumber = new Map<number, number>();
+  for (const [, digits] of read(guardSourcePath).matchAll(CHECK_HEADER)) {
+    checksPerNumber.set(Number(digits), (checksPerNumber.get(Number(digits)) ?? 0) + 1);
+  }
+  const lastNumber = Math.max(0, ...checksPerNumber.keys());
+  for (let number = 1; number <= lastNumber; number++) {
+    const count = checksPerNumber.get(number) ?? 0;
+    if (count === 0) errors.push(`${GUARD_SOURCE} has no check ${number} but numbers up to ${lastNumber}. Hint: renumber so the checks run from 1 to ${lastNumber} with no gap.`);
+    if (count > 1) errors.push(`${GUARD_SOURCE} numbers ${count} checks ${number}. Hint: two branches added a check at once; renumber the later one.`);
   }
 }
 

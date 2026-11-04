@@ -5,10 +5,13 @@ import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { ASSERTION_DENSITY_REASON_CODE_MEANINGS } from "./suppression-reason-codes.ts";
 
 const GUARD = join(dirname(fileURLToPath(import.meta.url)), "suppressions.ts");
 const COUNT_FILE = "scripts/audit/suppressions.count";
 const GOOD_REASON = "the retry loop already logs every failure upstream";
+const ASSERTION_DENSITY = "assertion-density";
+const CODED_DETAIL = "the parser rejects hostile input";
 
 const ZANITY = ["zanity", "ignore"].join(": ");
 const NOQA = ["no", "qa"].join("");
@@ -106,6 +109,37 @@ test("accepts a reason of exactly the minimum meaningful words", () => {
   assert(short.code === 1, `expected exit 1 for 3 meaningful words, got ${short.code}: ${short.out}`);
 });
 
+const DENSITY_MARKER = `call(); // ${ZANITY}[${ASSERTION_DENSITY}] -- `;
+
+test("an assertion-density suppression is accepted under each reason code", () => {
+  for (const code of Object.keys(ASSERTION_DENSITY_REASON_CODE_MEANINGS)) {
+    const { code: exit, out } = verdict(`${DENSITY_MARKER}${code}: ${CODED_DETAIL}`);
+    assert(exit === 0, `expected exit 0 for the code "${code}", got ${exit}: ${out}`);
+  }
+});
+
+test("an assertion-density suppression with an unknown code, no colon, a blank or a one-word reason is rejected", () => {
+  const rejected = {
+    "an unknown code": [`made-up-code: ${CODED_DETAIL}`, "is unknown"],
+    "an inherited property name": [`constructor: ${CODED_DETAIL}`, "is unknown"],
+    "a missing colon": [`single-invariant ${CODED_DETAIL}`, "must start with a code"],
+    "no code at all": [CODED_DETAIL, "must start with a code"],
+    "a blank reason after the code": ["single-invariant:   ", "must start with a code"],
+    "a one-word reason": ["single-invariant: restates", "needs at least 3 words"],
+    "a two-word reason": ["single-invariant: restates itself", "needs at least 3 words"],
+  };
+  for (const [name, [reason, complaint]] of Object.entries(rejected)) {
+    const { code, out } = verdict(`${DENSITY_MARKER}${reason}`);
+    assert(code === 1, `expected exit 1 for ${name}, got ${code}: ${out}`);
+    assert(out.includes(complaint), `expected "${complaint}" for ${name}, got: ${out}`);
+  }
+});
+
+test("a suppression of another rule needs no code", () => {
+  const { code, out } = verdict(`call(); // ${ZANITY}[forbidden-call] -- ${GOOD_REASON}`);
+  assert(code === 0, `expected exit 0 for a rule other than assertion-density with an uncoded reason, got ${code}: ${out}`);
+});
+
 test("fails when the count exceeds the committed ratchet and passes at it", () => {
   const line = `call(); // ${ZANITY}[forbidden-call] -- ${GOOD_REASON}`;
   const over = verdict(line, 0);
@@ -126,6 +160,23 @@ test("fails when the ratchet file is missing", () => {
   execFileSync("git", ["add", "-A"], { cwd: dir });
   const { code, out } = runGuard(dir);
   assert(code === 1 && out.includes("is missing"), `expected exit 1 and "is missing", got ${code}: ${out}`);
+});
+
+test("a directory that is not a git checkout stops the guard before it lists any file", () => {
+  const dir = mkdtempSync(join(tmpdir(), "suppressions-test-"));
+  const { code, out } = runGuard(dir);
+  assert(code !== 0, `expected a non-zero exit for a directory with no .git, got ${code}: ${out}`);
+  assert(out.includes("has no .git"), `expected "has no .git", got: ${out}`);
+});
+
+test("a ratchet file that holds anything but one non-negative integer stops the guard", () => {
+  for (const content of ["many", "-1", ""]) {
+    const dir = gitRepo({ "src/a.mjs": "call();\n" }, 0);
+    writeFileSync(join(dir, COUNT_FILE), content);
+    const { code, out } = runGuard(dir);
+    assert(code !== 0, `expected a non-zero exit for the count file "${content}", got ${code}: ${out}`);
+    assert(out.includes("must hold one non-negative integer"), `expected the integer complaint for "${content}", got: ${out}`);
+  }
 });
 
 test("a clean repo passes at zero and prose mentioning a marker is ignored", () => {

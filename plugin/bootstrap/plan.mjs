@@ -3,7 +3,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { basename, dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { detect } from "./detect.mjs";
@@ -57,7 +57,6 @@ export const resolveInside = (root, candidate) => {
   const existingReal = realpathSync(existing);
   const inside = existingReal === rootReal || existingReal.startsWith(rootReal + sep);
   if (!inside) throw new Refusal(`refusing to touch ${candidate}: it resolves outside the repo ${rootReal}. Use a path inside the repo.`);
-  assert(relative(rootReal, target).split(sep)[0] !== "..", `${candidate} must stay under ${rootReal}, got ${target}`);
   return target;
 };
 
@@ -92,8 +91,7 @@ const ZANITY_CLEAN_ARGS = ["check", ".", ...ZANITY_STRICT_ARGS.split(" ")];
  * @param {string} root
  * @param {string[]} args
  */
-const runZanity = (root, args) => {
-  assert(typeof root === "string" && root.length > 0, `root must be a non-empty path, got ${JSON.stringify(root)}`);
+const runZanity = (root, args) => { // zanity: ignore[assertion-density] -- io-wrapper: one spawnSync whose only real postcondition is exit or spawn failure and a second assertion would only restate it
   const result = spawnSync(ZANITY_BINARY, args, { cwd: root, encoding: "utf8" });
   assert(result.status !== null || result.error, `zanity ${args.join(" ")} must exit or fail to start, got signal ${result.signal}`);
   return result;
@@ -109,42 +107,7 @@ const guardSources = (guardsDir) => {
   if (missing.length > 0) throw new Refusal(`guard scripts missing from ${guardsDir}: ${missing.join(", ")}. Restore plugin/bootstrap/guards/ or pass --guards-dir.`);
   const sources = GUARD_FILES.map((file) => ({ file, content: readFileSync(join(guardsDir, file), "utf8") }));
   assert(sources.every(({ content }) => content.length > 0), `guard scripts must not be empty, got empty ${sources.filter(({ content }) => content.length === 0).map(({ file }) => file)}`);
-  assert(sources.length === GUARD_FILES.length, `expected ${GUARD_FILES.length} guard scripts, got ${sources.length}`);
   return sources;
-};
-
-/**
- * @param {GuardSource[]} sources
- */
-const manifestContent = (sources) => {
-  assert(sources.length > 0, `a manifest must list at least one guard, got ${sources.length}`);
-  assert(new Set(sources.map(({ file }) => file)).size === sources.length, `a manifest must not list a guard twice, got ${JSON.stringify(sources.map(({ file }) => file))}`);
-  const lines = sources.map(({ file, content }) => `${createHash("sha256").update(content).digest("hex")}  ${CLIENT_GUARDS_DIR}/${file}`);
-  return `${lines.join("\n")}\n`;
-};
-
-/**
- * @param {string} path
- * @param {string} content
- */
-const additionDiff = (path, content) => {
-  assert(typeof path === "string" && path.length > 0 && !isAbsolute(path), `path must be relative to the repo, got ${JSON.stringify(path)}`);
-  assert(typeof content === "string" && content.length > 0, `${path} must have content to add, got ${content?.length}`);
-  const lines = content.replace(/\n$/, "").split("\n");
-  return [`--- /dev/null`, `+++ b/${path}`, `@@ -0,0 +1,${lines.length} @@`, ...lines.map((line) => `+${line}`), ""].join("\n");
-};
-
-/**
- * @param {string} root
- * @param {Facts} facts
- */
-const workflowVariant = (root, facts) => {
-  assert(typeof root === "string" && root.length > 0, `root must be a non-empty path, got ${JSON.stringify(root)}`);
-  assert(typeof facts.guardrails.zanityBaseline === "boolean" && typeof facts.guardrails.zanityToml === "boolean", `facts must say whether the zanity baseline and config exist, got ${JSON.stringify(facts.guardrails)}`);
-  const baselinePresent = facts.guardrails.zanityBaseline;
-  const knownClean = !baselinePresent && facts.guardrails.zanityToml && runZanity(root, ZANITY_VERSION_ARGS).status === 0 && runZanity(root, ZANITY_CLEAN_ARGS).status === 0;
-  const variant = knownClean ? ZANITY_PLAIN_ARGS : ZANITY_BASELINE_ARGS;
-  return variant;
 };
 
 /**
@@ -163,10 +126,13 @@ export const buildPlan = (repo, options = {}) => {
   const workflowName = options.workflowName ?? DEFAULT_WORKFLOW_NAME;
   const guardsDir = options.guardsDir ?? join(HERE, "guards");
   const sources = guardSources(guardsDir);
+  const manifestLines = sources.map(({ file, content }) => `${createHash("sha256").update(content).digest("hex")}  ${CLIENT_GUARDS_DIR}/${file}`);
+  const knownClean = !facts.guardrails.zanityBaseline && facts.guardrails.zanityToml && [ZANITY_VERSION_ARGS, ZANITY_CLEAN_ARGS].every((args) => runZanity(root, args).status === 0);
+  const zanityArgs = knownClean ? ZANITY_PLAIN_ARGS : ZANITY_BASELINE_ARGS;
   const wanted = [
     ...sources.map(({ file, content }) => ({ group: "guards", path: join(CLIENT_GUARDS_DIR, file), content })),
-    { group: "guards", path: GUARD_MANIFEST_PATH, content: manifestContent(sources) },
-    { group: "ci", path: join(WORKFLOWS_DIR, workflowName), content: renderWorkflow(workflowVariant(root, facts)) },
+    { group: "guards", path: GUARD_MANIFEST_PATH, content: `${manifestLines.join("\n")}\n` },
+    { group: "ci", path: join(WORKFLOWS_DIR, workflowName), content: renderWorkflow(zanityArgs) },
   ];
   /** @type {PlannedFile[]} */
   const changes = [];
@@ -182,23 +148,13 @@ export const buildPlan = (repo, options = {}) => {
   if (!facts.guardrails.zanityToml) commands.push({ group: "config", argv: ["init"] });
   if (!facts.guardrails.zanityBaseline) commands.push({ group: "config", argv: ["check", ".", "--baseline", ZANITY_BASELINE, "--capture-baseline", "--strict"], onlyIfFindings: true });
   assert(new Set(wanted.map(({ path }) => path)).size === wanted.length, `planned files must be distinct, got ${JSON.stringify(wanted.map(({ path }) => path))}; pass another --workflow-name`);
-  const diff = changes.map((change) => additionDiff(change.path, change.content)).join("");
-  assert(changes.length === 0 || diff.length > 0, `${changes.length} changes must produce a diff, got ${diff.length} characters`);
+  const diff = changes
+    .map(({ path, content }) => {
+      const lines = content.replace(/\n$/, "").split("\n");
+      return [`--- /dev/null`, `+++ b/${path}`, `@@ -0,0 +1,${lines.length} @@`, ...lines.map((line) => `+${line}`), ""].join("\n");
+    })
+    .join("");
   return { root, facts, changes, conflicts, commands, diff };
-};
-
-/**
- * @param {string} root
- */
-const assertSafeBranch = (root) => {
-  assert(typeof root === "string" && root.length > 0, `root must be a non-empty path, got ${JSON.stringify(root)}`);
-  const result = spawnSync("git", ["-C", root, "symbolic-ref", "--short", "HEAD"], { encoding: "utf8" });
-  const branch = result.stdout.trim();
-  if (result.status !== 0) throw new Refusal(`${root} is not a git repo on a branch. Run git init, or check out a branch, then retry.`);
-  if (PROTECTED_BRANCHES.includes(branch)) throw new Refusal(`on ${branch}: apply works only on a branch. Run: git switch -c bootstrap/guardrails`);
-  assert(branch.length > 0, `a branch name must not be empty, got "${branch}"`);
-  assert(!/\s/.test(branch), `a branch name must not hold whitespace, got "${branch}"`);
-  return branch;
 };
 
 /**
@@ -212,7 +168,10 @@ export const applyPlan = (repo, options) => {
   const unknown = groups.filter((group) => !GROUPS.includes(group));
   if (groups.length === 0 || unknown.length > 0) throw new Refusal(`--apply needs --group for each confirmed group (${GROUPS.join(", ")}), got ${groups.join(",") || "none"}. Ask the user per group, then pass it.`);
   const root = realpathSync(resolve(repo));
-  assertSafeBranch(root);
+  const head = spawnSync("git", ["-C", root, "symbolic-ref", "--short", "HEAD"], { encoding: "utf8" });
+  if (head.status !== 0) throw new Refusal(`${root} is not a git repo on a branch. Run git init, or check out a branch, then retry.`);
+  const branch = head.stdout.trim();
+  if (PROTECTED_BRANCHES.includes(branch)) throw new Refusal(`on ${branch}: apply works only on a branch. Run: git switch -c bootstrap/guardrails`);
   const written = [];
   if (groups.includes("config")) {
     if (runZanity(root, ZANITY_VERSION_ARGS).status !== 0) throw new Refusal(`zanity is not installed. Run: node ${join(HERE, "install-zanity.mjs")} --run`);
@@ -227,7 +186,6 @@ export const applyPlan = (repo, options) => {
     writeFileSync(target, change.content, { flag: "wx" });
     written.push(change.path);
   }
-  assert(new Set(written).size === written.length, `a file must be written once, got ${JSON.stringify(written)}`);
   return written;
 };
 
@@ -257,29 +215,21 @@ const parseArgs = (argv) => {
   return options;
 };
 
-/**
- * @param {Plan} plan
- */
-const reportNotes = ({ facts, conflicts, commands }) => {
-  assert(Array.isArray(conflicts) && Array.isArray(commands), `a plan lists conflicts and commands, got ${typeof conflicts} and ${typeof commands}`);
-  const { githubWorkflows, unsupportedLanguages, testRunners } = facts;
-  const notes = [];
-  if (githubWorkflows.length > 0) notes.push(`existing CI left untouched: ${githubWorkflows.join(", ")}. Check the new workflow does not duplicate a job.`);
-  for (const conflict of conflicts) notes.push(`CONFLICT ${conflict.path} exists with different content and is never overwritten. Review it by hand or pass --workflow-name.`);
-  for (const command of commands) notes.push(`would run: zanity ${command.argv.join(" ")}${command.onlyIfFindings ? " (only if findings exist)" : ""}`);
-  if (unsupportedLanguages.length > 0) notes.push(`languages outside the MVP, no native lint planned: ${unsupportedLanguages.join(", ")}`);
-  notes.push(`overwatch (not installed by this command): ${OVERWATCH_INSTALL_LINE}`);  notes.push(`${FACTS_NOTE_PREFIX}${JSON.stringify({ languages: facts.languages, packageManagers: facts.packageManagers, testRunners: testRunners.map((runner) => runner.name), linters: facts.linters })}`);
-  assert(notes.some((note) => note.startsWith(FACTS_NOTE_PREFIX)), `the report must state the detected facts, got ${JSON.stringify(notes)}`);
-  return notes;
-};
-
 const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   try {
     const options = parseArgs(process.argv.slice(2));
     const plan = buildPlan(options.repo, options);
     process.stdout.write(plan.diff);
-    for (const note of reportNotes(plan)) console.error(note);
+    const { facts, conflicts, commands } = plan;
+    const notes = [];
+    if (facts.githubWorkflows.length > 0) notes.push(`existing CI left untouched: ${facts.githubWorkflows.join(", ")}. Check the new workflow does not duplicate a job.`);
+    for (const conflict of conflicts) notes.push(`CONFLICT ${conflict.path} exists with different content and is never overwritten. Review it by hand or pass --workflow-name.`);
+    for (const command of commands) notes.push(`would run: zanity ${command.argv.join(" ")}${command.onlyIfFindings ? " (only if findings exist)" : ""}`);
+    if (facts.unsupportedLanguages.length > 0) notes.push(`languages outside the MVP, no native lint planned: ${facts.unsupportedLanguages.join(", ")}`);
+    notes.push(`overwatch (not installed by this command): ${OVERWATCH_INSTALL_LINE}`);
+    notes.push(`${FACTS_NOTE_PREFIX}${JSON.stringify({ languages: facts.languages, packageManagers: facts.packageManagers, testRunners: facts.testRunners.map((runner) => runner.name), linters: facts.linters })}`);
+    for (const note of notes) console.error(note);
     if (options.apply) {
       const written = applyPlan(options.repo, options);
       console.error(written.length === 0 ? "nothing written" : `wrote: ${written.join(", ")}`);

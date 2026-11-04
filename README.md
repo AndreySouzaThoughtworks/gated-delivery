@@ -37,6 +37,37 @@ Install at user scope and run `/reload-plugins` afterwards, or the agents stay u
 
 The rest of the skills cover writing tickets, deskchecks, production support and auditing the flow itself. [Skills, agents and hooks](docs/skill-graph.md) lists every one and how they call each other.
 
+## An example
+
+Take a ticket, `PROJ-202`, that asks to cache tenant config in Redis. Run the spec first and give it the ticket key:
+
+```text
+/gated-delivery:spec PROJ-202
+```
+
+It fetches the ticket through your tracker, reads your `CLAUDE.md` and the docs it points at, and shows you the ticket's intent and acceptance criteria. It asks whether those are the right starting point before it looks at any code. Then it explores the code, drafts the spec section by section and holds the draft in the conversation. Only after you sign off every section does it write one file, `docs/specs/PROJ-202-<slug>.md`, or the notes home your `CLAUDE.md` names when the repository does not keep planning files. The file opens like this and has these sections:
+
+```text
+ticket: PROJ-202
+type: change
+status: Draft
+created: YYYY-MM-DD
+
+# PROJ-202 — <short title>
+
+Summary · Relevant files · Red flags · Architecture sketch · Domain model
+Acceptance criteria · Interface · Security · Open decisions · Rollout
+Edges · Done-when · Outcome
+```
+
+`## Rollout` is the part that matters. It lists the slices in order, each with the acceptance criteria it covers and whether it ships complete, unwired or behind a flag, so that every slice can merge on its own. Then run the slice step:
+
+```text
+/gated-delivery:slice PROJ-202
+```
+
+It checks that your working tree is clean and that you are on `main` or the ticket's own branch. It plans the slice's batches and asks you to confirm them. Each distinct behaviour gets its own failing test before its code, and your verify command runs through a lock so parallel runs do not collide. At the end of the slice it validates, has the `code-reviewer` agent review the diff and marks the pull request ready, and then stops. It never merges anything itself. When you have merged the pull request, run the command again for the next slice.
+
 ## What comes from your repository
 
 The plugin never names a client. A skill that needs a client-specific fact reads it from a section of the nearest `CLAUDE.md`, and asks you when the section is missing.

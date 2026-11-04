@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { basename, delimiter, extname, isAbsolute, join, resolve } from "node:path";
+import { delimiter, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /**
@@ -59,61 +59,34 @@ const WORKFLOW_EXTENSIONS = [".yml", ".yaml"];
 const GUARDRAIL_FILES = { zanityToml: "zanity.toml", zanityBaseline: "zanity-baseline.json", overwatchConfig: ".overwatch.json" };
 const HIDDEN_PREFIX = ".";
 
-/** @param {string} dir */
-const listDir = (dir) => {
-  assert(typeof dir === "string" && dir.length > 0, `dir must be a non-empty path, got ${JSON.stringify(dir)}`);
-  const entries = readdirSync(dir, { withFileTypes: true });
-  assert(Array.isArray(entries), `reading ${dir} must give a list of entries, got ${typeof entries}`);
-  return entries;
-};
-
-/**
- * @param {string} root
- * @param {number} depthLeft
- * @param {string} [prefix]
- * @returns {string[]}
- */
-const sourceFiles = (root, depthLeft, prefix = "") => {
-  assert(depthLeft >= 0, `depth budget must not be negative, got ${depthLeft}`);
-  assert(typeof root === "string" && root.length > 0, `root must be a non-empty path, got ${JSON.stringify(root)}`);
-  const skipped = new Set(markerTable.search.skip);
-  const found = listDir(join(root, prefix)).flatMap((entry) => {
-    const relative = join(prefix, entry.name);
-    if (entry.isDirectory()) {
-      const descend = depthLeft > 0 && !skipped.has(entry.name) && !entry.name.startsWith(HIDDEN_PREFIX);
-      return descend ? sourceFiles(root, depthLeft - 1, relative) : [];
-    }
-    return [relative];
-  });
-  assert(found.every((file) => !isAbsolute(file)), `source files must be relative to ${root}, got ${JSON.stringify(found.filter(isAbsolute))}`);
-  return found;
-};
-
-/** @param {string} tool */
-const onPath = (tool) => {
-  assert(typeof tool === "string" && tool.length > 0, `tool must be a non-empty name, got ${JSON.stringify(tool)}`);
-  assert(basename(tool) === tool, `tool must be a bare command name without a directory, got ${JSON.stringify(tool)}`);
-  const found = (process.env.PATH ?? "").split(delimiter).some((dir) => dir && existsSync(join(dir, tool)));
-  return found;
-};
-
 /** @param {string} repo */
 export const detect = (repo) => {
   assert(typeof repo === "string" && repo.length > 0, `repo must be a non-empty path, got ${JSON.stringify(repo)}`);
   const root = resolve(repo);
   assert(existsSync(root), `${root} must exist, got missing; pass --repo <existing directory>`);
-  const files = sourceFiles(root, markerTable.search.depth);
-  const topLevel = new Set(listDir(root).map((entry) => entry.name));
+  const skipped = new Set(markerTable.search.skip);
+  /** @type {string[]} */
+  const files = [];
+  const pending = [{ prefix: "", depthLeft: markerTable.search.depth }];
+  for (let next = pending.pop(); next; next = pending.pop()) {
+    for (const entry of readdirSync(join(root, next.prefix), { withFileTypes: true })) {
+      const relative = join(next.prefix, entry.name);
+      if (!entry.isDirectory()) files.push(relative);
+      else if (next.depthLeft > 0 && !skipped.has(entry.name) && !entry.name.startsWith(HIDDEN_PREFIX)) pending.push({ prefix: relative, depthLeft: next.depthLeft - 1 });
+    }
+  }
+  const topLevel = new Set(readdirSync(root));
   const languages = new Set([
     ...files.map((file) => LANGUAGE_BY_EXTENSION[extname(file)]),
     ...Object.entries(LANGUAGE_BY_MARKER).filter(([marker]) => topLevel.has(marker)).map(([, language]) => language),
   ].filter((language) => language !== undefined));
+  const pathEntries = (process.env.PATH ?? "").split(delimiter);
   const testRunners = markerTable.watchers
     .filter((watcher) => existsSync(join(root, watcher.marker)))
-    .map(({ name, marker, requires }) => ({ name, marker, language: LANGUAGE_BY_OVERWATCH_NAME[name], requiresOnPath: requires ? onPath(requires) : true }));
+    .map(({ name, marker, requires }) => ({ name, marker, language: LANGUAGE_BY_OVERWATCH_NAME[name], requiresOnPath: requires ? pathEntries.some((dir) => dir && existsSync(join(dir, requires))) : true }));
   const workflowsDir = join(root, GITHUB_WORKFLOWS_DIR);
   const githubWorkflows = existsSync(workflowsDir)
-    ? listDir(workflowsDir).map((entry) => entry.name).filter((name) => WORKFLOW_EXTENSIONS.includes(extname(name)))
+    ? readdirSync(workflowsDir).filter((name) => WORKFLOW_EXTENSIONS.includes(extname(name)))
     : [];
   const pyproject = topLevel.has("pyproject.toml") ? readFileSync(join(root, "pyproject.toml"), "utf8") : "";
   const linters = Object.entries(LINTER_MARKERS)
@@ -130,7 +103,6 @@ export const detect = (repo) => {
     linters,
     guardrails: Object.fromEntries(Object.entries(GUARDRAIL_FILES).map(([key, file]) => [key, topLevel.has(file)])),
   };
-  assert(result.languages.every((language) => typeof language === "string"), `languages must be names, got ${JSON.stringify(result.languages)}`);
   return result;
 };
 

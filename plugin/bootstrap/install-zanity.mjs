@@ -42,9 +42,9 @@ const run = async () => {
   console.error(output);
   if (installer.status !== 0) throw new Error(`the zanity installer failed (exit ${installer.status}); read its output above and retry.`);
   if (!isVerifiedInstall(output)) throw new Error(`zanity ${plan.version} could not be checksum-verified against its release. Nothing was installed; retry later or set GITHUB_TOKEN.`);
+  assert(output.includes(plan.version), `installer output must name ${plan.version}, got "${output.slice(0, 80)}"`);
   mkdirSync(DEFAULT_INSTALL_DIR, { recursive: true });
   copyFileSync(join(stagingDir, "zanity"), join(DEFAULT_INSTALL_DIR, "zanity"));
-  assert(output.includes(plan.version), `installer output must name ${plan.version}, got "${output.slice(0, 80)}"`);
   console.error(`installed zanity ${plan.version} to ${DEFAULT_INSTALL_DIR}`);
 };
 

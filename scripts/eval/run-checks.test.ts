@@ -451,6 +451,26 @@ test("parseExpect refuses text that spans lines", () => {
   assert.deepEqual(parseExpect("expect: manual"), { raw: "expect: manual", manual: true });
 });
 
+test("runCheck refuses an empty output file and a path with a NUL byte", () => {
+  assert.throws(() => runCheck({ label: "x", command: "true" }, ""), /a check runs against an output file/);
+  assert.throws(() => runCheck({ label: "x", command: "cat output.md" }, "/tmp/out\0put.md"), /a shell argument cannot carry a NUL byte/);
+});
+
+const DIGITS_BEYOND_DOUBLE_RANGE = 400;
+
+test("--scenario exits 3 when an expect carries a number too large to be an integer", () => {
+  const dir = repoWith("alpha", SCENARIO_TABLE + fence(`# Huge.\n# expect: >=${"9".repeat(DIGITS_BEYOND_DOUBLE_RANGE)} on 1\ngrep -c a output.md`));
+  const result = cli(dir, ["alpha", outputFile("a\n"), "--scenario", "1"]);
+  assert.equal(result.code, 3, result.out);
+  assert.match(result.out, /a comparison expect carries an integer/);
+});
+
+test("--lint exits 3 when run outside the repository root, where there are no skills", () => {
+  const result = cli(mkdtempSync(join(tmpdir(), "gated-delivery-runner-empty-")), ["--lint"]);
+  assert.equal(result.code, 3, result.out);
+  assert.match(result.out, /skills are read from/);
+});
+
 test("runCheck refuses a prelude entry that is not an assignment", () => {
   assert.throws(() => runCheck({ label: "x", command: "true" }, "/tmp/output.md", ["rm -f x"]), /the prelude holds assignments only/);
 });

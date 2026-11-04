@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { formatEditedFile } from "./adapter.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const GUARD = join(HERE, "guard-shell.mjs");
@@ -73,6 +74,19 @@ test("a payload with no command, or a non-string command, fails closed", () => {
     assert.equal(status, EXIT_BLOCK, `payload ${payload} must be blocked, got exit ${status}`);
     assert.equal(JSON.parse(stdout).permission, "deny");
   }
+});
+
+test("a payload that parses to JSON but not to an object fails closed", () => {
+  for (const payload of ["null", "42", "[]", '"text"']) {
+    const { status, stdout } = run(GUARD, payload);
+    assert.equal(status, EXIT_BLOCK, `payload ${payload} must be blocked, got exit ${status}`);
+    assert.equal(JSON.parse(stdout).permission, "deny");
+  }
+});
+
+test("a format hook that cannot start is reported, not swallowed", () => {
+  const missingDirectory = join(tmpdir(), "cursor-format-test-missing-directory");
+  assert.throws(() => formatEditedFile(JSON.stringify({ file_path: "a.ts" }), missingDirectory), /the format hook must start/);
 });
 
 test("the documented escape variable turns the guard off", () => {

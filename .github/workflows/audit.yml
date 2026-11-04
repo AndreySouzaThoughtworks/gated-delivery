@@ -170,6 +170,8 @@ jobs:
           node-version: 26
       - name: Install dev dependencies
         run: npm ci
+      - name: Assertion tool tests
+        run: node --test scripts/audit/assertion-effectiveness/*.test.ts
       - name: Every assertion is made to fail by some test
         run: node scripts/audit/assertion-effectiveness.ts
       - name: Assertion baseline only shrinks

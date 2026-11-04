@@ -91,7 +91,7 @@ const ZANITY_CLEAN_ARGS = ["check", ".", ...ZANITY_STRICT_ARGS.split(" ")];
  * @param {string} root
  * @param {string[]} args
  */
-const runZanity = (root, args) => {
+const runZanity = (root, args) => { // zanity: ignore[assertion-density] -- io-wrapper: one spawnSync whose only real postcondition is exit or spawn failure and a second assertion would only restate it
   const result = spawnSync(ZANITY_BINARY, args, { cwd: root, encoding: "utf8" });
   assert(result.status !== null || result.error, `zanity ${args.join(" ")} must exit or fail to start, got signal ${result.signal}`);
   return result;

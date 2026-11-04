@@ -3,6 +3,66 @@
   "identity_version": 1,
   "findings": [
     {
+      "path": "plugin/bootstrap/detect.mjs",
+      "rule": "unproven-assertion",
+      "message": "listDir | 0c5384cb4e8a",
+      "condition": "typeof dir === \"string\" && dir.length > 0"
+    },
+    {
+      "path": "plugin/bootstrap/detect.mjs",
+      "rule": "unproven-assertion",
+      "message": "listDir | 58bcf9250b25",
+      "condition": "Array.isArray(entries)"
+    },
+    {
+      "path": "plugin/bootstrap/detect.mjs",
+      "rule": "unproven-assertion",
+      "message": "sourceFiles | c09312faf72f",
+      "condition": "depthLeft >= 0"
+    },
+    {
+      "path": "plugin/bootstrap/detect.mjs",
+      "rule": "unproven-assertion",
+      "message": "sourceFiles | b806074be356",
+      "condition": "typeof root === \"string\" && root.length > 0"
+    },
+    {
+      "path": "plugin/bootstrap/detect.mjs",
+      "rule": "unproven-assertion",
+      "message": "sourceFiles | fbdcf68b1227",
+      "condition": "found.every((file) => !isAbsolute(file))"
+    },
+    {
+      "path": "plugin/bootstrap/detect.mjs",
+      "rule": "unproven-assertion",
+      "message": "onPath | ca533c12a600",
+      "condition": "typeof tool === \"string\" && tool.length > 0"
+    },
+    {
+      "path": "plugin/bootstrap/detect.mjs",
+      "rule": "unproven-assertion",
+      "message": "onPath | 612e73e9bac5",
+      "condition": "basename(tool) === tool"
+    },
+    {
+      "path": "plugin/bootstrap/detect.mjs",
+      "rule": "unproven-assertion",
+      "message": "detect | 1217ec1c3df9",
+      "condition": "typeof repo === \"string\" && repo.length > 0"
+    },
+    {
+      "path": "plugin/bootstrap/detect.mjs",
+      "rule": "unproven-assertion",
+      "message": "detect | b00c47d569b3",
+      "condition": "existsSync(root)"
+    },
+    {
+      "path": "plugin/bootstrap/detect.mjs",
+      "rule": "unproven-assertion",
+      "message": "detect | 98fdf3355bf0",
+      "condition": "result.languages.every((language) => typeof language === \"string\")"
+    },
+    {
       "path": "plugin/bootstrap/guards/ratchet.mjs",
       "rule": "unproven-assertion",
       "message": "parseArgs | 8c8d2cd8be77",
@@ -261,6 +321,228 @@
       "condition": "process.exitCode === EXIT_VIOLATION"
     },
     {
+      "path": "plugin/bootstrap/install-zanity.mjs",
+      "rule": "unproven-assertion",
+      "message": "installPlan | 6b4428d32cd9",
+      "condition": "/^[\\w.-]+\\/[\\w.-]+$/.test(repository)"
+    },
+    {
+      "path": "plugin/bootstrap/install-zanity.mjs",
+      "rule": "unproven-assertion",
+      "message": "isVerifiedInstall | 9afe730271c6",
+      "condition": "typeof installerOutput === \"string\""
+    },
+    {
+      "path": "plugin/bootstrap/install-zanity.mjs",
+      "rule": "unproven-assertion",
+      "message": "isVerifiedInstall | ea93c1c04881",
+      "condition": "installerOutput.includes(\"Installed\")"
+    },
+    {
+      "path": "plugin/bootstrap/install-zanity.mjs",
+      "rule": "unproven-assertion",
+      "message": "run | 812ce6e50fb1",
+      "condition": "script.length > 0"
+    },
+    {
+      "path": "plugin/bootstrap/install-zanity.mjs",
+      "rule": "unproven-assertion",
+      "message": "run | 7cc1a47238cd",
+      "condition": "output.includes(plan.version)"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "resolveInside | b806074be356",
+      "condition": "typeof root === \"string\" && root.length > 0"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "resolveInside | 82a303967009",
+      "condition": "typeof candidate === \"string\" && candidate.length > 0"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "resolveInside | 1d837abee16f",
+      "condition": "relative(rootReal, target).split(sep)[0] !== \"..\""
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "unpinnedActions | f20a96d0b3da",
+      "condition": "typeof workflowText === \"string\" && workflowText.length > 0"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "unpinnedActions | 45dd96cae59c",
+      "condition": "refs.length > 0"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "renderWorkflow | 18b7b3122899",
+      "condition": "unpinned.length === 0"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "renderWorkflow | 0cd8b7a3fe9b",
+      "condition": "!UNFILLED_PLACEHOLDER.test(text)"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "runZanity | b806074be356",
+      "condition": "typeof root === \"string\" && root.length > 0"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "runZanity | fbc3739a2a46",
+      "condition": "result.status !== null || result.error"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "guardSources | 5a33a2daf270",
+      "condition": "typeof guardsDir === \"string\" && guardsDir.length > 0"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "guardSources | fdce51c827b6",
+      "condition": "sources.every(({ content }) => content.length > 0)"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "guardSources | af3391135cba",
+      "condition": "sources.length === GUARD_FILES.length"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "manifestContent | 504d0dd81ad2",
+      "condition": "sources.length > 0"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "manifestContent | a92f7bfbc90f",
+      "condition": "new Set(sources.map(({ file }) => file)).size === sources.length"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "additionDiff | 80240b2b57c2",
+      "condition": "typeof path === \"string\" && path.length > 0 && !isAbsolute(path)"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "additionDiff | 2524fff62bf1",
+      "condition": "typeof content === \"string\" && content.length > 0"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "workflowVariant | b806074be356",
+      "condition": "typeof root === \"string\" && root.length > 0"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "workflowVariant | 12e6dd6eb1cd",
+      "condition": "typeof facts.guardrails.zanityBaseline === \"boolean\" && typeof facts.guardrails.zanityToml === \"boolean\""
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "buildPlan | 1217ec1c3df9",
+      "condition": "typeof repo === \"string\" && repo.length > 0"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "buildPlan | 0f23f943b04a",
+      "condition": "typeof options === \"object\" && options !== null"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "buildPlan | eb180095e3a4",
+      "condition": "new Set(wanted.map(({ path }) => path)).size === wanted.length"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "buildPlan | 7c17c7fd419f",
+      "condition": "changes.length === 0 || diff.length > 0"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "assertSafeBranch | b806074be356",
+      "condition": "typeof root === \"string\" && root.length > 0"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "assertSafeBranch | 314d32ac4b4a",
+      "condition": "branch.length > 0"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "assertSafeBranch | b83c5b2707b4",
+      "condition": "!/\\s/.test(branch)"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "applyPlan | 1217ec1c3df9",
+      "condition": "typeof repo === \"string\" && repo.length > 0"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "applyPlan | 0f23f943b04a",
+      "condition": "typeof options === \"object\" && options !== null"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "applyPlan | 7cc44429a091",
+      "condition": "new Set(written).size === written.length"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "parseArgs | 387f673ba6a5",
+      "condition": "options.groups.every((group) => group.length > 0)"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "parseArgs | 318a6ee80eac",
+      "condition": "options.repo.length > 0"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "reportNotes | 8f5e8495d529",
+      "condition": "Array.isArray(conflicts) && Array.isArray(commands)"
+    },
+    {
+      "path": "plugin/bootstrap/plan.mjs",
+      "rule": "unproven-assertion",
+      "message": "reportNotes | a292d33a9745",
+      "condition": "notes.some((note) => note.startsWith(FACTS_NOTE_PREFIX))"
+    },
+    {
       "path": "plugin/hooks/lib/guard-core.mjs",
       "rule": "unproven-assertion",
       "message": "evaluate | 374b8c553926",
@@ -391,216 +673,6 @@
       "rule": "unproven-assertion",
       "message": "lintSpec | 9b3a65672242",
       "condition": "problems.every((problem) => typeof problem === \"string\" && problem.length > 0)"
-    },
-    {
-      "path": "scripts/audit/consistency.ts",
-      "rule": "unproven-assertion",
-      "message": "read | 491f19329d69",
-      "condition": "inside.startsWith(ROOT + sep)"
-    },
-    {
-      "path": "scripts/audit/consistency.ts",
-      "rule": "unproven-assertion",
-      "message": "read | 1932751cd1a6",
-      "condition": "!body.includes(NOT_UTF8)"
-    },
-    {
-      "path": "scripts/audit/consistency.ts",
-      "rule": "unproven-assertion",
-      "message": "dirs | 2ca00de15c61",
-      "condition": "existsSync(p)"
-    },
-    {
-      "path": "scripts/audit/consistency.ts",
-      "rule": "unproven-assertion",
-      "message": "dirs | c72724562563",
-      "condition": "names.length > 0"
-    },
-    {
-      "path": "scripts/audit/consistency.ts",
-      "rule": "unproven-assertion",
-      "message": "frontmatterName | 9ad6fed66548",
-      "condition": "file.endsWith(MARKDOWN_EXTENSION)"
-    },
-    {
-      "path": "scripts/audit/consistency.ts",
-      "rule": "unproven-assertion",
-      "message": "frontmatterName | dfe9dd6e596d",
-      "condition": "name === null || name.length > 0"
-    },
-    {
-      "path": "scripts/audit/consistency.ts",
-      "rule": "unproven-assertion",
-      "message": "markdownFiles | 01002ca30dbd",
-      "condition": "existsSync(dir)"
-    },
-    {
-      "path": "scripts/audit/consistency.ts",
-      "rule": "unproven-assertion",
-      "message": "markdownFiles | 2b0f8720f6a7",
-      "condition": "statSync(dir).isDirectory()"
-    },
-    {
-      "path": "scripts/audit/consistency.ts",
-      "rule": "unproven-assertion",
-      "message": "quotedItems | f67c569be75a",
-      "condition": "items.every((item) => item.length > 0)"
-    },
-    {
-      "path": "scripts/audit/jsdoc-types-only.ts",
-      "rule": "unproven-assertion",
-      "message": "splitLeadingType | 8bf92dfbef34",
-      "condition": "typeof text === \"string\""
-    },
-    {
-      "path": "scripts/audit/jsdoc-types-only.ts",
-      "rule": "unproven-assertion",
-      "message": "splitLeadingType | da0c2e756509",
-      "condition": "split.type.endsWith(\"}\")"
-    },
-    {
-      "path": "scripts/audit/jsdoc-types-only.ts",
-      "rule": "unproven-assertion",
-      "message": "segmentProblem | cf1d20e5d305",
-      "condition": "tag.length > 0"
-    },
-    {
-      "path": "scripts/audit/jsdoc-types-only.ts",
-      "rule": "unproven-assertion",
-      "message": "segmentProblem | bdfad2ed3a41",
-      "condition": "problem === null || problem.includes(`@${tag}`)"
-    },
-    {
-      "path": "scripts/audit/jsdoc-types-only.ts",
-      "rule": "unproven-assertion",
-      "message": "tagOffence | f8ad076d85e6",
-      "condition": "open.line >= 1"
-    },
-    {
-      "path": "scripts/audit/jsdoc-types-only.ts",
-      "rule": "unproven-assertion",
-      "message": "tagOffence | ce53fccadb13",
-      "condition": "offence === null || offence.where.endsWith(`:${open.line}`)"
-    },
-    {
-      "path": "scripts/audit/jsdoc-types-only.ts",
-      "rule": "unproven-assertion",
-      "message": "cleanedLines | 3c737cea9d1a",
-      "condition": "block.startsWith(\"/**\")"
-    },
-    {
-      "path": "scripts/audit/jsdoc-types-only.ts",
-      "rule": "unproven-assertion",
-      "message": "cleanedLines | fe8bca0d5c4f",
-      "condition": "lines.every((line) => !line.includes(\"*/\"))"
-    },
-    {
-      "path": "scripts/audit/jsdoc-types-only.ts",
-      "rule": "unproven-assertion",
-      "message": "offencesInBlock | 3515e1e23a2c",
-      "condition": "Number.isInteger(firstLine) && firstLine >= 1"
-    },
-    {
-      "path": "scripts/audit/jsdoc-types-only.ts",
-      "rule": "unproven-assertion",
-      "message": "offencesInBlock | a0495fd58b69",
-      "condition": "offences.every((offence) => offence.where.startsWith(`${file}:`))"
-    },
-    {
-      "path": "scripts/audit/jsdoc-types-only.ts",
-      "rule": "unproven-assertion",
-      "message": "shippedFiles | 9fe5dda9fa1e",
-      "condition": "existsSync(repo)"
-    },
-    {
-      "path": "scripts/audit/jsdoc-types-only.ts",
-      "rule": "unproven-assertion",
-      "message": "shippedFiles | 06545f0df3bd",
-      "condition": "files.every((file) => file.startsWith(SHIPPED_DIRECTORY))"
-    },
-    {
-      "path": "scripts/audit/jsdoc-types-only.ts",
-      "rule": "unproven-assertion",
-      "message": "auditRepo | 2641ab79d561",
-      "condition": "offences.every((offence) => offence.text.length > 0)"
-    },
-    {
-      "path": "scripts/audit/jsdoc-types-only.ts",
-      "rule": "unproven-assertion",
-      "message": "auditRepo | 83adfe9d7ff9",
-      "condition": "files.length === new Set(files).size"
-    },
-    {
-      "path": "scripts/audit/suppressions.ts",
-      "rule": "unproven-assertion",
-      "message": "boundedPhrase | 01eb354e2bd8",
-      "condition": "phrase.trim() !== \"\""
-    },
-    {
-      "path": "scripts/audit/suppressions.ts",
-      "rule": "unproven-assertion",
-      "message": "boundedPhrase | 5338b3f4c22f",
-      "condition": "phrase === phrase.toLowerCase()"
-    },
-    {
-      "path": "scripts/audit/suppressions.ts",
-      "rule": "unproven-assertion",
-      "message": "reasonProblem | b71d73d030c5",
-      "condition": "typeof rest === \"string\""
-    },
-    {
-      "path": "scripts/audit/suppressions.ts",
-      "rule": "unproven-assertion",
-      "message": "reasonProblem | c49f9d8ae659",
-      "condition": "!rest.includes(\"\\n\")"
-    },
-    {
-      "path": "scripts/audit/suppressions.ts",
-      "rule": "unproven-assertion",
-      "message": "ruleProblem | 7798b573ebe9",
-      "condition": "MARKERS.some((marker) => marker.label === label)"
-    },
-    {
-      "path": "scripts/audit/suppressions.ts",
-      "rule": "unproven-assertion",
-      "message": "ruleProblem | c5f600300ed6",
-      "condition": "markerText.trim() !== \"\""
-    },
-    {
-      "path": "scripts/audit/suppressions.ts",
-      "rule": "unproven-assertion",
-      "message": "trackedFiles | 9fe5dda9fa1e",
-      "condition": "existsSync(repo)"
-    },
-    {
-      "path": "scripts/audit/suppressions.ts",
-      "rule": "unproven-assertion",
-      "message": "trackedFiles | 01a6daa221cf",
-      "condition": "files.every((file) => !file.startsWith(\"/\"))"
-    },
-    {
-      "path": "scripts/audit/suppressions.ts",
-      "rule": "unproven-assertion",
-      "message": "findSuppressions | 8035ff8e0cce",
-      "condition": "isAbsolute(repo)"
-    },
-    {
-      "path": "scripts/audit/suppressions.ts",
-      "rule": "unproven-assertion",
-      "message": "findSuppressions | 96e447edd205",
-      "condition": "existsSync(join(repo, \".git\"))"
-    },
-    {
-      "path": "scripts/audit/suppressions.ts",
-      "rule": "unproven-assertion",
-      "message": "allowedCount | 8035ff8e0cce",
-      "condition": "isAbsolute(repo)"
-    },
-    {
-      "path": "scripts/audit/suppressions.ts",
-      "rule": "unproven-assertion",
-      "message": "allowedCount | c4bcb6146cbe",
-      "condition": "Number.isInteger(allowed) && allowed >= 0"
     },
     {
       "path": "scripts/cursor/adapter.mjs",

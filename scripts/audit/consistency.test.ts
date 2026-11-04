@@ -52,7 +52,8 @@ const validRepo = () => {
   write(dir, "plugin/hooks/hooks.json", JSON.stringify({ hooks: [{ command: "node hooks/h.mjs" }] }));
   write(dir, "plugin/.claude-plugin/plugin.json", JSON.stringify({ name: "p" }));
   write(dir, ".claude-plugin/marketplace.json", JSON.stringify({ plugins: [{ name: "p", source: "plugin" }] }));
-  write(dir, "README.md", "The plugin — 1 skills, 1 agents, 1 hooks.\n");
+  write(dir, "README.md", "The plugin — 1 skills, 1 agents, 1 hooks.\n\n[MIT](LICENSE)\n");
+  write(dir, "LICENSE", "MIT License\n");
   write(dir, "plugin/README.md", "| `/alpha` | a skill |\n| `bot` | an agent |\n");
   write(dir, "docs/skill-graph.md", "| `/alpha` | a skill |\n| `bot` | an agent |\n| `h.mjs` | a hook |\n");
   write(dir, "zanity.toml", STRICT_ZANITY_CONFIG);
@@ -558,7 +559,7 @@ test("the prose-writing skill may name the phrases it bans", () => {
   write(dir, "plugin/skills/prose-writing/SKILL.md", "---\nname: prose-writing\ndescription: x\n---\n\ngrep 'earns its place|load-bearing'\n");
   write(dir, "plugin/skills/prose-writing/evals.md", ONE_SCENARIO + "## Deterministic Checks\n\n```bash\ngrep -c foo output.md\n```\n");
   write(dir, "plugin/skills/prose-writing/writing.md", "- the phrases \"earns its place\" and \"load-bearing\"\n");
-  write(dir, "README.md", "The plugin — 2 skills, 1 agents, 1 hooks.\n");
+  write(dir, "README.md", "The plugin — 2 skills, 1 agents, 1 hooks.\n\n[MIT](LICENSE)\n");
   write(dir, "docs/skill-graph.md", "| `/alpha` | a skill |\n| `/prose-writing` | prose |\n| `bot` | an agent |\n| `h.mjs` | a hook |\n");
   const { code, out } = runGuard(dir);
   assert.equal(code, 0, out);
@@ -761,9 +762,15 @@ const featureBranchEditing = (file: string, body: string) => {
 };
 
 const SKILL_EDIT: [string, string] = ["plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\n\n## Heading One\n\nEdited.\n"];
+const stateWaivers = (dir: string, waived: number, total: number) => {
+  assert(Number.isInteger(total) && total >= 1, `a stamp statement needs at least one stamp, got total ${total}`);
+  assert(Number.isInteger(waived) && waived >= 0 && waived <= total, `waived stamps must be a whole number from 0 to ${total}, got ${waived}`);
+  write(dir, "README.md", `The plugin — 1 skills, 1 agents, 1 hooks.\n\n[MIT](LICENSE)\n\n**${waived} of ${total}** skill stamps are waivers\n`);
+};
 const stamp = (dir: string, hash: string) => {
   assert(hash.length > 0, `a stamp hash must not be blank, got ${JSON.stringify(hash)}; a blank one reads as a missing stamp`);
   write(dir, "evals/results/alpha.json", JSON.stringify({ hash }));
+  stateWaivers(dir, 0, 1);
   assert(existsSync(join(dir, "evals/results/alpha.json")), `the stamp must exist after it is written, got none in ${dir}`);
 };
 
@@ -853,6 +860,7 @@ test("the version check is skipped when GATED_DELIVERY_BASE_REF is unset", () =>
 test("a changed skill on a waiver for its current hash passes with a warning; a blank or stale waiver fails", () => {
   const dir = featureBranchEditing(...SKILL_EDIT);
   const env = { GATED_DELIVERY_BASE_REF: BASE_REF };
+  stateWaivers(dir, 1, 1);
   write(dir, "evals/results/alpha.json", JSON.stringify({ hash: skillHash(dir, "alpha"), waived: "no credentials" }));
   const waived = runGuard(dir, env);
   assert.equal(waived.code, 0, waived.out);
@@ -965,4 +973,34 @@ test("tsc must keep the flags that find dead and unchecked code", () => {
   const missing = validRepo();
   write(missing, "tsconfig.json", JSON.stringify({ compilerOptions: {} }));
   assert.match(runGuard(missing).out, /compilerOptions\.noUnusedLocals to true, got undefined/);
+});
+
+test("the repo must carry a license that the README links", () => {
+  assert.equal(runGuard(validRepo()).code, 0, "a license file linked from the README must pass");
+  const blank = validRepo();
+  write(blank, "LICENSE", "  \n");
+  assert.match(runGuard(blank).out, /LICENSE is missing or empty/);
+  const missing = validRepo();
+  rmSync(join(missing, "LICENSE"));
+  assert.match(runGuard(missing).out, /LICENSE is missing or empty/);
+  const unlinked = validRepo();
+  write(unlinked, "README.md", "The plugin — 1 skills, 1 agents, 1 hooks.\n");
+  assert.match(runGuard(unlinked).out, /README\.md does not link LICENSE/);
+});
+
+test("the README must state the true number of waived skill stamps", () => {
+  const cases: [string | null, RegExp | null][] = [
+    ["**1 of 1** skill stamps are waivers", null],
+    ["**0 of 1** skill stamps are waivers", /says 0 of 1 skill stamps are waivers, but 1 of 1/],
+    ["**1 of 2** skill stamps are waivers", /says 1 of 2 skill stamps are waivers, but 1 of 1/],
+    [null, /has no "\*\*N of M\*\* skill stamps are waivers" line, and 1 of 1 stamps/],
+  ];
+  for (const [readmeLine, expected] of cases) {
+    const dir = validRepo();
+    write(dir, "evals/results/alpha.json", JSON.stringify({ hash: "any", waived: "no credentials" }));
+    write(dir, "README.md", `The plugin — 1 skills, 1 agents, 1 hooks.\n\n[MIT](LICENSE)\n${readmeLine ?? ""}\n`);
+    const { code, out } = runGuard(dir);
+    if (expected === null) assert.equal(code, 0, out);
+    else assert.match(out, expected);
+  }
 });

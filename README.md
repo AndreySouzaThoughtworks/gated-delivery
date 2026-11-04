@@ -1,8 +1,24 @@
+<div align="center">
+
 # gated-delivery
 
-Claude Code plugin for issue-driven, test-first delivery, with no client baked in. Specs define independently merging PR slices; implementation runs focused batches and applies verification, structural review and fresh-context correctness gates at every merge boundary. Everything client-specific — tracker, commit convention, notes homes, stack recipes, reviewers — comes from the client's CLAUDE.md: [plugin/references/client-context.md](plugin/references/client-context.md).
+**Ship every change in small, verified slices.**
 
-## Install
+Issue-driven, test-first delivery for Claude Code.<br>
+Specs split the work into PR-sized slices. Guards and gates check each one.
+
+[![CI](https://github.com/AndreySouzaThoughtworks/gated-delivery/actions/workflows/audit.yml/badge.svg?branch=main)](https://github.com/AndreySouzaThoughtworks/gated-delivery/actions/workflows/audit.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
+</div>
+
+<br>
+
+gated-delivery is a Claude Code plugin with no client baked in. A spec turns a tracker ticket into an ordered list of slices that each merge on their own. Implementation runs in focused batches and checks every slice with verification, a structural review and a fresh-context correctness gate before it counts as done. Everything specific to your team, such as the tracker, the commit convention and the reviewers, comes from your repository's `CLAUDE.md`.
+
+It ships 12 skills, 2 agents and 2 hooks, plus three commands.
+
+## Get started
 
 ```text
 claude plugin marketplace add AndreySouzaThoughtworks/gated-delivery
@@ -10,86 +26,59 @@ claude plugin marketplace add AndreySouzaThoughtworks/gated-delivery
 /reload-plugins
 ```
 
-From a local clone, use its path in the first command instead (`~/Develop/gated-delivery`). Per-profile installs (one `CLAUDE_CONFIG_DIR` per client or account), notes-folder permission and verify knobs: **[docs/onboarding.md](docs/onboarding.md)**.
+Install at user scope and run `/reload-plugins` afterwards, or the agents stay unregistered in the running session. The hooks run on Node 18 or later. [Onboarding](docs/onboarding.md) covers one profile per client, the notes folder and the environment variables you can set.
 
-## What's here
+## How it works
 
-This repo is **both** marketplace and plugin: the marketplace manifest lives at the root and the plugin lives in [`plugin/`](plugin/).
+1. **Spec.** `/gated-delivery:spec` turns a ticket into one spec with an ordered rollout of PR-sized slices. It holds drafts in the conversation and writes nothing until you sign off each section.
+2. **Slice.** `/gated-delivery:slice` implements the ticket slice by slice. Independent slices run in parallel worktrees, and each gets its own branch and pull request.
+3. **Gate.** Before a slice counts as done, the `code-reviewer` agent runs. It sees only the diff and the acceptance criteria, runs the checks and reports only the gaps that affect correctness.
+4. **Commit.** `/gated-delivery:commit` and `/gated-delivery:commit-push-pr` follow your commit convention, stage files explicitly and push to an explicit refspec.
 
-| Path | What |
-|------|------|
-| `plugin/` | The plugin — 12 skills, 2 agents, 2 hooks, 3 commands. Inventory and call graph: [docs/skill-graph.md](docs/skill-graph.md). |
-| `.claude-plugin/marketplace.json` | Marketplace manifest; points at `./plugin`. |
-| `docs/` | [onboarding](docs/onboarding.md) · [skill-graph](docs/skill-graph.md) · [evals](docs/evals.md) · [exponential-engineering](docs/exponential-engineering.md) · [client-context](plugin/references/client-context.md) |
-| `scripts/` | `leak-guard.sh`, the consistency guard (`audit/`) and the eval tools (`eval/`). |
-| `evals/` | `fixtures/`: run directories for eval scenarios that need more than a persona, kept outside `plugin/` so installs do not carry them. `results/`: one stamp or waiver per skill whose evals were run or waived. |
-| `tools/claude-code/` | The pinned `claude` CLI that the dormant CI evals job installs. |
-| `tests/` | Shell tests for the leak guard, the pre-push hook, the slice scripts, profile isolation and the behaviour of the commit commands, `code-reviewer` and `issue-writing`. |
-| `.githooks/` | `pre-commit` runs the leak guard; `pre-push` runs gitleaks on the commits being pushed. |
-| `.github/` | CI workflows and `CODEOWNERS` for the files that hold the rules. |
-| `zanity.toml`, `lychee.toml`, `.shellcheckrc` | Settings of the strict checks below. |
+The rest of the skills cover writing tickets, deskchecks, production support and auditing the flow itself. [Skills, agents and hooks](docs/skill-graph.md) lists every one and how they call each other.
 
-## Checks every change passes
+## What comes from your repository
 
-`main` requires these seven status checks, for admins too, and allows no force push:
+The plugin never names a client. A skill that needs a client-specific fact reads it from a section of the nearest `CLAUDE.md`, and asks you when the section is missing.
 
-| Check | Runs |
-|-------|------|
-| `zanity` | `zanity check . --fail-on warning --strict`, pinned to one release |
-| `consistency` | The consistency guard, the hook, guard and eval-tool unit tests, `run-checks --lint`, the leak guard's self-test and the slice script tests |
-| `workflows` | `actionlint` and `zizmor --pedantic` on `.github/` |
-| `shell` | `shellcheck` at its strictest on every shell file |
-| `links` | `lychee` on the README, `docs/` and `plugin/` markdown |
-| `spelling` | `typos` on defaults |
-| `gitleaks` | Secret scan |
+| Section | What it holds |
+|---|---|
+| `## Issue tracking` | The tracker, how to call it, ticket URLs, issue types |
+| `## Commit convention` | Subject, ticket key, branch, remote and PR title rules |
+| `## Delivery notes` | Where specs, handoffs and machine-local notes live |
+| `## Verification` | The one command that verifies a slice |
+| `## Stack recipes`, `## Review routing` | What to load and who reviews, per stack and per job |
 
-The rules guard themselves. The consistency guard fails if `zanity.toml` drops `select = ["all"]`, disables anything except the process and filesystem rules for test files, or excludes more than the fixtures. It also fails on an `assert`, `if` or `while` whose condition cannot vary, since a check that cannot fail proves nothing, and on a skill that changed without a passing eval stamp or a recorded waiver. Every mistake made here and the check that now catches it: [docs/mistakes-to-rules.md](docs/mistakes-to-rules.md), kept honest by a test. The guard's own sections are listed in `scripts/audit/consistency.ts`. `scripts/audit/suppressions.ts` fails any lint, type or coverage suppression without `<marker> -- <reason of four or more meaningful words>` (a zanity ignore must name exactly one rule, and an `assertion-density` ignore must start with a reason code from `scripts/audit/suppression-reason-codes.ts` followed by a colon and a specific reason; zanity's density rule applies everywhere, so a function with no honest second invariant carries such a coded, counted suppression instead of an assertion that cannot fail) and any count different from `scripts/audit/suppressions.count`, which a reviewer must accept before it is raised. `scripts/audit/jsdoc-types-only.ts` fails any JSDoc block in a shipped `plugin/**/*.mjs` (tests excluded) that holds prose or anything beyond type tags such as `@param {T} name`, `@returns {T}` and `@typedef`, naming the file:line and the text. `scripts/audit/assertion-effectiveness.ts` copies the tracked files to a temp directory, instruments every `assert(...)` in the non-test source under `plugin/` and `scripts/`, runs the test commands there and lists each assertion that no test ever made fail (never false, or never evaluated), grouped by file with its condition; it fails on any such assertion missing from `assertion-effectiveness-baseline.json`, which only shrinks (`plugin/bootstrap/guards/ratchet.mjs` checks that in pull requests). It runs as the `assertion effectiveness` job in `.github/workflows/audit.yml`.
+The full contract, with defaults, is in [client-context](plugin/references/client-context.md).
 
-zanity runs against `zanity-baseline.json` with `--new-only --agent` (zanity 0.1.30 and 0.1.39 panic in their plain output when a baseline is used outside an agent): the findings that existed when the ratchet started are frozen, any new finding fails the build, and `plugin/bootstrap/guards/ratchet.mjs` fails a pull request whose baseline holds more findings than its base, or more findings of one kind than its base. A kind is rule, message (which names the function) and file name without directory or extension, so moving, renaming or converting a file to another extension is accepted while a new or doubled finding is not. The baseline only ever shrinks, by fixing the code it lists.
+## Guards
 
-## Cursor
+- **`guard-bash`** denies destructive shell commands. It fails closed: when it cannot read or check its input, it blocks the command.
+- **`format-on-edit`** formats a file with the repository's own prettier right after Claude edits it, and does nothing when the file type or prettier is unavailable.
 
-Cursor follows the same rules and guards as Claude Code here. `AGENTS.md` at the repo root is the one source of the repo rules (Cursor reads it natively, per [cursor.com/docs/rules](https://cursor.com/docs/rules)), and `.cursor/rules/repo-rules.mdc` is an always-on rule that only points to it. `.cursor/hooks.json` ([cursor.com/docs/hooks](https://cursor.com/docs/hooks)) runs two adapters in `scripts/cursor/` over the plugin's own hook scripts: `guard-shell.mjs` turns Cursor's `beforeShellExecution` payload into the input of `plugin/hooks/guard-bash.mjs` and answers with Cursor's `permission` JSON, failing closed (exit 2 and a deny) when the payload is malformed or has no command, and the hook sets `failClosed` so a crash blocks too; `format-edit.mjs` runs `format-on-edit.mjs` after each `afterFileEdit`. `GATED_DELIVERY_GUARD=off` turns the guard off in both tools. Consistency check 21 fails on a hook that points at a missing script, a shell guard without `failClosed`, a `.cursor/rules` file that is not `.mdc` or does not point at `AGENTS.md`, and a file path in `AGENTS.md` that does not exist. The `.githooks/` leak guard and the CI checks apply to Cursor commits as they do to any other.
+Turn-end verification is left to the `overwatch` plugin, and [onboarding](docs/onboarding.md#install-overwatch-for-turn-end-verification) shows how to install it.
 
-## Bootstrapping a client repo
+## Add guardrails to a repository that has none
 
-`/gated-delivery:bootstrap` fills the guardrail gaps of a Python or TS/JS repo on GitHub. It shows a diff and writes nothing until you confirm each group (`config`, `guards`, `ci`), and it never overwrites an existing file. It calls zanity for `zanity init` and the baseline and prints the overwatch install line. It does not install overwatch. The workflow it writes pins every action to a full SHA and keeps the baseline from growing. The scripts and their tests are in `plugin/bootstrap/`.
+`/gated-delivery:bootstrap` fills the guardrail gaps of a Python or TypeScript/JavaScript repository on GitHub. It shows a diff and writes nothing until you confirm each group (`config`, `guards`, `ci`), and it never overwrites an existing file. It calls zanity for `zanity init` and the baseline, and it prints the overwatch install line without installing it.
 
-## Keeping client data out
+## How it checks itself
 
-The core must never name a client. `scripts/leak-guard.sh` greps the staged, tracked content for every pattern in a denylist and fails the commit on a match; it fails closed when the denylist is missing, empty or invalid, or when the scan itself errors. The one exception is a well-formed base64 value of an `"integrity": "sha512-…"` line in a `package-lock.json` under `evals/fixtures/`, where a short term can match by chance; `npm ci` verifies those hashes against the registry, each skip is printed, and the rest of the lockfile is scanned as usual.
+The repository holds its own guardrails: required status checks on `main`, a consistency guard that fails when the docs, inventory or settings drift from the files, and a table that records every fixed mistake next to the rule and test that now catches it. [How this repo applies exponential engineering](docs/exponential-engineering.md) explains each mechanism and where it falls short.
 
-- The denylist lives at `~/.config/gated-delivery/denylist` (override with `GATED_DELIVERY_DENYLIST`), one extended regex per line, and is **never committed** here: the list of client names is itself client data.
-- Enable the hooks once per clone: `git config core.hooksPath .githooks`. The pre-push hook needs `gitleaks` on `PATH`.
-- CI cannot run the leak guard, because the denylist exists only on your machine. CI runs the guard's own self-test and gitleaks; the client-term check happens at commit time locally.
+Skill evals are the weak spot today. **12 of 12** skill stamps are waivers, because the live evals have not been run.
 
-## Skill evals
+## Where to go next
 
-Each skill's `evals.md` holds scenarios and a `## Deterministic Checks` fence. Checks read the final answer, the pages a run delivered and the run's tool calls; a judge grades only the clauses no check can decide, and is skipped for a scenario with none. Details and cost levers: [docs/evals.md](docs/evals.md).
-
-- Before a PR that changes a skill, run `node scripts/eval/changed-skills.ts`. It finds the changed skills, runs a smoke tier (the fewest scenarios that exercise every check) once, reruns only failures, caps spend per run and in total, and writes `evals/results/<skill>.json` when everything passes. Exit codes: 0 passed, 1 failed, 2 usage, 3 not run.
-- CI checks the stamp for each skill the PR changed. Without working credentials, `--waive <skill> --reason "<text>"` records an exception for the current skill hash; the guard shows it as a warning, and a later change to the skill needs a new waiver or a real run.
-- Runs authenticate with your logged-in Claude subscription and count against its usage, so no API key is needed locally. The script probes first and exits 3 if `claude` cannot run with the eval flags; setting `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` is the fallback. The `evals.yml` workflow needs the `CLAUDE_CODE_OAUTH_TOKEN` secret on PRs and stays dormant until it exists.
-- Current status: **12 of 12** skill stamps are waivers, because the live evals have not been run. [docs/exponential-engineering.md](docs/exponential-engineering.md#where-this-falls-short) says what that leaves unverified.
-
-## Tests
-
-| Command | Needs a login | Proves |
-|---------|---------------|--------|
-| `bash tests/leak-guard.test.sh` | No | The guard rejects client terms, skips only well-formed integrity hashes in fixture lockfiles and logs each skip, and fails closed without a denylist |
-| `bash tests/slice-scripts.test.sh` | No | Parallel slice and batch worktrees stay isolated, claims are create-only, batches are picked back in order, and the verify lock serializes runs |
-| `bash tests/pre-push.test.sh` | No | The pre-push hook rejects a push carrying a leak in any pushed commit and lets clean pushes and branch deletions through |
-| `node --test plugin/hooks/*.test.mjs scripts/audit/*.test.ts scripts/eval/*.test.ts` | No | Hook behaviour, the consistency guard and the eval tools on broken and valid fixtures |
-| `npm ci && npx tsc --noEmit` | No | The dev scripts under `scripts/` type-check; they run on Node 22.18 or newer, which strips the types itself |
-| `node scripts/audit/consistency.ts` | No | Inventory, references, docs, settings and eval stamps agree with the files |
-| `node scripts/eval/run-checks.ts --lint` | No | Every skill's `## Deterministic Checks` command runs and every `# expect:` line names a scenario |
-| `node scripts/eval/run-scenarios.ts <skill> [--scenario <id>…]` | Yes | Runs eval scenarios as real `claude -p` sessions and writes each run's grades to `summary.tsv` |
-| `bash tests/profile-isolation.test.sh [project-dir]` | No | A fresh profile installs the core, loads no client plugin or MCP server and has its own login |
-| `bash tests/commit-convention.test.sh`, `tests/code-reviewer-scope.test.sh`, `tests/issue-writing.test.sh` | Yes | The commit command follows the convention, `code-reviewer` reports scope creep, `issue-writing` keeps secrets out of the tracker |
-
-Login-bound tests skip with exit 3 when the profile is not logged in. Point them at another profile with `GATED_DELIVERY_TEST_PROFILE=~/.claude-<name>`.
-
-Turn-end verification is the `overwatch` plugin's job: [docs/onboarding.md](docs/onboarding.md#install-overwatch-for-turn-end-verification). Knobs: [docs/onboarding.md](docs/onboarding.md#knobs-environment-variables).
+| To | Read |
+|---|---|
+| Install, set up profiles and knobs | [Onboarding](docs/onboarding.md) |
+| See every skill, agent and hook | [Skills, agents and hooks](docs/skill-graph.md) |
+| Tell the plugin about your client | [Client context](plugin/references/client-context.md) |
+| Run or read the skill evals | [Evals](docs/evals.md) |
+| See how each mistake became a rule | [Mistakes to rules](docs/mistakes-to-rules.md) |
+| Understand the design and its limits | [Exponential engineering](docs/exponential-engineering.md) |
+| Work on this repository | [Developing](docs/development.md) and [AGENTS.md](AGENTS.md) |
 
 ## License
 

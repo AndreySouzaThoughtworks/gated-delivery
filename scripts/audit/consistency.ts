@@ -508,7 +508,7 @@ for (const file of referenceFiles) {
 }
 
 // --- 13. Every hook has a colocated behaviour test ---
-// README tells contributors `node --test plugin/hooks/*.test.mjs` covers hook behaviour; a hook with
+// docs/development.md tells contributors `node --test plugin/hooks/*.test.mjs` covers hook behaviour; a hook with
 // no test file is outside that run, so its failure mode is only ever found in a client's session.
 for (const hook of hookFiles) {
   if (!existsSync(join(hooksDir, hook.replace(/\.mjs$/, ".test.mjs")))) {

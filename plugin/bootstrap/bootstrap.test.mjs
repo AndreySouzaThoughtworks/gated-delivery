@@ -258,6 +258,7 @@ const bootstrapCopy = (editTemplate) => {
   mkdirSync(join(dir, "templates"));
   write(dir, "templates/guardrails.yml", editTemplate(readFileSync(join(HERE, "templates", "guardrails.yml"), "utf8")));
   assert(existsSync(join(dir, "plan.mjs")), `plan.mjs must be copied into ${dir}`);
+  assert(readFileSync(join(dir, "templates", "guardrails.yml"), "utf8") !== readFileSync(join(HERE, "templates", "guardrails.yml"), "utf8"), `the copied template in ${dir} must differ from the shipped one in ${HERE}`);
   return join(dir, "plan.mjs");
 };
 
@@ -328,16 +329,17 @@ const runInstaller = (body) => {
   write(dir, "stub-fetch.cjs", `globalThis.fetch = async () => new Response(process.env.STUB_INSTALL_BODY, { status: 200 });\n`);
   const result = spawnSync("node", ["-r", preload, INSTALL, "--run"], { encoding: "utf8", env: { ...process.env, HOME: dir, STUB_INSTALL_BODY: body } });
   assert(result.error === undefined && result.status !== null, `node must run the installer, got ${result.error} ${result.signal}`);
+  assert(dir.startsWith(tmpdir()), `the installer must run against the scratch HOME ${dir}`);
   return { code: result.status, notes: result.stderr, installed: existsSync(join(dir, ".local", "bin", "zanity")) };
 };
 
 test("the installer script must be non-empty and its output must name the pinned version", () => {
   const { zanityVersion } = JSON.parse(readFileSync(join(HERE, "pins.json"), "utf8"));
-  const installScript = (report) => `mkdir -p "$ZANITY_INSTALL_DIR"\necho binary > "$ZANITY_INSTALL_DIR/zanity"\necho "${report}"\n`;
+  const installScriptPrefix = `mkdir -p "$ZANITY_INSTALL_DIR"\necho binary > "$ZANITY_INSTALL_DIR/zanity"\n`;
   const empty = runInstaller("");
   assert(empty.code === CRASH_EXIT && empty.notes.includes("returned an empty install script") && !empty.installed, `an empty script must crash and install nothing, got ${empty.code}: ${empty.notes}`);
-  const unnamed = runInstaller(installScript("Installed zanity"));
+  const unnamed = runInstaller(`${installScriptPrefix}echo "Installed zanity"\n`);
   assert(unnamed.code === CRASH_EXIT && unnamed.notes.includes("installer output must name") && !unnamed.installed, `output without the version must crash before installing, got ${unnamed.code}: ${unnamed.notes}`);
-  const named = runInstaller(installScript(`Installed zanity ${zanityVersion}`));
+  const named = runInstaller(`${installScriptPrefix}echo "Installed zanity ${zanityVersion}"\n`);
   assert(named.code === 0 && named.installed, `a valid install must succeed and install, got ${named.code}: ${named.notes}`);
 });

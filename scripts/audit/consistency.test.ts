@@ -101,6 +101,44 @@ test("a missing SKILL.md reports rather than crashing", () => {
   assert.doesNotMatch(out, /ENOENT/, "must not surface a raw stack trace");
 });
 
+test("a repo file that is not valid UTF-8 stops the guard and names the file", () => {
+  const dir = validRepo();
+  writeFileSync(join(dir, "README.md"), Buffer.from([0xff, 0xfe, 0x20]));
+  const { code, out } = runGuard(dir);
+  assert.equal(code, 1, out);
+  assert.match(out, /README\.md must be valid UTF-8/);
+});
+
+test("a plugin whose skills folder is missing or holds no folder stops the guard", () => {
+  const missing = validRepo();
+  rmSync(join(missing, "plugin/skills"), { recursive: true });
+  const gone = runGuard(missing);
+  assert.equal(gone.code, 1, gone.out);
+  assert.match(gone.out, /plugin\/skills must exist before its folders are listed/);
+
+  const empty = validRepo();
+  rmSync(join(empty, "plugin/skills/alpha"), { recursive: true });
+  const none = runGuard(empty);
+  assert.equal(none.code, 1, none.out);
+  assert.match(none.out, /plugin\/skills must hold at least one folder/);
+});
+
+test("a skill that declares a blank name stops the guard and names the file", () => {
+  const dir = validRepo();
+  write(dir, "plugin/skills/alpha/SKILL.md", "---\ndescription: x\nname:   \n---\n\n## Heading One\n");
+  const { code, out } = runGuard(dir);
+  assert.equal(code, 1, out);
+  assert.match(out, /alpha\/SKILL\.md declares a blank name/);
+});
+
+test("a zanity config list with a blank quoted item stops the guard", () => {
+  const dir = validRepo();
+  write(dir, "zanity.toml", STRICT_ZANITY_CONFIG.replace('"evals/fixtures/"]', '"evals/fixtures/", ""]'));
+  const { code, out } = runGuard(dir);
+  assert.equal(code, 1, out);
+  assert.match(out, /zanity\.toml lists must not hold blank items/);
+});
+
 test("reports a frontmatter name that disagrees with its directory or filename", () => {
   const dirSkill = validRepo();
   write(dirSkill, "plugin/skills/alpha/SKILL.md", "---\nname: not-alpha\ndescription: x\n---\n");

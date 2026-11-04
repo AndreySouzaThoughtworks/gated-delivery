@@ -162,6 +162,23 @@ test("fails when the ratchet file is missing", () => {
   assert(code === 1 && out.includes("is missing"), `expected exit 1 and "is missing", got ${code}: ${out}`);
 });
 
+test("a directory that is not a git checkout stops the guard before it lists any file", () => {
+  const dir = mkdtempSync(join(tmpdir(), "suppressions-test-"));
+  const { code, out } = runGuard(dir);
+  assert(code !== 0, `expected a non-zero exit for a directory with no .git, got ${code}: ${out}`);
+  assert(out.includes("has no .git"), `expected "has no .git", got: ${out}`);
+});
+
+test("a ratchet file that holds anything but one non-negative integer stops the guard", () => {
+  for (const content of ["many", "-1", ""]) {
+    const dir = gitRepo({ "src/a.mjs": "call();\n" }, 0);
+    writeFileSync(join(dir, COUNT_FILE), content);
+    const { code, out } = runGuard(dir);
+    assert(code !== 0, `expected a non-zero exit for the count file "${content}", got ${code}: ${out}`);
+    assert(out.includes("must hold one non-negative integer"), `expected the integer complaint for "${content}", got: ${out}`);
+  }
+});
+
 test("a clean repo passes at zero and prose mentioning a marker is ignored", () => {
   const { code, out } = runGuard(gitRepo({ "src/a.mjs": "call();\n", "docs/rules.md": `| ${TS_EXPECT} | lens |\n` }, 0));
   assert(code === 0, `expected exit 0 for a clean repo, got ${code}: ${out}`);

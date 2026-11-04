@@ -4,7 +4,7 @@ Issue-driven, test-first delivery flow for Claude Code, with no client baked in.
 
 ## Install
 
-Install steps are in the [README](../README.md#install). Install at **user** scope and run `/reload-plugins` afterwards, or the agents stay unregistered in the running session (`agent type not found`). Check with `claude plugin list` for `Scope: user`, then confirm the skills, commands and agents listed in [skill-graph.md](./skill-graph.md) resolve.
+Install steps are in the [README](../README.md#get-started). Install at **user** scope and run `/reload-plugins` afterwards, or the agents stay unregistered in the running session (`agent type not found`). Check with `claude plugin list` for `Scope: user`, then confirm the skills, commands and agents listed in [skill-graph.md](./skill-graph.md) resolve.
 
 ## One profile per client or account
 

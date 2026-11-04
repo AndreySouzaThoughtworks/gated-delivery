@@ -5,7 +5,7 @@ import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSy
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { changedSkills, skillHash, stampStatus } from "./changed-skills.ts";
+import { changedPaths, changedSkills, fileAtBase, skillHash, stampStatus, waiverReason } from "./changed-skills.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SCRIPT_NAMES = ["changed-skills.ts", "run-scenarios.ts", "run-checks.ts"];
@@ -47,6 +47,7 @@ if (args.includes("--output-format") && args.includes("json")) {
   appendFileSync(process.env.STUB_LOG + ".probe", JSON.stringify({ args, cwd: process.cwd() }) + "\\n");
   if (process.env.STUB_PROBE === "garbage") { console.log("<html>gateway error</html>"); return; }
   if (process.env.STUB_PROBE === "error-no-result") { console.log(JSON.stringify({ is_error: true })); return; }
+  if (process.env.STUB_PROBE === "error-blank-result") { console.log(JSON.stringify({ is_error: true, result: "   " })); return; }
   console.log(JSON.stringify({ is_error: process.env.STUB_PROBE === "error", result: process.env.STUB_PROBE === "error" ? "Not logged in" : "ok" }));
   return;
 }
@@ -382,4 +383,60 @@ test("a failure inside the harness exits 4, not 1 which means evals failed", () 
   const result = runChangedSkills(root, ["--waive", "demo", "--reason", "x"]);
   assert.equal(result.status, 4, result.stdout + result.stderr);
   assert.match(result.stderr, /EEXIST|ENOTDIR/);
+});
+
+test("the exported helpers reject a blank root or base ref, a missing repository and an absolute path", () => {
+  const root = fakeRepo();
+  assert.throws(() => changedSkills("", BASE), /needs the repository root/);
+  assert.throws(() => skillHash("", "demo"), /skillHash needs the repository root/);
+  assert.throws(() => stampStatus("", "demo"), /stampStatus needs the repository root/);
+  assert.throws(() => changedPaths(root, ""), /changedPaths needs a base ref/);
+  assert.throws(() => changedPaths(join(root, "missing"), BASE), /needs an existing repository directory/);
+  assert.throws(() => fileAtBase(root, "", "plugin/skills/demo/SKILL.md"), /fileAtBase needs a base ref/);
+  assert.throws(() => fileAtBase(root, BASE, join(root, "plugin/skills/demo/SKILL.md")), /fileAtBase needs a path relative/);
+});
+
+test("an empty SKILL.md cannot be hashed, and a hidden skill folder stops the agent lookup", () => {
+  const root = fakeRepo();
+  write(root, "plugin/skills/demo/SKILL.md", "  \n");
+  assert.throws(() => skillHash(root, "demo"), /SKILL.md is empty/);
+  write(root, "plugin/skills/demo/SKILL.md", "# demo\nDispatches the bot agent.\n");
+  write(root, "plugin/skills/.hidden/SKILL.md", "# hidden\n");
+  write(root, "plugin/agents/bot.md", "bot v2\n");
+  assert.throws(() => changedSkills(root, BASE), /agentsNamedBy needs a skill folder name/);
+});
+
+test("the stamp readers reject a skill that is a path, a stamp that is not an object and a waiver that is missing or not text", () => {
+  const root = fakeRepo();
+  assert.throws(() => waiverReason("", "demo"), /stampPath needs the repository root/);
+  assert.throws(() => waiverReason(root, "../escape"), /stampPath needs a skill folder name/);
+  assert.throws(() => waiverReason(root, "demo"), /no stamp for demo/);
+  for (const stamp of ["[]", "7", "null"]) {
+    write(root, "evals/results/demo.json", stamp);
+    assert.throws(() => waiverReason(root, "demo"), /expected a JSON object/);
+  }
+  writeStamp(root, { hash: "any" });
+  assert.throws(() => waiverReason(root, "demo"), /has no waived entry/);
+  writeStamp(root, { hash: "any", waived: 7 });
+  assert.throws(() => waiverReason(root, "demo"), /expected the waiver reason text/);
+  writeStamp(root, { hash: "any", waived: "no credentials" });
+  assert.equal(waiverReason(root, "demo"), "no credentials");
+});
+
+test("a probe error whose detail is blank is a harness error, not a SKIPPED line", () => {
+  const root = fakeRepo();
+  write(root, "plugin/skills/demo/SKILL.md", "# demo\nbot. Edited.\n");
+  const result = runChangedSkills(root, [], { STUB_PROBE: "error-blank-result" });
+  assert.equal(result.status, 4, result.stdout + result.stderr);
+  assert.match(result.stderr, /probeProblem built a blank problem/);
+});
+
+test("a runner that writes verdicts which are not an object is a harness error, and no stamp is written", () => {
+  const root = fakeRepo();
+  write(root, "plugin/skills/demo/SKILL.md", "# demo\nbot. Edited.\n");
+  write(root, "scripts/eval/run-scenarios.ts", 'import { writeFileSync } from "node:fs";\nwriteFileSync(`${process.argv[process.argv.indexOf("--out") + 1]}/verdicts.json`, JSON.stringify({ verdicts: null }));\n');
+  const result = runChangedSkills(root);
+  assert.equal(result.status, 4, result.stdout + result.stderr);
+  assert.match(result.stderr, /expected an object of scenario verdicts/);
+  assert.equal(existsSync(join(root, "evals", "results")), false);
 });

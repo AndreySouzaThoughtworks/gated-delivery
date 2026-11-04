@@ -11,7 +11,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSyn
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { aggregate, findRow, readRun, settle, splitClauses } from "./judge.ts";
+import { aggregate, findRow, judge, readRun, settle, splitClauses } from "./judge.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const JUDGE = join(HERE, "judge.ts");
@@ -416,4 +416,22 @@ test("the pure helpers reject input that would grade nothing or grade wrongly", 
   assert.throws(() => aggregate([{ result: "MAYBE" }]), /expected only PASS, FAIL, UNCLEAR/);
   assert.throws(() => readRun(" "), /needs a run folder/);
   assert.throws(() => readRun(scratch()), /has no files/);
+  assert.throws(() => readRun(join(scratch(), "missing")), /needs an existing directory/);
+  assert.throws(() => settle(["Clause."], [{ id: 1, result: "MAYBE", quotes: [q("Task")], note: "" }], runOf({})), /settle produced results \["MAYBE"\]/);
+});
+
+test("judge rejects a skill given as a path and a blank id or run folder before touching anything", () => {
+  const runDir = runDirWith();
+  for (const skill of ["..", "a/b", "a\\b"]) assert.throws(() => judge(skill, "1", runDir), /judge needs one skills folder name/);
+  assert.throws(() => judge("demo", " ", runDir), /judge needs a scenario id and a run folder/);
+  assert.throws(() => judge("demo", "1", " "), /judge needs a scenario id and a run folder/);
+});
+
+test("CLI: a reply that is JSON but not an object is named as such in the harness error", () => {
+  for (const reply of ["null", "7", '"text"']) {
+    const stub = stubClaude(reply);
+    const r = runJudge(["demo", "1", runDirWith()], { bin: stub.bin, cwd: repoWith() });
+    assert.equal(r.status, EXIT.HARNESS, `reply ${reply} must be rejected`);
+    assert.match(r.stderr, /judge output is JSON but not an object/);
+  }
 });

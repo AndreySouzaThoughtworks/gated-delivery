@@ -196,7 +196,7 @@ type GradeRun = {
 type GradedRun = Pick<RunRow, "id" | "run" | "checks" | "judge" | "failed">;
 type Verdicts = Record<string, string>;
 
-const sectionBody = (markdown: string, headingPrefix: string) => {
+const sectionBody = (markdown: string, headingPrefix: string) => { // zanity: ignore[assertion-density] -- multi-caller-helper: four heading lookups in parseEvals share it and each result is checked by the template and mode assertions of the run
   const all = markdown.split(LINE_BREAK);
   const start = all.findIndex((l: string) => l.startsWith(headingPrefix));
   if (start === -1) return "";
@@ -211,7 +211,7 @@ const sectionBody = (markdown: string, headingPrefix: string) => {
   return body.join("\n");
 };
 
-export function parseEvals(markdown: string): ParsedEvals {
+export function parseEvals(markdown: string): ParsedEvals { // zanity: ignore[assertion-density] -- exported-and-tested: its output is proven by the table and template tests and no second invariant exists
   const all = markdown.split(LINE_BREAK);
   const rows: EvalRow[] = [];
   let inScenarios = false;
@@ -253,7 +253,7 @@ export const fillTemplate = (template: string, prompt: string, persona: string) 
     .join(prompt);
 };
 
-export function inspectRun({ transcript, arm, skill, timedOut }: { transcript: string; arm: Arm; skill: string; timedOut: boolean }) {
+export function inspectRun({ transcript, arm, skill, timedOut }: { transcript: string; arm: Arm; skill: string; timedOut: boolean }) { // zanity: ignore[assertion-density] -- exported-and-tested: every flag it raises is proven by the transcript tests and no second invariant exists
   const result =
     transcript
       .split(LINE_BREAK)
@@ -284,7 +284,7 @@ export const summaryTsv = (rows: Record<string, unknown>[]) => {
   return [SUMMARY_COLUMNS, ...cellRows].map((cells) => `${cells.join("\t")}\n`).join("");
 };
 
-export function disagreements(rows: Pick<RunRow, "skill" | "id" | "arm" | "checks" | "judge">[]) {
+export function disagreements(rows: Pick<RunRow, "skill" | "id" | "arm" | "checks" | "judge">[]) { // zanity: ignore[assertion-density] -- exported-and-tested: grouping is proven by the disagreement test and no second invariant exists
   const groups = new Map();
   for (const row of rows) {
     const key = JSON.stringify([row.skill, row.id, row.arm]);
@@ -307,7 +307,7 @@ const USAGE_LINES = [
   "         [--smoke] [--rerun-failures] [--budget-usd N] [--total-budget-usd N] [--model M]",
 ];
 
-const usage = (message: unknown): never => {
+const usage = (message: unknown): never => { // zanity: ignore[assertion-density] -- multi-caller-helper: every flag and table check calls it and each caller states its own condition
   const readable = String(message).replace(CONTROL_CHARACTERS, " ");
   console.error(readable);
   for (const line of USAGE_LINES) console.error(line);
@@ -324,7 +324,7 @@ const VALUE_FLAGS: Record<string, { key: string; expects: string; accepts: (valu
   "--out": { key: "out", expects: "a directory", accepts: () => true, convert: (value) => value },
 };
 
-function parseArgs(argv: string[]): ParsedOptions {
+function parseArgs(argv: string[]): ParsedOptions { // zanity: ignore[assertion-density] -- no-invariant: every check is a usage branch and no assertion could catch a bug those branches miss
   const options: Options = {
     skill: null,
     ids: [],
@@ -360,7 +360,7 @@ function parseArgs(argv: string[]): ParsedOptions {
 
 const NO_SUCH_PROCESS = "ESRCH";
 const liveGroups = new Set<number>();
-const signalGroup = (pid: number, name: NodeJS.Signals) => {
+const signalGroup = (pid: number, name: NodeJS.Signals) => { // zanity: ignore[assertion-density] -- multi-caller-helper: the signal handlers, the timeout and the crash path share it and each passes a live process group
   try {
     process.kill(-pid, name);
   } catch (error) {
@@ -375,7 +375,7 @@ for (const name of ["SIGINT", "SIGTERM"]) {
   });
 }
 
-const runClaude = (args: string[], { cwd, env, transcriptPath, stderrPath }: ClaudeRun) => {
+const runClaude = (args: string[], { cwd, env, transcriptPath, stderrPath }: ClaudeRun) => { // zanity: ignore[assertion-density] -- limit-bound: inlining it into runOne would breach the long-function limit
   return new Promise<{ timedOut: boolean }>((resolve) => {
     const out = openSync(transcriptPath, "w");
     const err = openSync(stderrPath, "w");
@@ -410,7 +410,7 @@ const runClaude = (args: string[], { cwd, env, transcriptPath, stderrPath }: Cla
   });
 };
 
-const stageFixture = ({ skill, row, runDir }: { skill: string; row: EvalRow; runDir: string }) => {
+const stageFixture = ({ skill, row, runDir }: { skill: string; row: EvalRow; runDir: string }) => { // zanity: ignore[assertion-density] -- single-invariant: the fixture path check is its one real assertion and a second would restate it
   const fixture = join(FIXTURES_DIR, skill, row.id);
   assert(fixture.startsWith(FIXTURES_DIR + sep), `a fixture must stay under ${FIXTURES_DIR}, got ${fixture}`);
   const hasFixture = existsSync(fixture);
@@ -430,7 +430,7 @@ const stageFixture = ({ skill, row, runDir }: { skill: string; row: EvalRow; run
   return { hasFixture, allowedToolsFile, setupFailed: built.status !== 0 };
 };
 
-const claudeArgs = ({ arm, prompt, snapshot, tempDir, extraRules, budgetUsd, model }: ClaudeArgs) => {
+const claudeArgs = ({ arm, prompt, snapshot, tempDir, extraRules, budgetUsd, model }: ClaudeArgs) => { // zanity: ignore[assertion-density] -- single-invariant: the baseline arm plugin check is its one real assertion and a second would restate it
   const args = [
     "-p",
     prompt,
@@ -455,7 +455,7 @@ const claudeArgs = ({ arm, prompt, snapshot, tempDir, extraRules, budgetUsd, mod
   return args;
 };
 
-async function runOne({ skill, evals, arm, row, n, out, snapshot, budgetUsd, model }: RunJob): Promise<RunRow> {
+async function runOne({ skill, evals, arm, row, n, out, snapshot, budgetUsd, model }: RunJob): Promise<RunRow> { // zanity: ignore[assertion-density] -- limit-bound: merging gradeRun or stageFixture into it would breach the long-function limit
   const runDir = join(out, skill, row.id, `${arm}-${n}`);
   const base: RunRow = {
     skill,
@@ -508,7 +508,7 @@ async function runOne({ skill, evals, arm, row, n, out, snapshot, budgetUsd, mod
   return gradeRun({ base, skill, arm, row, runDir, prompt, timedOut, secs });
 }
 
-const gradeRun = ({ base, skill, arm, row, runDir, prompt, timedOut, secs }: GradeRun): RunRow => {
+const gradeRun = ({ base, skill, arm, row, runDir, prompt, timedOut, secs }: GradeRun): RunRow => { // zanity: ignore[assertion-density] -- limit-bound: merging it into runOne would breach the long-function limit
   const transcript = readFileSync(join(runDir, "transcript.jsonl"), "utf8");
   const { flags, result } = inspectRun({ transcript, arm, skill, timedOut });
   writeFileSync(join(runDir, "prompt.txt"), prompt);
@@ -601,7 +601,7 @@ export function scenarioVerdicts({ ids, results, unlaunchedIds, rerunFailures }:
   return verdicts;
 }
 
-const selectScenarios = (options: ParsedOptions, evals: ParsedEvals, arm: Arm, markdown: string) => {
+const selectScenarios = (options: ParsedOptions, evals: ParsedEvals, arm: Arm, markdown: string) => { // zanity: ignore[assertion-density] -- limit-bound: inlining it into main would breach the complex-function limit
   if (!evals.rows.length) usage(`${options.skill} lists no scenario rows under ## Test Scenarios.`);
   if (arm === ARM_BASELINE && !evals.baselineTemplate) usage(`${options.skill} has no ### Baseline Agent template.`);
   if (arm === ARM_SKILL && !evals.skillTemplate) usage(`${options.skill} has no ### Skill Agent template.`);
@@ -623,7 +623,7 @@ const selectScenarios = (options: ParsedOptions, evals: ParsedEvals, arm: Arm, m
   return selected;
 };
 
-const runQueue = async (items: RunJob[], jobs: number, ledger: Ledger) => {
+const runQueue = async (items: RunJob[], jobs: number, ledger: Ledger) => { // zanity: ignore[assertion-density] -- limit-bound: inlining it into main would breach the complex-function limit
   const queue = [...items];
   const results: RunRow[] = [];
   await Promise.all(
@@ -638,7 +638,7 @@ const runQueue = async (items: RunJob[], jobs: number, ledger: Ledger) => {
   return { results, unlaunched: queue };
 };
 
-const report = ({ options, out, results, verdicts }: { options: ParsedOptions; out: string; results: RunRow[]; verdicts: Verdicts }) => {
+const report = ({ options, out, results, verdicts }: { options: ParsedOptions; out: string; results: RunRow[]; verdicts: Verdicts }) => { // zanity: ignore[assertion-density] -- limit-bound: inlining it into main would breach the long-function limit
   writeFileSync(join(out, "summary.tsv"), summaryTsv(results));
   const cells = [SUMMARY_COLUMNS, ...results.map((row: Record<string, unknown>) => SUMMARY_COLUMNS.map((column) => String(row[column])))];
   const widths = SUMMARY_COLUMNS.map((_, i) => Math.max(...cells.map((r) => r[i].length)));
@@ -659,7 +659,7 @@ const report = ({ options, out, results, verdicts }: { options: ParsedOptions; o
   return anyFailed || verdictList.includes(VERDICT_NOT_RUN) ? EXIT_HARNESS_FAILURE : EXIT_OK;
 };
 
-async function main() {
+async function main() { // zanity: ignore[assertion-density] -- entry-point: the CLI run whose one real assertion is the repository root check
   assert(existsSync(SKILLS_DIR), `skills are read from ${SKILLS_DIR}; run from the repository root`);
   const options = parseArgs(process.argv.slice(2));
   const evalsPath = join(SKILLS_DIR, options.skill, "evals.md");

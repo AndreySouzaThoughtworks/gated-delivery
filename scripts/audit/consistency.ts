@@ -698,6 +698,23 @@ if (existsSync(agentsPath)) {
   }
 }
 
+// --- 22. The numbered checks of this guard are unique and run from 1 with no gap ---
+const GUARD_SOURCE = "scripts/audit/consistency.ts";
+const CHECK_HEADER = /^\/\/ --- (\d+)\. /gm;
+const guardSourcePath = join(ROOT, GUARD_SOURCE);
+if (existsSync(guardSourcePath)) {
+  const checksPerNumber = new Map<number, number>();
+  for (const [, digits] of read(guardSourcePath).matchAll(CHECK_HEADER)) {
+    checksPerNumber.set(Number(digits), (checksPerNumber.get(Number(digits)) ?? 0) + 1);
+  }
+  const lastNumber = Math.max(0, ...checksPerNumber.keys());
+  for (let number = 1; number <= lastNumber; number++) {
+    const count = checksPerNumber.get(number) ?? 0;
+    if (count === 0) errors.push(`${GUARD_SOURCE} has no check ${number} but numbers up to ${lastNumber}. Hint: renumber so the checks run from 1 to ${lastNumber} with no gap.`);
+    if (count > 1) errors.push(`${GUARD_SOURCE} numbers ${count} checks ${number}. Hint: two branches added a check at once; renumber the later one.`);
+  }
+}
+
 // --- report ---
 console.log(
   `gated-delivery audit: ${skills.length} skills, ${agents.length} agents, ${hookFiles.size} hooks` +

@@ -8,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs, promisify } from "node:util";
 import { API } from "typescript/unstable/sync";
 import { SOURCE_EXTENSIONS, findAssertSites, instrumentText } from "./assertion-effectiveness/assertion-sites.ts";
+import { DEFAULT_TEST_COMMANDS } from "./assertion-effectiveness/default-test-commands.ts";
 import type { AssertSite } from "./assertion-effectiveness/assertion-sites.ts";
 import { baselineDocument, compareToBaseline, formatReport, judgeSites, parseBaseline, readEvidence } from "./assertion-effectiveness/assertion-verdict.ts";
 
@@ -22,24 +23,12 @@ const FIXTURE_SEGMENT = "/fixtures/";
 const NODE_MODULES = "node_modules";
 const NESTED_TEST_ENV = "NODE_TEST_CONTEXT";
 const EXIT_NEW_UNPROVEN = 1;
+const EXIT_STALE_BASELINE = 1;
 const EXIT_TESTS_FAILED = 2;
 const OUTPUT_TAIL_LINES = 40;
 const MILLISECONDS_PER_SECOND = 1000;
 const OUTPUT_LIMIT_BYTES = 64 * 1024 * 1024;
 const GIT_IDENTITY = ["-c", "core.hooksPath=/dev/null", "-c", "user.name=assertion-effectiveness", "-c", "user.email=assertion-effectiveness@localhost"];
-const GUARDRAIL_TEMPLATES = 'for file in plugin/skills/issue-writing/templates/*.md plugin/skills/issue-writing/examples/*.md; do node plugin/skills/issue-writing/scripts/guardrail-scan.mjs "$file" || exit 1; done';
-
-const DEFAULT_TEST_COMMANDS = [
-  "node --test plugin/hooks/*.test.mjs",
-  "node --test scripts/audit/*.test.ts scripts/eval/*.test.ts scripts/cursor/*.test.ts",
-  "node --test plugin/bootstrap/*.test.mjs plugin/bootstrap/guards/*.test.mjs",
-  "node scripts/eval/run-checks.ts --lint",
-  "node --test scripts/*.test.ts",
-  "node plugin/skills/spec/scripts/spec-lint.mjs scripts/audit/fixtures/valid-spec.md",
-  "node plugin/skills/deskcheck/scripts/deskcheck-lint.mjs scripts/audit/fixtures/deskcheck/valid.html",
-  GUARDRAIL_TEMPLATES,
-  "node --test scripts/audit/assertion-effectiveness/*.test.ts",
-];
 
 const run = promisify(execFile);
 
@@ -113,7 +102,7 @@ try {
   const results = await Promise.all(
     values["test-command"].map(async (command) => {
       try {
-        await run("sh", ["-c", command], { cwd: copy, env: testEnv, maxBuffer: OUTPUT_LIMIT_BYTES });
+        await run("sh", ["-ec", command], { cwd: copy, env: testEnv, maxBuffer: OUTPUT_LIMIT_BYTES });
         return { command, passed: true, output: "" };
       } catch (error) {
         const { stdout = "", stderr = "" } = error as { stdout?: string; stderr?: string };
@@ -135,7 +124,10 @@ try {
     } else {
       const baseline = existsSync(baselinePath) ? parseBaseline(readFileSync(baselinePath, "utf8"), values.baseline) : [];
       const { added, removable } = compareToBaseline(judged, baseline);
-      if (removable.length > 0) console.log(`${removable.length} baseline entries are now proven or gone and can be removed with --update-baseline:\n${removable.map((finding) => `  ${finding.path} | ${finding.message}  ${finding.condition}`).join("\n")}`);
+      if (removable.length > 0) {
+        console.error(`${removable.length} baseline entries are now proven or gone; prune them with \`node scripts/audit/assertion-effectiveness.ts --update-baseline\`:\n${removable.map((finding) => `  ${finding.path} | ${finding.message}  ${finding.condition}`).join("\n")}`);
+        process.exitCode = EXIT_STALE_BASELINE;
+      }
       if (added.length > 0) {
         console.error(`${added.length} assertions are not proven by any test and are not in ${values.baseline}; add a test that makes each one fail, or remove the assertion:\n${added.map((entry) => `  ${entry.site.path}:${entry.site.line} ${entry.site.functionName}  ${entry.site.condition}`).join("\n")}`);
         process.exitCode = EXIT_NEW_UNPROVEN;

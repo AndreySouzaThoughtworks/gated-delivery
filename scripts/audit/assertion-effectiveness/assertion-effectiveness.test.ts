@@ -9,6 +9,7 @@ import { tempDir } from "../../test-support/temp-dir.mjs";
 const TOOL = join(dirname(fileURLToPath(import.meta.url)), "..", "assertion-effectiveness.ts");
 const BASELINE = "assertion-effectiveness-baseline.json";
 const EXIT_NEW_UNPROVEN = 1;
+const EXIT_STALE_BASELINE = 1;
 const EXIT_TESTS_FAILED = 2;
 const TEST_COMMAND = "node --test scripts/subject.test.mjs";
 
@@ -69,14 +70,32 @@ test("an assertion that no test reaches is reported never evaluated", () => {
   assert(out.includes('(c) never evaluated shout:3  typeof text === "string"'), `expected the site listed as (c), got: ${out}`);
 });
 
-test("a baseline entry for a site that is now proven is reported removable, and a new unproven site fails", () => {
+test("a baseline entry for a site that is now proven fails the run naming the entry and the prune command, and --update-baseline prunes it", () => {
   const dir = fixtureRepo({ "scripts/subject.mjs": SUBJECT, "scripts/subject.test.mjs": STRINGS_ONLY_TEST });
   assert(runTool(dir, ["--update-baseline"]).code === 0, "writing the baseline must succeed");
   assert(runTool(dir).code === 0, "a site listed in the baseline must pass");
   writeFileSync(join(dir, "scripts/subject.test.mjs"), NUMBER_TOO_TEST);
-  const proven = runTool(dir);
-  assert(proven.code === 0 && proven.out.includes("1 baseline entries are now proven or gone"), `expected exit 0 and a removable entry, got ${proven.code}: ${proven.out}`);
-  writeFileSync(join(dir, "scripts/subject.test.mjs"), STRINGS_ONLY_TEST);
+  const stale = runTool(dir);
+  assert(stale.code === EXIT_STALE_BASELINE, `expected exit ${EXIT_STALE_BASELINE} for a stale entry, got ${stale.code}: ${stale.out}`);
+  assert(stale.out.includes("1 baseline entries are now proven or gone") && stale.out.includes("shout"), `expected the stale entry named, got: ${stale.out}`);
+  assert(stale.out.includes("--update-baseline"), `expected the prune command in the message, got: ${stale.out}`);
+  assert(runTool(dir, ["--update-baseline"]).code === 0, "pruning must succeed");
+  assert(JSON.parse(readFileSync(join(dir, BASELINE), "utf8")).findings.length === 0, "the pruned baseline must hold no entry");
+  assert(runTool(dir).code === 0, "the run must pass once the stale entry is pruned");
+});
+
+test("a baseline entry for a site that is gone fails the run as stale", () => {
+  const dir = fixtureRepo({ "scripts/subject.mjs": SUBJECT, "scripts/subject.test.mjs": STRINGS_ONLY_TEST });
+  runTool(dir, ["--update-baseline"]);
+  writeFileSync(join(dir, "scripts/subject.mjs"), 'import assert from "node:assert";\nexport const shout = (text) => text.toUpperCase();\nexport const unrelated = (n) => {\n  assert(n > 0, "n must be positive");\n  return n;\n};\n');
+  writeFileSync(join(dir, "scripts/subject.test.mjs"), `${STRINGS_ONLY_TEST}import { unrelated } from "./subject.mjs";\ntest("rejects zero", () => assert.throws(() => unrelated(0), /positive/));\n`);
+  const { code, out } = runTool(dir);
+  assert(code === EXIT_STALE_BASELINE && out.includes("1 baseline entries are now proven or gone"), `expected a stale failure, got ${code}: ${out}`);
+});
+
+test("a new unproven site fails and is the only one listed as unproven", () => {
+  const dir = fixtureRepo({ "scripts/subject.mjs": SUBJECT, "scripts/subject.test.mjs": STRINGS_ONLY_TEST });
+  runTool(dir, ["--update-baseline"]);
   writeFileSync(join(dir, "scripts/subject.mjs"), `${SUBJECT}export const whisper = (text) => {\n  assert(text.length < 99, "text is too long");\n  return text.toLowerCase();\n};\n`);
   writeFileSync(join(dir, "scripts/subject.test.mjs"), `${STRINGS_ONLY_TEST}import { whisper } from "./subject.mjs";\ntest("whispers", () => assert.equal(whisper("A"), "a"));\n`);
   execFileSync("git", ["add", "-A"], { cwd: dir });

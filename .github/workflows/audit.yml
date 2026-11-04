@@ -154,3 +154,24 @@ jobs:
           node-version: ${{ matrix.node-version }}
       - name: Plugin tests
         run: node --test plugin/hooks/*.test.mjs plugin/bootstrap/*.test.mjs plugin/bootstrap/guards/*.test.mjs
+
+  assertion-effectiveness:
+    name: assertion effectiveness
+    runs-on: ubuntu-latest
+    env:
+      GATED_DELIVERY_BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 26
+      - name: Install dev dependencies
+        run: npm ci
+      - name: Every assertion is made to fail by some test
+        run: node scripts/audit/assertion-effectiveness.ts
+      - name: Assertion baseline only shrinks
+        if: github.event_name == 'pull_request'
+        run: node plugin/bootstrap/guards/ratchet.mjs --baseline assertion-effectiveness-baseline.json --base-ref "$GATED_DELIVERY_BASE_REF"

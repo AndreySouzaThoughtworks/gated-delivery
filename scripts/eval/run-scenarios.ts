@@ -649,7 +649,7 @@ export function smokeScenarioIds(markdown: string, rowIds: string[]) {
   return smoke;
 }
 
-const passed = (row: GradedRun) => !row.failed && PASSING_GRADES.has(row.checks) && PASSING_GRADES.has(row.judge); // zanity: ignore[assertion-density] -- grades are validated against KNOWN_GRADES where gradeJudge produces them and an unknown grade already counts as not passed
+const passed = (row: GradedRun) => !row.failed && PASSING_GRADES.has(row.checks) && PASSING_GRADES.has(row.judge); // zanity: ignore[assertion-density] -- single-invariant: grades are validated against KNOWN_GRADES where gradeJudge produces them and an unknown grade already counts as not passed
 
 export function scenarioVerdicts({ ids, results, unlaunchedIds, rerunFailures }: { ids: string[]; results: GradedRun[]; unlaunchedIds: Set<string>; rerunFailures: boolean }): Verdicts {
   assert(new Set(ids).size === ids.length, `scenario ids must be unique, got ${JSON.stringify(ids)}`);

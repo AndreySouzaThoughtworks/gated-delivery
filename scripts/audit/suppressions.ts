@@ -4,12 +4,17 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
+import { ASSERTION_DENSITY_REASON_CODE_MEANINGS } from "./suppression-reason-codes.ts";
 
 const COUNT_FILE = "scripts/audit/suppressions.count";
 const PROSE_EXTENSION = ".md";
 const NOT_UTF8 = "\uFFFD";
 const MIN_REASON_WORDS = 4;
-const REASON_SEPARATOR = /\s--\s+(\S.*)$/;
+const ASSERTION_DENSITY_RULE = "assertion-density";
+const MIN_CODED_DETAIL_WORDS = 3;
+const CODED_REASON = /^([a-z-]+):\s*(\S.*)$/;
+const WORD_SEPARATOR = /\s+/;
+const REASON_SEPARATOR =/\s--\s+(\S.*)$/;
 const COMMENT_CLOSERS = /\s*(?:\*\/|-->)\s*$/;
 const REASON_FORMAT = "<marker> -- <reason of at least " + MIN_REASON_WORDS + " distinct meaningful words>";
 
@@ -42,20 +47,29 @@ const boundedPhrase = (phrase: string) => {
   return bounded;
 };
 
-const meaningfulWords = (reason: string) => { // zanity: ignore[assertion-density] -- reason is a regex capture that reasonProblem already proved non-blank text and the result is a set built by one filter
+const meaningfulWords = (reason: string) => { // zanity: ignore[assertion-density] -- single-invariant: reason is a regex capture that reasonProblem already proved non-blank text and the result is a set built by one filter
   const withoutEmptyPhrases = EMPTY_REASONS.reduce((text, phrase) => text.replace(boundedPhrase(phrase), " "), reason.toLowerCase());
   const words = (withoutEmptyPhrases.match(/[a-z0-9]+/g) ?? []).filter((word: string) => word.length > 1 && !STOPWORDS.has(word));
   return new Set(words);
 };
 
-const reasonProblem = (rest: string) => {
+const reasonProblem = (rest: string, rule: string | undefined) => {
   assert(typeof rest === "string", `reasonProblem needs the text after a marker, got ${typeof rest}`);
   assert(!rest.includes("\n"), `reasonProblem reads one source line, got ${JSON.stringify(rest)}`);
   const found = rest.replace(COMMENT_CLOSERS, "").match(REASON_SEPARATOR);
   if (!found) return `has no reason; write ${REASON_FORMAT}`;
-  const words = meaningfulWords(found[1]);
+  const [, reason] = found;
+  if (rule?.trim() === ASSERTION_DENSITY_RULE) {
+    const codes = Object.keys(ASSERTION_DENSITY_REASON_CODE_MEANINGS).join(", ");
+    const coded = reason.match(CODED_REASON);
+    if (!coded) return `reason "${reason}" must start with a code, a colon and a specific reason, as in "single-invariant: <why>"; codes: ${codes}`;
+    const [, code, detail] = coded;
+    if (!Object.hasOwn(ASSERTION_DENSITY_REASON_CODE_MEANINGS, code)) return `reason code "${code}" is unknown; use one of ${codes}`;
+    if (detail.split(WORD_SEPARATOR).length < MIN_CODED_DETAIL_WORDS) return `reason after "${code}:" needs at least ${MIN_CODED_DETAIL_WORDS} words saying what is specific to this function, got "${detail}"`;
+  }
+  const words = meaningfulWords(reason);
   if (words.size < MIN_REASON_WORDS) {
-    return `reason "${found[1]}" has ${words.size} meaningful distinct words; explain why in at least ${MIN_REASON_WORDS}, without filler such as ${EMPTY_REASONS.join(", ")}`;
+    return `reason "${reason}" has ${words.size} meaningful distinct words; explain why in at least ${MIN_REASON_WORDS}, without filler such as ${EMPTY_REASONS.join(", ")}`;
   }
   return null;
 };
@@ -69,9 +83,9 @@ const ruleProblem = (label: string, bracket: string | undefined, markerText: str
   return `names ${rules.length} rules in "${markerText}"; name exactly one, such as ignore[rule-name], never a bare ignore`;
 };
 
-const problemsIn = (line: string, marker: Marker, match: RegExpMatchArray) => { // zanity: ignore[assertion-density] -- line and match come from String.match on a split line in findSuppressions and the result merges two checks that assert for themselves
+const problemsIn = (line: string, marker: Marker, match: RegExpMatchArray) => { // zanity: ignore[assertion-density] -- thin-wrapper: line and match come from String.match on a split line in findSuppressions and the result merges two checks that assert for themselves
   const rest = line.slice((match.index ?? 0) + match[0].length);
-  return [ruleProblem(marker.label, match[1], match[0]), reasonProblem(rest)].filter((problem): problem is string => problem !== null);
+  return [ruleProblem(marker.label, match[1], match[0]), reasonProblem(rest, match[1])].filter((problem): problem is string => problem !== null);
 };
 
 const trackedFiles = (repo: string) => {

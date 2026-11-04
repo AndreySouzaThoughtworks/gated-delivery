@@ -115,7 +115,7 @@ const variableAt = (command: string, at: number) => { // zanity: ignore[assertio
   return variable;
 };
 
-const unresolvedVars = (command: string, assigned: Set<string>) => { // zanity: ignore[assertion-density] -- limit-bound: inlining into runCheck would breach the long-function limit and the result is a filter over a set the scan builds
+const unresolvedVars = (command: string, assigned: Set<string>) => { // zanity: ignore[assertion-density] -- no-invariant: the scan reads any command text and filters a set it built, so no outside data can break a postcondition
   const found = new Set<string>();
   const enclosing: Substitution[] = [];
   const quote = { inSingle: false, inDouble: false };
@@ -181,7 +181,7 @@ const SCENARIOS_HEADING = "## Test Scenarios";
 const TABLE_ROW_ID = /^\|\s*([^|]*?)\s*\|/;
 const NOT_AN_ID = /^(#|:?-+:?)?$/;
 
-export function scenarioIds(evalsMarkdown: string) { // zanity: ignore[assertion-density] -- exported-and-tested: markdown text is typed and every id reaches the set only after the non-empty cell filter
+export function scenarioIds(evalsMarkdown: string) { // zanity: ignore[assertion-density] -- no-invariant: markdown text is typed and every id reaches the set only after the non-empty cell filter
   const ids = new Set<string>();
   let inSection = false;
   for (const line of evalsMarkdown.replace(/\r/g, "").split("\n")) {
@@ -203,7 +203,7 @@ export function scenarioIds(evalsMarkdown: string) { // zanity: ignore[assertion
  * setup, not checks: they are collected as a `prelude` and replayed before each command, because
  * every command runs in its own shell and would otherwise see an empty variable.
  */
-export function parseChecks(evalsMarkdown: string): { prelude: string[]; checks: Check[] } { // zanity: ignore[assertion-density] -- exported-and-tested: markdown text is typed and each line lands in exactly one of prelude, label or checks
+export function parseChecks(evalsMarkdown: string): { prelude: string[]; checks: Check[] } { // zanity: ignore[assertion-density] -- no-invariant: markdown text is typed and each line lands in exactly one of prelude, label or checks
   const sectionLines: string[] = [];
   let inSection = false;
   let inFence = false;
@@ -368,7 +368,7 @@ const USAGE = [
   "exit codes: 0 every check held, 1 a check failed or the skill is unknown, 2 usage error, 3 harness error (an internal check or file read failed)",
 ].join("\n");
 
-function usage(message: string) { // zanity: ignore[assertion-density] -- multi-caller-helper: every caller passes a fixed or interpolated message and the printable form is built by the replace calls
+function usage(message: string) { // zanity: ignore[assertion-density] -- no-invariant: every caller passes a fixed or interpolated message and the printable form is built by the replace calls
   const printable = message.replace(LINE_BREAK, "\\n").replace(CONTROL_CHARACTERS, "?");
   console.error(printable);
   return EXIT_USAGE;

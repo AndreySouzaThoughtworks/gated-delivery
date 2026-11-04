@@ -27,7 +27,7 @@ const toClaudeShellPayload = (raw) => {
  * @param {string} message
  * @returns {string}
  */
-const denial = (message) => { // zanity: ignore[assertion-density] -- multi-caller-helper: both guard verdict branches pass it the guard's own non-empty text
+const denial = (message) => { // zanity: ignore[assertion-density] -- no-invariant: both guard verdict branches pass it the guard's own non-empty text
   return JSON.stringify({ permission: "deny", user_message: message, agent_message: message });
 };
 
@@ -36,7 +36,7 @@ const denial = (message) => { // zanity: ignore[assertion-density] -- multi-call
  * @param {Record<string, string | undefined>} env
  * @returns {HookResult}
  */
-export const guardShell = (raw, env) => { // zanity: ignore[assertion-density] -- exported-and-tested: the guard core already answers only exit 0 or 2 with its own deny shape
+export const guardShell = (raw, env) => { // zanity: ignore[assertion-density] -- no-invariant: the guard core already answers only exit 0 or 2 with its own deny shape
   const verdict = evaluate(() => toClaudeShellPayload(raw), env);
   if (verdict.status === EXIT_BLOCK) {
     return { status: EXIT_BLOCK, stdout: denial(verdict.stderr.trim()), stderr: verdict.stderr };

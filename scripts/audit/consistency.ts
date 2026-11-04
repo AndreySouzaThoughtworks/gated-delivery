@@ -723,6 +723,32 @@ if (!existsSync(tsconfigPath)) {
   }
 }
 
+// --- 24. The repo carries a license and the README links it ---
+const LICENSE_FILE = "LICENSE";
+const README_FILE = "README.md";
+const licensePath = join(ROOT, LICENSE_FILE);
+const readmeFilePath = join(ROOT, README_FILE);
+if (!existsSync(licensePath) || read(licensePath).trim() === "") {
+  errors.push(`${LICENSE_FILE} is missing or empty. Hint: add the license text; without one nobody may reuse the code.`);
+} else if (existsSync(readmeFilePath) && !read(readmeFilePath).includes(`](${LICENSE_FILE})`)) {
+  errors.push(`${README_FILE} does not link ${LICENSE_FILE}. Hint: add a License section that links it.`);
+}
+
+// --- 25. The README states how many skill stamps are waivers, and the number is true ---
+const STAMPS_DIRECTORY = "evals/results";
+const WAIVER_STATEMENT = /\*\*(\d+) of (\d+)\*\* skill stamps are waivers/;
+const stampsDirectoryPath = join(ROOT, STAMPS_DIRECTORY);
+if (existsSync(stampsDirectoryPath) && existsSync(readmeFilePath)) {
+  const stamps = readdirSync(stampsDirectoryPath).filter((name) => name.endsWith(".json")).map((name) => JSON.parse(read(join(stampsDirectoryPath, name))));
+  const waivedCount = stamps.filter((stamp) => Object.hasOwn(stamp, "waived")).length;
+  const stated = read(readmeFilePath).match(WAIVER_STATEMENT);
+  if (!stated) {
+    errors.push(`${README_FILE} has no "**N of M** skill stamps are waivers" line, and ${waivedCount} of ${stamps.length} stamps in ${STAMPS_DIRECTORY} are waivers. Hint: state the number so a reader sees the eval status.`);
+  } else if (Number(stated[1]) !== waivedCount || Number(stated[2]) !== stamps.length) {
+    errors.push(`${README_FILE} says ${stated[1]} of ${stated[2]} skill stamps are waivers, but ${waivedCount} of ${stamps.length} in ${STAMPS_DIRECTORY} are. Hint: update the README line when a stamp changes.`);
+  }
+}
+
 // --- report ---
 console.log(
   `gated-delivery audit: ${skills.length} skills, ${agents.length} agents, ${hookFiles.size} hooks` +

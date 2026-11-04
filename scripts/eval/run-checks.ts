@@ -13,7 +13,7 @@ import assert from "node:assert";
 import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync, existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, dirname, join, sep } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 type Quote = { inSingle: boolean; inDouble: boolean };

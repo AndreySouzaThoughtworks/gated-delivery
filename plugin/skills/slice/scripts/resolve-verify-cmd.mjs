@@ -50,6 +50,24 @@ export const commandFromInstructions = ({ cwd, home: configuredHome }) => {
   return found;
 };
 
+/**
+ * @param {Record<string, unknown> | undefined} scripts
+ * @param {string[]} [order]
+ * @returns {string | undefined}
+ */
+export const pickScript = (scripts, order = SCRIPT_ORDER) => {
+  assert(
+    Array.isArray(order) && order.length > 0 && order.every((name) => typeof name === "string" && name.length > 0) && new Set(order).size === order.length,
+    `the script order must be a non-empty list of distinct script names, got ${JSON.stringify(order)}`,
+  );
+  const name = order.find((candidate) => scripts?.[candidate]);
+  assert(
+    name === undefined || (order.includes(name) && Boolean(scripts?.[name]) && order.slice(0, order.indexOf(name)).every((earlier) => !scripts?.[earlier])),
+    `the chosen script ${JSON.stringify(name)} must be the first defined one of ${order.join(", ")}`,
+  );
+  return name;
+};
+
 /** @param {{ cwd: string }} location */
 export const commandFromPackage = ({ cwd }) => {
   assert(typeof cwd === "string" && cwd.length > 0, `cwd must be a non-empty path, got ${JSON.stringify(cwd)}`);
@@ -59,18 +77,26 @@ export const commandFromPackage = ({ cwd }) => {
   } catch {
     scripts = undefined;
   }
-  const name = SCRIPT_ORDER.find((candidate) => scripts?.[candidate]);
+  const name = pickScript(scripts);
   const command = name && `${RUNNER} ${name}`;
-  assert(command === undefined || command.startsWith(`${RUNNER} `), `a package command must run through ${RUNNER}, got ${JSON.stringify(command)}`);
+  assert(name === undefined || SCRIPT_ORDER.includes(name), `a package command must run one of ${SCRIPT_ORDER.join(", ")}, got ${JSON.stringify(command)}`);
   return command;
+};
+
+/** @param {Record<string, string | undefined>} env */
+export const commandFromEnv = (env) => {
+  assert(typeof env === "object" && env !== null, `env must be an object of variables, got ${JSON.stringify(env)}`);
+  const value = env[VERIFY_ENV];
+  assert(value == null || typeof value === "string", `${VERIFY_ENV} must be text when set, got ${typeof value}: ${JSON.stringify(value)}`);
+  return value?.trim() || undefined;
 };
 
 /** @param {{ env?: Record<string, string | undefined>, cwd?: string, home?: string }} [options] */
 export const resolveVerifyCmd = ({ env = process.env, cwd = process.cwd(), home = env.HOME || homedir() } = {}) => {
   assert(typeof cwd === "string" && cwd.length > 0, `cwd must be a non-empty path, got ${JSON.stringify(cwd)}`);
-  const fromEnv = env[VERIFY_ENV]?.trim() || undefined;
+  const fromEnv = commandFromEnv(env);
   const command = fromEnv ?? commandFromInstructions({ cwd, home }) ?? commandFromPackage({ cwd });
-  assert(command === undefined || command.trim().length > 0, `a resolved verify command must not be blank, got ${JSON.stringify(command)}`);
+  assert(fromEnv === undefined || command === fromEnv, `a set ${VERIFY_ENV} must win over every other source, got ${JSON.stringify(command)} instead of ${JSON.stringify(fromEnv)}`);
   return command;
 };
 

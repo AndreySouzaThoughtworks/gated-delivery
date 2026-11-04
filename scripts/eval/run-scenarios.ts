@@ -72,7 +72,6 @@ const CHECKS_VERDICTS: Record<string, string> = { 0: "PASS", 1: "FAIL" };
 const JUDGE_VERDICTS: Record<string, string> = { 0: "PASS", 1: "FAIL", 3: "UNCLEAR" };
 const GRADER_ERROR = "ERR";
 const VERDICT_SEVERITY = ["PASS", "FAIL", GRADER_ERROR];
-const KNOWN_GRADES = new Set(["PASS", "FAIL", "UNCLEAR", GRADER_ERROR, NOT_AVAILABLE]);
 const SIGNAL_TERM = "SIGTERM";
 const SIGNAL_KILL = "SIGKILL";
 const TSV_CELL_BREAK = /[\t\n]/;
@@ -196,12 +195,11 @@ type GradeRun = {
 };
 type GradedRun = Pick<RunRow, "id" | "run" | "checks" | "judge" | "failed">;
 type Verdicts = Record<string, string>;
-type FlagParser = (flag: string, value: string) => string | number;
 
 const sectionBody = (markdown: string, headingPrefix: string) => {
   const all = markdown.split(LINE_BREAK);
   const start = all.findIndex((l: string) => l.startsWith(headingPrefix));
-  if (start === -1) return null;
+  if (start === -1) return "";
   const level = headingPrefix.match(/^#+ /)![0];
   const body: string[] = [];
   let inFence = false;
@@ -237,23 +235,22 @@ export function parseEvals(markdown: string): ParsedEvals {
       cells: cells.length,
     });
   }
-  const parsed = {
+  return {
     rows,
-    skillTemplate: sectionBody(markdown, "### Skill Agent")?.match(FENCE_BODY)?.[1]?.trimEnd() ?? null,
-    baselineTemplate: sectionBody(markdown, "### Baseline Agent")?.match(FENCE_BODY)?.[1]?.trimEnd() ?? null,
-    clientContext: sectionBody(markdown, "## Client context")?.match(FENCE_BODY)?.[1] ?? null,
-    responseMode: /^mode:\s*response\b/m.test(sectionBody(markdown, "## Execution Model") ?? ""),
+    skillTemplate: sectionBody(markdown, "### Skill Agent").match(FENCE_BODY)?.[1]?.trimEnd() ?? null,
+    baselineTemplate: sectionBody(markdown, "### Baseline Agent").match(FENCE_BODY)?.[1]?.trimEnd() ?? null,
+    clientContext: sectionBody(markdown, "## Client context").match(FENCE_BODY)?.[1] ?? null,
+    responseMode: /^mode:\s*response\b/m.test(sectionBody(markdown, "## Execution Model")),
   };
-  return parsed;
 }
 
 export const fillTemplate = (template: string, prompt: string, persona: string) => {
   assert(template.includes(PROMPT_PLACEHOLDER), `a template must carry ${PROMPT_PLACEHOLDER} or the prompt is dropped, got ${JSON.stringify(template.slice(0, 80))}`);
-  const filled = template
+  assert(prompt.trim(), `a template is filled with a prompt, got ${JSON.stringify(prompt)}`);
+  return template
     .split(PROMPT_PLACEHOLDER)
     .map((part: string) => part.replaceAll(PERSONA_PLACEHOLDER, () => persona))
     .join(prompt);
-  return filled;
 };
 
 export function inspectRun({ transcript, arm, skill, timedOut }: { transcript: string; arm: Arm; skill: string; timedOut: boolean }) {
@@ -281,10 +278,10 @@ export function inspectRun({ transcript, arm, skill, timedOut }: { transcript: s
 }
 
 export const summaryTsv = (rows: Record<string, unknown>[]) => {
+  assert(rows.every((row) => SUMMARY_COLUMNS.every((column) => Object.hasOwn(row, column))), `every summary row needs the columns ${SUMMARY_COLUMNS.join(", ")}, got ${JSON.stringify(rows)}`);
   const cellRows = rows.map((row) => SUMMARY_COLUMNS.map((column) => row[column]));
   assert(cellRows.every((cells) => cells.every((cell) => !TSV_CELL_BREAK.test(String(cell)))), `a TSV cell cannot hold a tab or newline, got ${JSON.stringify(cellRows)}`);
-  const tsv = [SUMMARY_COLUMNS, ...cellRows].map((cells) => `${cells.join("\t")}\n`).join("");
-  return tsv;
+  return [SUMMARY_COLUMNS, ...cellRows].map((cells) => `${cells.join("\t")}\n`).join("");
 };
 
 export function disagreements(rows: Pick<RunRow, "skill" | "id" | "arm" | "checks" | "judge">[]) {
@@ -300,8 +297,7 @@ export function disagreements(rows: Pick<RunRow, "skill" | "id" | "arm" | "check
       });
     groups.get(key).outcomes.push(`checks ${row.checks} judge ${row.judge}`);
   }
-  const disagreeing = [...groups.values()].filter((group) => new Set(group.outcomes).size > 1);
-  return disagreeing;
+  return [...groups.values()].filter((group) => new Set(group.outcomes).size > 1);
 }
 
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g;
@@ -318,23 +314,14 @@ const usage = (message: unknown): never => {
   process.exit(EXIT_USAGE);
 };
 
-const positive = (noun: string, accepts: (n: number) => boolean): FlagParser => (flag, value) => {
-  const n = Number(value);
-  if (!accepts(n)) usage(`${flag} needs a positive ${noun}, got "${value}"`);
-  return n;
-};
-
-const positiveInteger = positive("integer", (n) => Number.isInteger(n) && n >= 1);
-const positiveNumber = positive("number", (n) => Number.isFinite(n) && n > 0);
-
 const BOOLEAN_FLAGS: Record<string, "baseline" | "smoke" | "rerunFailures"> = { "--baseline": "baseline", "--smoke": "smoke", "--rerun-failures": "rerunFailures" };
-const VALUE_FLAGS: Record<string, [string, FlagParser]> = {
-  "--repeat": ["repeat", positiveInteger],
-  "--jobs": ["jobs", positiveInteger],
-  "--budget-usd": ["budgetUsd", positiveNumber],
-  "--total-budget-usd": ["totalBudgetUsd", positiveNumber],
-  "--model": ["model", (flag: string, value: string) => value || usage(`${flag} needs a model name`)],
-  "--out": ["out", (_flag: string, value: string) => value],
+const VALUE_FLAGS: Record<string, { key: string; expects: string; accepts: (value: string) => boolean; convert: (value: string) => string | number }> = {
+  "--repeat": { key: "repeat", expects: "a positive integer", accepts: (value) => Number.isInteger(Number(value)) && Number(value) >= 1, convert: Number },
+  "--jobs": { key: "jobs", expects: "a positive integer", accepts: (value) => Number.isInteger(Number(value)) && Number(value) >= 1, convert: Number },
+  "--budget-usd": { key: "budgetUsd", expects: "a positive number", accepts: (value) => Number.isFinite(Number(value)) && Number(value) > 0, convert: Number },
+  "--total-budget-usd": { key: "totalBudgetUsd", expects: "a positive number", accepts: (value) => Number.isFinite(Number(value)) && Number(value) > 0, convert: Number },
+  "--model": { key: "model", expects: "a model name", accepts: Boolean, convert: (value) => value },
+  "--out": { key: "out", expects: "a directory", accepts: () => true, convert: (value) => value },
 };
 
 function parseArgs(argv: string[]): ParsedOptions {
@@ -357,8 +344,10 @@ function parseArgs(argv: string[]): ParsedOptions {
       while (argv[i + 1] !== undefined && !argv[i + 1].startsWith("--")) options.ids.push(argv[++i]);
     } else if (Object.hasOwn(BOOLEAN_FLAGS, arg)) options[BOOLEAN_FLAGS[arg]] = true;
     else if (Object.hasOwn(VALUE_FLAGS, arg)) {
-      const [key, parse] = VALUE_FLAGS[arg];
-      Object.assign(options, { [key]: parse(arg, argv[++i]!) });
+      const { key, expects, accepts, convert } = VALUE_FLAGS[arg];
+      const value = argv[++i];
+      if (!accepts(value)) usage(`${arg} needs ${expects}, got "${value}"`);
+      Object.assign(options, { [key]: convert(value) });
     } else if (!arg.startsWith("--") && !options.skill) options.skill = arg;
     else usage(`Unknown argument: ${arg}`);
   }
@@ -367,40 +356,6 @@ function parseArgs(argv: string[]): ParsedOptions {
   if (options.smoke && options.ids.length) usage("--smoke picks the scenarios itself; drop --scenario.");
   const repeat = options.repeat ?? (options.rerunFailures ? RERUN_REPEAT : DEFAULT_REPEAT);
   return { ...options, skill, repeat };
-}
-
-const pagesIn = (dir: string): string[] => {
-  const pages = readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    if (entry.isDirectory()) return SKIPPED_DIRS.has(entry.name) ? [] : pagesIn(join(dir, entry.name));
-    return entry.name.endsWith(PAGE_EXTENSION) ? [join(dir, entry.name)] : [];
-  });
-  return pages;
-};
-
-function gradeChecks(skill: string, id: string, runDir: string) {
-  if (!existsSync(RUN_CHECKS)) return NOT_AVAILABLE;
-  const scratch = join(runDir, RUN_TEMP_DIR, "");
-  const files = [join(runDir, "output.md"), ...pagesIn(runDir).filter((page: string) => !page.startsWith(scratch))];
-  const log: string[] = [];
-  const verdicts = files.map((file) => {
-    const { status, stdout, stderr } = spawnSync("node", [RUN_CHECKS, skill, file, "--scenario", id], {
-      cwd: ROOT,
-      encoding: "utf8",
-    });
-    log.push(`## ${file}\n${stdout}${stderr}`);
-    return CHECKS_VERDICTS[String(status)] ?? GRADER_ERROR;
-  });
-  writeFileSync(join(runDir, "checks.txt"), log.join("\n"));
-  const worst = verdicts.reduce((a, b) => (VERDICT_SEVERITY.indexOf(b) > VERDICT_SEVERITY.indexOf(a) ? b : a));
-  return worst;
-}
-
-function gradeJudge(skill: string, id: string, runDir: string, criteria: string) {
-  if (!existsSync(JUDGE) || criteria === NOTHING_TO_JUDGE) return NOT_AVAILABLE;
-  const { status, stdout, stderr } = spawnSync("node", [JUDGE, skill, id, runDir], { cwd: ROOT, encoding: "utf8" });
-  writeFileSync(join(runDir, "judge.json"), stdout || stderr);
-  const verdict = JUDGE_VERDICTS[String(status)] ?? GRADER_ERROR;
-  return verdict;
 }
 
 const NO_SUCH_PROCESS = "ESRCH";
@@ -561,12 +516,34 @@ const gradeRun = ({ base, skill, arm, row, runDir, prompt, timedOut, secs }: Gra
   const notes = flags.filter((flag: string) => flag.startsWith(DENIED_NOTE));
   const failures = flags.filter((flag: string) => !notes.includes(flag));
   const harness = [...(failures.length ? failures : [HARNESS_OK]), ...notes].join(",");
+  let checks = NOT_AVAILABLE;
+  if (existsSync(RUN_CHECKS)) {
+    const scratch = join(runDir, RUN_TEMP_DIR, "");
+    const pages = readdirSync(runDir, { recursive: true, encoding: "utf8" })
+      .filter((relative) => relative.endsWith(PAGE_EXTENSION) && !relative.split(sep).slice(0, -1).some((segment) => SKIPPED_DIRS.has(segment)))
+      .map((relative) => join(runDir, relative))
+      .filter((page) => !page.startsWith(scratch));
+    const log: string[] = [];
+    const verdicts = [join(runDir, "output.md"), ...pages].map((file) => {
+      const { status, stdout, stderr } = spawnSync("node", [RUN_CHECKS, skill, file, "--scenario", row.id], { cwd: ROOT, encoding: "utf8" });
+      log.push(`## ${file}\n${stdout}${stderr}`);
+      return CHECKS_VERDICTS[String(status)] ?? GRADER_ERROR;
+    });
+    writeFileSync(join(runDir, "checks.txt"), log.join("\n"));
+    checks = verdicts.reduce((a, b) => (VERDICT_SEVERITY.indexOf(b) > VERDICT_SEVERITY.indexOf(a) ? b : a));
+  }
+  let judge = NOT_AVAILABLE;
+  if (existsSync(JUDGE) && row.pass !== NOTHING_TO_JUDGE) {
+    const judged = spawnSync("node", [JUDGE, skill, row.id, runDir], { cwd: ROOT, encoding: "utf8" });
+    writeFileSync(join(runDir, "judge.json"), judged.stdout || judged.stderr);
+    judge = JUDGE_VERDICTS[String(judged.status)] ?? GRADER_ERROR;
+  }
   return {
     ...base,
     harness,
     failed: failures.length > 0,
-    checks: gradeChecks(skill, row.id, runDir),
-    judge: gradeJudge(skill, row.id, runDir, row.pass),
+    checks,
+    judge,
     cost: (result?.total_cost_usd ?? 0).toFixed(2),
     costUsd: result?.total_cost_usd ?? 0,
     secs,
@@ -606,6 +583,7 @@ const passed = (row: GradedRun) => !row.failed && PASSING_GRADES.has(row.checks)
 
 export function scenarioVerdicts({ ids, results, unlaunchedIds, rerunFailures }: { ids: string[]; results: GradedRun[]; unlaunchedIds: Set<string>; rerunFailures: boolean }): Verdicts {
   assert(new Set(ids).size === ids.length, `scenario ids must be unique, got ${JSON.stringify(ids)}`);
+  assert(results.every((row) => ids.includes(row.id)), `every result must belong to a listed scenario, got ${JSON.stringify(results.map((row) => row.id))} for ${JSON.stringify(ids)}`);
   const verdicts = Object.fromEntries(
     ids.map((id) => {
       const runs = results.filter((row) => row.id === id).sort((a, b) => a.run - b.run);
@@ -702,7 +680,10 @@ async function main() {
   }
 
   const ledger: Ledger = { spent: 0, limit: options.totalBudgetUsd ?? Number.POSITIVE_INFINITY };
-  const plan = (rows: EvalRow[], count: number, firstRun: number) => {
+  const results: RunRow[] = [];
+  const unlaunched: RunJob[] = [];
+  const batches = [{ rows: selected, count: options.repeat, firstRun: 1 }];
+  for (const [index, { rows, count, firstRun }] of batches.entries()) {
     const items = rows.flatMap((row) =>
       Array.from({ length: count }, (_, i) => ({
         skill: options.skill,
@@ -716,16 +697,10 @@ async function main() {
         model: options.model,
       })),
     );
-    return items;
-  };
-  const first = await runQueue(plan(selected, options.repeat, 1), options.jobs, ledger);
-  const results = [...first.results];
-  const unlaunched = [...first.unlaunched];
-  if (options.rerunFailures) {
-    const retry = selected.filter((row) => results.some((r) => r.id === row.id && !passed(r)));
-    const second = await runQueue(plan(retry, RERUN_REPEAT, RERUN_START), options.jobs, ledger);
-    results.push(...second.results);
-    unlaunched.push(...second.unlaunched);
+    const batch = await runQueue(items, options.jobs, ledger);
+    results.push(...batch.results);
+    unlaunched.push(...batch.unlaunched);
+    if (index === 0 && options.rerunFailures) batches.push({ rows: selected.filter((row) => results.some((r) => r.id === row.id && !passed(r))), count: RERUN_REPEAT, firstRun: RERUN_START });
   }
   const rank = new Map(selected.map((row, index) => [row.id, index]));
   results.sort((a, b) => rank.get(a.id)! - rank.get(b.id)! || a.run - b.run);

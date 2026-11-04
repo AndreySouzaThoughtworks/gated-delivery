@@ -765,8 +765,21 @@ test("fillTemplate refuses a template that would drop the prompt", () => {
   assert.throws(() => fillTemplate("CONTEXT: {{PERSONA}}", "go", "a reviewer"), /a template must carry \{\{PROMPT\}\}/);
 });
 
+test("fillTemplate refuses a blank prompt, which would leave the model nothing to do", () => {
+  assert.throws(() => fillTemplate("USER: {{PROMPT}}", "  ", "a reviewer"), /a template is filled with a prompt/);
+});
+
+test("summaryTsv refuses a row that lacks a column, which would print as the text undefined", () => {
+  assert.throws(() => summaryTsv([{ skill: SKILL, id: "1" }]), /every summary row needs the columns/);
+});
+
 test("scenarioVerdicts refuses repeated scenario ids, which would collapse into one verdict", () => {
   assert.throws(() => scenarioVerdicts({ ids: ["1", "1"], results: [], unlaunchedIds: new Set(), rerunFailures: false }), /scenario ids must be unique/);
+});
+
+test("scenarioVerdicts refuses a result for a scenario it was not asked about, which would go unjudged", () => {
+  const stray = { id: "9", run: 1, checks: "PASS", judge: "PASS", failed: false };
+  assert.throws(() => scenarioVerdicts({ ids: ["1"], results: [stray], unlaunchedIds: new Set(), rerunFailures: false }), /every result must belong to a listed scenario/);
 });
 
 test("smokeScenarioIds refuses an empty scenario list", () => {

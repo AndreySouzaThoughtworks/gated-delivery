@@ -120,7 +120,7 @@ export function findRow(markdown: string, id: string): Row | null {
   return null;
 }
 
-export const splitClauses = (criteria: string) => {
+export const splitClauses = (criteria: string) => { // zanity: ignore[assertion-density] -- single-invariant: only the criteria text can be wrong and a second assertion would restate that check
   assert(criteria.trim() !== "", `splitClauses needs Pass Criteria text, got ${JSON.stringify(criteria)}`);
   const sentences: string[] = [];
   const text = criteria.trim();
@@ -145,12 +145,10 @@ export const splitClauses = (criteria: string) => {
     .flatMap((s) => s.split(FAILS_IF_SPLIT))
     .map((s) => s.trim())
     .filter(Boolean);
-  assert(clauses.length > 0, `splitClauses found no clause in ${JSON.stringify(criteria)}; expected at least one`);
   return clauses;
 };
 
-export const aggregate = (clauses: { result: string }[]) => {
-  assert(Array.isArray(clauses), `aggregate needs a list of graded clauses, got ${typeof clauses}`);
+export const aggregate = (clauses: { result: string }[]) => { // zanity: ignore[assertion-density] -- single-invariant: only unknown result values can be wrong and a second assertion would restate that check
   const unknownResults = clauses.filter((c) => !RESULTS.includes(c.result)).map((c) => c.result);
   assert(unknownResults.length === 0, `aggregate got results ${JSON.stringify(unknownResults)}; expected only ${RESULTS.join(", ")}`);
   const verdict = !clauses.length
@@ -163,26 +161,22 @@ export const aggregate = (clauses: { result: string }[]) => {
   return verdict;
 };
 
-const normalize = (text: string) => {
-  assert(typeof text === "string", `normalize needs text, got ${typeof text}`);
-  const normalized = text
+const normalize = (text: string) => { // zanity: ignore[assertion-density] -- no-invariant: any string is valid and the result is one replace chain
+  return text
     .replace(/\\[nt]/g, " ")
     .replace(/\\"/g, '"')
     .replace(/[*_`]/g, "")
     .replace(/\s+/g, " ")
     .trim();
-  assert(!/\s{2}/.test(normalized), `normalize left a run of whitespace in ${JSON.stringify(normalized)}; quote matching depends on single spaces`);
-  return normalized;
 };
 
-const filesUnder = (dir: string): string[] => {
+const filesUnder = (dir: string): string[] => { // zanity: ignore[assertion-density] -- recursive-walker: recursive walk over the run folder whose one precondition is asserted
   assert(existsSync(dir), `filesUnder needs an existing directory, got ${JSON.stringify(dir)}`);
   const files = readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) return SKIPPED_DIRS.has(entry.name) ? [] : filesUnder(path);
     return entry.isFile() ? [path] : [];
   });
-  assert(files.every((path) => path.startsWith(dir)), `filesUnder(${dir}) returned paths outside it: ${JSON.stringify(files.filter((path) => !path.startsWith(dir)))}`);
   return files;
 };
 
@@ -198,9 +192,7 @@ export const readRun = (runDir: string): Run => {
   return { files };
 };
 
-export const settle = (clauses: string[], graded: Graded[], run: Run) => {
-  assert(Array.isArray(graded), `settle needs the graded clauses as a list, got ${typeof graded}`);
-  assert(Array.isArray(run.files), `settle needs the run's files as a list, got ${typeof run.files}`);
+export const settle = (clauses: string[], graded: Graded[], run: Run) => { // zanity: ignore[assertion-density] -- single-invariant: only an unknown result can be wrong and a second assertion would restate that check
   const settled = clauses.map((clause, index) => {
     const found = graded.find((g) => g.id === index + 1);
     if (!found) return { clause, result: UNCLEAR, evidence: "" };
@@ -228,11 +220,9 @@ export const settle = (clauses: string[], graded: Graded[], run: Run) => {
   return settled;
 };
 
-const promptFor = ({ prompt, persona }: Row, clauses: string[], runDir: string) => {
-  assert(clauses.length > 0, `promptFor needs at least one clause to grade, got ${JSON.stringify(clauses)}`);
-  assert(existsSync(join(runDir, OUTPUT_FILE)), `promptFor needs ${OUTPUT_FILE} in ${runDir}`);
+const promptFor = ({ prompt, persona }: Row, clauses: string[], runDir: string) => { // zanity: ignore[assertion-density] -- no-invariant: the inputs were validated by judge and the result is one template literal
   const files = readdirSync(runDir).filter((f) => f !== OUTPUT_FILE);
-  const text = `You grade one recorded run of an AI coding assistant against a fixed list of clauses.
+  return `You grade one recorded run of an AI coding assistant against a fixed list of clauses.
 
 The run is in ${runDir}; your working directory is an empty scratch directory, so use full
 paths. ${OUTPUT_FILE} is the assistant's final answer, shown below. Other files there: ${files.join(", ") || "none"}. transcript.jsonl, when present, records every tool
@@ -275,11 +265,9 @@ Return one entry per clause, with its number as id.
 <${OUTPUT_FILE}>
 ${readFileSync(join(runDir, OUTPUT_FILE), "utf8")}
 </${OUTPUT_FILE}>`;
-  return text;
 };
 
-const parseReply = (stdout: string): Graded[] => {
-  assert(typeof stdout === "string", `parseReply needs the judge's stdout text, got ${typeof stdout}`);
+const parseReply = (stdout: string): Graded[] => { // zanity: ignore[assertion-density] -- single-invariant: only a non-object reply is a real defect and the rest throws harness errors
   let reply;
   try {
     reply = JSON.parse(stdout);

@@ -22,6 +22,7 @@ import {
   parseEvals,
   scenarioVerdicts,
   smokeScenarioIds,
+  summaryTsv,
 } from "./run-scenarios.ts";
 import type { Arm } from "./run-scenarios.ts";
 
@@ -764,10 +765,56 @@ test("fillTemplate refuses a template that would drop the prompt", () => {
   assert.throws(() => fillTemplate("CONTEXT: {{PERSONA}}", "go", "a reviewer"), /a template must carry \{\{PROMPT\}\}/);
 });
 
+test("fillTemplate refuses a blank prompt, which would leave the model nothing to do", () => {
+  assert.throws(() => fillTemplate("USER: {{PROMPT}}", "  ", "a reviewer"), /a template is filled with a prompt/);
+});
+
+test("summaryTsv refuses a row that lacks a column, which would print as the text undefined", () => {
+  assert.throws(() => summaryTsv([{ skill: SKILL, id: "1" }]), /every summary row needs the columns/);
+});
+
 test("scenarioVerdicts refuses repeated scenario ids, which would collapse into one verdict", () => {
   assert.throws(() => scenarioVerdicts({ ids: ["1", "1"], results: [], unlaunchedIds: new Set(), rerunFailures: false }), /scenario ids must be unique/);
 });
 
+test("scenarioVerdicts refuses a result for a scenario it was not asked about, which would go unjudged", () => {
+  const stray = { id: "9", run: 1, checks: "PASS", judge: "PASS", failed: false };
+  assert.throws(() => scenarioVerdicts({ ids: ["1"], results: [stray], unlaunchedIds: new Set(), rerunFailures: false }), /every result must belong to a listed scenario/);
+});
+
 test("smokeScenarioIds refuses an empty scenario list", () => {
   assert.throws(() => smokeScenarioIds("", []), /needs at least one scenario/);
+});
+
+test("smokeScenarioIds refuses repeated scenario ids, which would double count their checks", () => {
+  assert.throws(() => smokeScenarioIds("", ["1", "1"]), /scenario ids must be unique/);
+});
+
+test("summaryTsv refuses a cell that would break the row apart", () => {
+  const row = { skill: SKILL, id: "1", arm: "skill", run: 1, harness: "ok", checks: "PASS", judge: "PASS", cost: "0.25", secs: 1 };
+  assert.throws(() => summaryTsv([{ ...row, harness: "a\tb" }]), /a TSV cell cannot hold a tab or newline/);
+  assert.throws(() => summaryTsv([{ ...row, judge: "a\nb" }]), /a TSV cell cannot hold a tab or newline/);
+});
+
+test("a scenario id that climbs out of the fixtures folder is a harness error before any model call", () => {
+  const repo = fakeRepo({ evals: EVALS.replace("| 2 |", "| .. |") });
+  const { status, stderr } = run(repo, ["--scenario", "..", "--repeat", "1"]);
+  assert.equal(status, 3, stderr);
+  assert.match(stderr, /a fixture must stay under/);
+  assert.equal(stubCalls(repo).length, 0);
+});
+
+test("a baseline fixture cannot hand the run the plugin through its allowed-tools", () => {
+  const repo = fakeRepo({ fixtures: { "2/persona.md": "p\n", "2/allowed-tools": "--plugin-dir\n" } });
+  const { status, stderr } = run(repo, ["--scenario", "2", "--repeat", "1", "--baseline"], { STUB_BEHAVIOUR: "noskill" });
+  assert.equal(status, 3, stderr);
+  assert.match(stderr, /the baseline arm must not load the plugin/);
+  assert.equal(stubCalls(repo).length, 0);
+});
+
+test("running outside the repository root is a harness error that names the missing skills folder", () => {
+  const elsewhere = mkdtempSync(join(tmpdir(), "gated-delivery-runner-elsewhere-"));
+  const { status, stderr } = spawnSync("node", [RUNNER, SKILL], { cwd: elsewhere, encoding: "utf8" });
+  assert.equal(status, 3, stderr);
+  assert.match(stderr, /run from the repository root/);
 });

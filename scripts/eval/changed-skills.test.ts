@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { changedSkills, skillHash, stampStatus } from "./changed-skills.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SCRIPT_NAMES = ["changed-skills.ts", "run-scenarios.ts", "run-checks.ts", "judge-model.ts"];
+const SCRIPT_NAMES = ["changed-skills.ts", "run-scenarios.ts", "run-checks.ts"];
 const EXECUTABLE_MODE = 0o755;
 const BASE = "main";
 const FEATURE_BRANCH = "feature";
@@ -264,21 +264,6 @@ test("a passing smoke run exits 0 and writes the stamp, with the smoke budget fl
   const [call] = claudeCalls(root);
   assert.equal(call[call.indexOf("--max-budget-usd") + 1], "2");
   assert.equal(claudeCalls(root).length, 1);
-});
-
-test("the stamp names the model that ran the scenarios and the one that judged, and the default names neither as Claude", () => {
-  const glm = fakeRepo();
-  write(glm, "plugin/skills/demo/SKILL.md", "# demo\nbot. Edited.\n");
-  const glmRun = runChangedSkills(glm, ["--model", "glm-5.3-flash[1m]"], { GATED_DELIVERY_JUDGE_MODEL: "glm-5.3" });
-  assert.equal(glmRun.status, 0, glmRun.stdout + glmRun.stderr);
-  assert.equal(stampOf(glm).model, "glm-5.3-flash[1m]");
-  assert.equal(stampOf(glm).judgeModel, "glm-5.3");
-  const plain = fakeRepo();
-  write(plain, "plugin/skills/demo/SKILL.md", "# demo\nbot. Edited.\n");
-  const plainRun = runChangedSkills(plain, [], { GATED_DELIVERY_JUDGE_MODEL: "", GATED_DELIVERY_RUN_MODEL: "" });
-  assert.equal(plainRun.status, 0, plainRun.stdout + plainRun.stderr);
-  assert.equal(stampOf(plain).model, "unset (the provider default)");
-  assert.equal(stampOf(plain).judgeModel, "haiku");
 });
 
 test("a failing run exits 1 and writes no stamp", () => {

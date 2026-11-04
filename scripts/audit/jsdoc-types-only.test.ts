@@ -84,6 +84,13 @@ test("rejects a tag that is not a type tag", () => {
   assert(out.includes("@deprecated is not a type tag"), `expected the tag named, got: ${out}`);
 });
 
+test("a --repo directory that does not exist stops the guard with a message that names it", () => {
+  const missing = join(tmpdir(), "jsdoc-types-only-test-no-such-directory");
+  const result = spawnSync("node", [GUARD, "--repo", missing], { encoding: "utf8" });
+  assert(result.status !== 0, `expected a non-zero exit for a missing --repo, got ${result.status}`);
+  assert(result.stderr.includes(`${missing} must exist`), `expected the message to name ${missing}, got: ${result.stderr}`);
+});
+
 test("ignores test files and files outside plugin", () => {
   const prose = ["/**", " * Prose.", " */", "export const f = 1;", ""].join("\n");
   const { code, out } = verdict({ [SHIPPED_TEST_FILE]: prose, [OUTSIDE_FILE]: prose, [SHIPPED_FILE]: "export const g = 1;\n" });

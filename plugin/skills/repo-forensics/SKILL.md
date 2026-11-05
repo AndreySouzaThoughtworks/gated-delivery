@@ -55,10 +55,18 @@ List:
    leaves the change on Quick. Name the tier you end on in the first line.
 5. **Which files or checks matter** — surfaces change touches, *and* test or command that would
    catch break in each. Naming check up front is what makes next step verifiable, not hopeful.
-6. **What could break if this is changed** — blast radius. Grep callers of what you about to touch.
-   One guard in shared function beats guard in every caller, and patching only path request names
-   leaves every sibling caller broken.
+6. **What could break if this is changed** — blast radius. Find callers of what you about to touch
+   (scout dispatch below). One guard in shared function beats guard in every caller, and patching
+   only path request names leaves every sibling caller broken.
 7. **What questions need human confirmation** — asked as questions, not resolved unilaterally.
+
+**Locating is the scout's, judging is yours.** For items 5 and 6 and the Full pass's *Risk* and
+*Files & checks that matter*, dispatch `Agent(subagent_type: scout)` with `root` and `question`
+(callers of each surface you will touch, tests or commands that reference it). Run
+`node "<skill base directory>/../../scripts/verify-citations.mjs" --root <root> <scout-output-file>`
+before you reason over the output. Exit 0: every cited line is real. Exit 1: drop each violating
+finding and never cite it. Exit 2: fix the options. Any other outcome: STOP and surface the output;
+never verify by hand. Which callers matter and which check guards a surface stay yours.
 
 Only then: **the smallest safe next step.**
 

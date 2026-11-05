@@ -12,6 +12,24 @@
       "anchor": "### 5. CHECKPOINT — walk the findings",
       "kind": "checkpoint",
       "why": "findings walked with the user"
+    },
+    {
+      "id": "story-drift.scout-output-verified",
+      "anchor": "before you reason over the output. Exit 0: every cited line is real.",
+      "kind": "must",
+      "why": "scout findings pass verify-citations before the model reasons over them"
+    },
+    {
+      "id": "story-drift.verify-citations-stop",
+      "anchor": "never verify by hand",
+      "kind": "stop",
+      "why": "a missing script or unlisted exit code stops the run instead of hand-checking citations"
+    },
+    {
+      "id": "story-drift.no-cite-unverified-finding",
+      "anchor": "never cite it",
+      "kind": "never",
+      "why": "a finding verify-citations rejects is never cited"
     }
   ],
   "exempt": [

@@ -10,6 +10,7 @@ const EXIT_VIOLATIONS = 1;
 const EXIT_USAGE = 2;
 const ENCODING = "utf8";
 const GIT_BUFFER_BYTES = 256 * 1024 * 1024;
+/** @type {import("node:child_process").ExecFileSyncOptionsWithStringEncoding} */
 const GIT_OPTIONS = { encoding: ENCODING, maxBuffer: GIT_BUFFER_BYTES };
 const FIELD_SEPARATOR = "\x1f";
 const RECORD_SEPARATOR = "\x1e";

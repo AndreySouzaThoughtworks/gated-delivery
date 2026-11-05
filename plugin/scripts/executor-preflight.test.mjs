@@ -7,6 +7,7 @@ import { dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { lintSpec } from "../skills/spec/scripts/spec-lint.mjs";
 import { missingFileProblems, specProblems, worktreeProblems } from "./executor-preflight.mjs";
+import { runScript } from "./run-cli.test.support.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SCRIPT = join(HERE, "executor-preflight.mjs");
@@ -162,12 +163,6 @@ test("rejects a directory that is not a git worktree and a missing directory", (
   assert.throws(() => worktreeProblems(""), /directory path/);
 });
 
-const run = (args) => {
-  assert(Array.isArray(args), `args must be a list, got ${typeof args}`);
-  const result = spawnSync("node", [SCRIPT, ...args], { encoding: "utf8" });
-  assert(result.status !== null, `the command must exit on its own, got signal ${result.signal}`);
-  return result;
-};
 
 const writeSpec = (raw) => {
   assert(typeof raw === "string", `a spec must be text, got ${typeof raw}`);
@@ -180,7 +175,7 @@ const writeSpec = (raw) => {
 };
 
 test("exits 0 with ok true for a valid spec in a clean worktree", () => {
-  const result = run(["--spec", writeSpec(VALID_SPEC), "--slice", "1", "--acs", "1,3", "--worktree", newWorktree()]);
+  const result = runScript(SCRIPT, ["--spec", writeSpec(VALID_SPEC), "--slice", "1", "--acs", "1,3", "--worktree", newWorktree()]);
   assert.equal(result.status, EXIT_OK);
   assert.deepEqual(JSON.parse(result.stdout), { ok: true, problems: [], skip: [3] });
 });
@@ -189,7 +184,7 @@ test("exits 1 and reports problems from the spec and the worktree together", () 
   const worktree = newWorktree();
   writeFileSync(join(worktree, "scratch.txt"), "x\n");
   const raw = specWith([[OPEN_DECISION_BULLET, "- **Options:** A or B."]]);
-  const result = run(["--spec", writeSpec(raw), "--slice", "1", "--worktree", worktree]);
+  const result = runScript(SCRIPT, ["--spec", writeSpec(raw), "--slice", "1", "--worktree", worktree]);
   assert.equal(result.status, EXIT_PROBLEMS);
   const report = JSON.parse(result.stdout);
   assert.equal(report.ok, false);
@@ -198,9 +193,9 @@ test("exits 1 and reports problems from the spec and the worktree together", () 
 
 test("exits 2 on missing arguments, a bad slice, a bad AC list and an unreadable spec", () => {
   const spec = writeSpec(VALID_SPEC);
-  assert.equal(run(["--slice", "1"]).status, EXIT_USAGE);
-  assert.equal(run(["--spec", spec]).status, EXIT_USAGE);
-  assert.equal(run(["--spec", spec, "--slice", "0"]).status, EXIT_USAGE);
-  assert.equal(run(["--spec", spec, "--slice", "1", "--acs", "1,x"]).status, EXIT_USAGE);
-  assert.equal(run(["--spec", `${spec}.missing`, "--slice", "1"]).status, EXIT_USAGE);
+  assert.equal(runScript(SCRIPT, ["--slice", "1"]).status, EXIT_USAGE);
+  assert.equal(runScript(SCRIPT, ["--spec", spec]).status, EXIT_USAGE);
+  assert.equal(runScript(SCRIPT, ["--spec", spec, "--slice", "0"]).status, EXIT_USAGE);
+  assert.equal(runScript(SCRIPT, ["--spec", spec, "--slice", "1", "--acs", "1,x"]).status, EXIT_USAGE);
+  assert.equal(runScript(SCRIPT, ["--spec", `${spec}.missing`, "--slice", "1"]).status, EXIT_USAGE);
 });

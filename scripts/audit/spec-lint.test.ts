@@ -56,6 +56,9 @@ const REJECTED: [string, (text: string) => string, string][] = [
   ["Red flags without a Contradictions ledger", swap("### Contradictions", "### Notes"), 'lacks "### Contradictions"'],
   ["an empty Contradictions ledger", swap("No contradictions detected between the inspected surfaces.", "Looks fine."), "an empty ledger reads as skipped"],
   ["a Ready spec with an unresolved decision", swap("- Decision: reject at submit", "- **Options:** a or b\n- Decision: reject at submit"), "unresolved entry"],
+  ["a Relevant files entry with no guard", swap(" — guarded by `test/orders/order.spec.ts`", ""), "names no guard"],
+  ["a Security row with an empty disposition", swap("N/A — no new trust boundary or sensitive data; STRIDE walk found nothing material, the endpoint is unchanged.", "| STRIDE threat | Surface | Mitigation | Disposition |\n|---|---|---|---|\n| Spoofing | endpoint | token check |  |"), "has an empty Disposition"],
+  ["a Security row with a missing disposition cell", swap("N/A — no new trust boundary or sensitive data; STRIDE walk found nothing material, the endpoint is unchanged.", "| STRIDE threat | Surface | Mitigation | Disposition |\n|---|---|---|---|\n| Spoofing | endpoint | token check |"), "has an empty Disposition"],
 ];
 
 test("the valid fixture passes with no problems", () => {
@@ -121,4 +124,9 @@ test("a heading with no title inside a section is refused", () => {
 test("splitFrontmatter and parseSpec reject non-text input", () => {
   assert.throws(() => specLint.splitFrontmatter(42 as never), /a spec must be text, got number/);
   assert.throws(() => specLint.parseSpec(undefined as never), /a spec must be text, got undefined/);
+});
+
+test("a Security table with every disposition filled passes", () => {
+  const filled = swap("N/A — no new trust boundary or sensitive data; STRIDE walk found nothing material, the endpoint is unchanged.", "| STRIDE threat | Surface | Mitigation | Disposition |\n|---|---|---|---|\n| Spoofing | endpoint | token check | control exists |")(VALID);
+  assert.deepEqual(lintSpec(filled), [], "a filled STRIDE table must report nothing");
 });

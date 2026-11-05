@@ -53,6 +53,9 @@ const FLAG_LINE = /^Flag[^:\n]*:\s*(.+?)\s+—\s+default\s+(on|off)\s+—\s+remo
 const AC_REFERENCE = /AC\[?(\d+)\]?(?:\s*[–-]\s*(?:AC\[?)?(\d+)\]?)?/g;
 const WAVE_ROW = /^\|\s*(\d+)\s*\|([^|]*)\|/gm;
 const FRONTMATTER_BLOCK = /^---\n([\s\S]*?)\n---\n/;
+const GUARDED_BY = /\bguarded by\b/i;
+const DISPOSITION_HEADER = "Disposition";
+const SHOWN_LENGTH = 60;
 const FENCE = /^```[\s\S]*?^```/gm;
 const INLINE_CODE = /`[^`\n]*`/g;
 /**
@@ -263,6 +266,15 @@ const RULES = [
     const problems = rows.filter((r) => r.length !== 6 || !r[5]).map((r) => `Contradictions row ${JSON.stringify(r[0])} needs six cells with a Disposition; fill the last column`);
     if (rows.length === 0 && !ledger.includes(NO_CONTRADICTIONS_LINE)) problems.push(`Contradictions holds neither a row nor the line ${JSON.stringify(NO_CONTRADICTIONS_LINE)}; an empty ledger reads as skipped`);
     return problems;
+  },
+  (spec) => (spec.bodies["Relevant files"] ?? "")
+    .split("\n")
+    .filter((line) => line.startsWith("- ") && !GUARDED_BY.test(line))
+    .map((line) => `Relevant files entry ${JSON.stringify(line.slice(0, SHOWN_LENGTH))} names no guard; add "— guarded by \`<test or command>\`"`),
+  (spec) => {
+    const [header, , ...rows] = (spec.bodies.Security ?? "").split("\n").filter((line) => line.startsWith("|")).map((line) => line.split("|").slice(1, -1).map((cell) => cell.trim()));
+    const column = header?.indexOf(DISPOSITION_HEADER) ?? -1;
+    return column < 0 ? [] : rows.filter((cells) => !cells[column]).map((cells) => `Security row ${JSON.stringify(cells[0])} has an empty Disposition; write AC[n], open decision, control exists or accepted`);
   },
   (spec) => {
     const open = /^- \*\*Options:\*\*|needs user input/m.test(spec.bodies["Open decisions"] ?? "");

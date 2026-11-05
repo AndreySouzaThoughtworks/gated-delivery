@@ -109,6 +109,12 @@ test("rejects a script path that does not resolve, and a skill script that is no
   write(dangling, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\nRun `scripts/gone.sh`.\n");
   mustReject(dangling, /names scripts\/gone\.sh, which exists under no skill/);
 
+  const pluginLevel = validRepo();
+  write(pluginLevel, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\nRun `<skill base directory>/../../scripts/shared.mjs`.\n");
+  mustReject(pluginLevel, /names scripts\/shared\.mjs, which exists under no skill and not in scripts\/ or plugin\/scripts\//);
+  write(pluginLevel, "plugin/scripts/shared.mjs", "export {};\n");
+  assert.equal(runGuard(pluginLevel).code, 0);
+
   const flat = validRepo();
   write(flat, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\nRun `scripts/run.sh`.\n");
   write(flat, "plugin/skills/alpha/scripts/run.sh", "#!/bin/sh\n");

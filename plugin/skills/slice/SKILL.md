@@ -38,10 +38,9 @@ Resolve these at the start:
 - **Verify lock** — every suite and verify run goes through `scripts/verify-lock.sh` beside this file: `"<skill base directory>/scripts/verify-lock.sh" '<command>'`. It holds a machine-wide lock (`~/.local/state/gated-delivery/verify.lock`; `GATED_DELIVERY_VERIFY_LOCK` overrides it) and exits with the command's status, or 75 when another holder keeps the lock past its timeout (`GATED_DELIVERY_VERIFY_LOCK_TIMEOUT_S`, default 1800 seconds). This session runs locked commands with `run_in_background: true` and acts on their completion notice. On 75, STOP and name the holder. No verify may leave background processes: anything a locked command leaves running keeps the lock. Never bound a locked command by a timeout that kills only the parent; on timeout, kill its whole process group. Agents follow the recipe in their own definitions.
 - **Parallel cap** — at most three writers at once, counting every slice of a wave and every batch of a round. The user may raise or lower it at the step 3 checkpoint.
 - **Domain references** — indexed in the client context's `## Domain references` section. Where a ticket touches a technology the client context carries a reference for, read it before dispatching the executor and pass it in the step 6.1 payload. Skip when nothing in the index matches.
+- **Plugin scripts** — `node "<skill base directory>/../../scripts/<name>.mjs" <options>` from the repository: JSON on stdout, failure on stderr. The step that calls one lists the options the model supplies and its exit codes. A missing script, or an exit code its table omits: STOP and surface the output; never rebuild its answer by hand.
 
-When the Shared notes home is a separate repository — the **notes repository** — working-document writes use `GATED_DELIVERY_NOTES_REPO` when set, a local checkout of it. Otherwise clone the repository the Shared notes home names with `gh` into a temporary directory. The installed plugin cache is read-only. When the Shared notes home sits inside the repository being changed, there is no separate notes repository: working documents are committed on the slice branch and travel with it, and the notes-repository preconditions and direct pushes to its `main` below do not apply.
-
-**Notes-repository preconditions.** Before any working-document read or write, verify that checkout: working tree clean and HEAD on `main`. Any other state — STOP and surface it. Never pull, commit, or push into a checkout sitting on an unrelated branch.
+When the Shared notes home is a separate repository — the **notes repository** — run `notes-repo.mjs prepare --repo-name <owner/name>` before any working-document read or write. It resolves the checkout (`GATED_DELIVERY_NOTES_REPO` when set, a local checkout of it; otherwise a `gh` clone into a temporary directory), merges `origin/main` without force, and prints `{path, …}`: reuse that `path`. The installed plugin cache is read-only. Exit 0 ready; 4 any other state than clean on `main` — STOP and surface it; 3 merge conflict, aborted, tree clean — ask the user; 1 or 2 surface stderr. When the Shared notes home sits inside the repository being changed, there is no separate notes repository: working documents are committed on the slice branch and travel with it, and the notes-repository preconditions and direct pushes to its `main` below do not apply.
 
 ## Process
 
@@ -55,82 +54,66 @@ Use the tracker Mechanics named under `## Issue tracking`. Read summary, status,
 
 ### 2. Detect current state
 
-Inspect:
+With a separate notes repository, run `notes-repo.mjs prepare` first. Then `git fetch origin` and:
 
-- open tracker blockers;
-- the single repo-hosted or external spec;
-- whether the spec has `## Rollout` and how many slices it names;
-- local and remote branches matching `feat/{ticket-id}-*-s*`, reporting batch branches (`…-s{n}-b{k}`, local only) under their slice, never as slices;
-- merged, open, and draft PRs for the ticket, including a spec PR from `docs/{ticket-id}-spec`;
-- machine-local agent notes, if present;
-- shared handoff, if present.
-
-Before reading an external spec or handoff, pull the notes repository's `main`. If local and remote diverged, merge and preserve both tickets' changes; never force-push. Read every `## Resume` block before routing, not only this actor's: another actor's names the slice they hold. When the Shared notes home sits in the repository, the blocks travel on slice branches: after `git fetch origin`, read `git show origin/<branch>:<handoff path>` for every `feat/{ticket-id}-*-s*` branch on `origin`, not only after checkout. Where a block is older than the Rollout state Git shows, treat Git as current and say so. An open item that invalidates an architectural decision, AC, exposure, or slice boundary forces Route B′.
-
-Report:
-
-```text
-<ticket-id> — <title>
-  Status:      <status>
-  Blockers:    <open blockers or none>
-  Spec:        <path or missing>
-  Rollout:     <N slices or missing>
-  Slices:      s1 merged · s2 in flight (draft PR #N) · s3 not started
-  Waves:       W1 s1 · W2 s2, s3 (s3 held by <actor>) — or "none — a strict sequence"
-  Handoff:    <path and next action, or none>
-  Scratch:     <path or none>
-  Conventions: <convention sources, or "none — stack recipes are the whole standard">
+```bash
+node "<skill base directory>/../../scripts/slice-state.mjs" --ticket {ticket-id} --actor <actor> --spec <path>... [--handoff <path>] [--notes-repo <path>]
 ```
 
-An expected convention source missing from the `Conventions` line means source resolution failed.
+The model supplies `--spec` per candidate path in Spec path order (the first that exists is read), `--handoff` when the Shared handoff exists, and `--notes-repo` with the `path` `prepare` printed. Read-only. It reads every actor's `## Resume` block (the handoff, its per-slice files, the copies on `origin` slice branches) and prints `precondition`, `spec`, `slices` (branch, PR, holder, `resumeReason`, batch branches (`…-s{n}-b{k}`, local only) under their slice, never as slices), `staleResume`, `cleanup`, `route` and `modelChecks`.
 
-**Clean up merged slices before routing.** The user merges PRs: `/slice` never merges one, and no step runs after a merge. For every slice tree (`$LOCAL_NOTES/slice-trees/{ticket-id}-*-{actor}`) and local slice branch of this actor, run `gh pr view <branch> --json state`; on `MERGED`, run `git worktree remove --force <tree> && git worktree prune`, then `git branch -D <branch>` for the slice branch and its batch branches. This cleanup runs on every route, close-out included, and never waits for approval: the PR's merge was the approval. Never touch another actor's tree or local branch — Route F step 9 is the one exception, for merged branches on `origin`.
+| Exit | Meaning | Next |
+|---|---|---|
+| 0 | `route` names the row | Step 3 |
+| 1 | `precondition` failed: dirty tree, HEAD off `main` and the ticket's branch, notes checkout off `main` | Offer `precondition.options` and STOP. `uncommittedSpecOnly: true` is the spec carve-out: move that file to `$LOCAL_NOTES/spec-aside/`, rerun with `--spec` naming it there, move it back before step 4 commits it |
+| 2 | usage | Fix the options |
+| 3 | no row fits | If no row fits, surface the evidence and ask. Never silently guess state. |
+| 4 | failure: malformed Rollout heading, failing `gh` | Surface stderr and STOP |
 
-Surface tracker blockers before routing. A missing `## Rollout` selects Route R.
+The model owns `modelChecks`: Route B′ between rows B and R, and the spec carve-out. Read the handoff's `## Carry forward` too. An open item that invalidates an architectural decision, AC, exposure, or slice boundary forces Route B′. Report each `staleResume` entry: a block older than the Rollout state Git shows loses to Git, and the report says so.
+
+Show the user the tracker status and blockers, the spec, each slice with PR and holder, the waves, the handoff's next action, the scratch path, and the `Conventions` line (the convention sources, or "none — stack recipes are the whole standard"). A convention source missing from it means source resolution failed. Surface tracker blockers before routing. A missing `## Rollout` selects Route R.
+
+**Clean up merged slices before routing.** The user merges PRs: `/slice` never merges one, and no step runs after a merge. `slice-cleanup.mjs --ticket {ticket-id} --actor <actor>` removes this actor's slice trees and local branches (batch branches too) whose PR is `MERGED`, and prints `{removed, kept}`: report each `kept` entry with its reason. `--dry-run` lists without acting. Exit 0 done, 2 usage, 4 failure (surface stderr). This cleanup runs on every route, close-out included, and never waits for approval: the PR's merge was the approval. Never touch another actor's tree or local branch — Route F step 9 is the one exception, for merged branches on `origin`.
 
 ### 3. CHECKPOINT — route by state
 
-Read the rows top to bottom and take the **first** that matches; confirm it before proceeding. "Held" means a slice branch exists for it, locally or on `origin`, or a Resume block names an actor for it. "This actor's" means the Resume block, or the local branch, is this actor's.
+Take the row `route` names and confirm it before proceeding.
 
-| State | Route |
+| `route` | Do |
 |---|---|
-| The spec's own PR (`docs/{ticket-id}-spec`) is open and unmerged | **Route E — Wait for merge.** The spec lands on `main` before any slice starts; report its PR and STOP. |
-| No spec, no branch | **Route A — Spec first.** Invoke `Skill(spec)`, then STOP. The spec must be signed off before implementation. |
-| Spec has unresolved Open decisions | **Route B — Resolve decisions.** Resolve them with the user, update the spec with reasoning and consequences, then STOP for publication. |
-| A new finding changes architecture, scope, ACs, exposure, or PR shape | **Route B′ — Spec update first.** Pause implementation, update decisions and Rollout with the user, publish the spec, mark the finding `ROUTED`, then return to the route this table gives. |
-| Decisions resolved but Rollout missing | **Route R — Rollout first.** Propose the merge sequence and waves by applying `/spec` step 5's method and the template's boundary bar here; do not invoke `Skill(spec)`, which refuses a ticket that already has a spec. Publish the updated spec and STOP. `/slice` does not invent merge boundaries while executing. |
-| Every Rollout slice merged | **Route F — Close the ticket.** Run step 9, harvest the handoff, and complete per-ticket Done-when. |
-| This actor holds one or more unmerged slices whose PRs are not yet ready, or are ready but a sibling merged after their gates ran | **Route D — Resume.** Resume all of them. A slice whose sibling merged after its gates ran goes through `references/parallel.md` § Wave step 6 first: merge `main` in, re-record `<slice-base-sha>`, rerun 7.1–7.5. Batch branches or slice trees present, or a slice of a multi-slice wave? Read `references/parallel.md` § Resume first. Only a one-slice wave resumes in the main checkout. Read each slice's Rollout entry, agent notes when present, the handoff, PR base, and commits; surface completed and remaining ACs, then re-plan only those slices' batches. |
-| Every unmerged slice of the earliest unmerged wave is held, and none is this actor's in progress | **Route E — Wait for merge.** Report each held slice with its holder and PR, and the next wave. STOP. Never start a later wave while an earlier one has an unmerged slice. |
-| The earliest unmerged wave has two or more slices, and one or more nobody holds | **Route W — Run the wave.** Confirm which slices this actor takes, up to the parallel cap. Each runs in its own slice tree, even when this actor takes only one, so the shared main checkout stays on `main`. Read `references/parallel.md`, then follow it. |
-| The earliest unmerged wave is one slice, and nobody holds it | **Route C — Start the slice.** Continue to step 4. A repo-hosted spec still uncommitted from `/spec` is committed there as the branch's first commit. |
-
-If no row fits, surface the evidence and ask. Never silently guess state.
+| **Route E — Wait for merge.** | The spec's own PR (`docs/{ticket-id}-spec`) is open. The spec lands on `main` before any slice starts; report its PR and STOP. Or every unmerged slice of the earliest wave is held. Report each held slice with its holder and PR, and the next wave. STOP. Never start a later wave while an earlier one has an unmerged slice. |
+| **Route A — Spec first.** | Invoke `Skill(spec)`, then STOP. The spec must be signed off before implementation. |
+| **Route B — Resolve decisions.** | Resolve the Open decisions with the user, update the spec with reasoning and consequences, then STOP for publication. |
+| **Route B′ — Spec update first.** | A new finding changes architecture, scope, ACs, exposure, or PR shape. Pause implementation, update decisions and Rollout with the user, publish the spec, mark the finding `ROUTED`, then return to the route step 2 gives. |
+| **Route R — Rollout first.** | Propose the merge sequence and waves by applying `/spec` step 5's method and the template's boundary bar here; do not invoke `Skill(spec)`, which refuses a ticket that already has a spec. Publish the updated spec and STOP. `/slice` does not invent merge boundaries while executing. |
+| **Route F — Close the ticket.** | Run step 9, harvest the handoff, and complete per-ticket Done-when. |
+| **Route D — Resume.** | Resume every slice this actor holds that has a `resumeReason`. A slice whose sibling merged after its gates ran goes through `references/parallel.md` § Wave step 6 first: merge `main` in, re-record `<slice-base-sha>`, rerun 7.1–7.5. Batch branches or slice trees present, or a slice of a multi-slice wave? Read `references/parallel.md` § Resume first. Only a one-slice wave resumes in the main checkout. Read each slice's Rollout entry, agent notes when present, the handoff, PR base, and commits; surface completed and remaining ACs, then re-plan only those slices' batches. |
+| **Route W — Run the wave.** | Confirm which slices this actor takes, up to the parallel cap. Only a slice with `heldBy: null` is free. Each runs in its own slice tree, even when this actor takes only one, so the shared main checkout stays on `main`. Read `references/parallel.md`, then follow it. |
+| **Route C — Start the slice.** | Continue to step 4. A repo-hosted spec still uncommitted from `/spec` is committed there as the branch's first commit. |
 
 ### 4. Create the slice branch
 
-For slice `n` in Rollout order:
+For slice `n` in Rollout order, with the main checkout clean:
 
 ```bash
-git checkout main
-git pull --ff-only
-git checkout -b feat/{ticket-id}-{slug}-s{n}
+node "<skill base directory>/../../scripts/slice-claim.mjs" --ticket {ticket-id} --slice {n} --slug {slug} [--base <predecessor branch>]
 ```
 
-Every slice normally branches from updated `main`. A genuinely dependent slice may stack on the previous slice branch only with explicit user confirmation; first check whether that dependency means the Rollout boundary is invalid.
+It fast-forwards `main`, creates `feat/{ticket-id}-{slug}-s{n}`, commits an empty claim naming `git config user.name`, pushes it create-only, and prints `{branch, base, baseSha, tree}`. The model supplies the slice, its slug and, for a stacked slice, `--base`. When the Actor differs from `user.name`, prefix the call with `GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=user.name GIT_CONFIG_VALUE_0=<actor>`.
 
-Claim it at once with its own commit and a create-only push:
+| Exit | Meaning | Next |
+|---|---|---|
+| 0 | claimed | Continue |
+| 4 | held | The script removed what it created. Do not retry: report the holder and route again |
+| 1 | precondition or push failed, cleaned up | Surface stderr and STOP |
+| 2 | usage | Fix the options |
 
-```bash
-git commit --allow-empty -m "chore({ticket-id}): claim s{n} for <actor>"
-git push -u --force-with-lease=refs/heads/<branch>: origin HEAD:refs/heads/<branch>
-```
-
-The empty lease (`<branch>:`) lets the push only create the branch: git rejects it whenever `origin` already has one, even a fast-forward. Exit 0 is the claim. Any rejection, from `git checkout -b` or the push, means another actor holds the slice: check out `main`, delete the local branch this attempt created, and route again. Never adopt, reset or remove a tree or branch this attempt did not create. The claim commit is empty, so later ranges include it harmlessly.
+Every slice normally branches from updated `main`. A genuinely dependent slice may stack on the previous slice branch only with explicit user confirmation; first check whether that dependency means the Rollout boundary is invalid. Never adopt, reset or remove a tree or branch this attempt did not create. A repo-hosted spec left uncommitted by `/spec` dirties the tree and exits 1: set it aside as step 2 says, claim, move it back.
 
 If the repository hosts the spec and `/spec` left it uncommitted, commit it next — `docs(specs): add spec for {ticket-id}`.
 
-Name `<slice-base>` once: normally `main`, otherwise the explicitly selected predecessor branch. Immediately record both the ref and `git rev-parse <slice-base>` — call it `<slice-base-sha>` — in machine-local notes, and in the shared handoff before any session, agent, machine, or compaction boundary.
+Name `<slice-base>` once: normally `main`, otherwise the explicitly selected predecessor branch. Immediately record both the ref and `baseSha` — call it `<slice-base-sha>` — in machine-local notes, and in the shared handoff before any session, agent, machine, or compaction boundary.
 
 **Every later range uses `<slice-base-sha>`, never the ref**: a diff against a moving branch name shows another ticket's merged changes as this slice's. Once the draft PR exists, check that its GitHub base matches the recorded ref; a mismatch means the branch was cut from somewhere else. If a stacked branch has no PR and no surviving base record, STOP rather than review the wrong range.
 
@@ -164,6 +147,8 @@ Immediately before each 6.1 dispatch, record `git rev-parse HEAD` in machine-loc
 
 #### 6.1. Dispatch `slice-executor`
 
+Before each dispatch run `executor-preflight.mjs --spec <spec path> --slice {n} --acs <ids,…> --worktree <tree>`, with the batch's ACs and the tree its executor writes in. Exit 0: leave every cross-repo AC in `skip` out of `slice-acs`. Exit 1: `problems` — do not dispatch; a spec problem is Route B′, a tree problem is fixed in the tree. Exit 2: fix the options.
+
 Call `Agent(subagent_type: slice-executor)` with:
 
 - `spec-path` — absolute path to the single spec;
@@ -180,6 +165,8 @@ Call `Agent(subagent_type: slice-executor)` with:
 Run it in the foreground — every executor of one dispatch goes in one message and all return before 6.2. STOP if the executor is not found. Cross-repo ACs do not appear in Rollout or batch planning.
 
 #### 6.2. Read agent notes
+
+Audit the commits first: `batch-audit.mjs <batch-base>..HEAD --ticket {ticket-id} --acs <count> [--complete] [--slug <spec slug>] [--repo <tree>]`, with `--acs` the ACs dispatched, `--complete` only on a complete return (not `PARTIAL`), `--slug` from the spec's file name. Exit 0 clean. Exit 1: `violations` — fix each before 6.3 in a follow-up commit, and surface one only a history rewrite fixes. Exit 2: fix the options.
 
 Read new entries from `notes-path`:
 
@@ -207,13 +194,14 @@ Run after 6.3 and 6.4, once their fixes are committed. Run `pnpm test` or the re
 
 #### 6.6. Open or update the draft PR
 
-After the first batch commits, open a draft PR against `<slice-base>`:
+After the first batch commits, write the body with the Write tool to `$LOCAL_NOTES/pr-body-<branch-with-slashes-as-dashes>.md` — replace every `/` in the branch name with `-`, or the file lands in a new directory. Gate it, then open a draft PR against `<slice-base>`:
 
 ```bash
-gh pr create --draft --base <slice-base> --title "{type}({ticket-id}): {slice title}" --body-file "$LOCAL_NOTES/pr-body-<branch-with-slashes-as-dashes>.md"
+node "<skill base directory>/../../scripts/pr-gate.mjs" --body-file <body path> --title "{type}({ticket-id}): {slice title}" --final-slice y|n [--pr <number>] [--title-convention <regex>]
+gh pr create --draft --base <slice-base> --title "{type}({ticket-id}): {slice title}" --body-file <body path>
 ```
 
-Write the body with the Write tool to `$LOCAL_NOTES/pr-body-<branch-with-slashes-as-dashes>.md` — replace every `/` in the branch name with `-`, or the file lands in a new directory — and pass it by `--body-file`, also to `gh pr edit` for every later update — never an inline `--body`, a heredoc or stdin, which trip the shell-safety checks.
+`--final-slice y` only for the final unmerged slice; `--pr` once the PR exists (it then lists unresolved review threads); `--title-convention` when the client's `## Commit convention` names a **PR title** check, since a bare `{ticket-id}: {title}` fails it even when every commit is conventional. It prints `{title, closingKeywords, unresolvedThreads, bodyPath}`. Exit 0 clean. Exit 1: each non-null or non-empty field is a defect — fix it and rerun. Exit 2: usage or a failing `gh`, surface stderr. Pass the body by `--body-file`, also to `gh pr edit` for every later update — never an inline `--body`, a heredoc or stdin, which trip the shell-safety checks.
 
 The initial body links the ticket and the spec and quotes this slice's Rollout entry. Push every later batch to the same PR. Do not request reviewers before the slice-end gates pass.
 
@@ -279,7 +267,7 @@ STOP if `code-reviewer` is not found. Resolve every `BLOCK` before proceeding. T
 
 #### 7.6. CHECKPOINT — review the slice and update the handoff
 
-**A slice is not done while review threads are open.** Before this checkpoint and again after every push, list unresolved PR review threads (review bots included) via `gh api graphql … reviewThreads { isResolved }`. Fix each in code and resolve it, or reply with the reason. Never report "ready, waiting on review" with a thread open.
+**A slice is not done while review threads are open.** Before this checkpoint and again after every push, run `pr-gate.mjs` with `--pr <number>` (6.6): `unresolvedThreads` lists them, review bots included. Fix each in code and resolve it, or reply with the reason. Never report "ready, waiting on review" with a thread open.
 
 Show the commits in `<slice-base-sha>..HEAD`, agent-note decisions, the repository deviations the executor relied on with the document stating each, validator outcomes, full verification result, structural findings, and correctness verdict. Every AC is shown with its text; every slice is shown with what becomes true on `main`.
 
@@ -287,21 +275,9 @@ Resolve each `## REFACTOR-NOTE`: fix it within this slice, route it to the track
 
 Create or update the Shared handoff, `{ticket-id}/handoff.md` under the Shared notes home, before `/compact`, stopping, or transferring work to another session, agent, machine, or person. `/slice` is its sole writer; executors report through machine-local notes.
 
-Keep this actor's Resume block and the shared Carry-forward list current:
+Keep this actor's Resume block and the shared Carry-forward list current. Write the Resume block with `handoff.mjs write-resume --file <handoff.md> --actor <actor> [--slice <n>] --rollout-slice <text> --branch <branch> --base-ref <ref> --base-sha <sha> [--pr <url>] --last-verified <text> --next <text>`: it stamps `Updated` in UTC and replaces only the block of the actor it is given. `--slice` suffixes the heading with `— s<n>`; `--next` is one concrete action. Exit 0 written; 2 a field missing or multi-line; 1 failure. Write Carry-forward entries yourself:
 
 ```md
-## Resume — <actor>[ — s<n>]
-
-- Updated: <UTC timestamp, from `date -u +%Y-%m-%dT%H:%MZ`>
-- Slice: <current Rollout slice>
-- Branch: <branch>
-- Base: <ref> at <SHA>
-- PR: <URL or not opened>
-- Last verified: <commit and command>
-- Next: <one concrete action>
-
-## Carry forward
-
 ### <short item>
 
 **Status:** OPEN | HARVESTED → <destination> | CLOSED
@@ -322,7 +298,7 @@ Promote a finding into `## Carry forward` only when losing the conversation woul
 
 Never write status, AC lists, exposure declarations, line numbers or counts. A measurement goes inline in the finding it supports, with the SHA it ran against, never as a standalone probe file.
 
-Before writing, pull the notes repository's `main`. Commit and push the handoff directly to that repository's `main`; on divergence merge without force-pushing. Three merge cases, and no others: two actors' blocks both survive whole; one actor's own block for one slice resolves to the later `Updated`; two Carry-forward entries stay two. Anything else stops for the user. Harvest entries into the spec, the tracker, PRs, ADRs, or repository documentation as their canonical destinations become clear. Keep the handoff as a historical record; do not delete, move, or archive working documents automatically.
+Before writing, run `notes-repo.mjs prepare`. Publish with `notes-repo.mjs publish --path <notes checkout> --file <handoff path> --message <text>`: it stages only the files named, merges `origin/main` and pushes `main`, never with force. Exit 0 pushed; 4 checkout off `main`, STOP and surface it; 3 conflict, merge aborted, tree clean; 1 failure; 2 usage. After exit 3, save `git -C <checkout> show origin/main:<handoff path>` to a scratch file and run `handoff.mjs merge --ours <handoff path> --theirs <scratch> --out <merged>`: it keeps both actors' Resume blocks, the later `Updated` for one actor's own block for one slice, and two Carry-forward entries as two, and exits 3 for anything else: STOP and ask the user. On exit 0 run `git -C <checkout> merge -s ours --no-edit origin/main`, copy the merged file over the handoff, and publish again. Inside the repository, commit the handoff on the slice branch. Harvest entries into the spec, the tracker, PRs, ADRs, or repository documentation as their canonical destinations become clear. Keep the handoff as a historical record; do not delete, move, or archive working documents automatically.
 
 Ask the user whether to address a surfaced judgment call or mark the PR ready. If a fix changes `HEAD` after step 7.1 starts, rerun steps 7.1–7.5 against the final `HEAD` before step 7.7. A later commit touching only handoff or notes files needs no rerun; any other commit does.
 
@@ -334,9 +310,9 @@ Complete the draft body with:
 - later Rollout ACs still outstanding;
 - outstanding cross-repo ACs and their owners or PRs;
 - notable executor findings, linking the shared handoff when it carries relevant evidence;
-- `Closes <ticket-id>` only on the final unmerged slice; no other slice PR body names the ticket after a closing keyword (close, fix, resolve, any tense), which the host parses. In a wave, the next `/slice` adds it to the last unmerged slice.
+- `Closes <ticket-id>` only on the final unmerged slice (`--final-slice y`); `pr-gate.mjs` rejects a closing keyword (close, fix, resolve, any tense) with an issue reference in any other slice's body, which the host parses. In a wave, the next `/slice` adds it to the last unmerged slice.
 
-Use a conventional-commit PR title — `feat`, `fix`, `docs`, `chore`, `test`, or `refactor` per what the change is. Where the client's `## Commit convention` names a **PR title** check, a bare `{ticket-id}: {title}` fails it even when every commit is conventional.
+Use a conventional-commit PR title — `feat`, `fix`, `docs`, `chore`, `test`, or `refactor` per what the change is. Run `pr-gate.mjs` (6.6) on the final body and title, and fix every hit before `gh pr ready`.
 
 Update the body with `gh pr edit --body-file`, push final commits, then run `gh pr ready`.
 
@@ -360,12 +336,10 @@ Then complete Route F. **Every tracker write waits for approval:** each edit and
 2. Walk `## Done-when` → Per ticket, including removal tickets for surviving flags. Raising one is ticket authoring, the same as a refactor-note ticket at 7.6 — hand it to `Skill(issue-writing)`.
 3. Harvest every `OPEN` handoff entry into the spec, an ADR, a tracker ticket, a named PR, or repository documentation, or close it with evidence. An entry bound for the tracker goes through `Skill(issue-writing)`. Reviewer lessons go to one `code-reviewer` dispatch with `lessons` as its only input, the single memory write of the ticket.
 4. Record the outcome in the spec and other canonical destinations.
-5. **Fold per-slice handoffs.** Where a wave wrote `{ticket-id}/handoff-s<n>.md` files, copy each one's Resume block and Carry-forward entries into `handoff.md` unchanged. Keep every per-slice file, and make its first line `Folded into handoff.md: <UTC timestamp, from `date -u +%Y-%m-%dT%H:%MZ`>` so no reader takes it for the live handoff. Never delete a per-slice file.
-6. **Lead the handoff with its outcome.** Write `## Outcome` as the file's **first** section — what shipped, where each harvested item landed, and the dead ends and assumptions a later reader would otherwise re-derive — then stamp each `## Resume — <actor>` block `Closed: <UTC timestamp, from `date -u +%Y-%m-%dT%H:%MZ`>` so no spent position reads as live. Nothing is deleted, moved or archived. Stamping other actors' blocks is the one exception to the Actor rule.
-7. Set the spec's frontmatter `status: Shipped`.
-8. Recommend `/learn-flow` before closing out, while the machine-local notes still exist.
-9. Leave the main checkout on `main`, clean and pulled, and delete every merged branch this ticket created — slice branches, the spec branch and the close-out branch — locally and on `origin` (`git push origin --delete <branch>`), unless the host already deleted it on merge. This covers every actor's merged branches on `origin`, the one exception to never touching another actor's branch, because no slice is live once the ticket has shipped; another actor's local trees stay theirs. When close-out goes through a PR, this step runs on the next `/slice` after that PR merges; do not hand it to the user or hold it for approval.
-10. Leave the machine-local notes in place; pruning them is the user's call.
+5. **Close the handoff.** Write the `## Outcome` text to a scratch file — what shipped, where each harvested item landed, and the dead ends and assumptions a later reader would otherwise re-derive — then run `handoff.mjs close --dir <ticket directory> --outcome-file <scratch> --spec <spec path>`. It folds each wave's `{ticket-id}/handoff-s<n>.md` Resume blocks and Carry-forward entries into `handoff.md` unchanged and marks each file folded on its first line, leads `handoff.md` with the outcome, stamps each `## Resume — <actor>` block closed with a UTC timestamp so no spent position reads as live, and sets the spec's frontmatter status to Shipped. Never delete a per-slice file. Stamping other actors' blocks is the one exception to the Actor rule. Exit 0 closed; 3 a fold is unmergeable and nothing was written, STOP and ask the user; 1 failure; 2 usage. Publish or commit what it changed as 7.6 says. Nothing is deleted, moved or archived.
+6. Recommend `/learn-flow` before closing out, while the machine-local notes still exist.
+7. Leave the main checkout on `main`, clean and pulled, and delete every merged branch this ticket created — slice branches, the spec branch and the close-out branch — locally and on `origin` (`git push origin --delete <branch>`), unless the host already deleted it on merge. This covers every actor's merged branches on `origin`, the one exception to never touching another actor's branch, because no slice is live once the ticket has shipped; another actor's local trees stay theirs. When close-out goes through a PR, this step runs on the next `/slice` after that PR merges; do not hand it to the user or hold it for approval.
+8. Leave the machine-local notes in place; pruning them is the user's call.
 
 ## What `/slice` does NOT do
 

@@ -111,6 +111,23 @@ test("a file with marker lines and no inventory fails with its marker count, and
   assert.match(out, /ERROR no rule inventory for plugin\/skills\/alpha\/SKILL\.md: 2 marker lines/);
 });
 
+test("a rule may be anchored in a script under plugin, and a missing script or a deleted anchor line is reported", () => {
+  const SCRIPT_PATH = "plugin/scripts/claim.mjs";
+  const SCRIPT_LINE = "const claimIsCreateOnly = true;";
+  const SCRIPT_RULE = { id: "alpha.claim-create-only", anchor: "claimIsCreateOnly", kind: "must", why: "the script enforces it" };
+  const anchoredInScript = (scriptText: string | null) => {
+    assert(scriptText === null || scriptText.endsWith("\n"), `a script body ends with a newline, got ${JSON.stringify(scriptText)}`);
+    const dir = withInventory(inventoryOf({ files: [SCRIPT_PATH], rules: [NO_MERGE_RULE, SCRIPT_RULE] }));
+    if (scriptText !== null) write(dir, SCRIPT_PATH, scriptText);
+    const result = runGuard(dir);
+    assert(result.code === 0 || result.code === 1, `the guard exits 0 or 1, got ${result.code}`);
+    return result;
+  };
+  assert.equal(anchoredInScript(`${SCRIPT_LINE}\n`).code, 0);
+  assert.match(anchoredInScript(null).out, /plugin\/scripts\/claim\.mjs does not exist/);
+  assert.match(anchoredInScript("const other = 1;\n").out, /anchor "claimIsCreateOnly" is in none of/);
+});
+
 test("a section headed with NOT counts every line under it as a marker line", () => {
   const body = `${RULE_LINE}\n\n## What it does NOT do\n\n- Auto-merge PRs.\n\n## Next\n\nplain\n`;
   const dir = withInventory(inventoryOf(), body);

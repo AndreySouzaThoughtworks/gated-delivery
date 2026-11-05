@@ -7,6 +7,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { RULES_DIRECTORY, inventoryProblems } from "../audit/rule-inventory.ts";
+import type { Inventory } from "../audit/rule-inventory.ts";
 
 const SKILLS_PREFIX = "plugin/skills";
 const AGENTS_PREFIX = "plugin/agents";
@@ -58,6 +60,8 @@ const SCRIPTS_DIR = "scripts";
 const RUN_CHECKS = join("scripts", "eval", "run-checks.ts");
 const CHECK_LINT = "lint";
 const CHECK_SCRIPT_TESTS = "script-tests";
+const CHECK_RULE_ANCHORS = "rule-anchors";
+const JSON_EXTENSION = ".json";
 const NODE_TEST = ["node", "--test"];
 export const SKILL_SCRIPT_TESTS: Record<string, string[][]> = {
   deskcheck: [[...NODE_TEST, "scripts/audit/deskcheck-lint.test.ts"]],
@@ -93,9 +97,33 @@ const scriptTestsCheck = (root: string, skill: string): CheckResult => {
   return { result: RESULT_PASS, detail: commands.map((command) => command.join(" ")).join("; ") };
 };
 
+const ruleAnchorsCheck = (root: string, skill: string): CheckResult => {
+  assert(SKILL_NAME.test(skill), `ruleAnchorsCheck needs a skill folder name, got ${JSON.stringify(skill)}`);
+  assert(existsSync(root), `ruleAnchorsCheck needs an existing repository directory, got ${root}`);
+  const directory = join(root, RULES_DIRECTORY);
+  const skillFile = `${SKILLS_PREFIX}/${skill}/${SKILL_FILE}`;
+  const names = existsSync(directory) ? readdirSync(directory).filter((name) => name.endsWith(JSON_EXTENSION)).sort() : [];
+  const problems: string[] = [];
+  let inventories = 0;
+  for (const name of names) {
+    const label = `${RULES_DIRECTORY}/${name}`;
+    try {
+      const inventory: Inventory = JSON.parse(readFileSync(join(directory, name), "utf8"));
+      if (inventory.file !== skillFile) continue;
+      inventories += 1;
+      problems.push(...inventoryProblems(root, label, inventory));
+    } catch (failure) {
+      problems.push(`${label} is not a usable inventory: ${failure instanceof Error ? failure.message : failure}`);
+    }
+  }
+  if (problems.length > 0) return { result: RESULT_FAIL, detail: problems.join("\n") };
+  return inventories === 0 ? { result: RESULT_NONE, detail: "the skill has no rule inventory" } : { result: RESULT_PASS, detail: `${inventories} rule inventory, every anchor present` };
+};
+
 export const STATIC_CHECKS: StaticCheck[] = [
   { name: CHECK_LINT, run: lintCheck },
   { name: CHECK_SCRIPT_TESTS, run: scriptTestsCheck },
+  { name: CHECK_RULE_ANCHORS, run: ruleAnchorsCheck },
 ];
 
 const filesUnder = (dir: string) => (existsSync(dir) ? readdirSync(dir, { recursive: true, encoding: "utf8" }).filter((name) => statSync(join(dir, name)).isFile()) : []); // zanity: ignore[assertion-density] -- no-invariant: the directory comes from a validated root and the result is one listing whose only failures are the filesystems own

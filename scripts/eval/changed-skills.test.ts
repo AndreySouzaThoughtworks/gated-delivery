@@ -9,6 +9,7 @@ import { SKILL_SCRIPT_TESTS, STATIC_CHECKS, changedPaths, changedSkills, fileAtB
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SCRIPT_NAMES = ["changed-skills.ts", "run-scenarios.ts", "run-checks.ts"];
+const RULE_INVENTORY_MODULE = join("scripts", "audit", "rule-inventory.ts");
 const EXECUTABLE_MODE = 0o755;
 const BASE = "main";
 const FEATURE_BRANCH = "feature";
@@ -78,6 +79,8 @@ const fakeRepo = () => {
     mkdirSync(join(root, "scripts", "eval"), { recursive: true });
     copyFileSync(join(HERE, name), join(root, "scripts", "eval", name));
   }
+  mkdirSync(join(root, "scripts", "audit"), { recursive: true });
+  copyFileSync(join(HERE, "..", "..", RULE_INVENTORY_MODULE), join(root, RULE_INVENTORY_MODULE));
   write(root, "plugin/skills/demo/SKILL.md", "# demo\nDispatches the bot agent.\n");
   write(root, "plugin/skills/demo/evals.md", EVALS);
   write(root, "plugin/skills/demo/scripts/tool.sh", "echo tool\n");
@@ -468,7 +471,7 @@ test("--static records lint pass and script-tests none for a skill without scrip
   assert.equal(result.status, 0, result.stdout + result.stderr);
   const stamp = stampOf(root);
   assert.equal(stamp.hash, skillHash(root, "demo"));
-  assert.deepEqual(stamp.static.checks, [{ name: "lint", result: "pass" }, { name: "script-tests", result: "none" }]);
+  assert.deepEqual(stamp.static.checks, [{ name: "lint", result: "pass" }, { name: "script-tests", result: "none" }, { name: "rule-anchors", result: "none" }]);
   assert.ok(!Number.isNaN(Date.parse(stamp.static.ranAt)));
   assert.deepEqual(Object.keys(stamp).sort(), ["hash", "static"]);
   assert.equal(stampStatus(root, "demo"), "static");
@@ -482,6 +485,44 @@ test("--static on a skill whose scripts have no mapped tests fails loudly and wr
   assert.equal(result.status, 1, result.stdout + result.stderr);
   assert.match(result.stdout, /FAIL demo script-tests: demo has scripts but no entry in SKILL_SCRIPT_TESTS/);
   assert.equal(existsSync(join(root, "evals", "results")), false);
+});
+
+const DEMO_INVENTORY = "evals/rules/skill-demo.json";
+const RULE_LINE = "Never merge a pull request.";
+const demoInventory = (anchor: string) => {
+  assert(anchor.trim() !== "", `an inventory anchor must not be blank, got ${JSON.stringify(anchor)}`);
+  const text = JSON.stringify({ file: "plugin/skills/demo/SKILL.md", rules: [{ id: "demo.no-merge", anchor, kind: "never", why: "a person merges" }], exempt: [] });
+  assert(text.includes(JSON.stringify(anchor)), `the inventory text must carry the anchor ${anchor}`);
+  return text;
+};
+
+test("--static records rule-anchors pass for a skill whose inventory anchors are all present", () => {
+  const root = scriptlessRepo();
+  write(root, "plugin/skills/demo/SKILL.md", `# demo\n\n${RULE_LINE}\n`);
+  write(root, DEMO_INVENTORY, demoInventory("Never merge"));
+  const result = runChangedSkills(root, ["--static", "demo"]);
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.deepEqual(stampOf(root).static.checks.find((check: { name: string }) => check.name === "rule-anchors"), { name: "rule-anchors", result: "pass" });
+});
+
+test("--static with an inventory whose anchor was deleted exits 1, names the anchor and writes no stamp", () => {
+  const root = scriptlessRepo();
+  write(root, "plugin/skills/demo/SKILL.md", `# demo\n\n${RULE_LINE}\n`);
+  write(root, DEMO_INVENTORY, demoInventory("Never merge a deleted line"));
+  const result = runChangedSkills(root, ["--static", "demo"]);
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  assert.match(result.stdout, /FAIL demo rule-anchors: .*anchor "Never merge a deleted line" is in none of/s);
+  assert.equal(existsSync(join(root, "evals", "results")), false);
+});
+
+test("--static ignores another skill's inventory and an unusable inventory fails every skill", () => {
+  const root = scriptlessRepo();
+  write(root, "evals/rules/skill-other.json", JSON.stringify({ file: "plugin/skills/other/SKILL.md", rules: [{ id: "other.x", anchor: "absent anchor", kind: "never", why: "x" }], exempt: [] }));
+  assert.equal(runChangedSkills(root, ["--static", "demo"]).status, 0);
+  write(root, "evals/rules/skill-broken.json", "{not json");
+  const result = runChangedSkills(root, ["--static", "demo"]);
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  assert.match(result.stdout, /FAIL demo rule-anchors: evals\/rules\/skill-broken\.json is not a usable inventory/);
 });
 
 test("--static with a failing check exits 1 and leaves an existing stamp byte-identical", () => {
@@ -539,9 +580,10 @@ test("the static checks reject a skill name that is a path and a root they canno
     assert.throws(() => check.run(REPO, "../demo"), /needs a skill folder name/, check.name);
   }
   const missingRoot = join(tmpdir(), "gated-delivery-no-such-root");
-  const [lint, scriptTests] = STATIC_CHECKS;
+  const [lint, scriptTests, ruleAnchors] = STATIC_CHECKS;
   assert.throws(() => lint.run(missingRoot, "demo"), /could not start/);
   assert.throws(() => scriptTests.run(missingRoot, "demo"), /needs an existing repository directory/);
+  assert.throws(() => ruleAnchors.run(missingRoot, "demo"), /needs an existing repository directory/);
   assert.throws(() => stampStatically(missingRoot, "demo"), /needs an existing repository directory/);
   assert.throws(() => stampStatically(REPO, "../demo"), /needs a skill folder name/);
   const withScripts = fakeRepo();

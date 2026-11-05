@@ -1,7 +1,13 @@
 {
   "file": "plugin/skills/slice/SKILL.md",
   "files": [
-    "plugin/skills/slice/references/parallel.md"
+    "plugin/skills/slice/references/parallel.md",
+    "plugin/scripts/slice-state.mjs",
+    "plugin/scripts/slice-cleanup.mjs",
+    "plugin/scripts/slice-claim.mjs",
+    "plugin/scripts/notes-repo.mjs",
+    "plugin/scripts/handoff.mjs",
+    "plugin/scripts/pr-gate.mjs"
   ],
   "rules": [
     {
@@ -180,13 +186,13 @@
     },
     {
       "id": "slice.notes-repo-clean-main",
-      "anchor": "Any other state — STOP and surface it.",
+      "anchor": "any other state than clean on `main` — STOP and surface it",
       "kind": "stop",
       "why": "notes checkout must be clean on main"
     },
     {
       "id": "slice.notes-repo-no-foreign-branch",
-      "anchor": "Never pull, commit, or push into a checkout sitting on an unrelated branch.",
+      "anchor": "nothing was committed or pushed",
       "kind": "never",
       "why": "protects an unrelated branch"
     },
@@ -216,37 +222,37 @@
     },
     {
       "id": "slice.batch-branches-not-slices",
-      "anchor": "reporting batch branches (`…-s{n}-b{k}`, local only) under their slice, never as slices",
+      "anchor": "(`…-s{n}-b{k}`, local only) under their slice, never as slices",
       "kind": "never",
       "why": "batch branches are not slices"
     },
     {
       "id": "slice.pull-notes-before-read",
-      "anchor": "Before reading an external spec or handoff, pull the notes repository's `main`.",
+      "anchor": "With a separate notes repository, run `notes-repo.mjs prepare` first.",
       "kind": "must",
       "why": "stale notes mislead routing"
     },
     {
       "id": "slice.notes-merge-never-force",
-      "anchor": "never force-push",
+      "anchor": "[\"push\", REMOTE, `HEAD:${MAIN_REF}`]",
       "kind": "never",
       "why": "divergence merges, never overwrites"
     },
     {
       "id": "slice.read-every-resume-block",
-      "anchor": "Read every `## Resume` block before routing, not only this actor's",
+      "anchor": "It reads every actor's `## Resume` block",
       "kind": "must",
       "why": "other actors' holds drive routing"
     },
     {
       "id": "slice.fetch-before-reading-resume",
-      "anchor": "after `git fetch origin`, read `git show origin/<branch>:<handoff path>`",
+      "anchor": "[\"show\", `${REMOTE}/${branch}:${inRepository}`]",
       "kind": "must",
       "why": "remote slice branches carry live Resume blocks"
     },
     {
       "id": "slice.git-is-current",
-      "anchor": "treat Git as current and say so",
+      "anchor": "loses to Git, and the report says so",
       "kind": "must",
       "why": "older Resume blocks lose to Git"
     },
@@ -264,7 +270,7 @@
     },
     {
       "id": "slice.merged-cleanup-command",
-      "anchor": "on `MERGED`, run `git worktree remove --force <tree> && git worktree prune`",
+      "anchor": "git(repo, [\"worktree\", \"remove\", \"--force\", tree]);",
       "kind": "must",
       "why": "merged slices are cleaned"
     },
@@ -300,7 +306,7 @@
     },
     {
       "id": "slice.route-first-match",
-      "anchor": "take the **first** that matches; confirm it before proceeding",
+      "anchor": "confirm it before proceeding",
       "kind": "must",
       "why": "first matching row wins"
     },
@@ -420,13 +426,13 @@
     },
     {
       "id": "slice.claim-create-only",
-      "anchor": "git push -u --force-with-lease=refs/heads/<branch>: origin HEAD:refs/heads/<branch>",
+      "anchor": "--force-with-lease=refs/heads/${branch}:",
       "kind": "must",
       "why": "the claim push can only create"
     },
     {
       "id": "slice.claim-rejection-means-held",
-      "anchor": "Any rejection, from `git checkout -b` or the push, means another actor holds the slice",
+      "anchor": "throw onOrigin ? new ClaimHeld(reason) : new Error(reason);",
       "kind": "must",
       "why": "rejected claim means held"
     },
@@ -444,7 +450,7 @@
     },
     {
       "id": "slice.record-slice-base-sha",
-      "anchor": "Immediately record both the ref and `git rev-parse <slice-base>`",
+      "anchor": "Immediately record both the ref and `baseSha`",
       "kind": "must",
       "why": "the base sha is recorded early"
     },
@@ -618,7 +624,7 @@
     },
     {
       "id": "slice.draft-pr-after-first-batch",
-      "anchor": "After the first batch commits, open a draft PR against `<slice-base>`",
+      "anchor": "After the first batch commits, write the body",
       "kind": "must",
       "why": "draft PR timing and base"
     },
@@ -864,13 +870,13 @@
     },
     {
       "id": "slice.handoff-pull-push-main",
-      "anchor": "Commit and push the handoff directly to that repository's `main`; on divergence merge without force-pushing.",
+      "anchor": "[\"push\", REMOTE, `HEAD:${MAIN_REF}`]",
       "kind": "must",
       "why": "handoff lands on main without force"
     },
     {
       "id": "slice.handoff-three-merge-cases",
-      "anchor": "Three merge cases, and no others",
+      "anchor": "only Resume blocks and Carry forward entries merge",
       "kind": "limit",
       "why": "anything else stops for the user"
     },
@@ -984,7 +990,7 @@
     },
     {
       "id": "slice.fold-handoffs-first-line",
-      "anchor": "make its first line `Folded into handoff.md:",
+      "anchor": "const FOLDED_PREFIX = \"Folded into handoff.md: \";",
       "kind": "must",
       "why": "folded files are marked"
     },
@@ -996,13 +1002,13 @@
     },
     {
       "id": "slice.outcome-first-section",
-      "anchor": "Write `## Outcome` as the file's **first** section",
+      "anchor": "parts: [{ heading: OUTCOME_HEADING, body: outcome }, ...stamped]",
       "kind": "must",
       "why": "outcome leads the handoff"
     },
     {
       "id": "slice.closed-stamp",
-      "anchor": "stamp each `## Resume — <actor>` block `Closed:",
+      "anchor": "const CLOSED_PREFIX = \"- Closed: \";",
       "kind": "must",
       "why": "spent positions are marked"
     },
@@ -1014,7 +1020,7 @@
     },
     {
       "id": "slice.status-shipped",
-      "anchor": "Set the spec's frontmatter `status: Shipped`.",
+      "anchor": "const SHIPPED_STATUS = \"status: Shipped\";",
       "kind": "must",
       "why": "spec status"
     },
@@ -1128,31 +1134,31 @@
     },
     {
       "id": "slice.parallel.empty-lease",
-      "anchor": "The empty lease rejects the push whenever `origin` already has the branch, even a fast-forward",
+      "anchor": "--force-with-lease=refs/heads/${branch}:",
       "kind": "other",
       "why": "exactly one claimant lands"
     },
     {
       "id": "slice.parallel.name-destination-ref",
-      "anchor": "Always name the destination ref",
+      "anchor": "HEAD:refs/heads/${branch}",
       "kind": "must",
       "why": "bare push lands on main"
     },
     {
       "id": "slice.parallel.rejected-claim-cleanup",
-      "anchor": "remove only the tree and local branch this attempt created",
+      "anchor": "\"--force\", /** @type {string} */ (tree)]",
       "kind": "must",
       "why": "rejected claimants clean only their own"
     },
     {
       "id": "slice.parallel.never-remove-foreign-tree",
-      "anchor": "Never remove a tree this attempt did not create.",
+      "anchor": "throw claimsInPlace || reason.includes(SLICE_TREE_REFUSAL) ? new ClaimHeld(reason) : new Error(reason);",
       "kind": "never",
       "why": "protects another actor's tree"
     },
     {
       "id": "slice.parallel.claim-script-stop",
-      "anchor": "STOP on any non-zero exit from the script.",
+      "anchor": "Exit 1 or 2: STOP and surface stderr.",
       "kind": "stop",
       "why": "claim script failure stops"
     },
@@ -1407,6 +1413,162 @@
       "anchor": "**A wave slice conflicts with a merged sibling:**",
       "kind": "other",
       "why": "conflict failure mode"
+    },
+    {
+      "id": "slice.notes-repo-script-stops-dirty",
+      "anchor": "STOP: the notes checkout ${path} must be clean and on ${MAIN_BRANCH}",
+      "kind": "stop",
+      "why": "notes-repo prepare refuses a checkout that is not clean on main"
+    },
+    {
+      "id": "slice.handoff-script-unmergeable-stops",
+      "anchor": "STOP and ask the user:",
+      "kind": "stop",
+      "why": "handoff.mjs exits 3 and tells the model to stop for a merge outside the three cases"
+    },
+    {
+      "id": "slice.plugin-script-failure-stop",
+      "anchor": "never rebuild its answer by hand",
+      "kind": "stop",
+      "why": "a missing script or an unlisted exit code stops the run instead of being re-derived"
+    },
+    {
+      "id": "slice.state-precondition-stop",
+      "anchor": "Offer `precondition.options` and STOP",
+      "kind": "stop",
+      "why": "a failed state precondition stops with the checkout options"
+    },
+    {
+      "id": "slice.state-failure-stop",
+      "anchor": "failing `gh` | Surface stderr and STOP",
+      "kind": "stop",
+      "why": "an unexpected slice-state failure stops the run"
+    },
+    {
+      "id": "slice.state-first-row-wins",
+      "anchor": "if (specPrOpen) return ROUTE.WAIT;",
+      "kind": "other",
+      "why": "the route table is evaluated top to bottom and the first matching row wins"
+    },
+    {
+      "id": "slice.state-spec-aside",
+      "anchor": "move that file to `$LOCAL_NOTES/spec-aside/`",
+      "kind": "other",
+      "why": "the uncommitted-spec carve-out still lets a dirty tree route and claim"
+    },
+    {
+      "id": "slice.claim-held-no-retry",
+      "anchor": "Do not retry: report the holder and route again",
+      "kind": "never",
+      "why": "a held slice is reported and routed again, never retried"
+    },
+    {
+      "id": "slice.claim-failure-stop",
+      "anchor": "precondition or push failed, cleaned up | Surface stderr and STOP",
+      "kind": "stop",
+      "why": "a failed claim stops the run"
+    },
+    {
+      "id": "slice.claim-actor-identity",
+      "anchor": "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=user.name GIT_CONFIG_VALUE_0=<actor>",
+      "kind": "other",
+      "why": "the claim commit names the Actor when it differs from user.name"
+    },
+    {
+      "id": "slice.no-closing-keyword-other-slices",
+      "anchor": "close[sd]?|fix(?:e[sd])?|resolve[sd]?",
+      "kind": "never",
+      "why": "no slice PR body but the final one names the ticket after a closing keyword"
+    },
+    {
+      "id": "slice.pr-gate-exit-1-fix",
+      "anchor": "each non-null or non-empty field is a defect — fix it and rerun",
+      "kind": "must",
+      "why": "every pr-gate hit is fixed before the PR moves on"
+    },
+    {
+      "id": "slice.cleanup-report-kept",
+      "anchor": "report each `kept` entry with its reason",
+      "kind": "must",
+      "why": "a tree or branch cleanup keeps is surfaced with its reason"
+    },
+    {
+      "id": "slice.preflight-no-dispatch",
+      "anchor": "do not dispatch; a spec problem is Route B′",
+      "kind": "never",
+      "why": "a batch with a preflight problem is not dispatched"
+    },
+    {
+      "id": "slice.batch-audit-fix-before-lens",
+      "anchor": "fix each before 6.3 in a follow-up commit",
+      "kind": "must",
+      "why": "executor commit violations are fixed before the batch review"
+    },
+    {
+      "id": "slice.handoff-merge-recovery",
+      "anchor": "merge -s ours --no-edit origin/main",
+      "kind": "other",
+      "why": "after a notes conflict the merged handoff is published without losing either side"
+    },
+    {
+      "id": "slice.calls-slice-state",
+      "anchor": "scripts/slice-state.mjs\" --ticket",
+      "kind": "must",
+      "why": "state detection is the script's output"
+    },
+    {
+      "id": "slice.calls-slice-cleanup",
+      "anchor": "`slice-cleanup.mjs --ticket {ticket-id} --actor <actor>`",
+      "kind": "must",
+      "why": "merged-slice cleanup is the script's plan"
+    },
+    {
+      "id": "slice.calls-slice-claim",
+      "anchor": "scripts/slice-claim.mjs\" --ticket {ticket-id} --slice {n} --slug {slug} [--base",
+      "kind": "must",
+      "why": "the branch claim is the script's create-only push"
+    },
+    {
+      "id": "slice.calls-notes-repo-prepare",
+      "anchor": "run `notes-repo.mjs prepare --repo-name <owner/name>`",
+      "kind": "must",
+      "why": "the notes checkout is resolved and checked by the script"
+    },
+    {
+      "id": "slice.calls-notes-repo-publish",
+      "anchor": "Publish with `notes-repo.mjs publish",
+      "kind": "must",
+      "why": "handoff writes reach the notes main through the script"
+    },
+    {
+      "id": "slice.calls-handoff-write-resume",
+      "anchor": "Write the Resume block with `handoff.mjs write-resume",
+      "kind": "must",
+      "why": "the Resume block is written by the script"
+    },
+    {
+      "id": "slice.calls-handoff-close",
+      "anchor": "then run `handoff.mjs close",
+      "kind": "must",
+      "why": "folding, outcome and Shipped are done by the script"
+    },
+    {
+      "id": "slice.calls-pr-gate",
+      "anchor": "scripts/pr-gate.mjs\" --body-file",
+      "kind": "must",
+      "why": "the PR title, closing keyword, threads and body path are gated by the script"
+    },
+    {
+      "id": "slice.calls-executor-preflight",
+      "anchor": "Before each dispatch run `executor-preflight.mjs",
+      "kind": "must",
+      "why": "a bad spec or tree costs no executor dispatch"
+    },
+    {
+      "id": "slice.calls-batch-audit",
+      "anchor": "Audit the commits first: `batch-audit.mjs",
+      "kind": "must",
+      "why": "executor commits are audited before the batch review"
     }
   ],
   "exempt": []

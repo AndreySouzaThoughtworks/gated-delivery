@@ -483,12 +483,13 @@ const skillScripts = new Map(
   }),
 );
 const repoScriptsDir = join(ROOT, "scripts");
+const pluginScriptsDir = join(PLUGIN, "scripts");
 for (const file of docFiles) {
   const shown = file.slice(ROOT.length + 1);
   for (const name of new Set([...read(file).matchAll(SCRIPT_REFERENCE)].map((m) => m[1]))) {
     const skillScript = skillScripts.get(name);
-    if (!skillScript && !existsSync(join(repoScriptsDir, name))) {
-      errors.push(`${shown} names scripts/${name}, which exists under no skill and not in scripts/. Hint: fix the path or restore the script.`);
+    if (!skillScript && !existsSync(join(repoScriptsDir, name)) && !existsSync(join(pluginScriptsDir, name))) {
+      errors.push(`${shown} names scripts/${name}, which exists under no skill and not in scripts/ or plugin/scripts/. Hint: fix the path or restore the script.`);
     } else if (skillScript && !(statSync(skillScript).mode & EXECUTE_BITS)) {
       errors.push(`${shown} names ${skillScript.slice(ROOT.length + 1)}, which is not executable. Hint: chmod +x it and commit the mode.`);
     }

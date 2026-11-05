@@ -1,0 +1,176 @@
+{
+  "file": "plugin/skills/spec/SKILL.md",
+  "files": [
+    "plugin/skills/spec/templates/change.md"
+  ],
+  "rules": [
+    {
+      "id": "spec.hold-drafts",
+      "anchor": "Do not write it until the user signs off on every section.",
+      "kind": "never",
+      "why": "no spec file before sign-off"
+    },
+    {
+      "id": "spec.stop-bad-branch",
+      "anchor": "Any other state — STOP and ask the user how to proceed.",
+      "kind": "stop",
+      "why": "spec writes only from main or the ticket branch with a clean tree"
+    },
+    {
+      "id": "spec.no-mutate-changed-repo",
+      "anchor": "do not mutate the changed repository to store it",
+      "kind": "never",
+      "why": "external specs live in the notes repository only"
+    },
+    {
+      "id": "spec.stop-dirty-notes-repo",
+      "anchor": "working tree clean and HEAD on `main`, otherwise STOP",
+      "kind": "stop",
+      "why": "notes checkout verified before use"
+    },
+    {
+      "id": "spec.no-missing-context-files",
+      "anchor": "Do not create missing context files",
+      "kind": "never",
+      "why": "no second documentation convention"
+    },
+    {
+      "id": "spec.stop-missing-canonical",
+      "anchor": "A missing canonical reference required by the ticket is different — STOP and surface it",
+      "kind": "stop",
+      "why": "proceeding would invent a contract"
+    },
+    {
+      "id": "spec.stop-already-specced",
+      "anchor": "If a candidate file exists, STOP: this ticket is already specced.",
+      "kind": "stop",
+      "why": "spec creates, flow updates"
+    },
+    {
+      "id": "spec.stop-ambiguous-canonical",
+      "anchor": "If more than one candidate file exists, STOP and ask which is canonical.",
+      "kind": "stop",
+      "why": "ambiguous spec location"
+    },
+    {
+      "id": "spec.checkpoint-intent",
+      "anchor": "### 2. CHECKPOINT — confirm intent with user",
+      "kind": "checkpoint",
+      "why": "intent confirmed before design"
+    },
+    {
+      "id": "spec.always-invoke-skills",
+      "anchor": "Always invoke these skills at start of step 3",
+      "kind": "must",
+      "why": "no exceptions to the skill invocations"
+    },
+    {
+      "id": "spec.stop-skill-not-found",
+      "anchor": "STOP and alert user",
+      "kind": "stop",
+      "why": "a missing required skill stops the run"
+    },
+    {
+      "id": "spec.inferred-not-verified",
+      "anchor": "Inferred claim must not enter spec as though verified.",
+      "kind": "must",
+      "why": "verified/inferred split"
+    },
+    {
+      "id": "spec.never-silently-promote",
+      "anchor": "Never silently promote.",
+      "kind": "never",
+      "why": "inferred claims are verified or become open decisions"
+    },
+    {
+      "id": "spec.resolve-composed-schemas",
+      "anchor": "Resolve composed schemas fully before concluding field present or absent.",
+      "kind": "must",
+      "why": "unresolved reference means unknown, not absent"
+    },
+    {
+      "id": "spec.always-security-pass",
+      "anchor": "Always run security pass; scale depth to change.",
+      "kind": "must",
+      "why": "authz gaps caught before ACs"
+    },
+    {
+      "id": "spec.checkpoint-acs",
+      "anchor": "### 5. CHECKPOINT — review ACs and propose the merge sequence",
+      "kind": "checkpoint",
+      "why": "ACs and rollout reviewed with the user"
+    },
+    {
+      "id": "spec.no-sequence-without-signoff",
+      "anchor": "Do not write the sequence without user sign-off.",
+      "kind": "never",
+      "why": "rollout needs sign-off"
+    },
+    {
+      "id": "spec.no-conflicting-behavior",
+      "anchor": "must not be able to produce conflicting behavior",
+      "kind": "must",
+      "why": "spec has no contradictions"
+    },
+    {
+      "id": "spec.removal-condition-concrete",
+      "anchor": "is an `## Open decisions` entry whose options are each concrete, never a blank",
+      "kind": "limit",
+      "why": "flag removal conditions are never blank"
+    },
+    {
+      "id": "spec.no-guessed-interface",
+      "anchor": "Do not commit `main` to a guessed interface",
+      "kind": "never",
+      "why": "spike instead of guessing"
+    },
+    {
+      "id": "spec.checkpoint-open-decisions",
+      "anchor": "### 6. CHECKPOINT — open decisions",
+      "kind": "checkpoint",
+      "why": "open decisions resolved with the user"
+    },
+    {
+      "id": "spec.checkpoint-self-review",
+      "anchor": "### 7. CHECKPOINT — self-review pass",
+      "kind": "checkpoint",
+      "why": "self-review before final review"
+    },
+    {
+      "id": "spec.removed-references",
+      "anchor": "**Removed references**",
+      "kind": "must",
+      "why": "self-review searches for dropped references"
+    },
+    {
+      "id": "spec.checkpoint-final",
+      "anchor": "### 8. CHECKPOINT — final review",
+      "kind": "checkpoint",
+      "why": "final user review before writing"
+    },
+    {
+      "id": "spec.never-force-push",
+      "anchor": "never force-push",
+      "kind": "never",
+      "why": "notes repository history is not rewritten"
+    },
+    {
+      "id": "spec.template-no-executor-choice",
+      "anchor": "Never write \"the executor should choose\"",
+      "kind": "never",
+      "why": "design decisions are not deferred to the executor"
+    },
+    {
+      "id": "spec.template-flag-open-decision",
+      "anchor": "An unknown flag name is an Open decision, never a blank",
+      "kind": "limit",
+      "why": "flagged slices never carry a blank flag name"
+    }
+  ],
+  "exempt": [
+    {
+      "anchor": "never \"an agreed period\"",
+      "reason": "template format line restating spec.removal-condition-concrete"
+    }
+  ]
+}

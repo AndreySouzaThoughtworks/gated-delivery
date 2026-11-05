@@ -1,0 +1,23 @@
+{
+  "file": "plugin/skills/story-drift/SKILL.md",
+  "rules": [
+    {
+      "id": "story-drift.no-proposed-edit",
+      "anchor": "never as a proposed edit",
+      "kind": "never",
+      "why": "a guess goes to the user as a question"
+    },
+    {
+      "id": "story-drift.checkpoint-findings",
+      "anchor": "### 5. CHECKPOINT — walk the findings",
+      "kind": "checkpoint",
+      "why": "findings walked with the user"
+    }
+  ],
+  "exempt": [
+    {
+      "anchor": "a decision agreed in discussion that never reached the criteria",
+      "reason": "vocabulary row describing a drift source"
+    }
+  ]
+}

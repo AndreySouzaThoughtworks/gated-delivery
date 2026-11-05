@@ -1,0 +1,35 @@
+{
+  "file": "plugin/skills/learn-flow/SKILL.md",
+  "rules": [
+    {
+      "id": "learn-flow.never-into-core-plugin",
+      "anchor": "Never into core plugin.",
+      "kind": "never",
+      "why": "client rules stay in the client overlay"
+    },
+    {
+      "id": "learn-flow.never-edit-installed-copy",
+      "anchor": "Never edit installed plugin copy in place.",
+      "kind": "never",
+      "why": "installed copies are overwritten"
+    },
+    {
+      "id": "learn-flow.propose-dont-write",
+      "anchor": "**Hard rule: propose, don't write.**",
+      "kind": "must",
+      "why": "nothing persists without approval"
+    },
+    {
+      "id": "learn-flow.persist-only-approved",
+      "anchor": "Persist only what user explicitly approve",
+      "kind": "must",
+      "why": "per-item approval"
+    }
+  ],
+  "exempt": [
+    {
+      "anchor": "Use on /learn-flow",
+      "reason": "frontmatter description restating learn-flow.propose-dont-write"
+    }
+  ]
+}

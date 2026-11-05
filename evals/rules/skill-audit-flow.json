@@ -1,0 +1,29 @@
+{
+  "file": "plugin/skills/audit-flow/SKILL.md",
+  "rules": [
+    {
+      "id": "audit-flow.no-retire-on-inferred-usage",
+      "anchor": "never retire rule on inferred usage alone",
+      "kind": "never",
+      "why": "no usage telemetry exists"
+    },
+    {
+      "id": "audit-flow.propose-never-silently-write",
+      "anchor": "**Propose, never silently write.**",
+      "kind": "never",
+      "why": "trims are proposals"
+    },
+    {
+      "id": "audit-flow.no-same-session-retire",
+      "anchor": "Never retire or trim a rule in the same session you flag it",
+      "kind": "never",
+      "why": "sign-off then PR"
+    }
+  ],
+  "exempt": [
+    {
+      "anchor": "Use before a gated-delivery release",
+      "reason": "frontmatter description restating audit-flow.propose-never-silently-write"
+    }
+  ]
+}

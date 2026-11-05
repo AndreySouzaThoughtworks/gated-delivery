@@ -1,0 +1,78 @@
+{
+  "file": "plugin/agents/code-reviewer.md",
+  "rules": [
+    {
+      "id": "code-reviewer.diff-and-criteria-only",
+      "anchor": "Never rebuild or trust author reasoning",
+      "kind": "never",
+      "why": "fresh context"
+    },
+    {
+      "id": "code-reviewer.never-pass-unrun",
+      "anchor": "never report PASS on unrun checks",
+      "kind": "never",
+      "why": "unverified stays unverified"
+    },
+    {
+      "id": "code-reviewer.demand-evidence",
+      "anchor": "Run `verify-cmd` yourself, read real output.",
+      "kind": "must",
+      "why": "evidence over asserted success"
+    },
+    {
+      "id": "code-reviewer.no-style-findings",
+      "anchor": "**Do not** report style, structure, naming",
+      "kind": "never",
+      "why": "correctness gaps only"
+    },
+    {
+      "id": "code-reviewer.no-invented-findings",
+      "anchor": "never invent findings to look thorough",
+      "kind": "never",
+      "why": "sound work is said so"
+    },
+    {
+      "id": "code-reviewer.scope-not-findings",
+      "anchor": "goes under Scope, never Findings",
+      "kind": "must",
+      "why": "unrequested behaviour is listed separately"
+    },
+    {
+      "id": "code-reviewer.exposure-is-block",
+      "anchor": "is a BLOCK finding",
+      "kind": "stop",
+      "why": "widened exposure blocks"
+    },
+    {
+      "id": "code-reviewer.memory-first-update-after",
+      "anchor": "**Check your memory first, and update it after.**",
+      "kind": "must",
+      "why": "memory read and write"
+    },
+    {
+      "id": "code-reviewer.no-fixture-memory",
+      "anchor": "never a fixture or a test scenario's planted detail",
+      "kind": "never",
+      "why": "memory holds real-repo lessons only"
+    },
+    {
+      "id": "code-reviewer.review-only",
+      "anchor": "**Review only — never edit project files.**",
+      "kind": "never",
+      "why": "reviewer never edits the tree"
+    },
+    {
+      "id": "code-reviewer.probe-in-mktemp",
+      "anchor": "A probe script goes in a `mktemp -d` directory",
+      "kind": "must",
+      "why": "probes stay outside the reviewed tree"
+    },
+    {
+      "id": "code-reviewer.evidence-exercises-path",
+      "anchor": "**The evidence must exercise the path it claims.**",
+      "kind": "must",
+      "why": "green output must hit the reviewed behaviour"
+    }
+  ],
+  "exempt": []
+}

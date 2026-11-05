@@ -18,6 +18,7 @@ const AGENT_PATH = new RegExp(`^${AGENTS_PREFIX}/([^/]+)\\.md$`);
 const LINE_BREAK = /\r?\n/;
 const DEFAULT_BASE_REF = "origin/main";
 export const BASE_REF_ENV = "GATED_DELIVERY_BASE_REF";
+const CONFIGURED_BASE_REF = process.env[BASE_REF_ENV] || DEFAULT_BASE_REF;
 const CLAUDE_BIN = process.env.GATED_DELIVERY_CLAUDE_BIN || "claude";
 
 const EXIT_PASSED = 0;
@@ -43,15 +44,59 @@ const RUNNER = join("scripts", "eval", "run-scenarios.ts");
 const USAGE = [
   "usage: changed-skills.ts [skill…] [--full] [--budget-usd N] [--total-budget-usd N] [--model M] [--jobs N]",
   '       changed-skills.ts --waive <skill> --reason "<text>"',
-  "exit codes: 0 passed, waived or nothing to run, 1 evals failed, 2 usage error, 3 claude cannot run so no eval ran, 4 harness error (an internal check or file operation failed)",
+  "       changed-skills.ts --static <skill>   (no model run: records that the skill's scripts and deterministic checks pass)",
+  "exit codes: 0 passed, waived, statically stamped or nothing to run, 1 evals or a static check failed, 2 usage error, 3 claude cannot run so no eval ran, 4 harness error (an internal check or file operation failed)",
 ].join("\n");
 const WAIVER_KEY = "waived";
 const STATUS_WAIVED = "waived";
+const STATIC_KEY = "static";
+const STATUS_STATIC = "static";
+const RESULT_PASS = "pass";
+const RESULT_FAIL = "fail";
+const RESULT_NONE = "none";
+const SCRIPTS_DIR = "scripts";
+const RUN_CHECKS = join("scripts", "eval", "run-checks.ts");
+const CHECK_LINT = "lint";
+const CHECK_SCRIPT_TESTS = "script-tests";
+const NODE_TEST = ["node", "--test"];
+export const SKILL_SCRIPT_TESTS: Record<string, string[][]> = {
+  deskcheck: [[...NODE_TEST, "scripts/audit/deskcheck-lint.test.ts"]],
+  "issue-writing": [[...NODE_TEST, "scripts/audit/guardrail-scan.test.ts"]],
+  slice: [[...NODE_TEST, "scripts/resolve-verify-cmd.test.ts"], ["bash", "tests/slice-scripts.test.sh"]],
+  spec: [[...NODE_TEST, "scripts/audit/spec-lint.test.ts"]],
+};
 const VALUE_FLAGS = ["--budget-usd", "--total-budget-usd", "--model", "--jobs"];
 
 type Report = { verdicts: Record<string, string>; totalCostUsd?: number };
 type Outcome = { skill: string; hash: string; passed: false; report?: undefined } | { skill: string; hash: string; passed: boolean; report: Report };
-type Options = { skills: string[]; full: boolean; passthrough: string[]; waive: string | null; reason: string | null; error: string | null };
+type Options = { skills: string[]; full: boolean; passthrough: string[]; waive: string | null; reason: string | null; staticSkill: string | null; error: string | null };
+type CheckResult = { result: typeof RESULT_PASS | typeof RESULT_FAIL | typeof RESULT_NONE; detail: string };
+export type StaticCheck = { name: string; run: (root: string, skill: string) => CheckResult };
+
+const lintCheck = (root: string, skill: string): CheckResult => {
+  assert(SKILL_NAME.test(skill), `lintCheck needs a skill folder name, got ${JSON.stringify(skill)}`);
+  const run = spawnSync("node", [RUN_CHECKS, "--lint", skill], { cwd: root, encoding: "utf8" });
+  assert(run.error === undefined, `lintCheck could not start ${RUN_CHECKS}: ${run.error?.message}`);
+  return { result: run.status === 0 ? RESULT_PASS : RESULT_FAIL, detail: `${run.stdout}${run.stderr}`.trim() };
+};
+
+const scriptTestsCheck = (root: string, skill: string): CheckResult => {
+  assert(SKILL_NAME.test(skill), `scriptTestsCheck needs a skill folder name, got ${JSON.stringify(skill)}`);
+  assert(existsSync(root), `scriptTestsCheck needs an existing repository directory, got ${root}`);
+  if (!existsSync(join(root, SKILLS_PREFIX, skill, SCRIPTS_DIR))) return { result: RESULT_NONE, detail: "the skill has no scripts" };
+  const commands = SKILL_SCRIPT_TESTS[skill] ?? [];
+  if (!commands.length) return { result: RESULT_FAIL, detail: `${skill} has scripts but no entry in SKILL_SCRIPT_TESTS; map the tests that cover them` };
+  for (const [program, ...args] of commands) {
+    const run = spawnSync(program, args, { cwd: root, encoding: "utf8" });
+    if (run.status !== 0) return { result: RESULT_FAIL, detail: `${[program, ...args].join(" ")} exited ${run.status}\n${run.stdout}${run.stderr}`.trim() };
+  }
+  return { result: RESULT_PASS, detail: commands.map((command) => command.join(" ")).join("; ") };
+};
+
+export const STATIC_CHECKS: StaticCheck[] = [
+  { name: CHECK_LINT, run: lintCheck },
+  { name: CHECK_SCRIPT_TESTS, run: scriptTestsCheck },
+];
 
 const filesUnder = (dir: string) => (existsSync(dir) ? readdirSync(dir, { recursive: true, encoding: "utf8" }).filter((name) => statSync(join(dir, name)).isFile()) : []); // zanity: ignore[assertion-density] -- no-invariant: the directory comes from a validated root and the result is one listing whose only failures are the filesystems own
 
@@ -142,24 +187,35 @@ export const waiverReason = (root: string, skill: string) => {
   return stamp[WAIVER_KEY];
 };
 
+const staticStampIsComplete = (record: unknown) => { // zanity: ignore[assertion-density] -- no-invariant: the record is untrusted stamp JSON and every shape of it is answered with false so nothing is left to assert
+  const checks = (record as { checks?: unknown } | null)?.checks;
+  if (!Array.isArray(checks) || checks.length === 0) return false;
+  const passing = checks.filter((check) => check?.result === RESULT_PASS || check?.result === RESULT_NONE).map((check) => check.name);
+  return passing.length === checks.length && STATIC_CHECKS.every((registered) => passing.includes(registered.name));
+};
+
 export const stampStatus = (root: string, skill: string) => {
   assert(root !== "", `stampStatus needs the repository root, got ${JSON.stringify(root)}`);
   assert(SKILL_NAME.test(skill), `stampStatus needs a skill folder name, got ${JSON.stringify(skill)}`);
   if (!existsSync(stampPath(root, skill))) return "missing";
   const stamp = readStamp(root, skill);
   const waiver = stamp[WAIVER_KEY];
-  if (Object.hasOwn(stamp, WAIVER_KEY) && (typeof waiver !== "string" || waiver.trim() === "")) return "blank-waiver";
+  const waived = Object.hasOwn(stamp, WAIVER_KEY);
+  if (waived && Object.hasOwn(stamp, STATIC_KEY)) return "waived-and-static";
+  if (waived && (typeof waiver !== "string" || waiver.trim() === "")) return "blank-waiver";
   if (stamp.hash !== skillHash(root, skill)) return "stale";
-  return Object.hasOwn(stamp, WAIVER_KEY) ? STATUS_WAIVED : "ok";
+  if (Object.hasOwn(stamp, STATIC_KEY)) return staticStampIsComplete(stamp[STATIC_KEY]) ? STATUS_STATIC : "static-incomplete";
+  return waived ? STATUS_WAIVED : "ok";
 };
 
 const optionsProblem = (options: Options, root: string) => { // zanity: ignore[assertion-density] -- no-invariant: every option shape is answered with a usage message so no precondition is left to assert
   if (options.waive === null && options.reason !== null) return "--reason belongs to --waive";
-  if (options.waive !== null) {
-    if (options.skills.length || options.full || options.passthrough.length) return "--waive takes no other skills or flags";
-    if (!options.reason?.trim()) return "--waive needs a non-blank --reason";
-  }
-  for (const skill of options.waive === null ? options.skills : [options.waive]) {
+  if (options.waive !== null && options.staticSkill !== null) return "--waive and --static cannot be combined";
+  const single = options.waive ?? options.staticSkill;
+  const extras = options.skills.length + options.passthrough.length + Number(options.full);
+  if (single !== null && extras > 0) return "--waive and --static take no other skills or flags";
+  if (options.waive !== null && !options.reason?.trim()) return "--waive needs a non-blank --reason";
+  for (const skill of single === null ? options.skills : [single]) {
     if (!SKILL_NAME.test(skill)) return `not a skill name: ${skill}; pass the folder name under ${SKILLS_PREFIX}, not a path`;
     if (!existsSync(join(root, SKILLS_PREFIX, skill, SKILL_FILE))) return `no such skill: ${skill}`;
   }
@@ -167,11 +223,12 @@ const optionsProblem = (options: Options, root: string) => { // zanity: ignore[a
 };
 
 const parseArgs = (argv: string[], root: string): Options => { // zanity: ignore[assertion-density] -- no-invariant: every argument shape is handled by returning an error so no precondition is left to assert
-  const options: Options = { skills: [], full: false, passthrough: [], waive: null, reason: null, error: null };
+  const options: Options = { skills: [], full: false, passthrough: [], waive: null, reason: null, staticSkill: null, error: null };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--full") options.full = true;
     else if (arg === "--waive" && argv[i + 1] !== undefined) options.waive = argv[++i];
+    else if (arg === "--static" && argv[i + 1] !== undefined) options.staticSkill = argv[++i];
     else if (arg === "--reason" && argv[i + 1] !== undefined) options.reason = argv[++i];
     else if (VALUE_FLAGS.includes(arg) && argv[i + 1] !== undefined) options.passthrough.push(arg, argv[++i]);
     else if (!arg.startsWith("--")) options.skills.push(arg);
@@ -238,12 +295,31 @@ const runSkill = (root: string, skill: string, options: Options): Outcome => { /
   };
 };
 
+export const stampStatically = (root: string, skill: string) => {
+  assert(SKILL_NAME.test(skill), `stampStatically needs a skill folder name, got ${JSON.stringify(skill)}`);
+  assert(existsSync(root), `stampStatically needs an existing repository directory, got ${root}`);
+  const hash = skillHash(root, skill);
+  const checks = STATIC_CHECKS.map((check) => ({ name: check.name, ...check.run(root, skill) }));
+  for (const check of checks) console.log(`${check.result.toUpperCase()} ${skill} ${check.name}${check.result === RESULT_PASS ? "" : `: ${check.detail}`}`);
+  if (checks.some((check) => check.result === RESULT_FAIL)) {
+    console.log(`FAILED ${skill} (static): no stamp written`);
+    return EXIT_FAILED;
+  }
+  const path = stampPath(root, skill);
+  mkdirSync(dirname(path), { recursive: true });
+  const record = { checks: checks.map(({ name, result }) => ({ name, result })), ranAt: new Date().toISOString() };
+  writeFileSync(path, `${JSON.stringify({ hash, [STATIC_KEY]: record }, null, 2)}\n`);
+  console.log(`STATIC ${skill}: scripts and deterministic checks pass; this does not prove the model follows the skill`);
+  return EXIT_PASSED;
+};
+
 const main = (argv: string[], root = process.cwd()) => { // zanity: ignore[assertion-density] -- entry-point: CLI entry that orchestrates functions which validate their own inputs
   const options = parseArgs(argv, root);
   if (options.error) {
     console.error(`${options.error}\n${USAGE}`);
     return EXIT_USAGE;
   }
+  if (options.staticSkill !== null) return stampStatically(root, options.staticSkill);
   if (options.waive !== null) {
     const path = stampPath(root, options.waive);
     mkdirSync(dirname(path), { recursive: true });
@@ -251,7 +327,7 @@ const main = (argv: string[], root = process.cwd()) => { // zanity: ignore[asser
     console.log(`WAIVED ${options.waive}: ${options.reason}`);
     return EXIT_PASSED;
   }
-  const skills = options.skills.length ? options.skills : changedSkills(root, process.env[BASE_REF_ENV] || DEFAULT_BASE_REF);
+  const skills = options.skills.length ? options.skills : changedSkills(root, CONFIGURED_BASE_REF);
   if (!skills.length) {
     console.log("No skill changed: nothing to run.");
     return EXIT_PASSED;

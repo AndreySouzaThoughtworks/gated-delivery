@@ -10,6 +10,7 @@ import { join, resolve, sep } from "node:path";
 import { BASE_REF_ENV, changedPaths, changedSkills, fileAtBase, stampStatus, waiverReason } from "../eval/changed-skills.ts";
 import { parseChecks, scenarioIds } from "../eval/run-checks.ts";
 import { BASELINE_FILE, UPDATE_COMMAND, budgetProblems, measureBudgets, readBaseline } from "./token-budget/budget.ts";
+import { UNINVENTORIED_FILES_ARE_ERRORS, checkRuleInventories } from "./rule-inventory.ts";
 
 const ROOT = process.cwd();
 const PLUGIN = join(ROOT, "plugin");
@@ -605,15 +606,21 @@ for (const file of sourceFiles.filter((name) => SCRIPT_SOURCE_EXTENSIONS.some((e
 }
 
 // --- 18. A skill changed against the base ref carries a matching eval stamp ---
-const STAMP_PROBLEM = { missing: "has no stamp", stale: "has a stamp for different content", "blank-waiver": "has a waiver with no reason" };
+const STAMP_PROBLEM = {
+  missing: "has no stamp",
+  stale: "has a stamp for different content",
+  "blank-waiver": "has a waiver with no reason",
+  "waived-and-static": "has a stamp that is both a waiver and a static stamp",
+  "static-incomplete": "has a static stamp that is empty, holds a check that did not pass, or lacks a registered check",
+};
 const baseRef = process.env[BASE_REF_ENV] || null;
 if (baseRef) {
   for (const skill of changedSkills(ROOT, baseRef)) {
     const status = stampStatus(ROOT, skill);
     if (status === "waived") {
       warnings.push(`skill ${skill} ships on a waiver: ${waiverReason(ROOT, skill)}. Hint: run node scripts/eval/changed-skills.ts and replace evals/results/${skill}.json once credentials exist`);
-    } else if (status !== "ok") {
-      errors.push(`skill ${skill} ${STAMP_PROBLEM[status]}. Hint: skill ${skill} changed since its evals last passed; run node scripts/eval/changed-skills.ts and commit evals/results/${skill}.json`);
+    } else if (status !== "ok" && status !== "static") {
+      errors.push(`skill ${skill} ${STAMP_PROBLEM[status]}. Hint: skill ${skill} changed since its evals last passed; run node scripts/eval/changed-skills.ts --static ${skill} (no model run) or the live run, and commit evals/results/${skill}.json`);
     }
   }
 }
@@ -734,18 +741,22 @@ if (!existsSync(licensePath) || read(licensePath).trim() === "") {
   errors.push(`${README_FILE} does not link ${LICENSE_FILE}. Hint: add a License section that links it.`);
 }
 
-// --- 25. The README states how many skill stamps are waivers, and the number is true ---
+// --- 25. The README states how many skill stamps are live, static and waived, and the numbers are true ---
 const STAMPS_DIRECTORY = "evals/results";
-const WAIVER_STATEMENT = /\*\*(\d+) of (\d+)\*\* skill stamps are waivers/;
+const STAMP_STATEMENT = /\*\*(\d+) live, (\d+) static, (\d+) waived\*\* of (\d+) skill stamps/;
+const STAMP_STATEMENT_FORM = "**L live, S static, W waived** of N skill stamps";
 const stampsDirectoryPath = join(ROOT, STAMPS_DIRECTORY);
 if (existsSync(stampsDirectoryPath) && existsSync(readmeFilePath)) {
   const stamps = readdirSync(stampsDirectoryPath).filter((name) => name.endsWith(".json")).map((name) => JSON.parse(read(join(stampsDirectoryPath, name))));
   const waivedCount = stamps.filter((stamp) => Object.hasOwn(stamp, "waived")).length;
-  const stated = read(readmeFilePath).match(WAIVER_STATEMENT);
+  const staticCount = stamps.filter((stamp) => Object.hasOwn(stamp, "static")).length;
+  const liveCount = stamps.length - waivedCount - staticCount;
+  const actual = `${liveCount} live, ${staticCount} static, ${waivedCount} waived of ${stamps.length}`;
+  const stated = read(readmeFilePath).match(STAMP_STATEMENT);
   if (!stated) {
-    errors.push(`${README_FILE} has no "**N of M** skill stamps are waivers" line, and ${waivedCount} of ${stamps.length} stamps in ${STAMPS_DIRECTORY} are waivers. Hint: state the number so a reader sees the eval status.`);
-  } else if (Number(stated[1]) !== waivedCount || Number(stated[2]) !== stamps.length) {
-    errors.push(`${README_FILE} says ${stated[1]} of ${stated[2]} skill stamps are waivers, but ${waivedCount} of ${stamps.length} in ${STAMPS_DIRECTORY} are. Hint: update the README line when a stamp changes.`);
+    errors.push(`${README_FILE} has no "${STAMP_STATEMENT_FORM}" line, and ${STAMPS_DIRECTORY} holds ${actual} skill stamps. Hint: state the numbers so a reader sees the eval status.`);
+  } else if (stated.slice(1).map(Number).join() !== [liveCount, staticCount, waivedCount, stamps.length].join()) {
+    errors.push(`${README_FILE} says ${stated[1]} live, ${stated[2]} static, ${stated[3]} waived of ${stated[4]} skill stamps, but ${STAMPS_DIRECTORY} holds ${actual}. Hint: update the README line when a stamp changes.`);
   }
 }
 
@@ -760,6 +771,11 @@ for (const agent of agents) {
   if (pinned === undefined && expected !== undefined) errors.push(`agent "${agent}" has no model, but must pin "${expected}". Hint: ${MODEL_POLICY_HINT}.`);
   if (pinned !== undefined && pinned !== expected) errors.push(`agent "${agent}" pins model "${pinned}"${expected === undefined ? ", but is not allowed to pin one" : `, but must pin "${expected}"`}. Hint: ${MODEL_POLICY_HINT}.`);
 }
+
+// --- 27. Every rule in an inventoried instruction file is still present, and every marker line is accounted for ---
+const ruleInventories = checkRuleInventories(ROOT);
+errors.push(...ruleInventories.problems);
+(UNINVENTORIED_FILES_ARE_ERRORS ? errors : warnings).push(...ruleInventories.uninventoried);
 
 // --- 28. Instruction files stay within their token budget ---
 const TOKEN_BUDGET_SCRIPT = "scripts/audit/token-budget.ts";

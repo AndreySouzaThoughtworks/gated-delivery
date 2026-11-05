@@ -1,5 +1,16 @@
 {
   "hash": "c02f475e9081667b00f7817dc1cdc71cee79696aa64c8d47a09e00cb190536dd",
-  "waived": "the slice-executor agent no longer pins a model, so it runs on the session model; no prose or script changed; live eval not run",
-  "ranAt": "2026-11-05T14:36:26.601Z"
+  "static": {
+    "checks": [
+      {
+        "name": "lint",
+        "result": "pass"
+      },
+      {
+        "name": "script-tests",
+        "result": "pass"
+      }
+    ],
+    "ranAt": "2026-11-05T16:48:37.732Z"
+  }
 }

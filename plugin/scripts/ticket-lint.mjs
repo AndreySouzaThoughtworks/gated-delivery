@@ -24,6 +24,7 @@ const OPEN_TAG = /\[(QUESTION|DEPENDENCY)\]/g;
 const ANY_OPEN_TAG = /\[(QUESTION|DEPENDENCY)\]/;
 const STATUS_FIELD = /^\s*(?:[-*]\s*)?\*{0,2}status\*{0,2}:\*{0,2}\s*(.+?)\s*\*{0,2}$/i;
 const PRIORITY_FIELD = /^\s*(?:[-*]\s*)?\*{0,2}priority\*{0,2}:\*{0,2}\s*(.+?)\s*\*{0,2}$/i;
+/** @type {[name: string, pattern: RegExp][]} */
 const FIELD_PATTERNS = [
   ["status", STATUS_FIELD],
   ["priority", PRIORITY_FIELD],
@@ -49,7 +50,7 @@ const USAGE = "usage: ticket-lint.mjs <draft.md> --kind story|task|bug|spike [--
 
 /** @type {Record<string, string[]>} */
 export const REQUIRED_HEADINGS = {
-  story: ["User Story", "Background", "Scope", "Acceptance Criteria", "Definition of Ready", "Definition of Done"],
+  story: ["User Story", "Background", "Scope", "Acceptance Criteria"],
   task: ["Description", "Completion Criteria"],
   bug: ["Impact summary", "Expected Result", "Actual Result", "Steps to Reproduce", "Environment"],
   spike: ["Question", "Why it matters", "Timebox", "Deliverables"],

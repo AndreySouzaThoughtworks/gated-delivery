@@ -29,9 +29,7 @@ Execute one functional batch mechanically from the supplied spec. Stop with evid
 - **One commit per AC.** Test + production code for single AC may combine into one commit; no bundling multiple ACs. Commit only complete ACs: when you stop with an AC unfinished, leave its changes uncommitted and return `PARTIAL` — `/slice` sets them aside before dispatching you again.
 - **Red mandatory.** Every AC starts with failing test. New test passes immediately — tighten until it fails for intended behavior.
 - **Behavior-level naming.** Test names, code, comments describe behaviour — never reference AC numbers, spec slugs, or ticket IDs there. Commit subjects exception: use `feat({ticket-id}): ...` (ticket ID stable link to the tracker ticket). Keep AC numbers and spec slugs out of commit text in any case.
-- **Two refactor moments per AC, both bounded.**
-  - **Scout pass before red.** Before writing AC failing test, re-read files you about to touch. Apply Scout Rule: leave surface better than found (rename, dead code, layer smell on file you touch anyway, missing coverage on behaviour you about to extend). Small/medium fixes → execute inline. Large opportunities → `## REFACTOR-NOTE`, defer. See step 4.1 below.
-  - **Refactor pass after green (TDD third step).** Once AC Green, refactor surfaces you just changed. Same scope rules. See step 4.6 below.
+- **Two refactor moments per AC, both bounded.** A scout pass before red (step 4.1) and a refactor pass after green (step 4.6).
   - **Verify every refactor.** Before refactoring any surface, check whether tests cover the behaviour you are about to change. If they do, the refactor itself runs red/green/refactor — rely on those tests to stay green, and add a covering test first where there is a gap. If the change is type-system-catchable (pure rename, dead-code removal), no new test is needed; confirm `verify-cmd` stays green. **Never refactor blind.**
   - **A comment that says why is not refactor fodder.** Deleting one is a claim about the code that no test catches, and the comment is usually there because the code reads as wrong and the last reader nearly "fixed" it. Remove a comment that paraphrases the code beside it; keep one that gives a reason or links a source. A comment rule in `repo-conventions` governs here.
   - NOT licence to add features, rewrite working unrelated code, or "tidy" files outside touched surfaces.
@@ -59,7 +57,7 @@ Execute one functional batch mechanically from the supplied spec. Stop with evid
       - **Large** opportunities → write a `## REFACTOR-NOTE`: what you saw, why it matters, and rough scope. Defer it.
       - **No candidates** → continue; do not write a vacuous note merely to prove the pass occurred.
       - Scout refactors bundle into this AC commit. If that would bury the AC behavior, the refactor is too large and must be deferred.
-   2. Write failing test asserting AC input → output, in the layer the spec's AC tag names. Take that layer's directory and file suffix from the test-layer document in `repo-conventions`, the document the spec's tags were built from; without one, use the repo's test location (e.g. `test/`). Test must use behavior-level naming — do **not** reference AC number, spec slug, or ticket ID in test names or comments.
+   2. Write failing test asserting AC input → output, in the layer the spec's AC tag names. Take that layer's directory and file suffix from the test-layer document in `repo-conventions`, the document the spec's tags were built from; without one, use the repo's test location (e.g. `test/`). Test must use behavior-level naming.
    3. Run the test with that layer's command — through `verify-lock` when the slice's `Verify needs` is `exclusive`, since such a test binds a port, a container or the application another run may hold — as the test-layer document names it, or the repo's test runner without one (e.g. `pnpm test <path-to-test>`). Verify it **fails** with meaningful error. A layer with its own runner config can leave the default command matching no test and exiting non-zero on "no tests found", which is not RED. If it passes immediately, test wrong — tighten until it fails for intended behavior.
    4. Write minimal production code in the repo's source location (e.g. `src/`) to make test pass. Respect the layer boundaries from the `## Stack recipes` architecture recipe, when one is named, and the repository's own layer rules where it states them.
    5. Run test. Verify passes (Green).
@@ -70,7 +68,7 @@ Execute one functional batch mechanically from the supplied spec. Stop with evid
         - **Large** (cross-cutting rewrite, change touching files outside this AC surfaces, schema migration) → write `## REFACTOR-NOTE` scratch entry: what you saw, why matters, rough scope. **Do not execute here** — orchestrator decides whether to address as follow-up slice or queue as tech debt.
       - No candidates → continue without a note.
    7. Run `verify-cmd`, always through `verify-lock`. If anything else broke, fix it before committing. Per-AC verification stays mandatory even when slicing: it keeps every commit on the branch green.
-   8. Commit with a conventional message describing behavior: `feat({ticket-id}): <behavior summary>` or the appropriate type. Keep AC numbers and spec slugs out of the subject and body. Small refactors belong in this commit; larger work was deferred.
+   8. Commit with a conventional message describing behavior: `feat({ticket-id}): <behavior summary>` or the appropriate type.
 
 5. **After the last AC:** append a short batch summary to `notes-path`: completed ACs, files touched, commit count, repository deviations relied on, and any blockers, assumptions, or deferred refactors. Do not walk or mutate Done-when; `/slice` owns the slice-level gate.
 
@@ -81,7 +79,7 @@ Writer-side rules: append-only at `notes-path`, creating it on first substantive
 Two structural headings, used **only** for intended signal — orchestrator greps both:
 
 - `## BLOCKED` — you genuinely cannot proceed (unresolved ambiguity, missing dependency, contradictory spec). Orchestrator stops on this.
-- `## REFACTOR-NOTE` — refactor opportunity you identified at either refactor moment (Scout pass step 4.1, or after-green pass step 4.6) but did not execute (large scope, or code outside AC touched surfaces). Describe what you saw, why matters, rough scope. Orchestrator surfaces these to user at slice-review checkpoint.
+- `## REFACTOR-NOTE` — refactor opportunity you identified at either refactor moment (Scout pass step 4.1, or after-green pass step 4.6) but did not execute (large scope, or code outside AC touched surfaces). Orchestrator surfaces these to user at slice-review checkpoint.
 
 No writing either heading for any other reason.
 

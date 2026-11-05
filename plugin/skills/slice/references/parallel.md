@@ -24,7 +24,7 @@ Route W runs every claimed slice through steps 5–7 at once. A slice of a wave 
    - **5:** one checkpoint shows every claimed slice with its batch plan.
    - **6.1:** each slice's next dispatch — its next batch, or every batch of its next round — goes out together in one message, each executor with its slice tree (or batch tree) as `worktree`. A slice with nothing left to dispatch sits out. When the writers would pass the parallel cap, dispatch fewer: slices earlier in Rollout order go first, and a slice's round shrinks before another slice waits.
    - **6.2–6.6:** per slice, in its tree. A `## BLOCKED` stops that slice only; the others continue, and the next checkpoint surfaces it.
-   - **7:** one review tree per slice, created by running `review-tree.sh` from that slice's tree. 7.1 validators for all slices go in one message. 7.2 and 7.3 run per slice. 7.5 dispatches every slice's `code-reviewer` in one message, each bound to its own review tree; every reviewer gets `memory: read-only`, because sessions writing one memory index at once lose entries. Their lessons go into the handoff's Carry forward, and Route F writes them once. 7.6 is one checkpoint covering every slice. 7.7 runs per slice.
+   - **7:** one review tree per slice, created by running `review-tree.sh` from that slice's tree. 7.1 validators for all slices go in one message. 7.2 and 7.3 run per slice. 7.5 dispatches every slice's `code-reviewer` in one message, each bound to its own review tree; with `memory: read-only` as 7.5 says. 7.6 is one checkpoint covering every slice. 7.7 runs per slice.
 6. **Merge in any order.** Whichever slice is approved first merges first. After a merge, every other slice of the wave merges `main` into its branch — never a rebase — re-records its `<slice-base-sha>` as the `origin/main` commit it just merged, and reruns 7.1–7.5 before it is marked ready. A merge conflict means the wave check missed an overlap: resolve it in that slice's tree and record it in `## Carry forward` as a dead end.
 7. **Remove each slice tree after its PR merges.** The next `/slice` does it in step 2, before routing.
 
@@ -60,4 +60,3 @@ Route D resumes every slice this actor holds:
 ## Failure modes
 
 - **Two actors claim one slice:** each claims in its own `-{actor}` tree; only the first create-only push lands. The second's `slice-claim.mjs` exits 4, having removed only its own tree and branch, and routes again. A plain push is no claim: the second actor's push can fast-forward onto the first's claim commit, or carry the same SHA and exit 0 with "Everything up-to-date".
-- **A wave slice conflicts with a merged sibling:** resolve it in the slice tree and record the dead end.

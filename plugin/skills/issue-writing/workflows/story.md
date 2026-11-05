@@ -37,16 +37,16 @@ Dependency on another team's interface = one finding legitimately in more than o
 
 **5. Write the ACs.** Grouped, generic Givens for shared behaviour, no undecided rules. Then merge pass: every pair of ACs asserting same rule on different inputs becomes one, per template's tie-breaker. Then Technical Notes, then References.
 
-**6. Review it cold, hostile.** Separate pass, after it already looks finished — run the best-practice rules below, the template's own rules, and the shared policy in `../SKILL.md` against it as if someone else wrote it. Trim as one of lenses: stories die carrying info that distracts from core, so cut changelog detail and negative space. Count ACs as another: past roughly fifteen, name the merges, then the split. Read each Technical Note against specific, necessary, decided — build steps, rollout order and reasoning go to spec. Return proposals, not edits.
+**6. Review it cold, hostile.** Separate pass, after it already looks finished — run the best-practice rules below, the template's own rules, and the shared policy in `../SKILL.md` against it as if someone else wrote it. Trim as one of lenses: stories die carrying info that distracts from core, so cut changelog detail and negative space. Count ACs as another: when the lint warns on the count, name the merges, then the split. Read each Technical Note against specific, necessary, decided — build steps, rollout order and reasoning go to spec. Return proposals, not edits.
 
 **7. Deliver.** Ticket keeps only what someone needs to build it. Where it goes to the tracker, that is *Publishing to the tracker* in `../SKILL.md` — never a write before user signed off on text.
 
-Leave Definition of Ready boxes unticked — ticking them = team's act.
+Lint the draft per *Lint the draft before showing it* in `../SKILL.md`: it rejects a ticked Definition of Ready box.
 
 ## Story writing best practice
 Most best practice codified in template, here covers few extra rules.
 
-**One claim per bullet.** ACs are one claim per row and they read best; every other bullet holds to the same bar. A second sentence is fine when it is the same claim — a thing named, then its consequence. Two facts is two bullets. A claim plus the evidence for it is the claim alone; the evidence goes to the ticket's working notes — this flow keeps them in `{ticket-id}/findings.md` under the **Shared notes home** of `## Delivery notes` (default `docs/gated-delivery/{ticket-id}/`) — or the repo's spec. Past roughly thirty words, look for the second claim; a `[QUESTION]` or `[DEPENDENCY]` stating its resolution is one claim and exempt, as are the Definition of Ready and Done checkbox rows.
+**One claim per bullet.** ACs are one claim per row and they read best; every other bullet holds to the same bar. A second sentence is fine when it is the same claim — a thing named, then its consequence. Two facts is two bullets. A claim plus the evidence for it is the claim alone; the evidence goes to the ticket's working notes — this flow keeps them in `{ticket-id}/findings.md` under the **Shared notes home** of `## Delivery notes` (default `docs/gated-delivery/{ticket-id}/`) — or the repo's spec. The lint flags a bullet past its word limit; look for the second claim.
 
 **Every section answers in one line where it can.** The user story is one sentence, Background opens with one, a scope bullet is one line, a technical note is one line. A reader should be able to skim the whole ticket and know what is being built.
 

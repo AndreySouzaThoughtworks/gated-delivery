@@ -283,7 +283,7 @@
     },
     {
       "id": "issue-writing.story-dor-unticked",
-      "anchor": "Leave Definition of Ready boxes unticked",
+      "anchor": "it rejects a ticked Definition of Ready box",
       "kind": "never",
       "why": "ticking the boxes is the team's act"
     },

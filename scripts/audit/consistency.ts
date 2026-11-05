@@ -9,6 +9,7 @@ import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
 import { BASE_REF_ENV, changedPaths, changedSkills, fileAtBase, stampStatus, waiverReason } from "../eval/changed-skills.ts";
 import { parseChecks, scenarioIds } from "../eval/run-checks.ts";
+import { UNINVENTORIED_FILES_ARE_ERRORS, checkRuleInventories } from "./rule-inventory.ts";
 
 const ROOT = process.cwd();
 const PLUGIN = join(ROOT, "plugin");
@@ -770,6 +771,11 @@ for (const agent of agents) {
   if (pinned === undefined && expected !== undefined) errors.push(`agent "${agent}" has no model, but must pin "${expected}". Hint: ${MODEL_POLICY_HINT}.`);
   if (pinned !== undefined && pinned !== expected) errors.push(`agent "${agent}" pins model "${pinned}"${expected === undefined ? ", but is not allowed to pin one" : `, but must pin "${expected}"`}. Hint: ${MODEL_POLICY_HINT}.`);
 }
+
+// --- 27. Every rule in an inventoried instruction file is still present, and every marker line is accounted for ---
+const ruleInventories = checkRuleInventories(ROOT);
+errors.push(...ruleInventories.problems);
+(UNINVENTORIED_FILES_ARE_ERRORS ? errors : warnings).push(...ruleInventories.uninventoried);
 
 // --- report ---
 console.log(

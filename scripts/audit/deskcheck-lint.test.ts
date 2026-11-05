@@ -37,6 +37,12 @@ const REJECTED: [string, (text: string) => string, string][] = [
   ["a remote image", swap("data:image/png;base64,iVBORw0KGgo=", "https://cdn.example.com/a.png"), "src"],
   ["a protocol-relative image", swap("data:image/png;base64,iVBORw0KGgo=", "//cdn.example.com/a.png"), "src"],
   ["a data src that is not an image", swap("data:image/png;base64,iVBORw0KGgo=", "data:text/html,hi"), "src"],
+  ["a relative image that exists beside the page", swap("data:image/png;base64,iVBORw0KGgo=", "evidence.txt"), "must embed its source as a data:image URI"],
+  ["a remote http image", swap("data:image/png;base64,iVBORw0KGgo=", "http://cdn.example.com/a.png"), "must embed its source as a data:image URI"],
+  ["an image with no src", swap(' src="data:image/png;base64,iVBORw0KGgo="', ""), "must embed its source as a data:image URI"],
+  ["an image with no alt", swap('<img alt="one pixel"', "<img"), "has no alt attribute"],
+  ["a criteria heading with a suffix", swap("<h2>Evidence</h2>", "<h2>How each criterion is met (preview)</h2>"), 'must read exactly "How each criterion is met"'],
+  ["a criteria heading with a verdict", swap("<h2>Evidence</h2>", "<h2>How each criterion is met: 5 of 7</h2>"), 'must read exactly "How each criterion is met"'],
   ["a remote stylesheet", swap("<style>", '<link rel="stylesheet" href="https://cdn.example.com/a.css"><style>'), "remote stylesheet"],
   ["a CSS import", swap("body { font-family", "@import 'a.css'; body { font-family"), "remote stylesheet"],
   ["a remote font", swap("body { font-family: sans-serif; }", "@font-face { src: url(https://cdn.example.com/f.woff) }"), "remote stylesheet"],
@@ -93,4 +99,10 @@ test("the command line exits 1 on a bad page and 0 on a good one", () => {
   assert(failed.status === 1 && failed.stdout.includes(`${bad}: the page must hold exactly one h1`), `a bad page must exit 1 naming the file, got ${failed.status} ${failed.stdout}`);
   const passed = spawnSync("node", [LINT, join(FIXTURE_DIR, "valid.html")], { encoding: "utf8" });
   assert(passed.status === 0 && passed.stdout === "", `a good page must exit 0 silently, got ${passed.status} ${passed.stdout}`);
+});
+
+test("an embedded image with alt and the exact criteria heading pass", () => {
+  const page = VALID.replace("<h2>Evidence</h2>", "<h2>How each criterion is met</h2>");
+  assert(page !== VALID, `the mutation must change the fixture, got ${page.length} characters both before and after`);
+  assert.deepEqual(lintPage(page, { dir: FIXTURE_DIR }), [], "an exact heading and a data:image with alt must report nothing");
 });

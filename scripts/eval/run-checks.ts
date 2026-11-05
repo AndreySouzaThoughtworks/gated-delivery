@@ -6,6 +6,7 @@
 // precisely because no command was ever executed.
 //
 //   node scripts/eval/run-checks.ts --lint                           every skill: prove each command RUNS
+//   node scripts/eval/run-checks.ts --lint <skill>                   the same for one skill
 //   node scripts/eval/run-checks.ts <skill> <file>                   one skill: report each command's result
 //   node scripts/eval/run-checks.ts <skill> <file> --scenario <id>   grade the checks whose `# expect:` names <id>
 
@@ -362,7 +363,7 @@ const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g;
 const LINE_BREAK = /\r?\n|\r/g;
 const USAGE = [
   "usage:",
-  "  run-checks.ts --lint",
+  "  run-checks.ts --lint [skill]",
   "  run-checks.ts <skill> <output-file>",
   "  run-checks.ts <skill> <output-file> --scenario <id>",
   "exit codes: 0 every check held, 1 a check failed or the skill is unknown, 2 usage error, 3 harness error (an internal check or file read failed)",
@@ -375,12 +376,16 @@ function usage(message: string) { // zanity: ignore[assertion-density] -- no-inv
 }
 
 /** Every command in every skill must at least RUN. No fixtures, no expectations — just executable. */
-function lint() { // zanity: ignore[assertion-density] -- single-invariant: the skills directory check is the only outside data risk and a second assertion would restate it
+function lint(only?: string) { // zanity: ignore[assertion-density] -- single-invariant: the skills directory check is the only outside data risk and a second assertion would restate it
   const scratch = join(mkdtempSync(join(tmpdir(), "gated-delivery-evalcheck-")), "output.md");
   writeFileSync(scratch, "placeholder\n");
   writeFileSync(join(dirname(scratch), TRANSCRIPT_FILE), "");
   assert(existsSync(SKILLS_DIR), `skills are read from ${SKILLS_DIR}; run from the repository root`);
-  const skills = readdirSync(SKILLS_DIR).filter((s) => existsSync(join(SKILLS_DIR, s, "evals.md")));
+  const skills = readdirSync(SKILLS_DIR).filter((s) => existsSync(join(SKILLS_DIR, s, "evals.md")) && (only === undefined || s === only));
+  if (only !== undefined && !skills.length) {
+    console.log(`  BROKEN ${only}: no evals.md to lint`);
+    return 1;
+  }
   let broken = 0;
   let measured = 0;
   let total = 0;
@@ -429,7 +434,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const id = args[scenarioAt + 1];
     const wellFormed = scenarioMode ? Boolean(id) && positional.length === 2 : Boolean(arg && outputFile);
     const lintMode = !scenarioMode && arg === "--lint";
-    if (lintMode) exitCode = lint() ? EXIT_FAIL : EXIT_PASS;
+    if (lintMode) exitCode = lint(outputFile) ? EXIT_FAIL : EXIT_PASS;
     else if (!wellFormed) exitCode = usage(USAGE);
     else if (!SKILL_NAME.test(skill)) exitCode = usage(`Not a skill name: ${skill}; pass the folder name under plugin/skills, not a path`);
     else if (scenarioMode) exitCode = gradeScenario(skill, file, id);

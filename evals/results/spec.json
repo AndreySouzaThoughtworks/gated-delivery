@@ -1,5 +1,16 @@
 {
   "hash": "7196d9ac15f0ad9c8e6a614a2535aadc6e8c6c07b4758dae34b6b7dea4a885fa",
-  "waived": "assertions that could not fail removed or proven by tests; behaviour for valid input unchanged; no prose changed; live eval not run",
-  "ranAt": "2026-11-04T12:07:25.476Z"
+  "static": {
+    "checks": [
+      {
+        "name": "lint",
+        "result": "pass"
+      },
+      {
+        "name": "script-tests",
+        "result": "pass"
+      }
+    ],
+    "ranAt": "2026-11-05T16:48:08.783Z"
+  }
 }

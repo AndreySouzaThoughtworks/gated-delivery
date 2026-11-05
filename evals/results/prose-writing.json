@@ -1,5 +1,16 @@
 {
   "hash": "c8c25947dc02ec7372ae230fad31ce1a95d78d07120c7facaf22fa7882d2e98e",
-  "waived": "Removed worked example and living-docs table duplicating Lens 1 and prose-writing/writing.md:29, and a scope section duplicating the When this runs section; scenarios 1 and 7 still pinned by kept text; no behavior change; live eval not run.",
-  "ranAt": "2026-11-02T14:05:40.445Z"
+  "static": {
+    "checks": [
+      {
+        "name": "lint",
+        "result": "pass"
+      },
+      {
+        "name": "script-tests",
+        "result": "none"
+      }
+    ],
+    "ranAt": "2026-11-05T16:48:16.169Z"
+  }
 }

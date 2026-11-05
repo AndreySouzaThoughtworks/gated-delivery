@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { changedPaths, changedSkills, fileAtBase, skillHash, stampStatus, waiverReason } from "./changed-skills.ts";
+import { SKILL_SCRIPT_TESTS, STATIC_CHECKS, changedPaths, changedSkills, fileAtBase, skillHash, stampStatically, stampStatus, waiverReason } from "./changed-skills.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SCRIPT_NAMES = ["changed-skills.ts", "run-scenarios.ts", "run-checks.ts"];
@@ -439,4 +439,111 @@ test("a runner that writes verdicts which are not an object is a harness error, 
   assert.equal(result.status, 4, result.stdout + result.stderr);
   assert.match(result.stderr, /expected an object of scenario verdicts/);
   assert.equal(existsSync(join(root, "evals", "results")), false);
+});
+
+const REPO = join(HERE, "..", "..");
+const STATIC_STAMP_FILE = join("evals", "results", "demo.json");
+const BROKEN_CHECK_EVALS = EVALS.replace("grep -c thing output.md", "grep --nonsense-flag thing output.md");
+const staticRecord = (checks: { name: string; result: string }[]) => {
+  assert(Array.isArray(checks), `staticRecord got ${JSON.stringify(checks)}; expected a list of checks`);
+  const record = { checks, ranAt: new Date().toISOString() };
+  assert(record.checks === checks, "staticRecord must keep the checks it was given");
+  return record;
+};
+const REGISTERED_PASSING = STATIC_CHECKS.map(({ name }) => ({ name, result: "pass" }));
+
+const scriptlessRepo = () => {
+  const root = fakeRepo();
+  rmSync(join(root, "plugin", "skills", "demo", "scripts", "tool.sh"));
+  rmSync(join(root, "plugin", "skills", "demo", "scripts", "tool.test.sh"));
+  rmSync(join(root, "plugin", "skills", "demo", "scripts"), { recursive: true });
+  assert(!existsSync(join(root, "plugin", "skills", "demo", "scripts")), `scriptlessRepo left the scripts folder behind in ${root}`);
+  assert(existsSync(join(root, "plugin", "skills", "demo", "SKILL.md")), `scriptlessRepo lost the demo skill in ${root}`);
+  return root;
+};
+
+test("--static records lint pass and script-tests none for a skill without scripts, with no claude call", () => {
+  const root = scriptlessRepo();
+  const result = runChangedSkills(root, ["--static", "demo"]);
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  const stamp = stampOf(root);
+  assert.equal(stamp.hash, skillHash(root, "demo"));
+  assert.deepEqual(stamp.static.checks, [{ name: "lint", result: "pass" }, { name: "script-tests", result: "none" }]);
+  assert.ok(!Number.isNaN(Date.parse(stamp.static.ranAt)));
+  assert.deepEqual(Object.keys(stamp).sort(), ["hash", "static"]);
+  assert.equal(stampStatus(root, "demo"), "static");
+  assert.deepEqual(claudeCalls(root), []);
+  assert.deepEqual(probeCalls(root), []);
+});
+
+test("--static on a skill whose scripts have no mapped tests fails loudly and writes no stamp", () => {
+  const root = fakeRepo();
+  const result = runChangedSkills(root, ["--static", "demo"]);
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  assert.match(result.stdout, /FAIL demo script-tests: demo has scripts but no entry in SKILL_SCRIPT_TESTS/);
+  assert.equal(existsSync(join(root, "evals", "results")), false);
+});
+
+test("--static with a failing check exits 1 and leaves an existing stamp byte-identical", () => {
+  const root = scriptlessRepo();
+  const waiver = { hash: "old", waived: "kept as it was" };
+  writeStamp(root, waiver);
+  const before = readFileSync(join(root, STATIC_STAMP_FILE));
+  write(root, "plugin/skills/demo/evals.md", BROKEN_CHECK_EVALS);
+  const result = runChangedSkills(root, ["--static", "demo"]);
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  assert.match(result.stdout, /FAIL demo lint: .*BROKEN demo/s);
+  assert.deepEqual(readFileSync(join(root, STATIC_STAMP_FILE)), before);
+});
+
+test("--static of an unknown skill, a path, or combined with other arguments is a usage error and writes nothing", () => {
+  const root = scriptlessRepo();
+  const bad = [["--static", "ghost"], ["--static", "demo/../demo"], ["--static"], ["--static", "demo", "other"], ["--static", "demo", "--full"], ["--static", "demo", "--waive", "demo", "--reason", "x"]];
+  for (const args of bad) assert.equal(runChangedSkills(root, args).status, 2, args.join(" "));
+  assert.equal(existsSync(join(root, "evals", "results")), false);
+});
+
+test("stampStatus accepts a valid static stamp and rejects stale, failing, incomplete, empty and doubled ones", () => {
+  const root = scriptlessRepo();
+  const hash = skillHash(root, "demo");
+  const cases: [Record<string, unknown>, string][] = [
+    [{ hash, static: staticRecord(REGISTERED_PASSING) }, "static"],
+    [{ hash, static: staticRecord(STATIC_CHECKS.map(({ name }) => ({ name, result: "none" }))) }, "static"],
+    [{ hash: "old", static: staticRecord(REGISTERED_PASSING) }, "stale"],
+    [{ hash, static: staticRecord(REGISTERED_PASSING.map((check, index) => (index === 0 ? { ...check, result: "fail" } : check))) }, "static-incomplete"],
+    [{ hash, static: staticRecord(REGISTERED_PASSING.map((check, index) => (index === 0 ? { ...check, result: "waived" } : check))) }, "static-incomplete"],
+    [{ hash, static: staticRecord(REGISTERED_PASSING.slice(1)) }, "static-incomplete"],
+    [{ hash, static: staticRecord([]) }, "static-incomplete"],
+    [{ hash, static: {} }, "static-incomplete"],
+    [{ hash, static: null }, "static-incomplete"],
+    [{ hash, waived: "no credentials", static: staticRecord(REGISTERED_PASSING) }, "waived-and-static"],
+  ];
+  for (const [stamp, expected] of cases) {
+    writeStamp(root, stamp);
+    assert.equal(stampStatus(root, "demo"), expected, JSON.stringify(stamp));
+  }
+});
+
+test("every skill that ships scripts has mapped script tests, and each mapped test file exists", () => {
+  const skillsRoot = join(REPO, "plugin", "skills");
+  const withScripts = readdirSync(skillsRoot).filter((skill) => existsSync(join(skillsRoot, skill, "scripts")));
+  assert.ok(withScripts.length > 0);
+  for (const skill of withScripts) assert.ok((SKILL_SCRIPT_TESTS[skill] ?? []).length > 0, `${skill} has scripts and no mapped tests`);
+  for (const commands of Object.values(SKILL_SCRIPT_TESTS)) {
+    for (const command of commands) assert.ok(existsSync(join(REPO, command[command.length - 1])), command.join(" "));
+  }
+});
+
+test("the static checks reject a skill name that is a path and a root they cannot run in", () => {
+  for (const check of STATIC_CHECKS) {
+    assert.throws(() => check.run(REPO, "../demo"), /needs a skill folder name/, check.name);
+  }
+  const missingRoot = join(tmpdir(), "gated-delivery-no-such-root");
+  const [lint, scriptTests] = STATIC_CHECKS;
+  assert.throws(() => lint.run(missingRoot, "demo"), /could not start/);
+  assert.throws(() => scriptTests.run(missingRoot, "demo"), /needs an existing repository directory/);
+  assert.throws(() => stampStatically(missingRoot, "demo"), /needs an existing repository directory/);
+  assert.throws(() => stampStatically(REPO, "../demo"), /needs a skill folder name/);
+  const withScripts = fakeRepo();
+  assert.equal(scriptTests.run(withScripts, "demo").result, "fail");
 });

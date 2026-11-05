@@ -1,0 +1,67 @@
+{
+  "file": "plugin/skills/prod-support/SKILL.md",
+  "rules": [
+    {
+      "id": "prod-support.ask-on-absent-key",
+      "anchor": "where that default is to ask, ask before relying on a guess",
+      "kind": "must",
+      "why": "no guessing a client lever whose default is to ask"
+    },
+    {
+      "id": "prod-support.never-confident-without-attachments",
+      "anchor": "never present confident root cause while reporter's own screenshots unread",
+      "kind": "never",
+      "why": "attachments are primary evidence"
+    },
+    {
+      "id": "prod-support.exact-environment-tag",
+      "anchor": "use the exact `Environment` tag, never a look-alike",
+      "kind": "never",
+      "why": "wrong environment gives wrong evidence"
+    },
+    {
+      "id": "prod-support.read-the-diff",
+      "anchor": "Read actual diff, never trust PR title",
+      "kind": "never",
+      "why": "deploy correlation reads real diffs"
+    },
+    {
+      "id": "prod-support.no-hardcoded-key",
+      "anchor": "Never hardcode real key",
+      "kind": "never",
+      "why": ".http repro stays secret-free"
+    },
+    {
+      "id": "prod-support.fresh-context-review",
+      "anchor": "before opening PR, run fresh-context `gated-delivery:code-reviewer` on diff",
+      "kind": "must",
+      "why": "author-context self-review misses author-blind defects"
+    },
+    {
+      "id": "prod-support.never-post-to-ticket",
+      "anchor": "Never post to the support ticket.",
+      "kind": "never",
+      "why": "tracker comments can be customer-visible"
+    },
+    {
+      "id": "prod-support.never-commit-corpus",
+      "anchor": "Never commit the corpus.",
+      "kind": "never",
+      "why": "corpus holds the highest-PII material"
+    }
+  ],
+  "exempt": [
+    {
+      "anchor": "Client-wide rules (\"never post to ticket / local corpus\"",
+      "reason": "quotes prod-support.never-post-to-ticket and never-commit-corpus"
+    },
+    {
+      "anchor": "(local scratch — never committed)",
+      "reason": "heading restating prod-support.never-commit-corpus"
+    },
+    {
+      "anchor": "transient and never pushed",
+      "reason": "restates prod-support.never-commit-corpus"
+    }
+  ]
+}

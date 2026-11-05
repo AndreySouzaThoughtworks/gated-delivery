@@ -33,6 +33,7 @@
 |-------|---------|--------------|
 | `slice-executor` | Mechanical TDD batch worker — consumes one spec, a batch's ACs, and a machine-local notes path; produces one failing test, minimal implementation, and a commit per AC. | `/slice` step 6.1 only. |
 | `code-reviewer` | Fresh-context adversarial correctness gate using the current slice diff and full AC text. | `/slice` step 7.5 before every slice PR becomes ready. |
+| `scout` | Read-only fact gatherer (Read, Grep, Glob) on `haiku`: locates code and quotes it, returning `- path:line :: verbatim line` findings that the citation verifier in `plugin/scripts` checks against the repository. It never judges or ranks. | No skill calls it yet; wiring it into `/repo-forensics` and `/story-drift` is a later change. |
 
 ## Hooks (`hooks/hooks.json`)
 

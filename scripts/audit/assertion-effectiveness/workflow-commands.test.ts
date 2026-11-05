@@ -18,7 +18,7 @@ const NOT_TEST_COMMANDS = [
   'node plugin/bootstrap/guards/ratchet.mjs --baseline zanity-baseline.json --base-ref "$GATED_DELIVERY_BASE_REF"',
   'node plugin/bootstrap/guards/ratchet.mjs --baseline assertion-effectiveness-baseline.json --base-ref "$GATED_DELIVERY_BASE_REF"',
   "node scripts/audit/assertion-effectiveness.ts",
-  "node --test plugin/hooks/*.test.mjs plugin/bootstrap/*.test.mjs plugin/bootstrap/guards/*.test.mjs",
+  "node --test plugin/hooks/*.test.mjs plugin/bootstrap/*.test.mjs plugin/bootstrap/guards/*.test.mjs plugin/scripts/*.test.mjs",
   "bash tests/leak-guard.test.sh",
   "bash tests/slice-scripts.test.sh",
 ];

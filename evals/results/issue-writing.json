@@ -1,5 +1,16 @@
 {
   "hash": "9bf986ca693f12b345ea0fce52caa5eec6724e542c7d6870234d30770002e33d",
-  "waived": "the script shipped under the skill gained a check on the template or on extra terms: a template that is not text, and an extra term that is not a valid regex or matches every line, are refused; no prose changed; live eval not run",
-  "ranAt": "2026-11-03T14:24:06.042Z"
+  "static": {
+    "checks": [
+      {
+        "name": "lint",
+        "result": "pass"
+      },
+      {
+        "name": "script-tests",
+        "result": "pass"
+      }
+    ],
+    "ranAt": "2026-11-05T16:48:14.909Z"
+  }
 }

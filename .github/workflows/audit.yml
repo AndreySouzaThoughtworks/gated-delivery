@@ -53,6 +53,8 @@ jobs:
         run: node --test scripts/audit/*.test.ts scripts/eval/*.test.ts scripts/cursor/*.test.ts
       - name: Bootstrap and client guard tests
         run: node --test plugin/bootstrap/*.test.mjs plugin/bootstrap/guards/*.test.mjs
+      - name: Plugin script tests (the citation verifier)
+        run: node --test plugin/scripts/*.test.mjs
       - name: Eval checks are runnable
         run: node scripts/eval/run-checks.ts --lint
       - name: Leak guard self-test
@@ -153,7 +155,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
       - name: Plugin tests
-        run: node --test plugin/hooks/*.test.mjs plugin/bootstrap/*.test.mjs plugin/bootstrap/guards/*.test.mjs
+        run: node --test plugin/hooks/*.test.mjs plugin/bootstrap/*.test.mjs plugin/bootstrap/guards/*.test.mjs plugin/scripts/*.test.mjs
 
   assertion-effectiveness:
     name: assertion effectiveness

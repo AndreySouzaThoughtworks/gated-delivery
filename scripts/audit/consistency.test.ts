@@ -13,7 +13,7 @@ import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { skillHash } from "../eval/changed-skills.ts";
+import { STATIC_CHECKS, skillHash } from "../eval/changed-skills.ts";
 
 const GUARD = join(dirname(fileURLToPath(import.meta.url)), "consistency.ts");
 
@@ -762,15 +762,16 @@ const featureBranchEditing = (file: string, body: string) => {
 };
 
 const SKILL_EDIT: [string, string] = ["plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\n\n## Heading One\n\nEdited.\n"];
-const stateWaivers = (dir: string, waived: number, total: number) => {
-  assert(Number.isInteger(total) && total >= 1, `a stamp statement needs at least one stamp, got total ${total}`);
-  assert(Number.isInteger(waived) && waived >= 0 && waived <= total, `waived stamps must be a whole number from 0 to ${total}, got ${waived}`);
-  write(dir, "README.md", `The plugin — 1 skills, 1 agents, 1 hooks.\n\n[MIT](LICENSE)\n\n**${waived} of ${total}** skill stamps are waivers\n`);
+const stateStamps = (dir: string, live: number, staticCount: number, waived: number) => {
+  const total = live + staticCount + waived;
+  assert(total >= 1, `a stamp statement needs at least one stamp, got ${live} live, ${staticCount} static, ${waived} waived`);
+  assert([live, staticCount, waived].every((count) => Number.isInteger(count) && count >= 0), `stamp counts must be whole numbers, got ${live}, ${staticCount}, ${waived}`);
+  write(dir, "README.md", `The plugin — 1 skills, 1 agents, 1 hooks.\n\n[MIT](LICENSE)\n\n**${live} live, ${staticCount} static, ${waived} waived** of ${total} skill stamps\n`);
 };
 const stamp = (dir: string, hash: string) => {
   assert(hash.length > 0, `a stamp hash must not be blank, got ${JSON.stringify(hash)}; a blank one reads as a missing stamp`);
   write(dir, "evals/results/alpha.json", JSON.stringify({ hash }));
-  stateWaivers(dir, 0, 1);
+  stateStamps(dir, 1, 0, 0);
   assert(existsSync(join(dir, "evals/results/alpha.json")), `the stamp must exist after it is written, got none in ${dir}`);
 };
 
@@ -778,7 +779,7 @@ test("a skill changed against the base ref needs an eval stamp with a matching h
   const dir = featureBranchEditing(...SKILL_EDIT);
   const missing = runGuard(dir, { GATED_DELIVERY_BASE_REF: BASE_REF });
   assert.equal(missing.code, 1);
-  assert.match(missing.out, /skill alpha changed since its evals last passed; run node scripts\/eval\/changed-skills\.ts and commit evals\/results\/alpha\.json/);
+  assert.match(missing.out, /skill alpha changed since its evals last passed; run node scripts\/eval\/changed-skills\.ts --static alpha \(no model run\) or the live run, and commit evals\/results\/alpha\.json/);
   stamp(dir, "not-the-hash");
   const stale = runGuard(dir, { GATED_DELIVERY_BASE_REF: BASE_REF });
   assert.equal(stale.code, 1);
@@ -860,7 +861,7 @@ test("the version check is skipped when GATED_DELIVERY_BASE_REF is unset", () =>
 test("a changed skill on a waiver for its current hash passes with a warning; a blank or stale waiver fails", () => {
   const dir = featureBranchEditing(...SKILL_EDIT);
   const env = { GATED_DELIVERY_BASE_REF: BASE_REF };
-  stateWaivers(dir, 1, 1);
+  stateStamps(dir, 0, 0, 1);
   write(dir, "evals/results/alpha.json", JSON.stringify({ hash: skillHash(dir, "alpha"), waived: "no credentials" }));
   const waived = runGuard(dir, env);
   assert.equal(waived.code, 0, waived.out);
@@ -873,6 +874,39 @@ test("a changed skill on a waiver for its current hash passes with a warning; a 
   const stale = runGuard(dir, env);
   assert.equal(stale.code, 1);
   assert.match(stale.out, /skill alpha has a stamp for different content/);
+});
+
+const staticStamp = (hash: string, checks: { name: string; result: string }[], extra: Record<string, unknown> = {}) => {
+  assert(hash.length > 0, `a static stamp hash must not be blank, got ${JSON.stringify(hash)}`);
+  assert(Array.isArray(checks), `static checks must be a list, got ${JSON.stringify(checks)}`);
+  return JSON.stringify({ hash, static: { checks, ranAt: "2026-01-01T00:00:00.000Z" }, ...extra });
+};
+
+test("a static stamp passes only for the current hash with every registered check passing", () => {
+  const dir = featureBranchEditing(...SKILL_EDIT);
+  const env = { GATED_DELIVERY_BASE_REF: BASE_REF };
+  const hash = skillHash(dir, "alpha");
+  const registered = STATIC_CHECKS.map(({ name }) => ({ name, result: "pass" }));
+  stateStamps(dir, 0, 1, 0);
+  write(dir, "evals/results/alpha.json", staticStamp(hash, registered));
+  const valid = runGuard(dir, env);
+  assert.equal(valid.code, 0, valid.out);
+  assert.doesNotMatch(valid.out, /WARN|waiver/);
+  write(dir, "evals/results/alpha.json", staticStamp(hash, registered.map(({ name }) => ({ name, result: "none" }))));
+  assert.equal(runGuard(dir, env).code, 0);
+  const rejected: [string, RegExp][] = [
+    [staticStamp("old", registered), /skill alpha has a stamp for different content/],
+    [staticStamp(hash, registered.map((check, index) => (index === 0 ? { ...check, result: "fail" } : check))), /skill alpha has a static stamp that is empty, holds a check that did not pass/],
+    [staticStamp(hash, registered.slice(1)), /skill alpha has a static stamp that is empty, holds a check that did not pass, or lacks a registered check/],
+    [staticStamp(hash, []), /skill alpha has a static stamp that is empty/],
+    [staticStamp(hash, registered, { waived: "no credentials" }), /skill alpha has a stamp that is both a waiver and a static stamp/],
+  ];
+  for (const [stampText, expected] of rejected) {
+    write(dir, "evals/results/alpha.json", stampText);
+    const result = runGuard(dir, env);
+    assert.equal(result.code, 1, stampText);
+    assert.match(result.out, expected);
+  }
 });
 
 test("a plugin file, tests included, that imports TypeScript is reported", () => {
@@ -988,21 +1022,75 @@ test("the repo must carry a license that the README links", () => {
   assert.match(runGuard(unlinked).out, /README\.md does not link LICENSE/);
 });
 
-test("the README must state the true number of waived skill stamps", () => {
+test("the README must state the true number of live, static and waived skill stamps", () => {
   const cases: [string | null, RegExp | null][] = [
-    ["**1 of 1** skill stamps are waivers", null],
-    ["**0 of 1** skill stamps are waivers", /says 0 of 1 skill stamps are waivers, but 1 of 1/],
-    ["**1 of 2** skill stamps are waivers", /says 1 of 2 skill stamps are waivers, but 1 of 1/],
-    [null, /has no "\*\*N of M\*\* skill stamps are waivers" line, and 1 of 1 stamps/],
+    ["**1 live, 1 static, 1 waived** of 3 skill stamps", null],
+    ["**2 live, 1 static, 1 waived** of 3 skill stamps", /says 2 live, 1 static, 1 waived of 3 skill stamps, but evals\/results holds 1 live, 1 static, 1 waived of 3/],
+    ["**1 live, 2 static, 1 waived** of 3 skill stamps", /says 1 live, 2 static, 1 waived of 3 skill stamps, but evals\/results holds 1 live, 1 static, 1 waived of 3/],
+    ["**1 live, 1 static, 2 waived** of 3 skill stamps", /says 1 live, 1 static, 2 waived of 3 skill stamps, but evals\/results holds 1 live, 1 static, 1 waived of 3/],
+    ["**1 live, 1 static, 1 waived** of 4 skill stamps", /says 1 live, 1 static, 1 waived of 4 skill stamps, but evals\/results holds 1 live, 1 static, 1 waived of 3/],
+    [null, /has no "\*\*L live, S static, W waived\*\* of N skill stamps" line, and evals\/results holds 1 live, 1 static, 1 waived of 3/],
   ];
   for (const [readmeLine, expected] of cases) {
     const dir = validRepo();
-    write(dir, "evals/results/alpha.json", JSON.stringify({ hash: "any", waived: "no credentials" }));
+    write(dir, "evals/results/alpha.json", JSON.stringify({ hash: "any" }));
+    write(dir, "evals/results/beta.json", staticStamp("any", [{ name: "lint", result: "pass" }]));
+    write(dir, "evals/results/gamma.json", JSON.stringify({ hash: "any", waived: "no credentials" }));
     write(dir, "README.md", `The plugin — 1 skills, 1 agents, 1 hooks.\n\n[MIT](LICENSE)\n${readmeLine ?? ""}\n`);
     const { code, out } = runGuard(dir);
     if (expected === null) assert.equal(code, 0, out);
     else assert.match(out, expected);
   }
+});
+
+const MODEL_POLICY_HINT = /only the scout pins a model; every other agent inherits the session model/;
+
+const writeAgent = (dir: string, name: string, modelLine: string) => {
+  assert(modelLine === "" || modelLine.endsWith("\n"), `a model line must end with a newline or be empty, got ${JSON.stringify(modelLine)}`);
+  assert(/^[a-z-]+$/.test(name), `an agent name is lowercase letters and dashes, got ${name}`);
+  write(dir, `plugin/agents/${name}.md`, `---\nname: ${name}\ndescription: x\n${modelLine}---\n`);
+};
+
+const withScout = (modelLine: string) => {
+  assert(typeof modelLine === "string", `the scout model line must be text, got ${typeof modelLine}`);
+  const dir = validRepo();
+  writeAgent(dir, "scout", modelLine);
+  write(dir, "README.md", "The plugin — 1 skills, 2 agents, 1 hooks.\n\n[MIT](LICENSE)\n");
+  write(dir, "plugin/README.md", "| `/alpha` | a skill |\n| `bot` | an agent |\n| `scout` | an agent |\n");
+  write(dir, "docs/skill-graph.md", "| `/alpha` | a skill |\n| `bot` | an agent |\n| `scout` | an agent |\n| `h.mjs` | a hook |\n");
+  assert(existsSync(join(dir, "plugin/agents/scout.md")), `the scout agent must be written under ${dir}`);
+  return dir;
+};
+
+test("check 26 rejects a model on an agent the allow-list does not name", () => {
+  for (const model of ["opus", "haiku"]) {
+    const dir = validRepo();
+    writeAgent(dir, "bot", `model: ${model}\n`);
+    const { code, out } = runGuard(dir);
+    assert.equal(code, 1, out);
+    assert.match(out, new RegExp(`agent "bot" pins model "${model}", but is not allowed to pin one`));
+    assert.match(out, MODEL_POLICY_HINT);
+  }
+});
+
+test("check 26 rejects a scout pinned to a model other than haiku", () => {
+  const { code, out } = runGuard(withScout("model: sonnet\n"));
+  assert.equal(code, 1, out);
+  assert.match(out, /agent "scout" pins model "sonnet", but must pin "haiku"/);
+  assert.match(out, MODEL_POLICY_HINT);
+});
+
+test("check 26 rejects a scout with no model", () => {
+  const { code, out } = runGuard(withScout(""));
+  assert.equal(code, 1, out);
+  assert.match(out, /agent "scout" has no model, but must pin "haiku"/);
+  assert.match(out, MODEL_POLICY_HINT);
+});
+
+test("check 26 accepts a scout pinned to haiku beside a bot with no model", () => {
+  const { code, out } = runGuard(withScout("model: haiku\n"));
+  assert.equal(code, 0, out);
+  assert.doesNotMatch(out, /ERROR/);
 });
 
 const INVENTORIED_SKILL = "plugin/skills/alpha/SKILL.md";

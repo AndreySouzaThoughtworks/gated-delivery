@@ -1,5 +1,16 @@
 {
   "hash": "eb816e0cd931c5b4404f89de68dd8fce1a2c2b416ac3bb110590184d8260c615",
-  "waived": "Renamed the consistency guard path from .mjs to .ts in the command and the grep check; no behaviour change; live eval not run.",
-  "ranAt": "2026-11-03T09:51:08.468Z"
+  "static": {
+    "checks": [
+      {
+        "name": "lint",
+        "result": "pass"
+      },
+      {
+        "name": "script-tests",
+        "result": "none"
+      }
+    ],
+    "ranAt": "2026-11-05T16:48:13.129Z"
+  }
 }

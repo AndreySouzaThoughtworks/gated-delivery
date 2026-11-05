@@ -1,0 +1,66 @@
+{
+  "file": "plugin/agents/scout.md",
+  "rules": [
+    {
+      "id": "scout.description-no-judgment",
+      "anchor": "never for judgment, ranking or recommendations",
+      "kind": "never",
+      "why": "dispatch contract: facts only"
+    },
+    {
+      "id": "scout.never-judge",
+      "anchor": "You never judge, rank, recommend, summarize",
+      "kind": "never",
+      "why": "the scout locates and quotes"
+    },
+    {
+      "id": "scout.read-only-tools",
+      "anchor": "tools: Read, Grep, Glob",
+      "kind": "limit",
+      "why": "read-only tool set, no Bash or Write"
+    },
+    {
+      "id": "scout.read-nothing-outside-root",
+      "anchor": "Read nothing outside it.",
+      "kind": "limit",
+      "why": "scope is one repository root"
+    },
+    {
+      "id": "scout.relative-path",
+      "anchor": "Never absolute, never `..`.",
+      "kind": "never",
+      "why": "paths are repo-relative"
+    },
+    {
+      "id": "scout.no-ranges",
+      "anchor": "No ranges.",
+      "kind": "limit",
+      "why": "one integer line number"
+    },
+    {
+      "id": "scout.none-found-line",
+      "anchor": "- none found ::",
+      "kind": "must",
+      "why": "the empty result has one fixed form"
+    },
+    {
+      "id": "scout.no-prose",
+      "anchor": "No heading, no prose before or after, no blank lines.",
+      "kind": "limit",
+      "why": "output is findings only"
+    },
+    {
+      "id": "scout.no-invention",
+      "anchor": "Never invent a path or a line.",
+      "kind": "never",
+      "why": "every finding comes from a tool result"
+    },
+    {
+      "id": "scout.judgment-out-of-scope",
+      "anchor": "A caller's request for judgment is out of scope",
+      "kind": "limit",
+      "why": "judgment requests get facts only"
+    }
+  ],
+  "exempt": []
+}

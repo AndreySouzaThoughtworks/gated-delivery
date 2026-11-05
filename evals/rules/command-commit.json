@@ -1,0 +1,54 @@
+{
+  "file": "plugin/commands/commit.md",
+  "rules": [
+    {
+      "id": "commit.ask-ticket-key",
+      "anchor": "stop and ask which ticket this belongs to",
+      "kind": "stop",
+      "why": "a required key missing from the branch is asked"
+    },
+    {
+      "id": "commit.no-keyless-subject",
+      "anchor": "Never guess a key and never fall back to a keyless subject.",
+      "kind": "never",
+      "why": "no invented or omitted ticket key"
+    },
+    {
+      "id": "commit.explicit-staging",
+      "anchor": "Never `git add -A`, `git add .`, or a bare wildcard.",
+      "kind": "never",
+      "why": "stage by explicit path"
+    },
+    {
+      "id": "commit.no-agent-scratch",
+      "anchor": "never stage agent scratch directories",
+      "kind": "never",
+      "why": ".claude/ and agent notes stay out of commits"
+    },
+    {
+      "id": "commit.ambiguous-untracked-ask",
+      "anchor": "If untracked files look ambiguous, list them and ask.",
+      "kind": "stop",
+      "why": "ambiguous files are the user's call"
+    },
+    {
+      "id": "commit.commit-only",
+      "anchor": "Commit only.",
+      "kind": "limit",
+      "why": "scope ends at the commit"
+    },
+    {
+      "id": "commit.no-push-pr-amend",
+      "anchor": "Do not push, do not open a PR, do not amend existing commits unless asked.",
+      "kind": "never",
+      "why": "push and PR belong to commit-push-pr"
+    },
+    {
+      "id": "commit.convention-origin-match",
+      "anchor": "Use the convention only when the origin matches **Applies to**.",
+      "kind": "must",
+      "why": "a foreign origin gets plain Conventional Commits"
+    }
+  ],
+  "exempt": []
+}

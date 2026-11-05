@@ -94,18 +94,17 @@ This is gate before *first* render — but scope not set-once. Topic narrows or 
 
 ### 5. Render into the template
 
-Copy the template (`Template` from `## Artifact style`, else `templates/primer.html`) to output path, fill it. Rules baked into template — **do not regress**. The contrast rules, the spacing scale, the single Highlight, and the banner and footer are grep-checked in `evals.md` (step 6). The radii, the SVG palette and the `<style>` block itself are checked by nothing, and hold only for as long as you keep `<style>` verbatim:
-
-- Keep `<style>` block **verbatim**. Encodes the house style at WCAG-AA.
-- **Text** is Ink `#1C1E21` or Ink 2 `#5A6270`.
-- Card/container radius 8px; chips 4px (no full pills).
-- SVG diagrams: box titles `#1C1E21`, secondary text `#5A6270`, fills white / Subtle / Accent soft, strokes Accent.
+Copy the template (`Template` from `## Artifact style`, else `templates/primer.html`) to output path, fill it. Rules baked into template — **do not regress**: keep `<style>` block **verbatim**, it encodes the house style at WCAG-AA. Step 6's lint enforces the verbatim block, text colours, radii, banner, footer and the single Highlight. Nothing checks the SVG palette: box titles `#1C1E21`, secondary text `#5A6270`, fills white / Subtle / Accent soft, strokes Accent.
 
 Brand questions beyond what template covers (surface template doesn't have)? Consult the `Brand skill` from `## Artifact style` when one is named — it owns tokens; template is its applied form. None named → stay inside the template's tokens.
 
 ### 6. Verify
 
-Run the `## Deterministic Checks` in `evals.md` against the output file, then compare each result with the expectation stated beside it: the contrast group must print nothing at all, the presence group must match its stated count. The runner reports counts, not verdicts — a forbidden match still exits `0`, so nothing fails on your behalf and reading the output is the check. Fix any mismatch before reporting done; the single Highlight moment is advisory. With a client template, check against its token rules instead of the hex values in `evals.md`.
+```bash
+node "<skill base directory>/../../scripts/primer-lint.mjs" <primer.html> [--template <client template>]
+```
+
+The model supplies the output file and, for a client template, `--template` with its path: the client's own token rules replace the neutral colour, radius, banner and footer rules. One line per problem on stdout. Exit 0 clean, a `warning:` line (a second Highlight) is advisory; 1 problems, fix each; 2 usage. The lint does not check spacing: run the spacing group of `## Deterministic Checks` in `evals.md` against the output file; it must print nothing. Fix any mismatch before reporting done.
 
 ### 7. Report
 

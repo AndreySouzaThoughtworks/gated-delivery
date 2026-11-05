@@ -209,7 +209,7 @@ the tracker keeps its current priority as the baseline; recommend a change only 
 one.
 
 **No Story furniture.** No acceptance-criteria table, no Scope section, no Definition of Ready or
-Done. Publishing has its own field mapping — see *Publishing to the tracker*.
+Done.
 
 ## Spike
 
@@ -230,8 +230,8 @@ sure the author is. A brief carried over from earlier work arrives full of concl
 claims are assumptions until checked, as a fetched ticket's are in Refine. A Spike whose draft
 already ranks its options fails its kind's bar with every section filled.
 
-**The timebox carries a duration or an end date.** "Timeboxed" with no value is incomplete — reject
-it and ask. Reaching the timebox is a valid exit, an inconclusive result included, and the closeout
+**The timebox carries a duration or an end date.** The lint rejects one without.
+Reaching the timebox is a valid exit, an inconclusive result included, and the closeout
 says so honestly rather than stretching the evidence to a verdict.
 
 **Deliverables are concrete evidence**: measurements with the conditions they were taken under,
@@ -258,7 +258,7 @@ NEVER create or edit a tracker issue unless asked, and show description for appr
 
 **Read before writing.** Read every populated field per the tracker adapter `trackers/<tracker>.md`.
 
-**Read the status against the open questions.** A ticket in a Ready status tells the next person it can be picked up, and an open `[QUESTION]` or `[DEPENDENCY]` says it cannot. Before a write that leaves one on a Ready ticket, including one the write itself adds, resolve it with the user, or agree with them that the ticket moves back out of Ready.
+**Read the status against the open questions.** The lint finds an open `[QUESTION]` or `[DEPENDENCY]` under a Ready `Status:` line; with none, read the status. Resolve it or move the ticket out.
 
 **A Bug's fields are fields, not prose.** Where the board exposes Environment, Steps to reproduce,
 Expected Result and Actual Result as dedicated fields, discover their ids from the full read —
@@ -292,6 +292,8 @@ the user has seen. Where the spec cannot be read, draft that text anyway from th
 and say what you could not check. Relocated, never deleted, and never overwritten with the spec's
 wording: syncing gives one decision two homes, and the consistency pass below then has nothing to
 prefer.
+
+**Lint the draft before showing it.** `node "<skill base directory>/../../scripts/ticket-lint.mjs" <draft.md> --kind story|task|bug|spike [--priority-confirmed]`; the flag only once the user confirms a Bug's priority. Exit 0 clean; 1 errors, fix; 2 usage.
 
 **Guardrail scan before any write.** The tracker may be customer-visible, and org policy forbids PII, secrets, internal hostnames or infra names in it. Redact, or relocate to repo.
 

@@ -9,6 +9,7 @@ import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
 import { BASE_REF_ENV, changedPaths, changedSkills, fileAtBase, stampStatus, waiverReason } from "../eval/changed-skills.ts";
 import { parseChecks, scenarioIds } from "../eval/run-checks.ts";
+import { BASELINE_FILE, UPDATE_COMMAND, budgetProblems, measureBudgets, readBaseline } from "./token-budget/budget.ts";
 
 const ROOT = process.cwd();
 const PLUGIN = join(ROOT, "plugin");
@@ -273,8 +274,7 @@ for (const skill of skills) {
 // --- 6e. Skill and agent prose avoids the phrases the writing rules ban ---
 // shortcut: writing.md bans these in prose, not in a machine-readable list; extend this constant when
 // writing.md's "the phrases ..." line changes, or move that list into a parseable block.
-// WARN, not ERROR: a hit can be a quotation that needs a human to judge. prose-writing is exempt
-// because its own greps and rules have to name the phrases they ban.
+// prose-writing is exempt because its own greps and rules have to name the phrases they ban.
 const BANNED_PHRASES = ["earns its place", "load-bearing"];
 const PHRASE_RULE_OWNER = "prose-writing";
 const instructionFiles = [
@@ -285,7 +285,7 @@ for (const file of instructionFiles) {
   read(file).split("\n").forEach((line, i) => {
     for (const phrase of BANNED_PHRASES) {
       if (line.toLowerCase().includes(phrase)) {
-        warnings.push(`${file.slice(ROOT.length + 1)}:${i + 1} uses banned phrase "${phrase}" (plugin/skills/prose-writing/writing.md)`);
+        errors.push(`${file.slice(ROOT.length + 1)}:${i + 1} uses banned phrase "${phrase}" (plugin/skills/prose-writing/writing.md). Hint: reword the sentence.`);
       }
     }
   });
@@ -747,6 +747,14 @@ if (existsSync(stampsDirectoryPath) && existsSync(readmeFilePath)) {
   } else if (Number(stated[1]) !== waivedCount || Number(stated[2]) !== stamps.length) {
     errors.push(`${README_FILE} says ${stated[1]} of ${stated[2]} skill stamps are waivers, but ${waivedCount} of ${stamps.length} in ${STAMPS_DIRECTORY} are. Hint: update the README line when a stamp changes.`);
   }
+}
+
+// --- 28. Instruction files stay within their token budget ---
+const TOKEN_BUDGET_SCRIPT = "scripts/audit/token-budget.ts";
+if (existsSync(join(ROOT, TOKEN_BUDGET_SCRIPT))) {
+  const tokenBaseline = readBaseline(ROOT);
+  if (tokenBaseline === null) errors.push(`${BASELINE_FILE} is missing. Hint: run ${UPDATE_COMMAND}.`);
+  else errors.push(...budgetProblems(measureBudgets(ROOT), tokenBaseline));
 }
 
 // --- report ---

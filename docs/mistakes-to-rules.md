@@ -27,6 +27,7 @@ Each mistake below happened in this repo. The fix is a check that rules out the 
 | Plugin code, or a test of it, imported a `.ts` helper from `scripts/`; it failed on Node 18 and 20 with ERR_UNKNOWN_FILE_EXTENSION, which only the CI job "node 18 and 20 plugin tests" runs. | A dev-only file reached shipped code | `check 20` | `scripts/audit/consistency.test.ts` "a plugin file, tests included, that imports TypeScript is reported" |
 | The Cursor config pointed at a script that was gone, left the shell guard open when a hook crashed, or held a rule file Cursor ignores. | Config drift from the files it names | `check 21` | `scripts/audit/consistency.test.ts` "a Cursor config that points at real files and fails closed passes; a missing script, an open guard or a stray rule fails" |
 | Two parallel pull requests both added a check 20 to the consistency guard, so the numbers in the guard and in this table named two checks at once. | Two branches claiming the same number | `check 22` | `scripts/audit/consistency.test.ts` "check numbers that repeat or skip one are reported, a contiguous run and lettered sub-checks pass" |
+| Skill prose grew with no limit, and nothing showed what the text cost in tokens on every session or invocation. | Cost that grows unseen | `check 28` and `evals/token-budget.json` | `scripts/audit/consistency.test.ts` "check 28 rejects an instruction file that grew past its token budget" |
 
 ## Mistakes with no deterministic rule yet
 

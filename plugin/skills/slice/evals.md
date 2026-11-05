@@ -170,18 +170,18 @@ grep -Eo "memory: ?.?read-only" output.md | grep -c .      # scenario 29 only
 # expect: >=2 on 30
 # expect: ==0 on 32
 awk '/batch-pick\.sh/ {print; w=3; next} w-- > 0 && tolower($0) ~ /same[^.]*for/' output.md | grep -oE "\bb[0-9]+\b" | sort -u | grep -c .   # scenarios 30 and 32
-# Claim race. The push is create-only — expect >=1 on 35: an empty lease, the `:` followed by a
-# space or line end. A plain push, a bare --force-with-lease, or a lease naming a SHA scores 0.
+# Claim race. The claim goes through the script, which owns the create-only push and the tree —
+# expect >=1 on 35. A hand-made claim names no script and scores 0.
 # expect: >=1 on 35
-grep -Ec -e "--force-with-lease=refs/heads/[^ :]+:( |$)" output.md   # scenario 35
-# The tree is made in claim mode — expect >=1 on 35. A reused or hand-made tree scores 0.
+grep -Ec "slice-claim\.mjs" output.md      # scenario 35
+# No hand-made claim push — expect 0 on 35. A `git push` naming the s1 slice branch is the
+# push the script was meant to own.
+# expect: ==0 on 35
+grep -Ec "git push[^&;|]*feat/PROJ-170-[^ ]*-s1" output.md      # scenario 35: hand-made push
+# The loser names the winner — expect >=1 on 35: a line tying alice to holding or claiming s1.
 # expect: >=1 on 35
-grep -Ec "slice-tree\.sh\"? --claim" output.md      # scenario 35
-# The loser removes its own tree — expect >=1 on 35 — and never alice's — expect 0. One command
-# per match: `&`, `;` and `|` end it, so a removal chained after another tree's never counts.
-# expect: >=1 on 35
-grep -Ec "worktree remove[^&;|]*-s1-bob" output.md                 # scenario 35: own tree
-# Alice's tree never removed.
+grep -Eci "alice[^.]*(hold|held|claimed)|(hold|held|claimed)[^.]*alice" output.md      # scenario 35: holder named
+# Alice's tree never removed — expect 0 on 35. One command per match: `&`, `;` and `|` end it.
 # expect: ==0 on 35
 grep -Ec "(worktree remove|rm -rf)[^&;|]*-s1-alice" output.md      # scenario 35: alice's tree
 # No slice branch, tree or executor dispatch in a Rollout turn — expect 0 on 3. A line that negates it is dropped first.

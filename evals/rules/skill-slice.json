@@ -72,7 +72,7 @@
     },
     {
       "id": "slice.verify-cmd-handoff",
-      "anchor": "Pass the resolved command as `verify-cmd` to the executor (6.1) and the code-reviewer (7.5).",
+      "anchor": "`verify-cmd` — the resolved verify command, the same one 7.5 passes",
       "kind": "must",
       "why": "executor and reviewer receive the same command"
     },
@@ -90,7 +90,7 @@
     },
     {
       "id": "slice.conventions-to-validators",
-      "anchor": "7.1 passes it to the validators and uses it when assessing their findings.",
+      "anchor": "Pass the repository's convention sources and the deviations the executor relied on to each validator in `context`.",
       "kind": "must",
       "why": "validators receive the convention paths"
     },
@@ -168,7 +168,7 @@
     },
     {
       "id": "slice.domain-references-before-dispatch",
-      "anchor": "read it before dispatching the executor and pass it in the step 6.1 payload",
+      "anchor": "read it before dispatching the executor. Skip",
       "kind": "must",
       "why": "domain references reach the executor"
     },
@@ -203,10 +203,10 @@
       "why": "posture before any change"
     },
     {
-      "id": "slice.stop-without-repo-forensics",
-      "anchor": "STOP if `repo-forensics` is not found.",
+      "id": "slice.stop-without-required-agent",
+      "anchor": "STOP when `repo-forensics`, `slice-executor`, `senior-review-lens`, `code-reviewer` or any configured validator is not found",
       "kind": "stop",
-      "why": "a missing skill stops the run"
+      "why": "a missing skill or agent stops the run instead of silently skipping a gate"
     },
     {
       "id": "slice.trivial-escape-hatch",
@@ -545,12 +545,6 @@
       "why": "executors run together in the foreground"
     },
     {
-      "id": "slice.stop-without-executor",
-      "anchor": "STOP if the executor is not found.",
-      "kind": "stop",
-      "why": "a missing executor stops the run"
-    },
-    {
       "id": "slice.cross-repo-acs-excluded",
       "anchor": "Cross-repo ACs do not appear in Rollout or batch planning.",
       "kind": "other",
@@ -585,12 +579,6 @@
       "anchor": "no note may record a lens verdict for a range the skill was not invoked on",
       "kind": "never",
       "why": "no invented lens verdicts"
-    },
-    {
-      "id": "slice.stop-without-lens-batch",
-      "anchor": "range the skill was not invoked on. STOP if `senior-review-lens` is not found.",
-      "kind": "stop",
-      "why": "missing lens stops the batch review"
     },
     {
       "id": "slice.security-review-trigger",
@@ -695,12 +683,6 @@
       "why": "validators see conventions"
     },
     {
-      "id": "slice.stop-without-validator",
-      "anchor": "STOP if any configured validator is not found",
-      "kind": "stop",
-      "why": "missing validator blocks the merge gate"
-    },
-    {
       "id": "slice.full-verify-command",
       "anchor": "Run `pnpm check` or the repository equivalent through the verify lock.",
       "kind": "must",
@@ -717,12 +699,6 @@
       "anchor": "Invoke `Skill(senior-review-lens)` with `<slice-base-sha>..HEAD`.",
       "kind": "must",
       "why": "slice-wide lens"
-    },
-    {
-      "id": "slice.stop-without-lens-slice",
-      "anchor": "`<slice-base-sha>..HEAD`. STOP if `senior-review-lens` is not found.",
-      "kind": "stop",
-      "why": "missing lens stops 7.3"
     },
     {
       "id": "slice.done-when-walk",
@@ -783,12 +759,6 @@
       "anchor": "This gate runs last for its slice; nothing may move the tip while it reads.",
       "kind": "must",
       "why": "tip is frozen during the gate"
-    },
-    {
-      "id": "slice.stop-without-code-reviewer",
-      "anchor": "STOP if `code-reviewer` is not found.",
-      "kind": "stop",
-      "why": "missing reviewer stops the gate"
     },
     {
       "id": "slice.resolve-every-block",
@@ -945,12 +915,6 @@
       "anchor": "only when the ticket has merged two or more slices, run `Skill(senior-review-lens)` over the union",
       "kind": "must",
       "why": "cross-slice review"
-    },
-    {
-      "id": "slice.stop-without-lens-ticket",
-      "anchor": "never a contiguous range from slice 1 to `main`. STOP if `senior-review-lens` is not found.",
-      "kind": "stop",
-      "why": "missing lens stops close-out"
     },
     {
       "id": "slice.single-slice-skip-sweep",
@@ -1236,7 +1200,7 @@
     },
     {
       "id": "slice.parallel.reviewers-read-only-memory",
-      "anchor": "every reviewer gets `memory: read-only`",
+      "anchor": "with `memory: read-only` as 7.5 says",
       "kind": "must",
       "why": "concurrent memory writes lose entries"
     },
@@ -1410,7 +1374,7 @@
     },
     {
       "id": "slice.parallel.wave-conflict-failure",
-      "anchor": "**A wave slice conflicts with a merged sibling:**",
+      "anchor": "record it in `## Carry forward` as a dead end",
       "kind": "other",
       "why": "conflict failure mode"
     },

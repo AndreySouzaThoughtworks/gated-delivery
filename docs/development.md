@@ -32,7 +32,7 @@ This repo is **both** marketplace and plugin: the marketplace manifest lives at 
 | `workflows` | `actionlint` and `zizmor --pedantic` on `.github/` |
 | `shell` | `shellcheck` at its strictest on every shell file |
 | `links` | `lychee` on the README, `docs/` and `plugin/` markdown |
-| `spelling` | `typos` on defaults |
+| `spelling` | `typos` with `.typos.toml`: the generated assertion baseline is excluded and the ordinal suffix `nd` is allowed |
 | `gitleaks` | Secret scan |
 | `node 26` | The Node-dependent checks again on Node 26, as well as on the 22 floor |
 | `assertion effectiveness` | `scripts/audit/assertion-effectiveness.ts`: every assertion in non-test code must make some test fail. Its baseline is empty |

@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DEFAULT_TEMPLATE_PATH, lintPrimer } from "./primer-lint.mjs";
+import { runScript } from "./run-cli.test.support.mjs";
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "primer-lint.mjs");
 const EXIT_CLEAN = 0;
@@ -33,12 +33,6 @@ const problemsOf = (html, template = TEMPLATE) => {
   assert(typeof html === "string", `the page must be text, got ${typeof html}`);
   assert(typeof template === "string", `the template must be text, got ${typeof template}`);
   return lintPrimer(html, template).join("\n");
-};
-const run = (args) => {
-  assert(Array.isArray(args), `args must be a list, got ${typeof args}`);
-  const result = spawnSync("node", [SCRIPT, ...args], { encoding: "utf8" });
-  assert(result.status !== null, `the command must exit on its own, got signal ${result.signal}`);
-  return result;
 };
 const writePage = (html) => {
   assert(typeof html === "string", `the page must be text, got ${typeof html}`);
@@ -73,7 +67,7 @@ test("rejects a radius other than 4px or 8px", () => {
 test("warns on zero Highlights and exits 0", () => {
   const page = validPage().replace(ACCENT_BAR, "");
   assert.match(problemsOf(page), /^warning: the page should paint the Highlight exactly 1 time/);
-  const result = run([writePage(page)]);
+  const result = runScript(SCRIPT, [writePage(page)]);
   assert.equal(result.status, EXIT_CLEAN);
   assert.match(result.stdout, /^warning: /);
 });
@@ -81,7 +75,7 @@ test("warns on zero Highlights and exits 0", () => {
 test("warns on two Highlights and exits 0", () => {
   const page = inHeader(validPage(), ACCENT_BAR);
   assert.match(problemsOf(page), /^warning: the page should paint the Highlight exactly 1 time/);
-  assert.equal(run([writePage(page)]).status, EXIT_CLEAN);
+  assert.equal(runScript(SCRIPT, [writePage(page)]).status, EXIT_CLEAN);
 });
 
 test("rejects a missing banner", () => {
@@ -118,14 +112,14 @@ test("throws on a template without a style block", () => {
 });
 
 test("exits 0 and prints nothing for the valid page", () => {
-  const result = run([writePage(validPage())]);
+  const result = runScript(SCRIPT, [writePage(validPage())]);
   assert.equal(result.status, EXIT_CLEAN);
   assert.equal(result.stdout, "");
 });
 
 test("exits 1 with one line per problem prefixed by the file", () => {
   const file = writePage(validPage().replace(ACCENT_BAR, "").replace("Internal only", "Public"));
-  const result = run([file]);
+  const result = runScript(SCRIPT, [file]);
   assert.equal(result.status, EXIT_PROBLEMS);
   const lines = result.stdout.trimEnd().split("\n");
   assert.equal(lines.length, EXPECTED_PROBLEM_LINES);
@@ -134,17 +128,17 @@ test("exits 1 with one line per problem prefixed by the file", () => {
 });
 
 test("exits 2 without a page, with an empty template value, and with a missing file", () => {
-  const noPage = run([]);
+  const noPage = runScript(SCRIPT, []);
   assert.equal(noPage.status, EXIT_USAGE);
   assert.match(noPage.stderr, /expected one page to lint, got 0/);
-  const emptyTemplate = run([writePage(validPage()), "--template", ""]);
+  const emptyTemplate = runScript(SCRIPT, [writePage(validPage()), "--template", ""]);
   assert.equal(emptyTemplate.status, EXIT_USAGE);
   assert.match(emptyTemplate.stderr, /--template needs a path/);
-  assert.equal(run([join(tmpdir(), "primer-lint-absent.html")]).status, EXIT_USAGE);
+  assert.equal(runScript(SCRIPT, [join(tmpdir(), "primer-lint-absent.html")]).status, EXIT_USAGE);
 });
 
 test("honours --template: a client template with its own style block", () => {
   const client = TEMPLATE.replace(FIRST_STYLE_RULE, `${FIRST_STYLE_RULE}\n  .brand-mark{color:var(--ink)}`);
-  const result = run([writePage(client.replace(PLACEHOLDER, FILLED)), "--template", writePage(client)]);
+  const result = runScript(SCRIPT, [writePage(client.replace(PLACEHOLDER, FILLED)), "--template", writePage(client)]);
   assert.equal(result.status, EXIT_CLEAN, result.stdout);
 });

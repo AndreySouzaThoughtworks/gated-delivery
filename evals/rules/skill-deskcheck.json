@@ -39,7 +39,7 @@
     },
     {
       "id": "deskcheck.criterion-title-no-suffix",
-      "anchor": "no suffix of any kind",
+      "anchor": "remove the suffix and put the verdict in the opening sentence",
       "kind": "must",
       "why": "exact section title"
     },
@@ -57,9 +57,15 @@
     },
     {
       "id": "deskcheck.no-remote-img-src",
-      "anchor": "never an `<img>` with a relative or remote `src`",
+      "anchor": "never a relative or remote src",
       "kind": "never",
       "why": "screenshots are embedded or gaps"
+    },
+    {
+      "id": "deskcheck.lint-before-report",
+      "anchor": "deskcheck-lint.mjs\" <deskcheck.html>...",
+      "kind": "must",
+      "why": "the page is linted before the path is reported"
     },
     {
       "id": "deskcheck.decisions-not-questions",
@@ -74,5 +80,8 @@
       "why": "audience question is conditional"
     }
   ],
-  "exempt": []
+  "exempt": [],
+  "files": [
+    "plugin/skills/deskcheck/scripts/deskcheck-lint.mjs"
+  ]
 }

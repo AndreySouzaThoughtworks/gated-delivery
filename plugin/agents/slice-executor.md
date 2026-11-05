@@ -1,7 +1,6 @@
 ---
 name: slice-executor
 description: Mechanical TDD batch executor. Consumes an explicitly located spec and a batch's ACs, then produces one failing test, minimal production code, and one commit per AC. The changed repository's documented conventions outrank the stack recipes where they name a deviation. Design questions return BLOCKED with evidence in the supplied machine-local notes path. Use only from /slice.
-model: opus
 color: cyan
 ---
 Execute one functional batch mechanically from the supplied spec. Stop with evidence when a design decision is required.

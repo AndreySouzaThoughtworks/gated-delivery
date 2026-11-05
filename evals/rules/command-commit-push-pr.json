@@ -1,0 +1,95 @@
+{
+  "file": "plugin/commands/commit-push-pr.md",
+  "rules": [
+    {
+      "id": "commit-push-pr.stop-at-checkpoint",
+      "anchor": "Stop at the checkpoint.",
+      "kind": "checkpoint",
+      "why": "the run halts at step 4"
+    },
+    {
+      "id": "commit-push-pr.no-keyless-subject",
+      "anchor": "Never guess a ticket key and never fall back to a keyless subject.",
+      "kind": "never",
+      "why": "a missing ticket key is asked, not invented"
+    },
+    {
+      "id": "commit-push-pr.explicit-staging",
+      "anchor": "Never `git add -A`, `git add .` or a bare wildcard",
+      "kind": "never",
+      "why": "stage by explicit path"
+    },
+    {
+      "id": "commit-push-pr.no-blind-push",
+      "anchor": "Do not push blind",
+      "kind": "never",
+      "why": "fetch and count before pushing"
+    },
+    {
+      "id": "commit-push-pr.no-force-push",
+      "anchor": "Never `git rebase` + `git push --force` on a shared PR branch.",
+      "kind": "never",
+      "why": "history rewrite on a shared branch"
+    },
+    {
+      "id": "commit-push-pr.checkpoint-before-network-write",
+      "anchor": "**4. CHECKPOINT — stop and show the user, before any network write:**",
+      "kind": "checkpoint",
+      "why": "the single approval gate before push and PR"
+    },
+    {
+      "id": "commit-push-pr.wait-for-approval",
+      "anchor": "Wait for explicit approval.",
+      "kind": "stop",
+      "why": "no network write without approval"
+    },
+    {
+      "id": "commit-push-pr.pr-needs-own-approval",
+      "anchor": "Opening a PR is outward-facing and is not covered by approval given for the commit.",
+      "kind": "limit",
+      "why": "commit approval does not cover the PR"
+    },
+    {
+      "id": "commit-push-pr.explicit-refspec",
+      "anchor": "Never `git push` or `git push -u` bare",
+      "kind": "never",
+      "why": "a bare push can hit the default branch"
+    },
+    {
+      "id": "commit-push-pr.no-private-identity",
+      "anchor": "never pass `-c user.email`",
+      "kind": "never",
+      "why": "GitHub rejects private-address pushes"
+    },
+    {
+      "id": "commit-push-pr.pr-body-from-file",
+      "anchor": "Never pass the body inline with `--body`",
+      "kind": "never",
+      "why": "the body goes through --body-file"
+    },
+    {
+      "id": "commit-push-pr.no-no-verify",
+      "anchor": "never reach for `--no-verify`",
+      "kind": "never",
+      "why": "a rejecting hook is fixed, not bypassed"
+    },
+    {
+      "id": "commit-push-pr.hook-report-verbatim",
+      "anchor": "report its output verbatim",
+      "kind": "must",
+      "why": "hook output is shown unaltered"
+    },
+    {
+      "id": "commit-push-pr.separate-bash-calls",
+      "anchor": "Run each command as its own Bash call",
+      "kind": "must",
+      "why": "the allowed rules match leading words"
+    }
+  ],
+  "exempt": [
+    {
+      "anchor": "Do not push blind:",
+      "reason": "same line as commit-push-pr.no-blind-push"
+    }
+  ]
+}

@@ -1,0 +1,288 @@
+{
+  "file": "plugin/skills/issue-writing/SKILL.md",
+  "files": [
+    "plugin/skills/issue-writing/workflows/story.md"
+  ],
+  "rules": [
+    {
+      "id": "issue-writing.no-silent-story",
+      "anchor": "Never silently make a tracker-typed Story a semantic Story",
+      "kind": "never",
+      "why": "tracker type alone does not decide the kind"
+    },
+    {
+      "id": "issue-writing.no-task-spike-on-question",
+      "anchor": "Never make a Task a Spike because it holds an open technical question",
+      "kind": "never",
+      "why": "an open question on a Task is a [QUESTION], not a Spike"
+    },
+    {
+      "id": "issue-writing.routing-ask-and-stop",
+      "anchor": "the readings, ask, and stop.",
+      "kind": "stop",
+      "why": "a contested kind ends in one clarification question and nothing else"
+    },
+    {
+      "id": "issue-writing.unsupported-kind-stop",
+      "anchor": "Say it is unsupported and stop",
+      "kind": "stop",
+      "why": "board-specific kinds are not routed through Task"
+    },
+    {
+      "id": "issue-writing.ask-when-nothing-provided",
+      "anchor": "None of these provided? Ask before proceeding.",
+      "kind": "stop",
+      "why": "no brief and no key means ask"
+    },
+    {
+      "id": "issue-writing.no-reshaping-delivery",
+      "anchor": "Never reshape",
+      "kind": "never",
+      "why": "a firing rule is evidence, not an instruction to manufacture content"
+    },
+    {
+      "id": "issue-writing.never-assume",
+      "anchor": "never assume without confirming",
+      "kind": "never",
+      "why": "tickets are drafted with the user"
+    },
+    {
+      "id": "issue-writing.be-on-main-pulled",
+      "anchor": "you MUST be on main with latest pulled",
+      "kind": "must",
+      "why": "local repository scans read the latest main"
+    },
+    {
+      "id": "issue-writing.no-citing-unasked-file",
+      "anchor": "Never cite one you not asked about.",
+      "kind": "never",
+      "why": "a loose file is untrusted until the user says otherwise"
+    },
+    {
+      "id": "issue-writing.undecided-rule-split",
+      "anchor": "it is the implementer's call",
+      "kind": "other",
+      "why": "only a rule that changes the agreed outcome is an open question"
+    },
+    {
+      "id": "issue-writing.no-invented-rules",
+      "anchor": "Never invent rule, never present one as though it came from here.",
+      "kind": "never",
+      "why": "gaps in the rules are surfaced, not filled"
+    },
+    {
+      "id": "issue-writing.routing-question-alone",
+      "anchor": "it goes alone",
+      "kind": "other",
+      "why": "the routing question is never batched"
+    },
+    {
+      "id": "issue-writing.task-no-manufactured-content",
+      "anchor": "Never manufacture what the work does not have.",
+      "kind": "never",
+      "why": "no persona, value statement or edge case on a Task"
+    },
+    {
+      "id": "issue-writing.task-checklist-rewrite",
+      "anchor": "An implementation checklist means the result was never stated.",
+      "kind": "other",
+      "why": "checklists are rewritten around the result"
+    },
+    {
+      "id": "issue-writing.task-guard-criterion",
+      "anchor": "A Task installing a guard needs a criterion where the guard catches something.",
+      "kind": "must",
+      "why": "existence criteria can all pass while the guard never fires"
+    },
+    {
+      "id": "issue-writing.bug-cause-not-in-actual",
+      "anchor": "It never sits in Actual Result",
+      "kind": "never",
+      "why": "Actual Result holds the observed symptom only"
+    },
+    {
+      "id": "issue-writing.bug-priority-low",
+      "anchor": "Priority starts at Low, and the user sets it.",
+      "kind": "limit",
+      "why": "the agent never picks a priority"
+    },
+    {
+      "id": "issue-writing.bug-no-story-furniture",
+      "anchor": "No Story furniture.",
+      "kind": "never",
+      "why": "no AC table, Scope or DoR on a Bug"
+    },
+    {
+      "id": "issue-writing.spike-timebox-value",
+      "anchor": "with no value is incomplete",
+      "kind": "limit",
+      "why": "a timebox with no duration or end date is rejected"
+    },
+    {
+      "id": "issue-writing.spike-no-production-claim",
+      "anchor": "A Spike never reports production behaviour delivered",
+      "kind": "never",
+      "why": "an artifact is evidence, not delivery"
+    },
+    {
+      "id": "issue-writing.spike-followups-in-recommendation",
+      "anchor": "never folded into Answer / Decision",
+      "kind": "never",
+      "why": "follow-up work is not work the Spike did"
+    },
+    {
+      "id": "issue-writing.tracker-write-needs-ask",
+      "anchor": "NEVER create or edit a tracker issue unless asked",
+      "kind": "never",
+      "why": "the central publish gate, with approval of the description first"
+    },
+    {
+      "id": "issue-writing.read-before-writing",
+      "anchor": "**Read before writing.**",
+      "kind": "must",
+      "why": "read every populated field before a write"
+    },
+    {
+      "id": "issue-writing.status-vs-open-questions",
+      "anchor": "**Read the status against the open questions.**",
+      "kind": "must",
+      "why": "an open question must not sit on a Ready ticket"
+    },
+    {
+      "id": "issue-writing.bug-fields-no-hardcode",
+      "anchor": "so never hard-code one",
+      "kind": "never",
+      "why": "field ids are per board"
+    },
+    {
+      "id": "issue-writing.bug-no-duplicate-fields",
+      "anchor": "Do not duplicate a field's full contents",
+      "kind": "never",
+      "why": "dedicated fields hold their section only"
+    },
+    {
+      "id": "issue-writing.detail-relocated-not-deleted",
+      "anchor": "Detail relocated, never deleted",
+      "kind": "never",
+      "why": "technical detail moves out of the ticket with a pointer"
+    },
+    {
+      "id": "issue-writing.in-flight-approval",
+      "anchor": "the user approves the text before it is written",
+      "kind": "must",
+      "why": "updating a ticket in flight needs approved text"
+    },
+    {
+      "id": "issue-writing.show-spec-text-same-response",
+      "anchor": "show it before writing",
+      "kind": "must",
+      "why": "a relocation shows the exact spec text in the same response"
+    },
+    {
+      "id": "issue-writing.relocated-not-deleted-or-overwritten",
+      "anchor": "Relocated, never deleted, and never overwritten",
+      "kind": "never",
+      "why": "the spec is not overwritten with the ticket wording"
+    },
+    {
+      "id": "issue-writing.guardrail-scan-before-write",
+      "anchor": "**Guardrail scan before any write.**",
+      "kind": "must",
+      "why": "redact or relocate before any tracker write"
+    },
+    {
+      "id": "issue-writing.guardrail-scan-script",
+      "anchor": "guardrail-scan.mjs\" <draft-file>",
+      "kind": "must",
+      "why": "the scan runs over the saved draft"
+    },
+    {
+      "id": "issue-writing.guardrail-rerun-until-clean",
+      "anchor": "redact or relocate every hit and run it again until it exits 0",
+      "kind": "must",
+      "why": "the scan loop ends at exit 0"
+    },
+    {
+      "id": "issue-writing.secrets-never-reach-tracker",
+      "anchor": "never reach the tracker in any field",
+      "kind": "never",
+      "why": "secrets and PII are never published, a restricted comment included"
+    },
+    {
+      "id": "issue-writing.internal-detail-restricted-only",
+      "anchor": "Never description, summary, labels, custom fields, or unrestricted comment.",
+      "kind": "never",
+      "why": "internal detail is allowed only in a verified restricted comment"
+    },
+    {
+      "id": "issue-writing.mutate-safely",
+      "anchor": "**Mutate safely.**",
+      "kind": "must",
+      "why": "discover before mutating, re-fetch after"
+    },
+    {
+      "id": "issue-writing.no-automation-posting",
+      "anchor": "rather than posting under automation without sign-off",
+      "kind": "never",
+      "why": "customer-facing comments are handed over, not posted"
+    },
+    {
+      "id": "issue-writing.review-propose-only",
+      "anchor": "propose edits — don't apply unless asked",
+      "kind": "never",
+      "why": "review mode makes proposals only"
+    },
+    {
+      "id": "issue-writing.story-stop-scope",
+      "anchor": "🛑 Stop — scope and value.",
+      "kind": "stop",
+      "why": "story blocking stop 1"
+    },
+    {
+      "id": "issue-writing.story-stop-findings",
+      "anchor": "🛑 Stop — findings, before they are written anywhere.",
+      "kind": "stop",
+      "why": "story blocking stop 2"
+    },
+    {
+      "id": "issue-writing.story-stop-landing",
+      "anchor": "🛑 Stop — where each finding lands.",
+      "kind": "stop",
+      "why": "story blocking stop 3"
+    },
+    {
+      "id": "issue-writing.story-no-write-before-signoff",
+      "anchor": "never a write before user signed off on text",
+      "kind": "never",
+      "why": "the story workflow's publish gate"
+    },
+    {
+      "id": "issue-writing.story-dor-unticked",
+      "anchor": "Leave Definition of Ready boxes unticked",
+      "kind": "never",
+      "why": "ticking the boxes is the team's act"
+    },
+    {
+      "id": "issue-writing.story-note-never-only-home",
+      "anchor": "a note is never the only place a constraint appears",
+      "kind": "never",
+      "why": "a constraint that fails review belongs in Scope or an AC"
+    },
+    {
+      "id": "issue-writing.story-no-opening-standard",
+      "anchor": "reader must not have to open standard",
+      "kind": "must",
+      "why": "an API deviation is stated in the story, not by pointing at the standard"
+    }
+  ],
+  "exempt": [
+    {
+      "anchor": "A deployment that never had a drain step",
+      "reason": "worked example of the Bug or Task tie-breaker, not a rule"
+    },
+    {
+      "anchor": "while it never fires",
+      "reason": "rationale of issue-writing.task-guard-criterion"
+    }
+  ]
+}

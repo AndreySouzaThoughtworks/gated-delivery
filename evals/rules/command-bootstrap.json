@@ -1,0 +1,66 @@
+{
+  "file": "plugin/commands/bootstrap.md",
+  "rules": [
+    {
+      "id": "bootstrap.unsupported-ci-stop",
+      "anchor": "stop and say so",
+      "kind": "stop",
+      "why": "another CI with no GitHub workflows is out of scope"
+    },
+    {
+      "id": "bootstrap.plan-writes-nothing",
+      "anchor": "It writes nothing.",
+      "kind": "limit",
+      "why": "step 1 is read-only"
+    },
+    {
+      "id": "bootstrap.empty-diff-stop",
+      "anchor": "An empty diff means nothing to do; stop.",
+      "kind": "stop",
+      "why": "no diff ends the run"
+    },
+    {
+      "id": "bootstrap.zanity-install-after-yes",
+      "anchor": "run it with `--run` only after a yes",
+      "kind": "checkpoint",
+      "why": "install runs only after consent"
+    },
+    {
+      "id": "bootstrap.no-curl-sh",
+      "anchor": "Never `curl | sh` and never from `main`.",
+      "kind": "never",
+      "why": "only the pinned checksum-verified install"
+    },
+    {
+      "id": "bootstrap.no-commit-to-default",
+      "anchor": "Never commit to the default branch.",
+      "kind": "never",
+      "why": "bootstrap works on bootstrap/guardrails"
+    },
+    {
+      "id": "bootstrap.per-group-yes",
+      "anchor": "Ask one yes or no per group",
+      "kind": "checkpoint",
+      "why": "each group is applied only after its own yes"
+    },
+    {
+      "id": "bootstrap.no-overwrite-conflict",
+      "anchor": "A conflict is reported and never overwritten",
+      "kind": "never",
+      "why": "existing files are never clobbered"
+    },
+    {
+      "id": "bootstrap.no-run-overwatch-install",
+      "anchor": "Do not run it.",
+      "kind": "never",
+      "why": "the overwatch install line is printed, not run"
+    },
+    {
+      "id": "bootstrap.no-push-main-or-force",
+      "anchor": "Never push to `main`, never `--force`.",
+      "kind": "never",
+      "why": "delivery goes through the commit commands"
+    }
+  ],
+  "exempt": []
+}

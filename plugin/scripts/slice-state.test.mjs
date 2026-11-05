@@ -9,6 +9,7 @@ const EXIT_ROUTED = 0;
 const EXIT_PRECONDITION = 1;
 const EXIT_USAGE = 2;
 const EXIT_NO_ROUTE = 3;
+const EXIT_FAILURE = 4;
 const SCRIPT = "slice-state.mjs";
 const ACTOR = "alice";
 const S1 = "feat/T-1-demo-s1";
@@ -363,6 +364,42 @@ test("the router takes the first row that fits, in the order the table gives", (
   assert.equal(chooseRoute(facts([slice(1, { heldBy: "bob" }), slice(2), slice(3)], [[1], [2, 3]])), ROUTE.WAIT);
   assert.equal(chooseRoute(facts([slice(1, { heldBy: ACTOR, resumeReason: RESUME_REASON.DRAFT }), slice(2)], [[1], [2]])), ROUTE.RESUME);
   assert.equal(chooseRoute(facts([slice(1, { merged: true })], [[1]])), ROUTE.CLOSE);
+});
+
+test("a missing repository or notes repository directory is a usage error", () => {
+  const world = makeWorld();
+  assert.equal(world.run(SCRIPT, ["--ticket", "T-1", "--actor", ACTOR, "--repo", `${world.root}/absent`]).status, EXIT_USAGE);
+  assert.equal(world.run(SCRIPT, ["--ticket", "T-1", "--actor", ACTOR, "--notes-repo", `${world.root}/absent`]).status, EXIT_USAGE);
+});
+
+test("a spec path that is a directory stops with exit 4", () => {
+  const world = makeWorld();
+  const result = world.run(SCRIPT, ["--ticket", "T-1", "--actor", ACTOR, "--spec", `${world.repo}/docs`]);
+  assert.equal(result.status, EXIT_FAILURE);
+  assert.match(result.stderr, /must be a file/);
+});
+
+test("a Rollout slice heading off the format stops with exit 4", () => {
+  const world = makeWorld({ spec: specText().replace("### Slice 2 — AC2 — exposure: complete", "### Slice 2 AC2") });
+  const result = state(world);
+  assert.equal(result.status, EXIT_FAILURE);
+  assert.match(result.stderr, /Rollout slice headings must read/);
+});
+
+test("gh output that is not a PR array stops with exit 4", () => {
+  const world = makeWorld();
+  world.prs({});
+  const result = state(world);
+  assert.equal(result.status, EXIT_FAILURE);
+  assert.match(result.stderr, /JSON array/);
+});
+
+test("a PR without a head branch stops with exit 4", () => {
+  const world = makeWorld();
+  world.prs([{ state: "OPEN" }]);
+  const result = state(world);
+  assert.equal(result.status, EXIT_FAILURE);
+  assert.match(result.stderr, /head branch and a state/);
 });
 
 test("usage errors exit 2", () => {

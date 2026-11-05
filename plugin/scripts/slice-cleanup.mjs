@@ -13,24 +13,14 @@ const USAGE = "usage: slice-cleanup.mjs --ticket <id> --actor <name> [--repo <di
 
 /**
  * @param {string[]} argv
- * @returns {{ ticket: string, actor: string, repo: string, dryRun: boolean }}
- */
-const parseOptions = (argv) => { // zanity: ignore[assertion-density] -- thin-wrapper: parseArgs rejects unknown flags and requireIdentity asserts the ticket and actor formats
-  const { values } = parseArgs({ args: argv, options: { ticket: { type: "string" }, actor: { type: "string" }, repo: { type: "string" }, "dry-run": { type: "boolean" } } });
-  const ticket = values.ticket ?? "";
-  const actor = values.actor ?? "";
-  requireIdentity(ticket, actor);
-  return { ticket, actor, repo: resolve(values.repo ?? process.cwd()), dryRun: values["dry-run"] === true };
-};
-
-/**
- * @param {string[]} argv
  * @returns {number}
  */
-const main = (argv) => { // zanity: ignore[assertion-density] -- entry-point: parseOptions asserts every option and the cleanup plan decides what is removed
+const main = (argv) => { // zanity: ignore[assertion-density] -- entry-point: requireIdentity and parseArgs reject bad options and planCleanup asserts the ticket and repository
   let options;
   try {
-    options = parseOptions(argv);
+    const { values } = parseArgs({ args: argv, options: { ticket: { type: "string" }, actor: { type: "string" }, repo: { type: "string" }, "dry-run": { type: "boolean" } } });
+    requireIdentity(values.ticket ?? "", values.actor ?? "");
+    options = { ticket: values.ticket ?? "", actor: values.actor ?? "", repo: resolve(values.repo ?? process.cwd()), dryRun: values["dry-run"] === true };
   } catch (error) {
     console.error(`slice-cleanup: ${error instanceof Error ? error.message : String(error)}\n${USAGE}`);
     return EXIT_USAGE;
@@ -38,12 +28,10 @@ const main = (argv) => { // zanity: ignore[assertion-density] -- entry-point: pa
   try {
     const { repo, ticket, actor, dryRun } = options;
     const plan = planCleanup({ repo, ticket, actor });
-    if (!dryRun) {
-      for (const { branch, tree } of plan.removed) {
-        if (tree !== null) git(repo, ["worktree", "remove", "--force", tree]);
-        git(repo, ["worktree", "prune"]);
-        git(repo, ["branch", "-D", branch]);
-      }
+    for (const { branch, tree } of dryRun ? [] : plan.removed) {
+      if (tree !== null) git(repo, ["worktree", "remove", "--force", tree]);
+      git(repo, ["worktree", "prune"]);
+      git(repo, ["branch", "-D", branch]);
     }
     console.log(JSON.stringify({ dryRun, ...plan }, null, JSON_INDENT));
     return EXIT_DONE;

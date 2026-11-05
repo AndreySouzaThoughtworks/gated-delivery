@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { REASON_FOREIGN_WORKTREE, REASON_UNCOMMITTED, planCleanup } from "./slice-git.mjs";
+import { REASON_FOREIGN_WORKTREE, REASON_UNCOMMITTED, ghJson, git, planCleanup } from "./slice-git.mjs";
 import { makeWorld } from "./fixtures/slice-world.mjs";
 
 const EXIT_DONE = 0;
@@ -175,6 +175,13 @@ test("a dry run lists what would go and removes nothing", () => {
 test("the plan refuses a relative repository path and a ticket that is not a tracker key", () => {
   assert.throws(() => planCleanup({ repo: "relative/repo", ticket: "T-1", actor: ACTOR }), /absolute path/);
   assert.throws(() => planCleanup({ repo: "/tmp", ticket: "T-1.*", actor: ACTOR }), /tracker key/);
+});
+
+test("the git and gh wrappers refuse a relative repository, an empty command and gh output not asked as JSON", () => {
+  assert.throws(() => git("relative/repo", ["status"]), /absolute repository path/);
+  assert.throws(() => git("/tmp", []), /needs a subcommand/);
+  assert.throws(() => ghJson("relative/repo", ["pr", "list", "--json", "state"]), /absolute repository path/);
+  assert.throws(() => ghJson("/tmp", ["pr", "list"]), /asked for it/);
 });
 
 test("usage errors exit 2", () => {

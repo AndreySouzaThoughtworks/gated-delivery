@@ -1,7 +1,8 @@
 {
   "file": "plugin/skills/issue-writing/SKILL.md",
   "files": [
-    "plugin/skills/issue-writing/workflows/story.md"
+    "plugin/skills/issue-writing/workflows/story.md",
+    "plugin/scripts/ticket-lint.mjs"
   ],
   "rules": [
     {
@@ -107,6 +108,12 @@
       "why": "the agent never picks a priority"
     },
     {
+      "id": "issue-writing.bug-priority-confirmed",
+      "anchor": "a Bug drafted at Low is the starting point, not a decision",
+      "kind": "limit",
+      "why": "the lint flags an unconfirmed Low Bug"
+    },
+    {
       "id": "issue-writing.bug-no-story-furniture",
       "anchor": "No Story furniture.",
       "kind": "never",
@@ -114,7 +121,7 @@
     },
     {
       "id": "issue-writing.spike-timebox-value",
-      "anchor": "with no value is incomplete",
+      "anchor": "the timebox must be a duration or an end date, got",
       "kind": "limit",
       "why": "a timebox with no duration or end date is rejected"
     },
@@ -147,6 +154,24 @@
       "anchor": "**Read the status against the open questions.**",
       "kind": "must",
       "why": "an open question must not sit on a Ready ticket"
+    },
+    {
+      "id": "issue-writing.lint-before-showing",
+      "anchor": "ticket-lint.mjs\" <draft.md>",
+      "kind": "must",
+      "why": "the draft is linted before it is shown"
+    },
+    {
+      "id": "issue-writing.unclosed-fence-hides-lines",
+      "anchor": "a code fence opened and never closed",
+      "kind": "never",
+      "why": "an unclosed fence would hide the rest of the draft from the lint"
+    },
+    {
+      "id": "issue-writing.ready-with-open-item",
+      "anchor": "is still open; resolve it with the user or move the ticket out of Ready",
+      "kind": "must",
+      "why": "the lint flags an open question on a Ready ticket"
     },
     {
       "id": "issue-writing.bug-fields-no-hardcode",

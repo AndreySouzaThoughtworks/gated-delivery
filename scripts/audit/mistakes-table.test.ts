@@ -18,7 +18,7 @@ const GUARD_CHECK = /^check (\d+[a-z]?)$/;
 const GUARD_FILE = "scripts/audit/consistency.ts";
 const ZANITY_CONFIG = "zanity.toml";
 const TABLE_HEAD = `${TABLE_HEADING}\n\n| a | b | c | d |\n|---|---|---|---|\n`;
-const REAL_TEST = '`scripts/audit/consistency.test.ts` "rejects a reference that nothing reads"';
+const REAL_TEST = '`scripts/audit/consistency-rules.test.ts` "rejects a reference that nothing reads"';
 const REAL_RULE = "`check 8`";
 
 const ruleProblems = (root: string, rule: string) => {

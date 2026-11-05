@@ -56,11 +56,26 @@
       "why": "baked-in template rules stay"
     },
     {
+      "id": "primer.lint-before-report",
+      "anchor": "primer-lint.mjs\" <primer.html>",
+      "kind": "must",
+      "why": "the page is linted before done is reported"
+    },
+    {
+      "id": "primer.style-verbatim",
+      "anchor": "the <style> block differs from the template's; copy it verbatim",
+      "kind": "must",
+      "why": "the lint compares the style block with the template"
+    },
+    {
       "id": "primer.no-external-distribution",
       "anchor": "Never distribute a primer externally",
       "kind": "never",
       "why": "primer is internal-only"
     }
   ],
-  "exempt": []
+  "exempt": [],
+  "files": [
+    "plugin/scripts/primer-lint.mjs"
+  ]
 }

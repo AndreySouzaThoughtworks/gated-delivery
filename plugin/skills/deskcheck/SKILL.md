@@ -122,7 +122,7 @@ When the ticket lists acceptance or completion criteria, show them in a table st
 | What the ticket asks | How it is met |
 |---|---|
 
-Write each criterion in words, keeping its label only as a prefix. State how it is met as evidence a reviewer can check: a test, a document, an observed result. A criterion that is unmet, partly met, or met in a way the ticket's wording does not anticipate says so in its row. Title the section exactly `How each criterion is met` — no suffix of any kind, including "(preview)", "(draft)", a verdict or a count — on the page and in any preview shown in the conversation. Open it with one sentence that gives the verdict, such as "Every criterion is met" or "Five of seven criteria are met", and names the pull requests that met them. The verdict goes in that sentence, never in a heading, and is stated once. A gap belongs in its row and in that sentence; a heading built around it turns one unverified criterion into the page's headline.
+Write each criterion in words, keeping its label only as a prefix. State how it is met as evidence a reviewer can check: a test, a document, an observed result. A criterion that is unmet, partly met, or met in a way the ticket's wording does not anticipate says so in its row. Title the section exactly `How each criterion is met`, on the page and in any preview shown in the conversation; the lint rejects any suffix. Open it with one sentence that gives the verdict, such as "Every criterion is met" or "Five of seven criteria are met", and names the pull requests that met them. The verdict goes in that sentence, never in a heading, and is stated once. A gap belongs in its row and in that sentence; a heading built around it turns one unverified criterion into the page's headline.
 
 ### 7. Paste the evidence
 
@@ -130,7 +130,7 @@ Paste the evidence you collected into the page itself. A link alone is not evide
 
 - the command that was run and the trimmed output showing the result, in `<pre><code>`;
 - for an API, the request and the response showing the expected behaviour;
-- a screenshot of the product surface, embedded as `<img src="data:image/png;base64,…" alt="…">`, with alt text saying what it shows. Produce the base64 with one command for your platform — `base64 -i shot.png | tr -d '\n'` on macOS, `base64 -w0 shot.png` on Linux — and match the MIME type to the file. If that command is blocked or fails, record the screenshot as a gap in its criterion's row and move on; never retry it or cycle through other encoders. A screenshot you cannot embed — no file, or no way to encode it — is a gap stated in its criterion's row, never an `<img>` with a relative or remote `src`;
+- a screenshot of the product surface, embedded as `<img src="data:image/png;base64,…" alt="…">`, with alt text saying what it shows. Produce the base64 with one command for your platform — `base64 -i shot.png | tr -d '\n'` on macOS, `base64 -w0 shot.png` on Linux — and match the MIME type to the file. If that command is blocked or fails, record the screenshot as a gap in its criterion's row and move on; never retry it or cycle through other encoders. A screenshot you cannot embed — no file, or no way to encode it — is a gap stated in its criterion's row; the lint rejects an `<img>` whose `src` is not a data URI;
 - the passing test's name and result line, linked to the run.
 
 Paste each demonstration step's observed result beside its expected result the same way.
@@ -185,7 +185,7 @@ After the deskcheck, update the same file when asked. Record the feedback, decis
 
 Before reporting the path:
 
-1. Run `node "<skill base directory>/scripts/deskcheck-lint.mjs" <deskcheck.html>` and fix every problem it reports. It checks leftover placeholders, one `h1`, links, scripts, event attributes, remote assets and the template's `Content-Security-Policy` meta tag.
+1. Run `node "<skill base directory>/scripts/deskcheck-lint.mjs" <deskcheck.html>...` and fix every problem. The model supplies one or more page paths. It prints `<file>: <problem>` per problem on stdout. Exit 0 clean, 1 problems or no path given.
 2. Confirm the file contains no credentials, customer data or production payloads.
 3. Open the file in a browser. Inspect the full page at desktop width and a narrow viewport; fix overflow, unreadable contrast and broken hierarchy. Headless Chrome will not size a window below about 500 pixels, so its narrow screenshot clips the page; measure `document.documentElement.scrollWidth` inside a 390-pixel iframe instead.
 4. Report the output path and any part of the delivered behaviour that remains unverified.

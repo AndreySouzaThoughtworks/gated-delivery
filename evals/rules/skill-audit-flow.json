@@ -18,6 +18,12 @@
       "anchor": "Never retire or trim a rule in the same session you flag it",
       "kind": "never",
       "why": "sign-off then PR"
+    },
+    {
+      "id": "audit-flow.guard-only-when-present",
+      "anchor": "When the file does not exist, say that the mechanical guard was not run",
+      "kind": "must",
+      "why": "a client repo without the checker is never reported clean"
     }
   ],
   "exempt": [

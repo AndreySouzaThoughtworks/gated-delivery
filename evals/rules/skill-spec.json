@@ -1,7 +1,8 @@
 {
   "file": "plugin/skills/spec/SKILL.md",
   "files": [
-    "plugin/skills/spec/templates/change.md"
+    "plugin/skills/spec/templates/change.md",
+    "plugin/skills/spec/scripts/spec-lint.mjs"
   ],
   "rules": [
     {
@@ -165,6 +166,54 @@
       "anchor": "An unknown flag name is an Open decision, never a blank",
       "kind": "limit",
       "why": "flagged slices never carry a blank flag name"
+    },
+    {
+      "id": "spec.calls-spec-lint",
+      "anchor": "scripts/spec-lint.mjs\" <spec-file>",
+      "kind": "must",
+      "why": "the drafted spec is checked by the script before the user sees it"
+    },
+    {
+      "id": "spec.relevant-files-name-guard",
+      "anchor": "names no guard",
+      "kind": "must",
+      "why": "every Relevant files entry names the check that guards it"
+    },
+    {
+      "id": "spec.contradiction-has-disposition",
+      "anchor": "needs six cells with a Disposition",
+      "kind": "must",
+      "why": "every Contradictions row has a disposition"
+    },
+    {
+      "id": "spec.no-contradictions-line",
+      "anchor": "an empty ledger reads as skipped",
+      "kind": "must",
+      "why": "a clean ledger says so explicitly"
+    },
+    {
+      "id": "spec.security-disposition-filled",
+      "anchor": "has an empty Disposition",
+      "kind": "must",
+      "why": "every Security threat row carries a disposition"
+    },
+    {
+      "id": "spec.lint-ac-range-cap",
+      "anchor": "an AC range must not expand to more than",
+      "kind": "limit",
+      "why": "a regex-matched AC range cannot expand without bound"
+    },
+    {
+      "id": "spec.lint-no-nested-heading",
+      "anchor": "part must not contain another",
+      "kind": "never",
+      "why": "a heading part never swallows a heading of its own level"
+    },
+    {
+      "id": "spec.read-client-domain-references",
+      "anchor": "when the ticket touches a technology its `## Domain references` section lists",
+      "kind": "must",
+      "why": "client-specific technology references are read before ACs promise behaviour"
     }
   ],
   "exempt": [

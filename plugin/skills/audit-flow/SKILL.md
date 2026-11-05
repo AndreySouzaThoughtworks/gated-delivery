@@ -4,17 +4,19 @@ description: Periodic health audit of the gated-delivery flow itself (skills, ag
 ---
 # audit-flow — keep the flow coherent and trim
 
-Audits **the flow itself**, not your code. Over time flow accretes — skills, hooks, doc sections — start overlap, contradict, rot. This periodic top-down check that accreted set still hangs together. (Complement to `learn-flow` (`skills/learn-flow/`), which capture lessons bottom-up per session, and `senior-review-lens`, which audit product code.)
+Audits **the flow itself**, not your code. Over time flow accretes — skills, hooks, doc sections — start overlap, contradict, rot. This periodic top-down check that accreted set still hangs together. Complements `learn-flow` (lessons per session) and `senior-review-lens` (product code).
 
 Default to **trim**: win come from removing redundancy and resolving conflicts, not adding more.
 
 ## Step 1 — Deterministic guard (the mechanical floor)
 
-Run consistency checker, report findings, **quote its summary line verbatim** (the `gated-delivery audit: N skills, N agents, N hooks` line) as proof it ran. Reported result with no quoted output indistinguishable from guessed one. Same gate CI runs:
+The checker lives in the gated-delivery repository, not the installed plugin. When `scripts/audit/consistency.ts` exists in the audited repository, run it, report findings, **quote its summary line verbatim** (`gated-delivery audit: N skills, N agents, N hooks`) as proof it ran; a result with no quoted output is indistinguishable from a guess. Same gate CI runs:
 
 ```bash
 node scripts/audit/consistency.ts
 ```
+
+When the file does not exist, say that the mechanical guard was not run and why, go to Step 2, and report the Mechanical section as "guard not available in this checkout", never "clean".
 
 **Errors** are mechanical. Fix them, or, if the flow lives in a different checkout, file them. Don't proceed to Step 2 with the guard red.
 
@@ -24,7 +26,7 @@ node scripts/audit/consistency.ts
 
 Read current skills, agents, hooks, and `senior-review-lens` lenses, then look for these:
 
-- **Overlap / double coverage.** Two things enforcing same rule. Check skill steps against each other (e.g. same reviewer running at two checkpoints) and against `senior-review-lens` lenses; check verify/format/guard hooks don't fight skill step. (The verification gate runs the client's Verify command; there is no bespoke rule set to dedupe.)
+- **Overlap / double coverage.** Two things enforcing same rule. Check skill steps against each other (e.g. same reviewer running at two checkpoints) and against `senior-review-lens` lenses; check verify/format/guard hooks don't fight skill step.
 - **Conflict.** Two rules pulling opposite ways, or hook fighting skill step.
 - **Coverage gaps.** Class of mistake nothing catch — name as candidate new rule (don't build here; that a proposal).
 - **Doc bloat.** Note/section now redundant with table or another doc (we trim these aggressively). Dangling cross-links, stale "we will…" language, duplicated explanations.
@@ -60,7 +62,7 @@ Emit:
 - PR (or issue) against the gated-delivery repo: <title> — <which proposals it carries>
 ```
 
-The Route line names the gated-delivery repo even when this checkout has no remote or is not that repo. A local commit, a branch kept here, or "apply once approved" is not a route: it reaches no other install.
+The Route line names the gated-delivery repo even when this checkout is not that repo. A local commit, a branch kept here, or "apply once approved" is not a route: it reaches no other install. Flow-level changes go there as a PR or an issue, the `learn-flow` path.
 
-**Propose, never silently write.** Mechanical drift fixes can apply directly (not judgment). Every trim/merge/retire of rule or doc is proposal: get sign-off, then PR. Never retire or trim a rule in the same session you flag it, even when told to apply it — apply only mechanical drift fixes. Route flow-level changes to the gated-delivery repo as a PR or an issue — same repo→release path `learn-flow` use, so change reach every install. A local commit kept in this checkout is not a route.
+**Propose, never silently write.** Mechanical drift fixes can apply directly (not judgment). Every trim/merge/retire of rule or doc is proposal: get sign-off, then PR. Never retire or trim a rule in the same session you flag it, even when told to apply it — apply only mechanical drift fixes.
 

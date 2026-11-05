@@ -27,6 +27,7 @@ Each mistake below happened in this repo. The fix is a check that rules out the 
 | Plugin code, or a test of it, imported a `.ts` helper from `scripts/`; it failed on Node 18 and 20 with ERR_UNKNOWN_FILE_EXTENSION, which only the CI job "node 18 and 20 plugin tests" runs. | A dev-only file reached shipped code | `check 20` | `scripts/audit/consistency.test.ts` "a plugin file, tests included, that imports TypeScript is reported" |
 | The Cursor config pointed at a script that was gone, left the shell guard open when a hook crashed, or held a rule file Cursor ignores. | Config drift from the files it names | `check 21` | `scripts/audit/consistency.test.ts` "a Cursor config that points at real files and fails closed passes; a missing script, an open guard or a stray rule fails" |
 | Two parallel pull requests both added a check 20 to the consistency guard, so the numbers in the guard and in this table named two checks at once. | Two branches claiming the same number | `check 22` | `scripts/audit/consistency.test.ts` "check numbers that repeat or skip one are reported, a contiguous run and lettered sub-checks pass" |
+| A prose trim (b7b63c6) deleted the `/slice` limit "Auto-merge PRs"; it was put back as prose in 6e62a8c. A rule inventory now pins every `/slice` rule to a literal anchor, so deleting or rewording one fails the guard. It proves the rule text is present, not that the model follows it or that a reworded rule keeps its meaning. | A load-bearing rule deleted by a trim | `check 27` with `evals/rules/skill-slice.json`; `scripts/audit/rule-inventory-mutation.ts` and `scripts/audit/rule-inventory-backtest.ts` measure the inventory | `scripts/audit/consistency.test.ts` "a rule anchor that is no longer in the file is reported"; `scripts/audit/consistency.test.ts` "a marker line that no rule or exempt anchor covers is reported with file, line and hint" |
 
 ## Mistakes with no deterministic rule yet
 
@@ -34,7 +35,6 @@ These still depend on review.
 
 | Mistake | Why no rule catches it |
 |---|---|
-| A prose trim deleted the `/slice` limit "Auto-merge PRs"; it was put back as prose in 6e62a8c. | No check or `/slice` scenario reads for it (nothing about auto-merge in `plugin/skills/slice/evals.md`), so deleting it again passes everything. |
 | The recorded waiver for `slice` said no behavior changed when steps had been renumbered and a paragraph removed (6e62a8c). | `check 18` fails only a blank or stale waiver. It cannot tell whether the reason is true. |
 | A skill-prose edit that changes behavior can ship while its eval is waived. | A waiver shows as a warning only. Review of `evals/results/` through CODEOWNERS is the control. |
 | `story-drift` SKILL.md contradicted itself about follow-up text (0928c77). | No check finds two sentences that disagree. |

@@ -167,3 +167,39 @@ Run it from the repository root. `<run-dir>` holds `output.md` and, when there a
 The judge settles nothing alone. Read the evidence of every FAIL and UNCLEAR before you act on it. An UNCLEAR often means the judge quoted loosely, such as two table cells joined into one quote; rerun it before grading by hand. Before trusting the judge on a new skill, run it on one run you graded PASS and one you graded FAIL, twice each, and see the verdicts match yours. Run it twice on any run you act on: a split is a clause worded loosely enough to read both ways.
 
 It was proven on 8 hand-graded runs across 5 skills (4 PASS, 4 FAIL, story-drift, prod-support, deskcheck, audit-flow, learn-flow). With quote checking in place, a final pass matched the hand grade on 8 of 8, with no UNCLEAR clause.
+
+## Rule inventory
+
+Live evals are off, so nothing else notices when a prose trim deletes a rule. In b7b63c6 a trim deleted the `/slice` limit "Auto-merge PRs" and every check still passed. A rule inventory makes that visible: a JSON file lists the load-bearing rules of one skill, agent or command, each with a literal anchor, and consistency check 27 fails when an anchor is no longer in the file.
+
+### What it proves and what it does not
+
+It proves that each listed rule's anchor text is present in the file, and that every line containing a marker word is accounted for by some rule or an exempt entry with a reason. It does not prove that the model follows a rule. It does not prove that a reworded rule still means the same: an anchor that survives a rewrite of the rest of its sentence passes. A reviewer still reads the diff; the inventory tells the reviewer which rules the diff touched.
+
+### Writing one
+
+Create `evals/rules/<kind>-<name>.json`, for example `evals/rules/skill-slice.json`. The folder sits outside `plugin/`, so the file is not shipped and does not change the skill hash.
+
+```json
+{
+  "file": "plugin/skills/slice/SKILL.md",
+  "files": ["plugin/skills/slice/references/parallel.md"],
+  "rules": [{ "id": "slice.no-automerge", "anchor": "`/slice` never merges one", "kind": "never", "why": "the b7b63c6 rule" }],
+  "exempt": [{ "anchor": "a phrase of a marker line", "reason": "restates slice.no-automerge" }]
+}
+```
+
+- `anchor` is a literal substring of one line, not a regex. Copy a distinctive phrase of the rule line. It must occur in `file` or in one of `files`, the other files of the same skill where a rule may live after a split.
+- `kind` is one of `stop`, `never`, `must`, `checkpoint`, `limit`, `other`. A rule is anything whose deletion changes what the orchestrator does or refuses to do, marker word or not.
+- Marker lines are the lines of every listed file that match `MARKER_PATTERN` in `scripts/audit/rule-inventory.ts` (STOP, NEVER, MUST, Do not, CHECKPOINT, never, Never, always, Always, must not, Must not as whole words), plus every non-blank line under a heading that contains the word NOT, such as `## What /slice does NOT do`: the pattern alone cannot see a bullet like "Auto-merge PRs." A marker line must contain some rule anchor or some exempt anchor. An exempt entry needs a reason that says why the line is not a rule, such as a restatement, an example or vocabulary. Rule ids must be unique and a blank anchor or reason is an error.
+- A file with marker lines and no inventory only warns (`no rule inventory for <file>: N marker lines`). `UNINVENTORIED_FILES_ARE_ERRORS` in `scripts/audit/rule-inventory.ts` is the one constant that turns the warning into an error once every file has an inventory.
+
+### The three tools
+
+- `node scripts/audit/consistency.ts` runs check 27 on every file in `evals/rules/`.
+- `node scripts/audit/rule-inventory-mutation.ts evals/rules/skill-slice.json` deletes, in a scratch copy, each line holding a rule's anchor, one line at a time, and counts the mutation as killed only when the check then reports that rule's own anchor missing. A rule whose anchor also appears on another line survives the deletion of one copy, so the tool exits 1 and lists it as a weak anchor. It also prints the unprotected share, the percentage of non-blank lines that hold no rule anchor. That share is information, not a failure: it is what the inventory does not guard.
+- `node scripts/audit/rule-inventory-backtest.ts --file <path> [--commit <sha>]` needs git history, so it is a development tool and evidence for a PR, not a CI step. It builds a provisional inventory from the commit's parent, with every marker line as its own anchor, and lists the lines the commit's version lacks. Without `--commit` it runs over every commit that touched the file and prints the interruption rate. Whole-line anchors also flag a reworded line, so the rate is an upper bound on how often a trim would interrupt a real inventory.
+
+### Dual extraction, planned
+
+An inventory written by one reader misses what that reader misses. A later change will, for each remaining skill, agent and command, have two independent extractions of the rules compared before the inventory is accepted, and a disagreement lists the rules only one of them found. It is not built yet; the other files are inventoried by hand first.

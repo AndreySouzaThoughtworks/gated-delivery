@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "Client-neutral AI-assisted delivery flow.",
-    "version": "0.10.8"
+    "version": "0.10.9"
   },
   "plugins": [
     {

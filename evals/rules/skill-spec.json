@@ -208,6 +208,12 @@
       "anchor": "part must not contain another",
       "kind": "never",
       "why": "a heading part never swallows a heading of its own level"
+    },
+    {
+      "id": "spec.read-client-domain-references",
+      "anchor": "when the ticket touches a technology its `## Domain references` section lists",
+      "kind": "must",
+      "why": "client-specific technology references are read before ACs promise behaviour"
     }
   ],
   "exempt": [

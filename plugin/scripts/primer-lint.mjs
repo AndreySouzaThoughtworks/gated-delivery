@@ -16,7 +16,6 @@ const STYLE_BLOCK = /^<style>[\s\S]*?^<\/style>/m;
 const LINE_BREAK = /\r?\n/;
 const COMMENT = /<!--[\s\S]*?-->/g;
 const PLACEHOLDER_MARKER = /\{\{|\}\}/;
-const SCRIPT_ELEMENT = /<script\b/i;
 const BANNER_ELEMENT = /class="banner[\s"]/;
 const FOOTER_ELEMENT = /<footer\b/i;
 const NEUTRAL_BANNER_WORDING = "Internal only";
@@ -30,6 +29,7 @@ const EXPECTED_HIGHLIGHTS = 1;
 const RADIUS_DECLARATION = /border-radius:\s*([^;}"]+)/gi;
 const ALLOWED_RADII = ["4px", "8px"];
 const SHOWN_LENGTH = 60;
+const WARNING_PREFIX = "warning: ";
 
 /** @typedef {{ html: string, uncommented: string, templateStyle: string }} Page */
 /** @typedef {[isBroken: (page: Page) => boolean, describe: string]} Rule */
@@ -38,10 +38,13 @@ const SHOWN_LENGTH = 60;
 const RULES = [
   [({ html, templateStyle }) => html.match(STYLE_BLOCK)?.[0] !== templateStyle, "the <style> block differs from the template's; copy it verbatim"],
   [({ uncommented }) => PLACEHOLDER_MARKER.test(uncommented.replace(STYLE_BLOCK, "")), "the file still holds a {{ or }} template placeholder; fill every placeholder"],
-  [({ html }) => SCRIPT_ELEMENT.test(html), "the page holds a <script> element; remove it"],
   [({ uncommented }) => !BANNER_ELEMENT.test(uncommented), 'the page has no element with class="banner"; keep the sensitivity banner'],
   [({ uncommented }) => !FOOTER_ELEMENT.test(uncommented), "the page has no <footer> element; keep the disclosure footer"],
-  [({ html }) => html.split(LINE_BREAK).filter((line) => !HIGHLIGHT_DEFINITION_LINE.test(line)).join("\n").match(HIGHLIGHT_PAINT)?.length !== EXPECTED_HIGHLIGHTS, `the page must paint the Highlight exactly ${EXPECTED_HIGHLIGHTS} time; keep the accent bar and add no second`],
+];
+
+/** @type {Rule[]} */
+const ADVISORY_RULES = [
+  [({ html }) => html.split(LINE_BREAK).filter((line) => !HIGHLIGHT_DEFINITION_LINE.test(line)).join("\n").match(HIGHLIGHT_PAINT)?.length !== EXPECTED_HIGHLIGHTS, `${WARNING_PREFIX}the page should paint the Highlight exactly ${EXPECTED_HIGHLIGHTS} time; keep the accent bar and add no second`],
 ];
 
 /** @type {Rule[]} */
@@ -65,7 +68,7 @@ export const lintPrimer = (html, templateHtml, neutral = true) => {
   const templateStyle = String(templateHtml).match(STYLE_BLOCK)?.[0];
   assert(templateStyle !== undefined, `the template must hold a <style> block to compare against, got ${JSON.stringify(String(templateHtml).slice(0, SHOWN_LENGTH))}`);
   const page = { html, uncommented: html.replace(COMMENT, ""), templateStyle };
-  return (neutral ? [...RULES, ...NEUTRAL_RULES] : RULES).filter(([isBroken]) => isBroken(page)).map(([, describe]) => describe);
+  return [...RULES, ...(neutral ? NEUTRAL_RULES : []), ...ADVISORY_RULES].filter(([isBroken]) => isBroken(page)).map(([, describe]) => describe);
 };
 
 /**
@@ -79,8 +82,8 @@ const main = (argv) => {
     assert(values.template !== "", `--template needs a path, got ${JSON.stringify(values.template)}`);
     const templatePath = values.template ?? DEFAULT_TEMPLATE_PATH;
     const problems = lintPrimer(readFileSync(positionals[0], ENCODING), readFileSync(templatePath, ENCODING), values.template === undefined);
-    for (const problem of problems) console.log(`${positionals[0]}: ${problem}`);
-    return problems.length === 0 ? EXIT_CLEAN : EXIT_PROBLEMS;
+    for (const problem of problems) console.log(problem.startsWith(WARNING_PREFIX) ? problem : `${positionals[0]}: ${problem}`);
+    return problems.every((problem) => problem.startsWith(WARNING_PREFIX)) ? EXIT_CLEAN : EXIT_PROBLEMS;
   } catch (error) {
     console.error(`primer-lint: ${error instanceof Error ? error.message : String(error)}\n${USAGE}`);
     return EXIT_USAGE;

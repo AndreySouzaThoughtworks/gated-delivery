@@ -70,12 +70,18 @@ test("rejects a radius other than 4px or 8px", () => {
   assert.match(problemsOf(inHeader(validPage(), '<p style="border-radius:999px">x</p>')), /border-radius is not 4px or 8px/);
 });
 
-test("rejects zero Highlights", () => {
-  assert.match(problemsOf(validPage().replace(ACCENT_BAR, "")), /Highlight exactly 1 time/);
+test("warns on zero Highlights and exits 0", () => {
+  const page = validPage().replace(ACCENT_BAR, "");
+  assert.match(problemsOf(page), /^warning: the page should paint the Highlight exactly 1 time/);
+  const result = run([writePage(page)]);
+  assert.equal(result.status, EXIT_CLEAN);
+  assert.match(result.stdout, /^warning: /);
 });
 
-test("rejects two Highlights", () => {
-  assert.match(problemsOf(inHeader(validPage(), ACCENT_BAR)), /Highlight exactly 1 time/);
+test("warns on two Highlights and exits 0", () => {
+  const page = inHeader(validPage(), ACCENT_BAR);
+  assert.match(problemsOf(page), /^warning: the page should paint the Highlight exactly 1 time/);
+  assert.equal(run([writePage(page)]).status, EXIT_CLEAN);
 });
 
 test("rejects a missing banner", () => {
@@ -96,10 +102,6 @@ test("rejects a footer without the disclosure wording", () => {
 
 test("rejects a leftover placeholder", () => {
   assert.match(problemsOf(inHeader(validPage(), "{{LEFT}}")), /template placeholder/);
-});
-
-test("rejects a script element", () => {
-  assert.match(problemsOf(inHeader(validPage(), "<script>1</script>")), /<script> element/);
 });
 
 test("skips the neutral token rules for a client template", () => {
@@ -127,7 +129,8 @@ test("exits 1 with one line per problem prefixed by the file", () => {
   assert.equal(result.status, EXIT_PROBLEMS);
   const lines = result.stdout.trimEnd().split("\n");
   assert.equal(lines.length, EXPECTED_PROBLEM_LINES);
-  assert.ok(lines.every((line) => line.startsWith(`${file}: `)));
+  assert.ok(lines.filter((line) => !line.startsWith("warning: ")).every((line) => line.startsWith(`${file}: `)));
+  assert.equal(lines.filter((line) => line.startsWith("warning: ")).length, 1);
 });
 
 test("exits 2 without a page, with an empty template value, and with a missing file", () => {

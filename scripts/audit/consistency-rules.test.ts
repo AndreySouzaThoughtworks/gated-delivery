@@ -5,16 +5,20 @@ import { join } from "node:path";
 
 import { write, validRepo, runGuard, STRICT_ZANITY_CONFIG, ONE_SCENARIO, RELAXED_TEST_RULES, SELECT_ALL } from "../test-support/consistency-fixtures.test.support.ts";
 
-test("warns when a skill or agent file uses a phrase banned by the writing rules", () => {
+test("a skill or agent file that uses a phrase banned by the writing rules is an error, and prose without one passes", () => {
   const skill = validRepo();
   write(skill, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\n\n## Heading One\n\nThis step earns its place.\n");
   const skillRun = runGuard(skill);
-  assert.equal(skillRun.code, 0, "style drift is a WARN, never an ERROR");
-  assert.match(skillRun.out, /WARN.*plugin\/skills\/alpha\/SKILL\.md:8 uses banned phrase "earns its place"/);
+  assert.equal(skillRun.code, 1, skillRun.out);
+  assert.match(skillRun.out, /ERROR.*plugin\/skills\/alpha\/SKILL\.md:8 uses banned phrase "earns its place"/);
 
   const agent = validRepo();
   write(agent, "plugin/agents/bot.md", "---\nname: bot\ndescription: x\n---\n\nThe Load-Bearing check.\n");
-  assert.match(runGuard(agent).out, /WARN.*plugin\/agents\/bot\.md:6 uses banned phrase "load-bearing"/);
+  assert.match(runGuard(agent).out, /ERROR.*plugin\/agents\/bot\.md:6 uses banned phrase "load-bearing"/);
+
+  const clean = runGuard(validRepo());
+  assert.equal(clean.code, 0, clean.out);
+  assert.doesNotMatch(clean.out, /banned phrase/);
 });
 
 test("the prose-writing skill may name the phrases it bans", () => {

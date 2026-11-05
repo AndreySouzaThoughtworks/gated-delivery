@@ -100,6 +100,15 @@ Find where each repository keeps them before reading: where the repository's ins
 and a contract named as canonical can live in a repository the ticket does not change. Read on the
 default branch, fetched remotely or from a freshly pulled local checkout.
 
+**Locating is the scout's, reading is yours.** For each repository checked out locally, dispatch
+`Agent(subagent_type: scout)` with `root` and `question` (decision records, contracts and specs
+naming the ticket's surface terms, with each record's Status line). Run
+`node "<skill base directory>/../../scripts/verify-citations.mjs" --root <root> <scout-output-file>`
+before you reason over the output. Exit 0: every cited line is real. Exit 1: drop each violating
+finding and never cite it. Exit 2: fix the options. Any other outcome: STOP and surface the output;
+never verify by hand. A repository read from a remote has no scout: read it directly. What a record
+decides stays yours.
+
 - **Decision records.** In each repository the ticket changes, Status, Context and Decision of the
   records touching the ticket's surface. An open PR adding one counts as Proposed.
 - **Contracts.** Each contract the ticket, its working docs or a linked spec names as canonical. Read

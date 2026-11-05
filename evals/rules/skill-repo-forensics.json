@@ -72,6 +72,24 @@
       "anchor": "never paste log",
       "kind": "never",
       "why": "log bodies stay out of committable files"
+    },
+    {
+      "id": "repo-forensics.scout-output-verified",
+      "anchor": "before you reason over the output. Exit 0: every cited line is real.",
+      "kind": "must",
+      "why": "scout findings pass verify-citations before the model reasons over them"
+    },
+    {
+      "id": "repo-forensics.verify-citations-stop",
+      "anchor": "never verify by hand",
+      "kind": "stop",
+      "why": "a missing script or unlisted exit code stops the run instead of hand-checking citations"
+    },
+    {
+      "id": "repo-forensics.no-cite-unverified-finding",
+      "anchor": "never cite it",
+      "kind": "never",
+      "why": "a finding verify-citations rejects is never cited"
     }
   ],
   "exempt": []

@@ -102,13 +102,13 @@ test("an inventory missing its file, rules or exempt key is reported by name", (
   }
 });
 
-test("a file with marker lines and no inventory warns with its marker count, and a non-inventory json file is ignored", () => {
+test("a file with marker lines and no inventory fails with its marker count, and a non-inventory json file is ignored", () => {
   const dir = validRepo();
   write(dir, INVENTORIED_SKILL, `${SKILL_FRONTMATTER}${RULE_LINE}\n${MARKER_ONLY_LINE}\n`);
   write(dir, "evals/rules/notes.txt", "ignored");
   const { code, out } = runGuard(dir);
-  assert.equal(code, 0, out);
-  assert.match(out, /WARN {2}no rule inventory for plugin\/skills\/alpha\/SKILL\.md: 2 marker lines/);
+  assert.equal(code, 1, out);
+  assert.match(out, /ERROR no rule inventory for plugin\/skills\/alpha\/SKILL\.md: 2 marker lines/);
 });
 
 test("a section headed with NOT counts every line under it as a marker line", () => {

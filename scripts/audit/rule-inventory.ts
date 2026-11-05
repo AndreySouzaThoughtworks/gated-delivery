@@ -5,7 +5,7 @@ import { join } from "node:path";
 export const RULES_DIRECTORY = "evals/rules";
 export const MARKER_PATTERN = /\b(?:STOP|NEVER|MUST|Do not|CHECKPOINT|never|Never|always|Always|must not|Must not)\b/;
 export const RULE_KINDS = ["stop", "never", "must", "checkpoint", "limit", "other"];
-export const UNINVENTORIED_FILES_ARE_ERRORS = false;
+export const UNINVENTORIED_FILES_ARE_ERRORS = true;
 const HEADING = /^#{1,6} /;
 const LIMITS_HEADING = /^#{1,6} .*\bNOT\b/;
 const INSTRUCTION_DIRECTORIES = [

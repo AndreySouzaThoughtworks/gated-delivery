@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { realpathSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -15,6 +16,7 @@ const DEFAULT_BASE = "main";
 const REMOTE = "origin";
 const LS_REMOTE_FOUND = 0;
 const JSON_INDENT = 2;
+const NONCE_BYTES = 8;
 const TICKET_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const POSITIVE_INTEGER = /^[1-9]\d*$/;
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -96,7 +98,7 @@ const claimSlice = (request) => { // zanity: ignore[assertion-density] -- limit-
   }
   try {
     const actor = git(repo, ["config", "user.name"]);
-    git(claimTree, ["commit", "--allow-empty", "-m", `chore(${ticket}): claim s${slice} for ${actor}`]);
+    git(claimTree, ["commit", "--allow-empty", "-m", `chore(${ticket}): claim s${slice} for ${actor}`, "-m", `claim-nonce: ${randomBytes(NONCE_BYTES).toString("hex")}`]);
     git(claimTree, ["push", "-u", `--force-with-lease=refs/heads/${branch}:`, REMOTE, `HEAD:refs/heads/${branch}`]);
   } catch (error) {
     const onOrigin = spawnSync("git", ["ls-remote", "--exit-code", REMOTE, `refs/heads/${branch}`], { cwd: repo, stdio: "ignore" }).status === LS_REMOTE_FOUND;

@@ -17,6 +17,7 @@ const TICKET = "T-1";
 const SLUG = "alpha";
 const BRANCH = "feat/T-1-alpha-s1";
 const CLAIM_COMMIT_SUBJECT = "chore(T-1): claim s1 for Alice";
+const FROZEN_CLOCK = { GIT_AUTHOR_DATE: "2026-01-01T00:00:00Z", GIT_COMMITTER_DATE: "2026-01-01T00:00:00Z" };
 const ISOLATED_GIT_ENV = { GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", GIT_TERMINAL_PROMPT: "0" };
 
 Object.assign(process.env, ISOLATED_GIT_ENV);
@@ -34,12 +35,12 @@ const refOnOrigin = (origin, ref) => {
   return spawnSync("git", ["rev-parse", "--verify", "-q", `refs/heads/${ref}`], { cwd: origin, encoding: ENCODING }).stdout.trim();
 };
 
-const clone = (root, origin, name) => {
+const clone = (root, origin, name, identity) => {
   assert(existsSync(origin), `the origin must exist, got ${origin}`);
   const checkout = join(root, name);
   git(root, ["clone", "-q", origin, checkout]);
-  git(checkout, ["config", "user.name", `${name[0].toUpperCase()}${name.slice(1)}`]);
-  git(checkout, ["config", "user.email", `${name}@example.com`]);
+  git(checkout, ["config", "user.name", `${identity[0].toUpperCase()}${identity.slice(1)}`]);
+  git(checkout, ["config", "user.email", `${identity}@example.com`]);
   assert(git(checkout, ["branch", "--show-current"]) === "main", `${name} must start on main`);
   return checkout;
 };
@@ -61,14 +62,14 @@ const world = () => {
   git(seed, ["push", "-q", "origin", "main:refs/heads/main"]);
   assert(existsSync(join(seed, "file.txt")), `the seed ${seed} must hold the first commit`);
   assert(refOnOrigin(origin, "main") !== "", `origin ${origin} must start with main`);
-  return { root, origin, main: () => refOnOrigin(origin, "main"), clone: (name) => clone(root, origin, name) };
+  return { root, origin, main: () => refOnOrigin(origin, "main"), clone: (name, identity = name) => clone(root, origin, name, identity) };
 };
 
 const CLAIM_ARGS = ["--ticket", TICKET, "--slice", "1", "--slug", SLUG];
 
-const claim = (repo, extra = []) => {
+const claim = (repo, extra = [], env = {}) => {
   assert(existsSync(repo), `the repo must exist, got ${repo}`);
-  const result = spawnSync(process.execPath, [SCRIPT, "--repo", repo, ...CLAIM_ARGS, ...extra], { encoding: ENCODING });
+  const result = spawnSync(process.execPath, [SCRIPT, "--repo", repo, ...CLAIM_ARGS, ...extra], { encoding: ENCODING, env: { ...process.env, ...env } });
   assert(result.status !== null, `the claim must exit on its own, got signal ${result.signal}`);
   return result;
 };
@@ -248,22 +249,49 @@ test("a branch already on origin that could be fast-forwarded is not pushed over
   assert.deepEqual(localBranches(bob), ["main"]);
 });
 
-test("two claimants running at the same moment: exactly one holds the slice", async () => {
-  const { origin, clone: cloneOf } = world();
-  const repos = [cloneOf("alice"), cloneOf("bob")];
-  const exits = await Promise.all(
+const claimConcurrently = async (repos, env) => {
+  assert(repos.length === 2, `the race needs two claimants, got ${repos.length}`);
+  assert(env.GIT_AUTHOR_DATE === undefined || env.GIT_AUTHOR_DATE === env.GIT_COMMITTER_DATE, "a frozen clock must use one date");
+  return Promise.all(
     repos.map(
       (repo) =>
         new Promise((resolveExit) => {
-          const child = spawn(process.execPath, [SCRIPT, "--repo", repo, ...CLAIM_ARGS], { stdio: "ignore" });
+          const child = spawn(process.execPath, [SCRIPT, "--repo", repo, ...CLAIM_ARGS], { stdio: "ignore", env: { ...process.env, ...env } });
           child.on("close", resolveExit);
         }),
     ),
   );
+};
+
+test("two claimants running at the same moment: exactly one holds the slice", async () => {
+  const { origin, clone: cloneOf } = world();
+  const repos = [cloneOf("alice"), cloneOf("bob")];
+  const exits = await claimConcurrently(repos, {});
   assert.deepEqual([...exits].sort(), [EXIT_CLAIMED, EXIT_HELD]);
   assert.equal(git(origin, ["rev-list", "--count", `main..${BRANCH}`]), "1");
   const loser = repos[exits.indexOf(EXIT_HELD)];
   assert.deepEqual(localBranches(loser), ["main"]);
+});
+
+test("two claimants with one identity and a frozen clock: the second is held, one claim commit lands", () => {
+  const { origin, clone: cloneOf } = world();
+  const first = cloneOf("twin1", "alice");
+  const second = cloneOf("twin2", "alice");
+  assert.equal(claim(first, [], FROZEN_CLOCK).status, EXIT_CLAIMED);
+  const winnerTip = refOnOrigin(origin, BRANCH);
+  const result = claim(second, [], FROZEN_CLOCK);
+  assert.equal(result.status, EXIT_HELD, result.stderr);
+  assert.equal(refOnOrigin(origin, BRANCH), winnerTip);
+  assert.equal(git(origin, ["rev-list", "--count", `main..${BRANCH}`]), "1");
+  assert.deepEqual(localBranches(second), ["main"]);
+});
+
+test("two concurrent claimants with one identity and a frozen clock: exactly one holds the slice", async () => {
+  const { origin, clone: cloneOf } = world();
+  const repos = [cloneOf("twin1", "alice"), cloneOf("twin2", "alice")];
+  const exits = await claimConcurrently(repos, FROZEN_CLOCK);
+  assert.deepEqual([...exits].sort(), [EXIT_CLAIMED, EXIT_HELD]);
+  assert.equal(git(origin, ["rev-list", "--count", `main..${BRANCH}`]), "1");
 });
 
 test("a push that fails for a reason other than a held slice is a precondition failure and is cleaned up", () => {

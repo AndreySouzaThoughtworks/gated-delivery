@@ -749,6 +749,18 @@ if (existsSync(stampsDirectoryPath) && existsSync(readmeFilePath)) {
   }
 }
 
+// --- 26. Only allow-listed agents pin a model, and to the value the list names ---
+const MODEL_PINNING_AGENTS: Record<string, string> = { scout: "haiku" };
+const MODEL_POLICY_HINT = "only the scout pins a model; every other agent inherits the session model";
+const MODEL_LINE = /^model:\s*(.*)$/m;
+for (const agent of agents) {
+  const frontmatter = read(join(agentsDir, `${agent}.md`)).match(/^---\n([\s\S]*?)\n---/)?.[1] ?? "";
+  const pinned = frontmatter.match(MODEL_LINE)?.[1].trim();
+  const expected = Object.hasOwn(MODEL_PINNING_AGENTS, agent) ? MODEL_PINNING_AGENTS[agent] : undefined;
+  if (pinned === undefined && expected !== undefined) errors.push(`agent "${agent}" has no model, but must pin "${expected}". Hint: ${MODEL_POLICY_HINT}.`);
+  if (pinned !== undefined && pinned !== expected) errors.push(`agent "${agent}" pins model "${pinned}"${expected === undefined ? ", but is not allowed to pin one" : `, but must pin "${expected}"`}. Hint: ${MODEL_POLICY_HINT}.`);
+}
+
 // --- 28. Instruction files stay within their token budget ---
 const TOKEN_BUDGET_SCRIPT = "scripts/audit/token-budget.ts";
 if (existsSync(join(ROOT, TOKEN_BUDGET_SCRIPT))) {

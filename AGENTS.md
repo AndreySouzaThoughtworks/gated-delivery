@@ -7,6 +7,7 @@ This file is the one source of the repo rules for every agent (Claude Code, Curs
 - Write self-documenting code. Names carry intent, so add no explanatory comments. Replace magic numbers and strings with named constants.
 - Every function gets real assertions that can fail, with messages that show the values read. `zanity`'s assertion-density rule applies everywhere, `scripts/audit/assertion-effectiveness.ts` fails an assertion that no test makes fail, a function with no honest second invariant carries a coded, counted suppression (`scripts/audit/suppression-reason-codes.ts`, `scripts/audit/suppressions.count`), and `scripts/audit/consistency.ts` (check 17) rejects a condition that cannot vary.
 - Never raise `zanity-baseline.json`, loosen `zanity.toml`, or add a suppression without a reason (`scripts/audit/suppressions.ts`). Fix the code.
+- Only the `scout` agent pins a `model:`, and it pins `haiku`; every other agent inherits the session model. Consistency check 26 enforces this.
 - Every fixed mistake becomes a deterministic rule with a test, recorded in `docs/mistakes-to-rules.md`. A line of prose is not a fix.
 - Every non-test file you change under `plugin/` needs a version bump in `plugin/.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` (consistency check 19). Prefer putting new tooling outside `plugin/`, which ships to client installs.
 

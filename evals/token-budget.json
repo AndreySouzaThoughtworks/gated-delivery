@@ -1,8 +1,9 @@
 {
   "estimator": "ESTIMATED tokens: characters divided by 4, rounded up; not a tokenizer count",
   "budgets": {
-    "always-in-context listing": 1589,
+    "always-in-context listing": 1675,
     "plugin/agents/code-reviewer.md": 1375,
+    "plugin/agents/scout.md": 412,
     "plugin/agents/slice-executor.md": 3280,
     "plugin/commands/bootstrap.md": 470,
     "plugin/commands/commit-push-pr.md": 1141,

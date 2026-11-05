@@ -474,3 +474,18 @@ test("--lint exits 3 when run outside the repository root, where there are no sk
 test("runCheck refuses a prelude entry that is not an assignment", () => {
   assert.throws(() => runCheck({ label: "x", command: "true" }, "/tmp/output.md", ["rm -f x"]), /the prelude holds assignments only/);
 });
+
+test("--lint with a skill name lints only that skill and rejects a skill with no evals.md", () => {
+  const dir = mkdtempSync(join(tmpdir(), "gated-delivery-runner-one-skill-"));
+  for (const [skill, body] of [["good", "grep -c a output.md"], ["busted", "grep --nonsense-flag x output.md"]]) {
+    mkdirSync(join(dir, "plugin", "skills", skill), { recursive: true });
+    writeFileSync(join(dir, "plugin", "skills", skill, "evals.md"), fence(`# ${skill}\n${body}`));
+  }
+  assert.equal(cli(dir, ["--lint", "good"]).code, 0);
+  const red = cli(dir, ["--lint", "busted"]);
+  assert.equal(red.code, 1);
+  assert.match(red.out, /BROKEN busted/);
+  const ghost = cli(dir, ["--lint", "ghost"]);
+  assert.equal(ghost.code, 1);
+  assert.match(ghost.out, /BROKEN ghost: no evals.md to lint/);
+});

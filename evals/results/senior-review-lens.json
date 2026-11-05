@@ -1,5 +1,16 @@
 {
   "hash": "76f1bee5a7e55b8f0d7e32b29b1d6f16d46b0c3c61885e68358bcfafdf77a52a",
-  "waived": "This skill names the code-reviewer agent, whose verify-command paragraph now calls the shipped resolve-verify-cmd script instead of describing the resolution chain. The skill's own text is unchanged. Live eval not run.",
-  "ranAt": "2026-11-02T18:29:53.017Z"
+  "static": {
+    "checks": [
+      {
+        "name": "lint",
+        "result": "pass"
+      },
+      {
+        "name": "script-tests",
+        "result": "none"
+      }
+    ],
+    "ranAt": "2026-11-05T16:48:16.648Z"
+  }
 }

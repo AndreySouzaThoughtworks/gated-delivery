@@ -97,7 +97,7 @@ Turn-end verification is left to the `overwatch` plugin, and [onboarding](docs/o
 
 The repository holds its own guardrails: required status checks on `main`, a consistency guard that fails when the docs, inventory or settings drift from the files, and a table that records every fixed mistake next to the rule and test that now catches it. [How this repo applies exponential engineering](docs/exponential-engineering.md) explains each mechanism and where it falls short.
 
-Skill evals are the weak spot today. **12 of 12** skill stamps are waivers, because the live evals have not been run.
+Skill evals are the weak spot today. **0 live, 12 static, 0 waived** of 12 skill stamps. A static stamp means the skill's scripts and deterministic checks pass, recorded by `node scripts/eval/changed-skills.ts --static <skill>` with no model run; it does not prove the model follows the skill. Live evals are off because they spend the maintainer's subscription usage.
 
 ## Where to go next
 

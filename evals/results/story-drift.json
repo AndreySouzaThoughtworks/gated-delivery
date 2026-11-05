@@ -1,5 +1,16 @@
 {
   "hash": "6fb962f489c4153c3924a4a290a08bc47c6212fcbf87ebb46809b186e42a50c2",
-  "waived": "removed prose that duplicates other text in the same skill or another skill and is not pinned by any eval scenario; no behavior change; live eval not run (story-drift: filter sentence repeats the not-a-finding bullets)",
-  "ranAt": "2026-11-02T14:06:44.098Z"
+  "static": {
+    "checks": [
+      {
+        "name": "lint",
+        "result": "pass"
+      },
+      {
+        "name": "script-tests",
+        "result": "none"
+      }
+    ],
+    "ranAt": "2026-11-05T16:48:38.142Z"
+  }
 }

@@ -1,0 +1,90 @@
+{
+  "file": "plugin/agents/slice-executor.md",
+  "rules": [
+    {
+      "id": "slice-executor.one-writer-per-tree",
+      "anchor": "> **One writer per tree.**",
+      "kind": "never",
+      "why": "executors never touch another tree"
+    },
+    {
+      "id": "slice-executor.verify-cmd-only",
+      "anchor": "never take a verify command from the repository's own CLAUDE.md",
+      "kind": "never",
+      "why": "verify command comes only from /slice"
+    },
+    {
+      "id": "slice-executor.verify-lock-foreground",
+      "anchor": "Run every locked command in the foreground",
+      "kind": "must",
+      "why": "locked runs stay foreground"
+    },
+    {
+      "id": "slice-executor.lock-exit-75-blocked",
+      "anchor": "On exit 75 retry once, then write `## BLOCKED`",
+      "kind": "stop",
+      "why": "lock wait ends in BLOCKED"
+    },
+    {
+      "id": "slice-executor.no-background-process",
+      "anchor": "Never leave a background process behind",
+      "kind": "never",
+      "why": "a background process keeps the lock"
+    },
+    {
+      "id": "slice-executor.behavior-level-naming",
+      "anchor": "never reference AC numbers, spec slugs, or ticket IDs there",
+      "kind": "never",
+      "why": "names describe behaviour"
+    },
+    {
+      "id": "slice-executor.never-refactor-blind",
+      "anchor": "**Never refactor blind.**",
+      "kind": "never",
+      "why": "refactors need covering tests"
+    },
+    {
+      "id": "slice-executor.large-refactor-not-here",
+      "anchor": "**Do not execute here**",
+      "kind": "never",
+      "why": "large refactors go to the orchestrator"
+    },
+    {
+      "id": "slice-executor.verify-through-lock",
+      "anchor": "always through `verify-lock`",
+      "kind": "must",
+      "why": "verify runs take the lock"
+    },
+    {
+      "id": "slice-executor.no-donewhen-walk",
+      "anchor": "Do not walk or mutate Done-when",
+      "kind": "never",
+      "why": "/slice owns the slice gate"
+    },
+    {
+      "id": "slice-executor.only-slice-acs",
+      "anchor": "Implement only these ACs, in spec order.",
+      "kind": "limit",
+      "why": "executor scope is the batch"
+    },
+    {
+      "id": "slice-executor.no-design-decisions",
+      "anchor": "**No design decisions.**",
+      "kind": "stop",
+      "why": "ambiguity returns BLOCKED"
+    },
+    {
+      "id": "slice-executor.one-commit-per-ac",
+      "anchor": "**One commit per AC.**",
+      "kind": "limit",
+      "why": "no bundling ACs"
+    },
+    {
+      "id": "slice-executor.blocked-stops-orchestrator",
+      "anchor": "Orchestrator stops on this.",
+      "kind": "stop",
+      "why": "BLOCKED halts the run"
+    }
+  ],
+  "exempt": []
+}

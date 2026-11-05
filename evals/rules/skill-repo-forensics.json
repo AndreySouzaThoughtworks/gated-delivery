@@ -1,0 +1,78 @@
+{
+  "file": "plugin/skills/repo-forensics/SKILL.md",
+  "rules": [
+    {
+      "id": "repo-forensics.no-implement-yet",
+      "anchor": "**Do not implement yet.**",
+      "kind": "never",
+      "why": "forensics is read-only before the stop"
+    },
+    {
+      "id": "repo-forensics.no-approximate-lines",
+      "anchor": "do not approximate them",
+      "kind": "never",
+      "why": "unreliable line numbers are said so, never guessed"
+    },
+    {
+      "id": "repo-forensics.no-invented-locator",
+      "anchor": "Never invent a locator",
+      "kind": "never",
+      "why": "locators must be real"
+    },
+    {
+      "id": "repo-forensics.rumours-not-fact",
+      "anchor": "Never present one as implementation fact.",
+      "kind": "never",
+      "why": "unverified claims stay rumours"
+    },
+    {
+      "id": "repo-forensics.no-manufactured-contradiction",
+      "anchor": "Never manufacture contradiction",
+      "kind": "never",
+      "why": "no invented findings to fill structure"
+    },
+    {
+      "id": "repo-forensics.no-broad-cleanup",
+      "anchor": "Broad cleanup never the default.",
+      "kind": "never",
+      "why": "narrow steps when confidence is incomplete"
+    },
+    {
+      "id": "repo-forensics.stop-for-direction",
+      "anchor": "Then **STOP**",
+      "kind": "stop",
+      "why": "waits for PROCEED/ADJUST/STOP"
+    },
+    {
+      "id": "repo-forensics.no-code-before-direction",
+      "anchor": "Don't generate code until direction confirmed.",
+      "kind": "never",
+      "why": "no code before the stop clears"
+    },
+    {
+      "id": "repo-forensics.no-claim-uninspected",
+      "anchor": "**Never claim to have inspected what you didn't.**",
+      "kind": "never",
+      "why": "hard rule: honesty about inspection"
+    },
+    {
+      "id": "repo-forensics.no-summary-from-memory",
+      "anchor": "Don't summarise repository contents from",
+      "kind": "never",
+      "why": "no repo summary from model knowledge"
+    },
+    {
+      "id": "repo-forensics.pii-opaque-ids",
+      "anchor": "Cite opaque identifiers only",
+      "kind": "never",
+      "why": "production logs carry PII"
+    },
+    {
+      "id": "repo-forensics.no-log-bodies-in-files",
+      "anchor": "never paste log",
+      "kind": "never",
+      "why": "log bodies stay out of committable files"
+    }
+  ],
+  "exempt": []
+}

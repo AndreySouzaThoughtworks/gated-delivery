@@ -1,0 +1,18 @@
+{
+  "file": "plugin/skills/senior-review-lens/SKILL.md",
+  "rules": [],
+  "exempt": [
+    {
+      "anchor": "Parametrized fixture row whose value never appears",
+      "reason": "checklist example of a smell to look for, not an instruction to the model"
+    },
+    {
+      "anchor": "Union variant declared in type but never emitted",
+      "reason": "checklist example of a smell to look for, not an instruction to the model"
+    },
+    {
+      "anchor": "`case X: ... default: throw` where X never the value",
+      "reason": "checklist example of a smell to look for, not an instruction to the model"
+    }
+  ]
+}

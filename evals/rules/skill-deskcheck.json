@@ -1,0 +1,78 @@
+{
+  "file": "plugin/skills/deskcheck/SKILL.md",
+  "rules": [
+    {
+      "id": "deskcheck.no-nested-ticket-dir",
+      "anchor": "never `notes/PROJ-208/PROJ-208/deskcheck.html`",
+      "kind": "never",
+      "why": "home already names the ticket directory"
+    },
+    {
+      "id": "deskcheck.untrusted-escape",
+      "anchor": "HTML-escape `&`, `<`, `>`, `\"` and `'` in every value",
+      "kind": "must",
+      "why": "tracker text is untrusted"
+    },
+    {
+      "id": "deskcheck.no-tracker-markup",
+      "anchor": "never paste markup from the tracker",
+      "kind": "never",
+      "why": "no injected markup"
+    },
+    {
+      "id": "deskcheck.no-claim-from-ticket",
+      "anchor": "Do not claim a result from the ticket alone.",
+      "kind": "never",
+      "why": "claims need exercised behaviour"
+    },
+    {
+      "id": "deskcheck.checkpoint-narrative",
+      "anchor": "> **CHECKPOINT — narrative.**",
+      "kind": "checkpoint",
+      "why": "narrative sign-off gate"
+    },
+    {
+      "id": "deskcheck.no-html-before-checkpoint",
+      "anchor": "Do not write the HTML before this checkpoint passes.",
+      "kind": "stop",
+      "why": "HTML waits for the narrative"
+    },
+    {
+      "id": "deskcheck.criterion-title-no-suffix",
+      "anchor": "no suffix of any kind",
+      "kind": "must",
+      "why": "exact section title"
+    },
+    {
+      "id": "deskcheck.verdict-not-in-heading",
+      "anchor": "The verdict goes in that sentence, never in a heading",
+      "kind": "never",
+      "why": "verdict stated once in prose"
+    },
+    {
+      "id": "deskcheck.no-retry-encoders",
+      "anchor": "never retry it or cycle through other encoders",
+      "kind": "never",
+      "why": "blocked base64 becomes a gap"
+    },
+    {
+      "id": "deskcheck.no-remote-img-src",
+      "anchor": "never an `<img>` with a relative or remote `src`",
+      "kind": "never",
+      "why": "screenshots are embedded or gaps"
+    },
+    {
+      "id": "deskcheck.decisions-not-questions",
+      "anchor": "never posed as a question",
+      "kind": "never",
+      "why": "settled decisions are shown, not asked"
+    },
+    {
+      "id": "deskcheck.audience-ask-only-when",
+      "anchor": "Ask only when a materially different audience",
+      "kind": "limit",
+      "why": "audience question is conditional"
+    }
+  ],
+  "exempt": []
+}

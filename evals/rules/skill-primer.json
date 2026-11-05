@@ -1,0 +1,66 @@
+{
+  "file": "plugin/skills/primer/SKILL.md",
+  "rules": [
+    {
+      "id": "primer.ask-before-rendering",
+      "anchor": "**Ask before rendering**",
+      "kind": "checkpoint",
+      "why": "unclear relationship or framing is asked, not guessed"
+    },
+    {
+      "id": "primer.no-relationship-assert",
+      "anchor": "Never assert that relationship unless they told you.",
+      "kind": "never",
+      "why": "ownership claims need the reader's word"
+    },
+    {
+      "id": "primer.no-assumed-paths",
+      "anchor": "Do not assume those paths where the repo names others.",
+      "kind": "never",
+      "why": "repo-named paths win"
+    },
+    {
+      "id": "primer.codeowners-never-verified",
+      "anchor": "the label is never Verified",
+      "kind": "never",
+      "why": "CODEOWNERS shows reviewers, not owners"
+    },
+    {
+      "id": "primer.label-every-fact",
+      "anchor": "Label every sentence that states a fact",
+      "kind": "must",
+      "why": "Verified/Inferred on every claim"
+    },
+    {
+      "id": "primer.outline-only-reply",
+      "anchor": "The reply holds only the outline and the sign-off question",
+      "kind": "limit",
+      "why": "no setup paragraph or trailing notes"
+    },
+    {
+      "id": "primer.checkpoint-outline",
+      "anchor": "### 4. CHECKPOINT",
+      "kind": "checkpoint",
+      "why": "outline sign-off gate"
+    },
+    {
+      "id": "primer.no-html-before-signoff",
+      "anchor": "**Do not write HTML before this.**",
+      "kind": "stop",
+      "why": "HTML waits for sign-off"
+    },
+    {
+      "id": "primer.template-no-regress",
+      "anchor": "**do not regress**",
+      "kind": "never",
+      "why": "baked-in template rules stay"
+    },
+    {
+      "id": "primer.no-external-distribution",
+      "anchor": "Never distribute a primer externally",
+      "kind": "never",
+      "why": "primer is internal-only"
+    }
+  ],
+  "exempt": []
+}

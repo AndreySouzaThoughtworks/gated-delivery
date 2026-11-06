@@ -179,7 +179,7 @@ The [README](../README.md#how-it-checks-itself) states how many stamps are live,
 | `bash tests/slice-scripts.test.sh` | No | Parallel slice and batch worktrees stay isolated, claims are create-only, batches are picked back in order, and the verify lock serializes runs |
 | `bash tests/pre-push.test.sh` | No | The pre-push hook rejects a push that carries a leak in any pushed commit. It lets clean pushes and branch deletions through. It skips with exit 3 when gitleaks is missing. |
 | `bash tests/install-gitleaks.test.sh` | No | The installer refuses an archive whose checksum differs from the pinned one, a failed download and a missing install directory |
-| `bash tests/live-opt-in.test.sh` | No | Each login-bound test refuses to start without `GATED_DELIVERY_ALLOW_LIVE_CLAUDE=1`. A stub `claude` stands in, so no session starts. |
+| `bash tests/live-opt-in.test.sh` | No | Each login-bound test refuses to start without `GATED_DELIVERY_ALLOW_LIVE_CLAUDE=1`. The live `gh` test refuses without `GATED_DELIVERY_ALLOW_LIVE_GH=1` and refuses an unsafe repository. Stubs stand in for `claude` and `gh`, so nothing real runs. |
 | `node --test plugin/hooks/*.test.mjs` | No | Hook behaviour |
 | `node --test scripts/audit/*.test.ts scripts/audit/message-actionability/*.test.ts scripts/eval/*.test.ts scripts/cursor/*.test.ts` | No | The consistency guard, the lint scripts and the eval tools, on broken and valid fixtures |
 | `node --test plugin/bootstrap/*.test.mjs plugin/bootstrap/guards/*.test.mjs` | No | The bootstrap plans and the client guards |
@@ -190,9 +190,14 @@ The [README](../README.md#how-it-checks-itself) states how many stamps are live,
 | `node scripts/eval/run-scenarios.ts <skill> [--scenario <id>…]` | Yes | Runs eval scenarios as real `claude -p` sessions and writes the grades to `summary.tsv` |
 | `bash tests/profile-isolation.test.sh [project-dir]` | No | A fresh profile installs the core, loads no client plugin or MCP server and has its own login |
 | `bash tests/commit-convention.test.sh`, `tests/code-reviewer-scope.test.sh`, `tests/issue-writing.test.sh` | Yes | The commit command follows the convention, `code-reviewer` reports scope creep, and `issue-writing` keeps secrets out of the tracker |
+| `GATED_DELIVERY_ALLOW_LIVE_GH=1 bash tests/live-gh.test.sh` | Yes, `gh` | The real `gh` prints the fields and shapes that `notes-repo.mjs`, `pr-gate.mjs`, `slice-git.mjs` and `slice-state.mjs` parse. Manual only. CI never runs it. |
 
 The three login-bound tests exit 64 unless `GATED_DELIVERY_ALLOW_LIVE_CLAUDE=1` is set. Each one starts real `claude -p` sessions on your subscription. Check 30 fails a new test that launches `claude -p` without that guard. `tests/profile-isolation.test.sh` is exempt, because it uses an empty profile that is never logged in.
 
-With the opt-in set, the tests skip with exit 3 when the profile is not logged in. Point them at another profile with `GATED_DELIVERY_TEST_PROFILE=~/.claude-<name>`.
+The live `gh` test exits 64 unless `GATED_DELIVERY_ALLOW_LIVE_GH=1` is set. Check 30 fails a new test that runs a mutating `gh` command, such as `gh pr create`, `gh pr close`, `gh issue create`, `gh repo` or `gh api -X`, without that guard above the first call. The test targets `AndreySouzaThoughtworks/aifsd-e2e-sandbox`. Set `GATED_DELIVERY_GH_SANDBOX=<owner>/<name>` to use another repository.
+
+Before any write, the live `gh` test checks that the repository is private, is not a fork and has `sandbox` in its name. It exits 65 otherwise. It then creates one branch named `gated-delivery-live-gh-<random>` and one draft pull request. A `trap` closes that pull request and deletes that branch, even after a failure. The test prints the pull request number, so you can clean up by hand if the cleanup fails.
+
+With the opt-in set, the login-bound tests skip with exit 3 when the profile is not logged in. Point them at another profile with `GATED_DELIVERY_TEST_PROFILE=~/.claude-<name>`.
 
 Turn-end verification is the job of the `overwatch` plugin: [docs/onboarding.md](onboarding.md#install-overwatch-for-turn-end-verification). The knobs are in [docs/onboarding.md](onboarding.md#knobs-environment-variables).

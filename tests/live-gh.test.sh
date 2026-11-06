@@ -1,0 +1,175 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+# shellcheck source=./require-live-gh-opt-in.sh
+source "$(dirname "$0")/require-live-gh-opt-in.sh"
+
+readonly SCRIPT_NAME=tests/live-gh.test.sh
+readonly EXIT_SANDBOX_UNSAFE=65
+readonly EXIT_TOOL_MISSING=66
+readonly EXIT_SETUP_FAILED=67
+readonly EXIT_INTERRUPTED=130
+readonly DEFAULT_SANDBOX=AndreySouzaThoughtworks/aifsd-e2e-sandbox
+readonly SANDBOX_VARIABLE=GATED_DELIVERY_GH_SANDBOX
+readonly NOTES_REPO_VARIABLE=GATED_DELIVERY_NOTES_REPO
+readonly REQUIRED_NAME_PART=sandbox
+readonly BASE_BRANCH=main
+readonly BRANCH_PREFIX=gated-delivery-live-gh-
+readonly RANDOM_BYTES=6
+readonly REPO_NAME_PATTERN='^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'
+readonly NUMBER_PATTERN='^[1-9][0-9]*$'
+readonly OBJECT_ID_PATTERN='^[0-9a-f]{40}$'
+readonly SHOWN_TEXT_LIMIT=400
+readonly PR_TITLE='test: live gh probe'
+readonly COMMIT_IDENTITY=(-c user.name=gated-delivery-live-gh -c user.email=live-gh@example.invalid)
+readonly THREAD_FIELDS=(isResolved comments)
+readonly COMMENT_FIELDS=(url path)
+readonly IMPORT_GH_JSON='const { ghJson } = await import(process.argv[1]); console.log(JSON.stringify(ghJson(process.cwd(), JSON.parse(process.argv[2]))));'
+
+core="$(cd "$(dirname "$0")/.." && pwd)"
+scripts="${core}/plugin/scripts"
+sandbox="${!SANDBOX_VARIABLE:-${DEFAULT_SANDBOX}}"
+work=""
+clone=""
+branch=""
+pr_number=""
+branch_pushed=0
+failures=0
+cleanup_failed=0
+
+refuse() {
+  echo "${SCRIPT_NAME}: refusing to write to ${sandbox}: $1. Rule: this test writes one branch and one draft pull request, so it targets only a private repository that is not a fork and has ${REQUIRED_NAME_PART} in its name. Fix: set ${SANDBOX_VARIABLE}=<owner>/<name> to such a repository." >&2
+  exit "${EXIT_SANDBOX_UNSAFE}"
+}
+
+setup_failed() {
+  echo "${SCRIPT_NAME}: setup failed: $1. Rule: a failed step stops the run before the next write, and the cleanup trap then closes what the run created. Fix: read this message, fix the cause, rerun; if the output says cleanup failed, follow its manual steps." >&2
+  exit "${EXIT_SETUP_FAILED}"
+}
+
+cleanup() {
+  local status=$?
+  trap - EXIT
+  if [[ -n "${pr_number}" ]]; then
+    gh pr close "${pr_number}" --repo "${sandbox}" >/dev/null 2>&1 || cleanup_failed=1
+  fi
+  if [[ "${branch_pushed}" -eq 1 ]]; then
+    git -C "${clone}" push --quiet origin --delete "${branch}" >/dev/null 2>&1 || cleanup_failed=1
+  fi
+  if [[ "${cleanup_failed}" -eq 1 ]]; then
+    echo "${SCRIPT_NAME}: cleanup failed. Rule: only PR #${pr_number:-none} and branch ${branch:-none} on ${sandbox} belong to this run. Fix: close the PR with gh pr close ${pr_number:-<number>} --repo ${sandbox}, then delete the branch with git push origin --delete ${branch:-<branch>}." >&2
+    if [[ "${status}" -eq 0 ]]; then status=1; fi
+  fi
+  if [[ -n "${clone}" ]]; then rm -r -- "${clone}"; fi
+  if [[ -n "${work}" ]]; then rm -r -- "${work}"; fi
+  exit "${status}"
+}
+
+expect() {
+  local name="$1" json="$2" expression="$3"
+  if JSON_INPUT="${json}" EXPRESSION="${expression}" node -e 'const d = JSON.parse(process.env.JSON_INPUT); process.exit(Function("d", "return (" + process.env.EXPRESSION + ")")(d) ? 0 : 1);' 2>/dev/null; then
+    echo "ok   ${name}"
+  else
+    echo "FAIL ${name}: expected ${expression}; real output was ${json:0:${SHOWN_TEXT_LIMIT}}"
+    failures=$((failures + 1))
+  fi
+}
+
+run_ghjson() {
+  (cd "${clone}" && node --input-type=module -e "${IMPORT_GH_JSON}" "${scripts}/slice-git.mjs" "$1" 2>&1)
+}
+
+repo_field_is() {
+  node -e "const d = JSON.parse(process.argv[1]); process.exit(${2} ? 0 : 1)" "${view}" 2>/dev/null
+}
+
+for tool in gh git node; do
+  command -v "${tool}" >/dev/null 2>&1 || { echo "${SCRIPT_NAME}: ${tool} is not on PATH. Rule: the test drives the real ${tool}. Fix: install ${tool}, then rerun." >&2; exit "${EXIT_TOOL_MISSING}"; }
+done
+[[ "${sandbox}" =~ ${REPO_NAME_PATTERN} ]] || refuse "${SANDBOX_VARIABLE} must be <owner>/<name>"
+
+view="$(gh repo view "${sandbox}" --json isPrivate,isFork,name,nameWithOwner,defaultBranchRef 2>&1)" || refuse "gh repo view failed (${view:0:${SHOWN_TEXT_LIMIT}})"
+repo_field_is "${view}" 'd.isPrivate === true' || refuse "the repository is not private"
+repo_field_is "${view}" 'd.isFork === false' || refuse "the repository is a fork, or gh did not report isFork"
+repo_field_is "${view}" "d.name.toLowerCase().includes('${REQUIRED_NAME_PART}')" || refuse "the repository name does not contain ${REQUIRED_NAME_PART}"
+repo_field_is "${view}" "d.defaultBranchRef?.name === '${BASE_BRANCH}'" || refuse "the default branch is not ${BASE_BRANCH}"
+
+work="$(mktemp -d)"
+trap cleanup EXIT
+trap 'exit "${EXIT_INTERRUPTED}"' INT TERM
+
+echo "== notes-repo.mjs prepare (gh repo clone)"
+prepared="$(env -u "${NOTES_REPO_VARIABLE}" node "${scripts}/notes-repo.mjs" prepare --repo-name "${sandbox}" 2>"${work}/prepare.err")" || {
+  prepare_error="$(head -c "${SHOWN_TEXT_LIMIT}" "${work}/prepare.err")"
+  setup_failed "notes-repo.mjs prepare failed: ${prepare_error}"
+}
+clone="$(node -e 'process.stdout.write(String(JSON.parse(process.argv[1]).path ?? ""))' "${prepared}")"
+[[ -d "${clone}/.git" ]] || setup_failed "notes-repo.mjs prepare printed no checkout path in ${prepared:0:${SHOWN_TEXT_LIMIT}}"
+expect "notes-repo prepare prints inRepo false" "${prepared}" 'd.inRepo === false'
+expect "notes-repo prepare prints path as a non-empty string" "${prepared}" 'typeof d.path === "string" && d.path.length > 0'
+expect "notes-repo prepare prints branch ${BASE_BRANCH}" "${prepared}" "d.branch === \"${BASE_BRANCH}\""
+expect "notes-repo prepare prints clean true" "${prepared}" 'd.clean === true'
+expect "notes-repo prepare prints behind as a whole number" "${prepared}" 'Number.isInteger(d.behind) && d.behind >= 0'
+
+suffix="$(od -An -N"${RANDOM_BYTES}" -tx1 /dev/urandom | tr -d ' \n')"
+branch="${BRANCH_PREFIX}${suffix}"
+probe_file="live-gh-${suffix}.txt"
+echo "${branch}" > "${clone}/${probe_file}"
+git -C "${clone}" checkout -q -b "${branch}" || setup_failed "git checkout -b ${branch} failed"
+git -C "${clone}" add -- "${probe_file}" || setup_failed "git add ${probe_file} failed"
+git -C "${clone}" "${COMMIT_IDENTITY[@]}" commit -q -m "${PR_TITLE} ${suffix}" || setup_failed "git commit failed"
+echo "== creating branch ${branch} on ${sandbox}"
+branch_pushed=1
+git -C "${clone}" push -q origin "HEAD:refs/heads/${branch}" || setup_failed "git push of ${branch} failed"
+pr_url="$(gh pr create --repo "${sandbox}" --draft --base "${BASE_BRANCH}" --head "${branch}" --title "${PR_TITLE} ${suffix}" --body "Throwaway pull request from ${SCRIPT_NAME}. The test closes it and deletes branch ${branch} when it ends." 2>&1)" || setup_failed "gh pr create failed (${pr_url:0:${SHOWN_TEXT_LIMIT}})"
+candidate="${pr_url##*/}"
+[[ "${candidate}" =~ ${NUMBER_PATTERN} ]] || setup_failed "gh pr create printed no pull request number in: ${pr_url:0:${SHOWN_TEXT_LIMIT}}"
+pr_number="${candidate}"
+echo "== created draft PR #${pr_number} on ${sandbox}; if cleanup fails, close it and delete branch ${branch} by hand"
+
+echo "== slice-git.mjs ghJson: gh pr view --json state"
+viewed="$(run_ghjson "[\"pr\", \"view\", \"${branch}\", \"--json\", \"state\"]")" || { echo "FAIL gh pr view --json state: ${viewed:0:${SHOWN_TEXT_LIMIT}}"; failures=$((failures + 1)); viewed="{}"; }
+expect "gh pr view --json state prints the field state" "${viewed}" '"state" in d'
+expect "gh pr view --json state is OPEN for the draft pull request" "${viewed}" 'd.state === "OPEN"'
+
+echo "== slice-state.mjs: gh pr list --json"
+list_fields="$(grep -oE 'PR_LIST_FIELDS = "[^"]+"' "${scripts}/slice-state.mjs" | cut -d'"' -f2)"
+list_limit="$(grep -oE 'PR_LIST_LIMIT = "[0-9]+"' "${scripts}/slice-state.mjs" | cut -d'"' -f2)"
+[[ -n "${list_fields}" && -n "${list_limit}" ]] || setup_failed "plugin/scripts/slice-state.mjs no longer defines PR_LIST_FIELDS and PR_LIST_LIMIT as string constants, so this test cannot learn the gh pr list fields the script parses"
+listed="$(run_ghjson "[\"pr\", \"list\", \"--state\", \"all\", \"--limit\", \"${list_limit}\", \"--json\", \"${list_fields}\"]")" || { echo "FAIL gh pr list --json ${list_fields}: ${listed:0:${SHOWN_TEXT_LIMIT}}"; failures=$((failures + 1)); listed="[]"; }
+ours="d.find((pr) => pr.headRefName === \"${branch}\")"
+expect "gh pr list prints a JSON array" "${listed}" 'Array.isArray(d)'
+IFS=',' read -r -a list_field_names <<< "${list_fields}"
+for field in "${list_field_names[@]}"; do
+  expect "gh pr list prints the field ${field} on every pull request" "${listed}" "d.length > 0 && d.every((pr) => \"${field}\" in pr)"
+done
+expect "gh pr list prints headRefName and state as strings on every pull request" "${listed}" 'd.every((pr) => typeof pr.headRefName === "string" && typeof pr.state === "string")'
+expect "gh pr list finds the throwaway pull request by headRefName" "${listed}" "${ours} !== undefined"
+expect "gh pr list prints number as a whole number on every pull request" "${listed}" 'd.every((pr) => Number.isInteger(pr.number))'
+expect "gh pr list prints number ${pr_number} for the throwaway pull request" "${listed}" "${ours}.number === ${pr_number}"
+expect "gh pr list prints isDraft true for the throwaway pull request" "${listed}" "${ours}.isDraft === true"
+expect "gh pr list prints state OPEN for the throwaway pull request" "${listed}" "${ours}.state === \"OPEN\""
+expect "gh pr list prints headRefOid as a 40-character object id on every pull request" "${listed}" "d.every((pr) => /${OBJECT_ID_PATTERN}/.test(pr.headRefOid))"
+expect "gh pr list prints mergeCommit null for the unmerged throwaway pull request" "${listed}" "${ours}.mergeCommit === null"
+expect "gh pr list prints mergeCommit.oid as an object id on every merged pull request" "${listed}" "d.every((pr) => pr.mergeCommit === null || /${OBJECT_ID_PATTERN}/.test(pr.mergeCommit.oid))"
+
+echo "== pr-gate.mjs: gh api graphql review threads"
+body_file="${work}/pr-body-${branch}.md"
+echo "Throwaway body." > "${body_file}"
+gate_status=0
+gate="$(cd "${clone}" && node "${scripts}/pr-gate.mjs" --body-file "${body_file}" --title "${PR_TITLE}" --final-slice y --pr "${pr_number}" 2>&1)" || gate_status=$?
+expect "pr-gate reads data.repository.pullRequest.reviewThreads.nodes and prints no unresolved thread (exit ${gate_status})" "${gate}" 'Array.isArray(d.unresolvedThreads) && d.unresolvedThreads.length === 0'
+expect "pr-gate prints title null and bodyPath null for a conforming title and body file (exit ${gate_status})" "${gate}" 'd.title === null && d.bodyPath === null'
+for type_name in PullRequestReviewThread PullRequestReviewComment; do
+  type_fields="$(gh api graphql -f query="{ __type(name: \"${type_name}\") { fields { name } } }" 2>&1)" || { echo "FAIL gh api graphql introspection of ${type_name}: ${type_fields:0:${SHOWN_TEXT_LIMIT}}"; failures=$((failures + 1)); type_fields="{}"; }
+  if [[ "${type_name}" == PullRequestReviewThread ]]; then wanted=("${THREAD_FIELDS[@]}"); else wanted=("${COMMENT_FIELDS[@]}"); fi
+  for field in "${wanted[@]}"; do
+    expect "GraphQL type ${type_name} has the field ${field} that pr-gate reads" "${type_fields}" "d.data.__type.fields.some((field) => field.name === \"${field}\")"
+  done
+done
+
+if [[ "${failures}" -gt 0 ]]; then
+  echo "${failures} live gh assertion(s) failed: the real gh output differs from what the scripts parse."
+  exit 1
+fi
+echo "all live gh assertions passed"

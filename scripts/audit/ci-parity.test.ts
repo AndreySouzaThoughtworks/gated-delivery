@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { write, validRepo, runGuard } from "../test-support/consistency-fixtures.test.support.ts";
-import { AUDIT_WORKFLOW, LIVE_OPT_IN_FILE, jobBlocks, liveOptInProblems, workflowParityProblems } from "./ci-parity.ts";
+import { AUDIT_WORKFLOW, LIVE_GH_OPT_IN_FILE, LIVE_OPT_IN_FILE, jobBlocks, liveOptInProblems, workflowParityProblems } from "./ci-parity.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const MATRIX_JOB =
@@ -13,6 +13,9 @@ const MATRIX_JOB =
 const HAND_COPY = "  node-26:\n    name: node 26\n    steps:\n      - run: node scripts/audit/consistency.ts\n";
 const LIVE_TEST = `#!/usr/bin/env bash\nsource "$(dirname "$0")/${LIVE_OPT_IN_FILE}"\nclaude -p ping\n`;
 const UNGUARDED_LIVE_TEST = "#!/usr/bin/env bash\nclaude -p ping\n";
+const GH_GUARD = `source "$(dirname "$0")/${LIVE_GH_OPT_IN_FILE}"\n`;
+const MUTATING_GH_COMMANDS = ["gh pr create --draft", "gh pr close 7", "gh pr merge 7", "gh issue create --title x", "gh repo clone o/n", "gh api -X DELETE repos/o/n/branches/b", "gh api repos/o/n --method PATCH", "gh release create v1"];
+const READ_ONLY_GH_COMMANDS = ["gh pr list --json number", "gh pr view 7 --json state", "gh api graphql -f query=q", "gh auth status"];
 const GUARD_AFTER_SESSION = `#!/usr/bin/env bash\nclaude -p ping\nsource "$(dirname "$0")/${LIVE_OPT_IN_FILE}"\n`;
 
 const repoWithTests = (files: Record<string, string>) => {
@@ -20,6 +23,7 @@ const repoWithTests = (files: Record<string, string>) => {
   const dir = validRepo();
   assert(dir.length > 0, `validRepo must return a directory, got ${JSON.stringify(dir)}`);
   write(dir, `tests/${LIVE_OPT_IN_FILE}`, "exit 64\n");
+  write(dir, `tests/${LIVE_GH_OPT_IN_FILE}`, "exit 64\n");
   for (const [name, body] of Object.entries(files)) write(dir, `tests/${name}`, body);
   return dir;
 };
@@ -69,7 +73,7 @@ test("check 30 rejects a live test with no guard, and one that sources it after 
   assert.deepEqual(liveOptInProblems(repoWithTests({ "bare.test.sh": UNGUARDED_LIVE_TEST })).length, 1);
   const { code, out } = runGuard(repoWithTests({ "late.test.sh": GUARD_AFTER_SESSION }));
   assert.equal(code, 1);
-  assert.match(out, /tests\/late\.test\.sh: line 2 launches claude -p without the opt-in guard before it\. Rule: .* unless GATED_DELIVERY_ALLOW_LIVE_CLAUDE=1\. Fix: add `source/);
+  assert.match(out, /tests\/late\.test\.sh: line 2 launches claude -p without the opt-in guard before it\. Rule: .* unless GATED_DELIVERY_ALLOW_LIVE_CLAUDE=1; fix: add `source/);
 });
 
 test("check 30 exempts only the named profile-isolation test, and reports a missing guard file", () => {
@@ -80,6 +84,35 @@ test("check 30 exempts only the named profile-isolation test, and reports a miss
   const missingGuard = validRepo();
   write(missingGuard, "tests/other.test.sh", "echo hi\n");
   assert.match(liveOptInProblems(missingGuard).join("\n"), /tests\/require-live-opt-in\.sh is missing\. Rule: live tests source it/);
+});
+
+test("check 30 rejects each mutating gh command that has no gh guard before it, naming the line, the variable and the fix", () => {
+  for (const command of MUTATING_GH_COMMANDS) {
+    const problems = liveOptInProblems(repoWithTests({ "writes.test.sh": `#!/usr/bin/env bash\n${command}\n` }));
+    assert.equal(problems.length, 1, `${command} must be reported once, got ${JSON.stringify(problems)}`);
+    assert.match(problems[0], /tests\/writes\.test\.sh: line 2 runs a mutating gh command without the opt-in guard before it\. Rule: .* unless GATED_DELIVERY_ALLOW_LIVE_GH=1; fix: add `source .*require-live-gh-opt-in\.sh"` above the first call\./);
+  }
+});
+
+test("check 30 rejects a gh guard that comes after the first mutating command, and the claude guard does not satisfy it", () => {
+  const late = liveOptInProblems(repoWithTests({ "late.test.sh": `#!/usr/bin/env bash\ngh pr create --draft\n${GH_GUARD}` }));
+  assert.match(late.join("\n"), /tests\/late\.test\.sh: line 2 runs a mutating gh command/);
+  const wrongGuard = liveOptInProblems(repoWithTests({ "wrong.test.sh": `#!/usr/bin/env bash\nsource "$(dirname "$0")/${LIVE_OPT_IN_FILE}"\ngh pr close 7\n` }));
+  assert.match(wrongGuard.join("\n"), /tests\/wrong\.test\.sh: line 3 runs a mutating gh command/);
+});
+
+test("check 30 accepts a gh test with the gh guard first, and read-only gh calls with no guard", () => {
+  assert.deepEqual(liveOptInProblems(repoWithTests({ "writes.test.sh": `#!/usr/bin/env bash\n${GH_GUARD}gh pr create --draft\n` })), []);
+  for (const command of READ_ONLY_GH_COMMANDS) {
+    assert.deepEqual(liveOptInProblems(repoWithTests({ "reads.test.sh": `#!/usr/bin/env bash\n${command}\n` })), [], command);
+  }
+});
+
+test("check 30 reports a missing gh guard file", () => {
+  const dir = validRepo();
+  write(dir, `tests/${LIVE_OPT_IN_FILE}`, "exit 64\n");
+  write(dir, "tests/other.test.sh", "echo hi\n");
+  assert.match(liveOptInProblems(dir).join("\n"), /tests\/require-live-gh-opt-in\.sh is missing\. Rule: live tests source it/);
 });
 
 function runGuardWithWorkflow(workflow: string) {

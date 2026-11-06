@@ -42,7 +42,7 @@ This file is the one source of the repo rules for every agent (Claude Code, Curs
 - `node scripts/eval/run-checks.ts --lint`
 - The test commands in `.github/workflows/audit.yml`.
 
-Never run a live eval or a `claude -p` session unless the maintainer asks. Those runs spend a subscription. `GATED_DELIVERY_ALLOW_LIVE_CLAUDE=1` is the opt-in (check 30).
+Never run a live eval or a `claude -p` session unless the maintainer asks. Those runs spend a subscription. `GATED_DELIVERY_ALLOW_LIVE_CLAUDE=1` is the opt-in (check 30). Never run `tests/live-gh.test.sh` unless the maintainer asks. It writes to a real repository, and `GATED_DELIVERY_ALLOW_LIVE_GH=1` is its opt-in (check 30).
 
 ## Guards that run for you
 

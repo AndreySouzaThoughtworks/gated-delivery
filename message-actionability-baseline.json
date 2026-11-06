@@ -315,7 +315,7 @@
     {
       "path": "scripts/audit/ci-parity.ts",
       "rule": "not-actionable",
-      "message": "${}: line ${} launches claude -p without the opt-in guard before it. Rule: a test that starts a real session on the subscription refuses to run unless ${}=1. Fix: add `source \"$(dirname \"$0\")/${}\"` above the first claude call."
+      "message": "${}: line ${} ${} without the opt-in guard before it. Rule: ${} unless ${}=1; fix: add `source \"$(dirname \"$0\")/${}\"` above the first call."
     },
     {
       "path": "scripts/audit/comments.ts",

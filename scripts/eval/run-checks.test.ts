@@ -72,9 +72,8 @@ test("returns nothing when the skill has no fence", () => {
 });
 
 test("collects leading assignments as a prelude rather than treating them as checks", () => {
-  // Regression: primer's fence sets OUT=out.html once and every command uses "$OUT". Running each
-  // command in its own shell dropped the variable, so 7 of its 8 checks reported as broken — the
-  // 8th only looked fine because it is a pipeline, which used to mask the failure entirely.
+  // A fence sets OUT=out.html once and every command uses "$OUT": running each command in its own
+  // shell would drop the variable and report the checks as broken.
   const { prelude, checks } = parseChecks(fence('OUT=out.html\n# a check\ngrep -c x "$OUT"'));
   assert.deepEqual(prelude, ["OUT=out.html"]);
   assert.equal(checks.length, 1, "the assignment must not count as a check");
@@ -163,8 +162,8 @@ test("a $NAME inside single quotes is a literal, not a variable", () => {
 });
 
 test("an apostrophe inside a double-quoted argument is not a quote delimiter", () => {
-  // Regression: stripping /'[^']*'/ spans treated the apostrophe in "it's" as an opening quote and
-  // swallowed the variable that followed, so an unset reference read as fine.
+  // Stripping /'[^']*'/ spans would treat the apostrophe in "it's" as an opening quote and swallow
+  // the variable that follows, so an unset reference would read as fine.
   const { checks } = parseChecks(fence(`grep -c "it's $MISSING_AFTER_APOSTROPHE" output.md`));
   const result = runCheck(checks[0], outputFile("hello\n"));
   assert.equal(result.ok, false);
@@ -172,8 +171,8 @@ test("an apostrophe inside a double-quoted argument is not a quote delimiter", (
 });
 
 test("prose between the heading and the fence does not hide the checks", () => {
-  // The regex used to demand the fence immediately after the heading, so a skill that explained its
-  // checks first parsed as zero — and `--lint` still counted it among the covered skills.
+  // A fence that does not directly follow the heading still counts: parsing it as zero checks would
+  // leave `--lint` counting the skill as covered.
   const md = "## Deterministic Checks\n\nRun against a saved response.\n\n```bash\ngrep -c x output.md\n```\n";
   assert.equal(parseChecks(md).checks.length, 1);
 });
@@ -191,9 +190,9 @@ test("a fence in a later section is not mistaken for the checks fence", () => {
 });
 
 test("a command substitution starts its own quoting context", () => {
-  // Regression: inside `$( )` the shell restarts quoting, so the apostrophe in the nested "it's" is
-  // a literal. A flat scan read it as an opening single quote and swallowed the rest of the line —
-  // the unset variable after it expanded to empty and the check reported green.
+  // Inside `$( )` the shell restarts quoting, so the apostrophe in the nested "it's" is a literal.
+  // A flat scan would read it as an opening single quote and swallow the rest of the line, and the
+  // unset variable after it would expand to empty and report green.
   const { checks } = parseChecks(fence(`echo "$(echo "it's fine") $MISSING_IN_NEST"`));
   const result = runCheck(checks[0], outputFile("hello\n"));
   assert.equal(result.ok, false);
@@ -201,9 +200,9 @@ test("a command substitution starts its own quoting context", () => {
 });
 
 test("parentheses inside a command substitution do not close it early", () => {
-  // Regression: the `)` of `$(( ))` or a subshell was read as the end of the substitution, so the
-  // outer quote state came back one level too soon and the apostrophe after it opened a span that
-  // hid the unset variable.
+  // Only the `)` that balances the opening `$(` ends the substitution. Ending it at the `)` of
+  // `$(( ))` or a subshell would restore the outer quote state too soon, and the apostrophe after
+  // it would open a span that hides the unset variable.
   const { checks } = parseChecks(fence(`echo "$(echo $((1+2)) "it's ok") $MISSING_AFTER_PARENS"`));
   const result = runCheck(checks[0], outputFile("hello\n"));
   assert.equal(result.ok, false);

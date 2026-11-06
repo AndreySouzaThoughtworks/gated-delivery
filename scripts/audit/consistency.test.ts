@@ -31,8 +31,6 @@ test("reports a skill missing its required files", () => {
 });
 
 test("a missing SKILL.md reports rather than crashing", () => {
-  // Regression: frontmatterName() read the file unconditionally, so ENOENT killed the process
-  // before the report block printed the error it had already recorded.
   const dir = validRepo();
   rmSync(join(dir, "plugin/skills/alpha/SKILL.md"));
   const { out } = runGuard(dir);
@@ -106,8 +104,7 @@ test("warns on an orphan hook file", () => {
 });
 
 test("a colocated *.test.mjs is not counted as a hook", () => {
-  // Regression: adding guard-bash.test.mjs made the guard read 4 hooks against a README saying 3,
-  // and warn about it as an orphan. A test is not a hook.
+  // A test beside a hook is not a hook: it inflates neither the count nor the orphan warning.
   const dir = validRepo();
   write(dir, "plugin/hooks/h.test.mjs", "// test\n");
   const { code, out } = runGuard(dir);
@@ -133,9 +130,7 @@ test("reports a skill or agent missing from the canonical inventory", () => {
 });
 
 test("a doc that only links to the inventory is not required to repeat it", () => {
-  // The three tables used to be duplicated across plugin/README.md, docs/skill-graph.md and
-  // docs/onboarding.md; the guard checked only that a NAME appeared in each, never that they agreed,
-  // and they drifted. One canonical table, the rest link.
+  // One canonical table holds the inventory; the other docs link to it.
   const dir = validRepo();
   write(dir, "plugin/README.md", "See [docs/skill-graph.md](../docs/skill-graph.md).\n");
   const { code, out } = runGuard(dir);
@@ -144,8 +139,7 @@ test("a doc that only links to the inventory is not required to repeat it", () =
 });
 
 test("reports a doc that references a skill or agent which does not exist", () => {
-  // The absence side of the check above. A reference SURVIVING a deletion used to be invisible:
-  // presence was enforced, absence was not.
+  // The absence side of the check above: presence is enforced, and so is absence.
   const dir = validRepo();
   write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\n\n## Heading One\n\nSee `/removed-skill` and Agent(gone).\n");
   const { code, out } = runGuard(dir);
@@ -156,8 +150,7 @@ test("reports a doc that references a skill or agent which does not exist", () =
 
 test("the typed agent form and a bare gated-delivery: prefix are both scanned", () => {
   // `Agent(subagent_type: x)` is what docs/skill-graph.md documents and what /slice uses, and
-  // `gated-delivery:x` appears bare in prod-support and the README. Neither was matched at first, so a
-  // stale reference in either form was reported as clean.
+  // `gated-delivery:x` appears bare in prod-support and the README. A stale reference in either form is reported.
   const dir = validRepo();
   write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\n\n## Heading One\n\nAgent(subagent_type: gone-agent) and `gated-delivery:gone-skill`.\n");
   const { code, out } = runGuard(dir);
@@ -238,8 +231,8 @@ test("reports a marketplace source with no plugin manifest", () => {
 });
 
 test("warns on an unescaped pipe inside a table-cell code span", () => {
-  // The defect that survived three review rounds: GFM reads the pipe as a column separator, so the
-  // command renders truncated; escaping it as \| fixes rendering but breaks the raw text.
+  // GFM reads the pipe as a column separator, so the command renders truncated; escaping it as \|
+  // fixes rendering but breaks the raw text.
   const dir = validRepo();
   write(dir, "plugin/skills/alpha/evals.md", ONE_SCENARIO + '| x | `grep -iEc "foo|bar" out` |\n');
   assert.match(runGuard(dir).out, /unescaped "\|" in a table-cell code span/);
@@ -265,8 +258,8 @@ test("warns when a check inside the fence is keyed on one of the skill's own hea
 });
 
 test("a `## ` comment inside the fence does not hide the checks after it", () => {
-  // The section used to end at the first line starting `## `, fence or not, so everything after a
-  // `## ...` shell comment went unscanned and its collisions unreported.
+  // The section ends at the first `## ` line outside a fence, so a `## ...` shell comment inside the fence
+  // does not end it.
   const dir = validRepo();
   write(
     dir,

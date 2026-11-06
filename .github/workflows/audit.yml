@@ -56,6 +56,8 @@ jobs:
         run: node scripts/audit/suppressions.ts
       - name: JSDoc holds types only
         run: node scripts/audit/jsdoc-types-only.ts
+      - name: No history comments in source
+        run: node scripts/audit/comments.ts
       - name: Zanity baseline only shrinks
         if: github.event_name == 'pull_request'
         run: node plugin/bootstrap/guards/ratchet.mjs --baseline zanity-baseline.json --base-ref "$GATED_DELIVERY_BASE_REF"

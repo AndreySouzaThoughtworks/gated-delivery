@@ -15,6 +15,7 @@ const NOT_TEST_COMMANDS = [
   "node scripts/audit/consistency.ts",
   "node scripts/audit/suppressions.ts",
   "node scripts/audit/jsdoc-types-only.ts",
+  "node scripts/audit/comments.ts",
   'node plugin/bootstrap/guards/ratchet.mjs --baseline zanity-baseline.json --base-ref "$GATED_DELIVERY_BASE_REF"',
   'node plugin/bootstrap/guards/ratchet.mjs --baseline assertion-effectiveness-baseline.json --base-ref "$GATED_DELIVERY_BASE_REF"',
   "node scripts/audit/assertion-effectiveness.ts",

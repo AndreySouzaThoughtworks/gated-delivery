@@ -121,7 +121,7 @@ test("reports inventory counts that disagree with reality", () => {
   write(dir, "README.md", "The plugin — 9 skills, 1 agents, 1 hooks.\n");
   const { code, out } = runGuard(dir);
   assert.equal(code, 1);
-  assert.match(out, /README says "9 skills", actual is 1/);
+  assert.match(out, /README.md says "9 skills", actual is 1/);
 });
 
 test("reports a skill or agent missing from the canonical inventory", () => {
@@ -307,4 +307,44 @@ test("does not warn on a measure that avoids the skill's headings", () => {
   const { code, out } = runGuard(dir);
   assert.doesNotMatch(out, /WARN/, "a clean measure must not warn");
   assert.equal(code, 0);
+});
+
+test("a README that states no count for skills, agents or hooks is reported", () => {
+  for (const label of ["skills", "agents", "hooks"]) {
+    const counts = { skills: "1 skills", agents: "1 agents", hooks: "1 hooks", [label]: `some ${label}` };
+    const dir = validRepo();
+    write(dir, "README.md", `The plugin ships ${counts.skills}, ${counts.agents}, ${counts.hooks}.\n\n[MIT](LICENSE)\n`);
+    const { code, out } = runGuard(dir);
+    assert.equal(code, 1, `a README with no digit before "${label}" must fail, got ${code}: ${out}`);
+    assert.match(out, new RegExp(`README\\.md does not state how many ${label} ship, and there are 1\\. Hint: write the count as digits`));
+  }
+});
+
+test("a command count written as a word is reported, and digits pass", () => {
+  const dir = validRepo();
+  write(dir, "plugin/commands/go.md", "---\ndescription: go\n---\nbody\n");
+  write(dir, "README.md", "The plugin — 1 skills, 1 agents, 1 hooks, plus one commands.\n\n[MIT](LICENSE)\n");
+  const word = runGuard(dir);
+  assert.equal(word.code, 1, word.out);
+  assert.match(word.out, /README\.md does not state how many commands ship, and there are 1\. Hint: write the count as digits/);
+
+  write(dir, "README.md", "The plugin — 1 skills, 1 agents, 1 hooks, 2 commands.\n\n[MIT](LICENSE)\n");
+  const wrong = runGuard(dir);
+  assert.match(wrong.out, /README\.md says "2 commands", actual is 1\. Hint: change it to "1 commands"/);
+
+  write(dir, "README.md", "The plugin — 1 skills, 1 agents, 1 hooks, 1 commands.\n\n[MIT](LICENSE)\n");
+  const digits = runGuard(dir);
+  assert.equal(digits.code, 0, digits.out);
+});
+
+test("docs/development.md is checked for inventory counts when it exists", () => {
+  const dir = validRepo();
+  write(dir, "docs/development.md", "The plugin — 1 skills, 2 agents, 1 hooks.\n");
+  const stale = runGuard(dir);
+  assert.equal(stale.code, 1, stale.out);
+  assert.match(stale.out, /docs\/development\.md says "2 agents", actual is 1/);
+
+  write(dir, "docs/development.md", "The plugin — 1 skills, 1 agents, 1 hooks.\n");
+  const fresh = runGuard(dir);
+  assert.equal(fresh.code, 0, fresh.out);
 });

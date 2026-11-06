@@ -16,7 +16,7 @@ Specs split the work into PR-sized slices. Guards and gates check each one.
 
 gated-delivery is a Claude Code plugin with no client baked in. A spec turns a tracker ticket into an ordered list of slices that each merge on their own. Implementation runs in focused batches and checks every slice with verification, a structural review and a fresh-context correctness gate before it counts as done. Everything specific to your team, such as the tracker, the commit convention and the reviewers, comes from your repository's `CLAUDE.md`.
 
-It ships 12 skills, 3 agents and 2 hooks, plus three commands.
+It ships 12 skills, 3 agents and 2 hooks, plus 3 commands.
 
 ## Get started
 

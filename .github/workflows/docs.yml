@@ -32,5 +32,5 @@ jobs:
       - uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
         with:
           lycheeVersion: v0.24.2
-          args: --no-progress --config lychee.toml README.md 'docs/**/*.md' 'plugin/**/*.md'
+          args: --no-progress --config lychee.toml README.md 'docs/**/*.md' 'plugin/**/*.md' 'docs/**/*.html'
           fail: true

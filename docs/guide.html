@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>gated-delivery guide</title>
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --surface: #f3f5f8;
+  --text: #1a1d23;
+  --muted: #4b5563;
+  --link: #0b5cad;
+  --border: #c9d1dc;
+  --accent: #0b5cad;
+  --good: #146c2e;
+  --bad: #a4262c;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12151b;
+    --surface: #1b2029;
+    --text: #e6e9ef;
+    --muted: #aab3c2;
+    --link: #8bbcff;
+    --border: #3a4352;
+    --accent: #8bbcff;
+    --good: #6fd08a;
+    --bad: #ff8b91;
+  }
+}
+* { box-sizing: border-box; }
+html { background-color: var(--bg); }
+body {
+  margin: 0;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.6;
+}
+a { color: var(--link); }
+a:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.skip-link { position: absolute; left: -999px; top: 0; padding: 0.5rem 1rem; background-color: var(--surface); color: var(--text); }
+.skip-link:focus { left: 0; }
+header, main, footer { max-width: 52rem; margin: 0 auto; padding: 1rem; }
+header { padding-top: 2rem; border-bottom: 1px solid var(--border); }
+h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 0.5rem; }
+h2 { font-size: 1.5rem; margin: 2.5rem 0 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border); }
+h3 { font-size: 1.15rem; margin: 1.5rem 0 0.25rem; }
+p, li { max-width: 46rem; }
+.lead { font-size: 1.15rem; color: var(--muted); }
+nav { background-color: var(--surface); border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.5rem 1rem; margin: 1rem 0; }
+nav ol { margin: 0.25rem 0; padding-left: 1.25rem; columns: 2 16rem; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.9em; background-color: var(--surface); padding: 0.1em 0.3em; border-radius: 0.25rem; overflow-wrap: anywhere; }
+pre { background-color: var(--surface); border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.75rem 1rem; overflow-x: auto; line-height: 1.45; }
+pre code { background: none; padding: 0; overflow-wrap: normal; }
+.table-scroll { overflow-x: auto; margin: 1rem 0; }
+table { border-collapse: collapse; width: 100%; min-width: 30rem; }
+th, td { border: 1px solid var(--border); padding: 0.4rem 0.6rem; text-align: left; vertical-align: top; }
+th { background-color: var(--surface); }
+.callout { border-left: 4px solid var(--accent); background-color: var(--surface); padding: 0.5rem 1rem; margin: 1rem 0; border-radius: 0 0.5rem 0.5rem 0; }
+.callout p { margin: 0.4rem 0; }
+.pass { color: var(--good); font-weight: 600; }
+.fail { color: var(--bad); font-weight: 600; }
+figure { margin: 1.5rem 0; }
+figure svg { width: 100%; height: auto; max-width: 46rem; }
+figcaption { color: var(--muted); font-size: 0.95rem; }
+details { border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.25rem 1rem; margin: 0.75rem 0; background-color: var(--surface); }
+summary { cursor: pointer; font-weight: 600; padding: 0.4rem 0; }
+.svg-box { fill: var(--surface); stroke: var(--accent); stroke-width: 1.5; }
+.svg-text { fill: var(--text); font-family: system-ui, sans-serif; font-size: 14px; }
+.svg-arrow { stroke: var(--muted); stroke-width: 2; fill: none; }
+.svg-head { fill: var(--muted); }
+@media (max-width: 30rem) {
+  h1 { font-size: 1.6rem; }
+  h2 { font-size: 1.3rem; }
+  header, main, footer { padding: 0.75rem; }
+  nav ol { columns: 1; }
+}
+@media print {
+  .skip-link { display: none; }
+}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to the content</a>
+<header>
+  <h1>The gated-delivery guide</h1>
+  <p class="lead">Ship every change in small, verified slices. This guide explains how the repository works, with examples and real commands.</p>
+</header>
+<main id="main">
+
+<nav aria-label="Table of contents">
+  <h2 id="contents">Contents</h2>
+  <ol>
+    <li><a href="#what">What gated-delivery is</a></li>
+    <li><a href="#philosophy">The philosophy</a></li>
+    <li><a href="#flow">The delivery flow</a></li>
+    <li><a href="#inventory">Skills, agents, commands and hooks</a></li>
+    <li><a href="#guardrails">Guardrails and CI checks</a></li>
+    <li><a href="#evals">The eval tiers</a></li>
+    <li><a href="#mistake">How a mistake becomes a rule</a></li>
+    <li><a href="#usage">Worked usage examples</a></li>
+    <li><a href="#policy">Node and version policy</a></li>
+    <li><a href="#limits">What is not verified</a></li>
+    <li><a href="#next">Where to read next</a></li>
+  </ol>
+</nav>
+
+<section aria-labelledby="what">
+  <h2 id="what">1. What gated-delivery is</h2>
+  <p>gated-delivery is a Claude Code plugin. It turns one tracker ticket into small slices of work. Each slice merges on its own.</p>
+  <p>The plugin has no client baked in. Your repository supplies the client facts in its <code>CLAUDE.md</code>. The facts cover the tracker, the commit convention, the verify command and the reviewers.</p>
+  <p>The repository is also the marketplace. The manifest at the root points at the <code>plugin/</code> folder. The plugin ships 12 skills, 3 agents, 3 commands and 2 hooks.</p>
+  <p>This repository does more than ship the plugin. It also checks itself. A set of scripts and CI jobs keeps its own rules, docs and counts true.</p>
+  <h3>Who should read what</h3>
+  <ul>
+    <li>A newcomer starts with the flow, then the worked examples.</li>
+    <li>A maintainer reads the guardrails, then the section on mistakes and rules.</li>
+    <li>A skeptic reads the limits first. They are honest.</li>
+  </ul>
+</section>
+
+<section aria-labelledby="philosophy">
+  <h2 id="philosophy">2. The philosophy</h2>
+  <p>The design follows exponential engineering. It has three working rules.</p>
+  <h3>Harden the codebase, not the agent</h3>
+  <p>An agent forgets, drifts and guesses. A repository does not. So the repository holds the guardrails.</p>
+  <p>Hooks, CI jobs and lint scripts run every time. They need no memory of earlier sessions.</p>
+  <h3>Guidance is not a guardrail</h3>
+  <p>A line in a prompt is a request. A model can ignore it. A script that exits with a non-zero code is a guardrail.</p>
+  <p>So the repo prefers a check over a sentence of advice. Each rule in this repository should be a deterministic check.</p>
+  <div class="callout">
+    <p>Test for any rule: can a script fail a pull request that breaks it? If not, treat it as a wish.</p>
+  </div>
+  <h3>Every mistake becomes a deterministic rule</h3>
+  <p>When a mistake happens, the fix is not a reminder. The fix is a check that rules out the whole category of mistake. A test proves that the check can fail.</p>
+  <p>The file <code>docs/mistakes-to-rules.md</code> records each mistake next to its rule and its test. A test fails when a row names something that does not exist.</p>
+</section>
+
+<section aria-labelledby="flow">
+  <h2 id="flow">3. The delivery flow</h2>
+  <p>A ticket moves through four stages. Each stage ends in a gate.</p>
+  <figure>
+    <svg viewBox="0 0 720 150" role="img" aria-labelledby="flow-title flow-desc">
+      <title id="flow-title">The delivery flow</title>
+      <desc id="flow-desc">Four boxes joined by arrows: spec, slice, review gate and commit. A final arrow returns from commit to slice for the next slice.</desc>
+      <rect class="svg-box" x="10" y="30" width="140" height="60" rx="8"/>
+      <text class="svg-text" x="80" y="65" text-anchor="middle">1. Spec</text>
+      <rect class="svg-box" x="205" y="30" width="140" height="60" rx="8"/>
+      <text class="svg-text" x="275" y="65" text-anchor="middle">2. Slice</text>
+      <rect class="svg-box" x="400" y="30" width="140" height="60" rx="8"/>
+      <text class="svg-text" x="470" y="65" text-anchor="middle">3. Review gate</text>
+      <rect class="svg-box" x="570" y="30" width="140" height="60" rx="8"/>
+      <text class="svg-text" x="640" y="65" text-anchor="middle">4. Commit and PR</text>
+      <path class="svg-arrow" d="M150 60 H195"/><polygon class="svg-head" points="195,54 205,60 195,66"/>
+      <path class="svg-arrow" d="M345 60 H390"/><polygon class="svg-head" points="390,54 400,60 390,66"/>
+      <path class="svg-arrow" d="M540 60 H560"/><polygon class="svg-head" points="560,54 570,60 560,66"/>
+      <path class="svg-arrow" d="M640 90 V125 H275 V100"/><polygon class="svg-head" points="269,100 275,90 281,100"/>
+      <text class="svg-text" x="460" y="142" text-anchor="middle">you merge, then the next slice starts</text>
+    </svg>
+    <figcaption>Each slice runs the loop once. You merge the pull request by hand.</figcaption>
+  </figure>
+
+  <h3>Stage 1: spec</h3>
+  <p><code>/gated-delivery:spec</code> reads a ticket and drafts one spec. The spec has an ordered <code>## Rollout</code> of PR-sized slices.</p>
+  <p>The skill holds drafts in the conversation. It writes nothing until you sign off each section. It then writes one file.</p>
+
+  <h3>Stage 2: slice</h3>
+  <p><code>/gated-delivery:slice</code> implements the ticket slice by slice. Independent slices run in parallel worktrees. Each slice gets its own branch and pull request.</p>
+  <p>Inside a slice, the skill plans small batches. For each batch it dispatches a <code>slice-executor</code> agent. The executor writes one failing test, then the minimal code, then one commit per acceptance criterion.</p>
+  <p>Before each dispatch, <code>executor-preflight.mjs</code> checks the spec and the tree. After each batch, <code>batch-audit.mjs</code> audits the commits.</p>
+
+  <h3>Stage 3: review gate</h3>
+  <p>A slice is not done until three checks pass.</p>
+  <ol>
+    <li>Full verification runs the verify command of the client.</li>
+    <li><code>senior-review-lens</code> audits the structure of the change.</li>
+    <li>The <code>code-reviewer</code> agent reviews the diff in a fresh context. It sees only the diff and the acceptance criteria.</li>
+  </ol>
+  <p>The slice also stops while a review thread is open. <code>pr-gate.mjs</code> lists the open threads, including threads from review bots.</p>
+
+  <h3>Stage 4: commit and pull request</h3>
+  <p><code>/gated-delivery:commit</code> makes one commit that follows the client convention. It stages files by explicit path.</p>
+  <p><code>/gated-delivery:commit-push-pr</code> adds a push to an explicit refspec and opens the pull request. The skill never merges anything. You merge, then run <code>/gated-delivery:slice</code> again for the next slice.</p>
+
+  <h3>Around the loop</h3>
+  <ul>
+    <li><code>/repo-forensics</code> inspects code before a change exists. It never writes code.</li>
+    <li><code>/story-drift</code> checks an old ticket against its linked records.</li>
+    <li><code>/issue-writing</code> drafts and publishes tickets against a template.</li>
+    <li><code>/deskcheck</code> renders finished work as an HTML walkthrough for a demo.</li>
+    <li><code>/primer</code> researches a topic and renders an HTML explainer.</li>
+    <li><code>/prod-support</code> guides the diagnosis of a production incident.</li>
+    <li><code>/learn-flow</code> turns the mistakes of a session into proposed checks.</li>
+    <li><code>/audit-flow</code> audits the flow itself and proposes trims.</li>
+  </ul>
+</section>
+
+<section aria-labelledby="inventory">
+  <h2 id="inventory">4. Skills, agents, commands and hooks</h2>
+  <p>The plugin ships 12 skills, 3 agents, 3 commands and 2 hooks. The file <code>docs/skill-graph.md</code> is the canonical inventory. A check keeps this guide in step with it.</p>
+
+  <h3>Skills</h3>
+  <div class="table-scroll">
+  <table>
+    <caption>The 12 skills in <code>plugin/skills/</code></caption>
+    <thead><tr><th scope="col">Skill</th><th scope="col">What it does</th></tr></thead>
+    <tbody>
+      <tr><th scope="row"><code>/spec</code></th><td>Turns a ticket into one signed-off spec with an ordered Rollout of PR-sized slices.</td></tr>
+      <tr><th scope="row"><code>/slice</code></th><td>Implements a ticket as independently merging slices, with executors and reviewers.</td></tr>
+      <tr><th scope="row"><code>/repo-forensics</code></th><td>Inspects the code before a change: verified facts, inferred facts, blast radius.</td></tr>
+      <tr><th scope="row"><code>/senior-review-lens</code></th><td>Audits the structure of code or design decisions through eight lenses.</td></tr>
+      <tr><th scope="row"><code>/issue-writing</code></th><td>Drafts, refines and publishes a Story, Task, Bug or Spike.</td></tr>
+      <tr><th scope="row"><code>/story-drift</code></th><td>Reports only what makes a groomed ticket wrong now.</td></tr>
+      <tr><th scope="row"><code>/prose-writing</code></th><td>Applies the writing rules to prose that outlives the conversation.</td></tr>
+      <tr><th scope="row"><code>/prod-support</code></th><td>Directs the diagnosis of a production incident ticket.</td></tr>
+      <tr><th scope="row"><code>/deskcheck</code></th><td>Renders finished work as a self-contained HTML walkthrough.</td></tr>
+      <tr><th scope="row"><code>/primer</code></th><td>Renders a researched topic as a styled HTML primer.</td></tr>
+      <tr><th scope="row"><code>/learn-flow</code></th><td>Proposes a deterministic check for each mistake of a session.</td></tr>
+      <tr><th scope="row"><code>/audit-flow</code></th><td>Runs the consistency guard, then a judgment pass over the flow.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Agents</h3>
+  <div class="table-scroll">
+  <table>
+    <caption>The 3 agents in <code>plugin/agents/</code></caption>
+    <thead><tr><th scope="col">Agent</th><th scope="col">What it does</th><th scope="col">Called from</th></tr></thead>
+    <tbody>
+      <tr><th scope="row"><code>slice-executor</code></th><td>Builds one batch: one failing test, minimal code and one commit per criterion.</td><td><code>/slice</code></td></tr>
+      <tr><th scope="row"><code>code-reviewer</code></th><td>Reviews the diff in a fresh context and reports only correctness gaps.</td><td><code>/slice</code></td></tr>
+      <tr><th scope="row"><code>scout</code></th><td>Reads and quotes facts on <code>haiku</code>. It never judges. A script verifies each quote.</td><td><code>/repo-forensics</code> and <code>/story-drift</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Only the <code>scout</code> pins a model. Every other agent inherits the model of the session. A check enforces this.</p>
+
+  <h3>Commands</h3>
+  <div class="table-scroll">
+  <table>
+    <caption>The 3 commands in <code>plugin/commands/</code></caption>
+    <thead><tr><th scope="col">Command</th><th scope="col">What it does</th></tr></thead>
+    <tbody>
+      <tr><th scope="row"><code>/gated-delivery:commit</code></th><td>Makes one commit that follows the client convention.</td></tr>
+      <tr><th scope="row"><code>/gated-delivery:commit-push-pr</code></th><td>Commits, pushes to an explicit refspec and opens a pull request.</td></tr>
+      <tr><th scope="row"><code>/gated-delivery:bootstrap</code></th><td>Adds missing guardrails to a client repository, one confirmed group at a time.</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>The names <code>bootstrap</code>, <code>commit</code> and <code>commit-push-pr</code> are the file names in <code>plugin/commands/</code>.</p>
+
+  <h3>Hooks</h3>
+  <div class="table-scroll">
+  <table>
+    <caption>The 2 hooks in <code>plugin/hooks/</code></caption>
+    <thead><tr><th scope="col">Hook</th><th scope="col">Event</th><th scope="col">What it does</th></tr></thead>
+    <tbody>
+      <tr><th scope="row"><code>guard-bash</code></th><td>Before a Bash call</td><td>Denies a narrow set of catastrophic commands. It fails closed.</td></tr>
+      <tr><th scope="row"><code>format-on-edit</code></th><td>After an edit or write</td><td>Formats the file with the prettier of the repository.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Scripts that skills call</h3>
+  <p>Skills call Node scripts in <code>plugin/scripts/</code> so that a rule becomes an exit code. Each script has a colocated test.</p>
+  <div class="table-scroll">
+  <table>
+    <caption>The scripts in <code>plugin/scripts/</code></caption>
+    <thead><tr><th scope="col">Script</th><th scope="col">Job</th></tr></thead>
+    <tbody>
+      <tr><th scope="row"><code>slice-state.mjs</code></th><td>Routes a ticket from the spec, Git and the handoff.</td></tr>
+      <tr><th scope="row"><code>slice-claim.mjs</code></th><td>Claims a slice with a create-only push.</td></tr>
+      <tr><th scope="row"><code>slice-cleanup.mjs</code></th><td>Removes the trees and branches of merged slices.</td></tr>
+      <tr><th scope="row"><code>notes-repo.mjs</code></th><td>Prepares and publishes a separate notes repository.</td></tr>
+      <tr><th scope="row"><code>handoff.mjs</code></th><td>Writes the resume block and closes the handoff.</td></tr>
+      <tr><th scope="row"><code>batch-audit.mjs</code></th><td>Audits the commits of one executor batch.</td></tr>
+      <tr><th scope="row"><code>executor-preflight.mjs</code></th><td>Checks the spec and the tree before an executor starts.</td></tr>
+      <tr><th scope="row"><code>ticket-lint.mjs</code></th><td>Lints a ticket draft against its kind.</td></tr>
+      <tr><th scope="row"><code>pr-gate.mjs</code></th><td>Checks a PR body, its title and its open review threads.</td></tr>
+      <tr><th scope="row"><code>primer-lint.mjs</code></th><td>Lints a primer page against the template.</td></tr>
+      <tr><th scope="row"><code>commit-plan.mjs</code></th><td>Plans a commit from the convention of the client.</td></tr>
+      <tr><th scope="row"><code>verify-citations.mjs</code></th><td>Checks that every citation of the scout is true.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section aria-labelledby="guardrails">
+  <h2 id="guardrails">5. Guardrails and CI checks</h2>
+  <p>Branch protection requires nine status checks on <code>main</code>, for admins too. The workflows are in <code>.github/workflows/</code>.</p>
+  <div class="table-scroll">
+  <table>
+    <caption>The nine required status checks</caption>
+    <thead><tr><th scope="col">Check</th><th scope="col">What it does</th></tr></thead>
+    <tbody>
+      <tr><th scope="row"><code>zanity</code></th><td>Strict lint of the code, against a baseline that is empty.</td></tr>
+      <tr><th scope="row"><code>consistency</code></th><td>Type check, the consistency guard, the lint scripts and the unit tests, on Node 22.</td></tr>
+      <tr><th scope="row"><code>node 26</code></th><td>The same job as <code>consistency</code>, on Node 26.</td></tr>
+      <tr><th scope="row"><code>workflows</code></th><td><code>actionlint</code> and <code>zizmor</code> on the workflow files.</td></tr>
+      <tr><th scope="row"><code>shell</code></th><td><code>shellcheck</code> on every shell file.</td></tr>
+      <tr><th scope="row"><code>Links (lychee)</code></th><td>Checks the links in the markdown and in this guide.</td></tr>
+      <tr><th scope="row"><code>Spelling (typos)</code></th><td>Checks the spelling of the docs and the code.</td></tr>
+      <tr><th scope="row"><code>gitleaks</code></th><td>Scans for secrets.</td></tr>
+      <tr><th scope="row"><code>assertion effectiveness</code></th><td>Fails an assertion that no test can make fail.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>The consistency guard</h3>
+  <p>The core is <code>scripts/audit/consistency.ts</code>. Its numbered sections are the true list of checks. It prints one error line per problem. Each line names the file and ends with a hint.</p>
+  <p>The checks fall into groups. Each group below shows one real failure message. We produced each one by running the script on a broken input.</p>
+
+  <h3>Inventory and docs</h3>
+  <p>These checks fail when the files and the docs disagree. A skill needs its files, its name and its row in the inventory. A count in the README must match the files.</p>
+  <pre><code>ERROR README.md says "5 skills", which is not the actual count of 12. Hint: change it to "12 skills".</code></pre>
+
+  <h3>Manifests and versions</h3>
+  <p>Neither manifest may pin a <code>version</code>. Without a version, Claude Code uses the commit SHA. So every commit reaches installs.</p>
+  <pre><code>ERROR plugin/.claude-plugin/plugin.json carries a version. A pinned version freezes installed copies until someone changes it. Hint: delete the "version" field; users then get every commit.</code></pre>
+
+  <h3>Rules about rules</h3>
+  <p>These checks stop anyone from loosening the other checks. They guard <code>zanity.toml</code>, the <code>tsc</code> flags, conditions that cannot vary and the numbering of the checks. They also limit which agents may pin a model.</p>
+  <pre><code>ERROR agent "code-reviewer" pins model "opus", but is not allowed to pin one. Hint: pin a model only on the scout, since every other agent inherits the session model.</code></pre>
+
+  <h3>Rule inventories</h3>
+  <p>Live evals are off. So nothing else notices when a text trim deletes a rule. A file in <code>evals/rules/</code> lists the load-bearing rules of one instruction file. Each rule has a literal anchor.</p>
+  <p>Check 27 fails when an anchor is gone. It also fails when a marker line, such as one with <code>never</code> or <code>STOP</code>, has no rule. It scans the markdown files under <code>plugin/skills/</code> that are not <code>SKILL.md</code>.</p>
+  <pre><code>ERROR evals/rules/skill-slice.json: anchor "`/slice` never merges one" is in none of plugin/skills/slice/SKILL.md, plugin/skills/slice/references/parallel.md, plugin/scripts/slice-state.mjs, plugin/scripts/slice-cleanup.mjs, plugin/scripts/slice-claim.mjs, plugin/scripts/notes-repo.mjs, plugin/scripts/handoff.mjs, plugin/scripts/pr-gate.mjs, plugin/scripts/commit-plan.mjs. Hint: the rule line was deleted or reworded; restore it or update the anchor.</code></pre>
+
+  <h3>Token budget</h3>
+  <p>Instruction text costs tokens in every session. <code>evals/token-budget.json</code> sets a budget for each instruction file. Check 28 fails a file that grows past its budget.</p>
+  <pre><code>ERROR plugin/skills/slice/SKILL.md grew to 8994 estimated tokens, over its budget of 8000. Hint: trim the text, or raise the budget in evals/token-budget.json in a PR that says why.</code></pre>
+  <p>The estimate is the number of characters divided by four. It uses no tokenizer.</p>
+
+  <h3>Eval stamps</h3>
+  <p>A changed skill needs a stamp for its current hash. The README states how many stamps are live, static and waived. See the eval tiers below.</p>
+
+  <h3>Node floor</h3>
+  <p>Check 31 fails when the Node floor reaches end of life, or when a document names another floor.</p>
+  <pre><code>ERROR README.md says "Node 18 or later" but package.json sets the floor to Node 22. Hint: make the document and engines.node name the same release.</code></pre>
+
+  <h3>CI parity and live opt-in</h3>
+  <p>Check 29 keeps the consistency steps in one matrix job. So <code>consistency</code> and <code>node 26</code> cannot drift apart. Check 30 refuses a test that starts a real <code>claude -p</code> session without an opt-in.</p>
+  <pre><code>tests/commit-convention.test.sh: refusing to start. Rule: a test that launches a real claude -p session spends your logged-in subscription, so it runs only on request. Fix: rerun with GATED_DELIVERY_ALLOW_LIVE_CLAUDE=1 to accept that usage.</code></pre>
+
+  <h3>Message actionability</h3>
+  <p>A failure message must name the offending value, state the rule and end with a fix. It must have 40 words or fewer. Check 32 fails a new message that does not. The old messages sit in a baseline that only shrinks.</p>
+
+  <h3>Docs style and the guide</h3>
+  <p>Check 33 grades every document. The files are <code>README.md</code>, <code>AGENTS.md</code>, <code>plugin/README.md</code>, <code>docs/*.md</code> and this guide.</p>
+  <p>A file fails when fewer than 80% of its sentences have 20 words or fewer. The check ignores code blocks, inline code, tables, headings and link targets.</p>
+  <pre><code>ERROR docs/onboarding.md has 67% of its 94 sentences within 20 words, below the 80% ASD-STE100 rule. Hint: split each long sentence, longest first: line 84 (22 words) "A red build can be one..."; line 96 (21 words) "Install step 0 keeps going with..."; line 98 (21 words) "Install step 1 keeps going with..."; line 100 (21 words) "Install step 2 keeps going with..."; line 102 (21 words) "Install step 3 keeps going with...".</code></pre>
+  <p>Check 34 keeps this guide true. It fails when the guide is missing. It fails when the guide misses a skill, an agent or a command. It fails when a count is wrong. It fails when the README does not link the guide.</p>
+  <pre><code>ERROR docs/guide.html does not name the agent "scout". Hint: add it to the guide.</code></pre>
+
+  <h3>Lint scripts</h3>
+  <ul>
+    <li><code>scripts/audit/comments.ts</code> rejects a comment that tells the history of a change.</li>
+    <li><code>scripts/audit/suppressions.ts</code> rejects a suppression with no reason. It also rejects a count that differs from <code>scripts/audit/suppressions.count</code>.</li>
+    <li><code>scripts/audit/jsdoc-types-only.ts</code> rejects prose inside a JSDoc block.</li>
+    <li><code>scripts/audit/assertion-effectiveness.ts</code> rejects an assertion that no test can make fail.</li>
+  </ul>
+  <pre><code>scripts/a.ts:1: rule temporal-contrast: "used to be slower". Hint: delete the before-and-after contrast, or restate what the code does now; a comment states a constraint the code cannot show, in the present tense</code></pre>
+
+  <h3>Hooks that run for you</h3>
+  <p>The Bash guard denies catastrophic commands, such as a force-push to <code>main</code>. It fails closed. When it cannot read its input, it blocks the command.</p>
+  <pre><code>Blocked by gated-delivery guard: force-push to main/master is not allowed in `git push --force origin main`; run it outside the agent or reword the command.</code></pre>
+  <p>Git hooks in <code>.githooks/</code> add a leak guard at commit time and a gitleaks scan at push time. Enable them once with <code>git config core.hooksPath .githooks</code>.</p>
+
+  <h3>Cursor</h3>
+  <p>Cursor follows the same rules. <code>AGENTS.md</code> is the one source of the repo rules. <code>.cursor/hooks.json</code> runs adapters over the same two plugin hooks.</p>
+</section>
+
+<section aria-labelledby="evals">
+  <h2 id="evals">6. The eval tiers</h2>
+  <p>Each skill has an <code>evals.md</code> with scenarios and a fence of deterministic checks. A stamp in <code>evals/results/</code> records the result for the current hash of the skill.</p>
+  <div class="table-scroll">
+  <table>
+    <caption>The three tiers of a skill stamp</caption>
+    <thead><tr><th scope="col">Tier</th><th scope="col">What ran</th><th scope="col">What it proves</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">live</th><td>Real <code>claude -p</code> sessions, graded by checks and a judge.</td><td>The model followed the skill in those scenarios.</td></tr>
+      <tr><th scope="row">static</th><td>The deterministic checks, the script tests and the rule anchors. No model runs.</td><td>The scripts and checks of the skill are intact. Nothing about the model.</td></tr>
+      <tr><th scope="row">waived</th><td>Nothing. A person wrote a reason.</td><td>Nothing. The guard shows a warning.</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Today, every skill carries a static stamp. No skill has a live stamp. The README states the true numbers, and check 25 keeps them true.</p>
+  <p>Any edit to a skill changes its hash. The old stamp then goes stale. Re-stamp the skill with this command:</p>
+  <pre><code>node scripts/eval/changed-skills.ts --static slice</code></pre>
+  <p>The command exits 0 when every check passes. It exits 1 when a check fails, and then it writes no stamp.</p>
+  <div class="callout">
+    <p>Do not run live evals unless the maintainer asks. They spend a subscription. The opt-in variable is <code>GATED_DELIVERY_ALLOW_LIVE_CLAUDE=1</code>.</p>
+  </div>
+</section>
+
+<section aria-labelledby="mistake">
+  <h2 id="mistake">7. How a mistake becomes a rule</h2>
+  <p>This section walks through one real row of <code>docs/mistakes-to-rules.md</code>.</p>
+  <h3>The mistake</h3>
+  <p>The repository was public with no license. Nobody was allowed to reuse it. The category of the mistake is code that looks open but is not.</p>
+  <h3>The rule</h3>
+  <p>The row names <code>check 24</code> of the consistency guard. The check fails when the license file is missing or empty. It also fails when the README does not link it. This is the real code:</p>
+  <pre><code>if (!existsSync(licensePath) || read(licensePath).trim() === "") {
+  errors.push(`${LICENSE_FILE} is missing or empty. Hint: add the license text; without one nobody may reuse the code.`);
+} else if (existsSync(readmeFilePath) &amp;&amp; !read(readmeFilePath).includes(`](${LICENSE_FILE})`)) {
+  errors.push(`${README_FILE} does not link ${LICENSE_FILE}. Hint: add a License section that links it.`);
+}</code></pre>
+  <h3>The test</h3>
+  <p>A test must show that the check can fail. The row names this test: <code>scripts/audit/consistency-repo-config.test.ts</code>, titled "the repo must carry a license that the README links".</p>
+  <p>The test builds a valid fixture repo and runs the guard. It must pass. Then it blanks the license, deletes it and unlinks it from the README. Each case must fail with the expected message.</p>
+  <pre><code>const blank = validRepo();
+write(blank, "LICENSE", "  \n");
+assert.match(runGuard(blank).out, /LICENSE is missing or empty/);</code></pre>
+  <h3>The guard on the table</h3>
+  <p><code>scripts/audit/mistakes-table.test.ts</code> reads every row. It fails when a row names a check, file, zanity rule or test title that is missing. So the table cannot rot.</p>
+  <p>Some mistakes have no rule yet. The second section of the file lists them with the reason. Honest gaps are part of the design.</p>
+</section>
+
+<section aria-labelledby="usage">
+  <h2 id="usage">8. Worked usage examples</h2>
+
+  <h3>Install</h3>
+  <pre><code>claude plugin marketplace add AndreySouzaThoughtworks/gated-delivery
+/plugin install gated-delivery@gated-delivery
+/reload-plugins</code></pre>
+  <p>Install at user scope. Run <code>/reload-plugins</code> afterwards. Without it, the agents stay unregistered in the running session.</p>
+
+  <h3>Update</h3>
+  <pre><code>claude plugin update gated-delivery@gated-delivery
+/reload-plugins</code></pre>
+  <p>The plugin has no version number. Every commit on <code>main</code> is an update.</p>
+
+  <h3>Run a skill</h3>
+  <p>Give the spec skill a ticket key. It reads the ticket and shows you its intent. It writes a file only after you sign off every section.</p>
+  <pre><code>/gated-delivery:spec PROJ-202</code></pre>
+  <p>Then run the slice skill with the same key. It plans the batches and asks you to confirm them. At the end it marks the pull request ready and stops.</p>
+  <pre><code>/gated-delivery:slice PROJ-202</code></pre>
+  <p>Commit with the client convention. List the files by explicit path:</p>
+  <pre><code>/gated-delivery:commit</code></pre>
+
+  <h3>Add a rule and its reject-case test</h3>
+  <p>This example is not in the repository. It shows the shape of a new check. Say that a skill description must stay short.</p>
+  <ol>
+    <li>Add a numbered section at the end of <code>scripts/audit/consistency.ts</code>, before the report. Use the next free number.</li>
+    <li>Push a message that names the file, states the rule and ends with a fix.</li>
+    <li>Add a reject-case test in the matching <code>scripts/audit/consistency-*.test.ts</code> file.</li>
+    <li>Run the test. Make sure that it fails when the rule is broken.</li>
+    <li>Add a row to <code>docs/mistakes-to-rules.md</code> that names the check and the test title.</li>
+  </ol>
+  <pre><code>// --- 35. A skill description stays short ---
+const MAX_DESCRIPTION_CHARACTERS = 400;
+for (const skill of skills) {
+  const description = read(join(skillsDir, skill, "SKILL.md")).match(/^description:\s*(.+)$/m)?.[1] ?? "";
+  if (description.length &gt; MAX_DESCRIPTION_CHARACTERS) {
+    errors.push(`skill "${skill}" has a description of ${description.length} characters, over the limit of ${MAX_DESCRIPTION_CHARACTERS}. Hint: shorten it.`);
+  }
+}</code></pre>
+  <pre><code>test("a skill description over the limit is rejected, one at the limit passes", () => {
+  const dir = validRepo();
+  write(dir, "plugin/skills/alpha/SKILL.md", `---\nname: alpha\ndescription: ${"x".repeat(401)}\n---\n`);
+  const { code, out } = runGuard(dir);
+  assert.equal(code, 1, out);
+  assert.match(out, /skill "alpha" has a description of 401 characters/);
+});</code></pre>
+  <pre><code>node --test scripts/audit/consistency-rules.test.ts</code></pre>
+  <p>A new assertion in non-test code needs a test that can make it fail. The assertion-effectiveness tool checks this.</p>
+
+  <h3>Run the audit locally</h3>
+  <p>Run these commands from the repository root before you open a pull request:</p>
+  <pre><code>npm ci &amp;&amp; npx tsc --noEmit
+env -u CLAUDECODE zanity check . --baseline zanity-baseline.json --new-only --agent --fail-on warning --strict
+GATED_DELIVERY_BASE_REF=origin/main node scripts/audit/consistency.ts
+node scripts/audit/comments.ts
+node scripts/audit/suppressions.ts
+node scripts/audit/token-budget.ts
+node scripts/audit/asd-style-report.ts
+node scripts/eval/run-checks.ts --lint</code></pre>
+  <p>The test commands are in <code>.github/workflows/audit.yml</code>. Run them too.</p>
+  <p>The report script prints the share of short sentences for each document:</p>
+  <pre><code>node scripts/audit/asd-style-report.ts</code></pre>
+
+  <h3>Add guardrails to a client repository</h3>
+  <p>Run the bootstrap command in a Python or TypeScript repository on GitHub. It shows a diff first. It writes nothing until you confirm each group.</p>
+  <pre><code>/gated-delivery:bootstrap</code></pre>
+</section>
+
+<section aria-labelledby="policy">
+  <h2 id="policy">9. Node and version policy</h2>
+  <ul>
+    <li>The plugin has no <code>version</code> field in either manifest. Checks 15 and 19 reject a pinned version.</li>
+    <li>The plugin floor is the oldest Node release that still gets security fixes. Today that is Node 22.</li>
+    <li>Dev tooling needs Node 22.18 or later. That release strips TypeScript types.</li>
+    <li>CI tests Node 22 and Node 26, in one matrix job.</li>
+    <li>Check 31 fails when the floor reaches end of life. The dates are in <code>scripts/audit/node-floor.ts</code>.</li>
+    <li>Plugin code is plain JavaScript. It must not import TypeScript. Check 20 enforces this.</li>
+  </ul>
+  <p>The license is MIT. The repository carries the license file, and the README links it.</p>
+</section>
+
+<section aria-labelledby="limits">
+  <h2 id="limits">10. What is not verified</h2>
+  <p>This repository checks a lot. It does not check everything. These limits are real.</p>
+  <ul>
+    <li>All skill stamps are static. No stamp is live. No test shows that a model follows a skill.</li>
+    <li>No live eval runs. They are off because they spend a subscription.</li>
+    <li>A rule inventory proves that the rule text is present. It does not prove that the rule keeps its meaning.</li>
+    <li>The plugin scripts have not run against a real <code>gh</code>. Their tests use fixtures and stubs.</li>
+    <li>The sentence check measures length only. It does not prove that the prose is clear or true.</li>
+    <li>The message check is a pattern proxy. It cannot judge whether a fix is correct.</li>
+    <li>Some mistakes still depend on review. The second table in <code>docs/mistakes-to-rules.md</code> names them.</li>
+    <li>The count of suppressions is visible and reviewed. It is not a ratchet.</li>
+  </ul>
+  <div class="callout">
+    <p>A static stamp says that the tooling is intact. It never says that the model behaves.</p>
+  </div>
+</section>
+
+<section aria-labelledby="next">
+  <h2 id="next">11. Where to read next</h2>
+  <ul>
+    <li><a href="onboarding.md">Onboarding</a>: install, profiles and environment variables.</li>
+    <li><a href="skill-graph.md">Skills, agents and hooks</a>: the full inventory and call graph.</li>
+    <li><a href="development.md">Developing</a>: layout, checks and tests.</li>
+    <li><a href="evals.md">Evals</a>: how to run and read skill evals.</li>
+    <li><a href="mistakes-to-rules.md">Mistakes to rules</a>: every mistake and its rule.</li>
+    <li><a href="exponential-engineering.md">Exponential engineering</a>: the design and its limits.</li>
+    <li><a href="../README.md">The README</a>: the short version.</li>
+    <li><a href="../AGENTS.md">AGENTS.md</a>: the rules for agents in this repository.</li>
+  </ul>
+</section>
+
+</main>
+<footer>
+  <p>gated-delivery is MIT licensed. See the <a href="../LICENSE">license</a>.</p>
+</footer>
+</body>
+</html>

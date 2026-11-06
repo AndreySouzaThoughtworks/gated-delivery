@@ -1,6 +1,8 @@
 # gated-delivery — skills, agents & hooks
 
-**The** inventory of what the `gated-delivery` plugin ships and how the pieces call each other — other docs link here, not restate. `scripts/audit/consistency.ts` fails CI if a skill or agent is missing below. Skills are invoked by `/skill-name` or `Skill(name)`; agents by `Agent(subagent_type: name)`; hooks fire automatically on lifecycle events. Client specifics — tracker, notes homes, stack recipes, reviewers — come from the client's CLAUDE.md as described in [client-context.md](../plugin/references/client-context.md).
+This page is the one inventory of what the `gated-delivery` plugin ships and how the pieces call each other. Other docs link here. They do not restate it. `scripts/audit/consistency.ts` fails CI when a skill, agent or hook is missing below.
+
+Invoke a skill with `/skill-name` or `Skill(name)`. Invoke an agent with `Agent(subagent_type: name)`. Hooks fire on lifecycle events with no action from you. Client facts come from the `CLAUDE.md` of the client, as [client-context.md](../plugin/references/client-context.md) describes.
 
 ## Workflow skills
 
@@ -33,7 +35,7 @@
 |-------|---------|--------------|
 | `slice-executor` | Mechanical TDD batch worker — consumes one spec, a batch's ACs, and a machine-local notes path; produces one failing test, minimal implementation, and a commit per AC. | `/slice` step 6.1 only. |
 | `code-reviewer` | Fresh-context adversarial correctness gate using the current slice diff and full AC text. | `/slice` step 7.5 before every slice PR becomes ready. |
-| `scout` | Read-only fact gatherer (Read, Grep, Glob) on `haiku`: locates code and quotes it, returning `- path:line :: verbatim line` findings that the citation verifier in `plugin/scripts` checks against the repository. It never judges or ranks. | No skill calls it yet; wiring it into `/repo-forensics` and `/story-drift` is a later change. |
+| `scout` | Read-only fact gatherer (Read, Grep, Glob) on `haiku`. It locates code and quotes it as `- path:line :: verbatim line` findings. `verify-citations.mjs` checks each one against the repository. It never judges or ranks. | `/repo-forensics` and `/story-drift`, to locate facts before they judge. |
 
 ## Hooks (`hooks/hooks.json`)
 
@@ -41,6 +43,27 @@
 |-------|------|-----------|
 | PreToolUse (Bash) | `guard-bash.mjs` | Denies a narrow catastrophic set (`rm -rf` on `/`/`~`/`$HOME`, force-push to main/master, fork bomb). |
 | PostToolUse (Edit\|Write) | `format-on-edit.mjs` | `prettier --write` on the edited file; no-op without prettier. |
+
+## Scripts (`plugin/scripts/`)
+
+Skills call these scripts so that a rule becomes an exit code. Each script has a colocated test.
+
+| Script | Called from | Job |
+|--------|-------------|-----|
+| `notes-repo.mjs` | `/slice`, `/spec`, `/primer`, `/deskcheck` | `prepare` resolves the notes checkout. `publish` pushes named files to `main` without force. |
+| `slice-state.mjs` | `/slice` step 2 | Routes the ticket from the spec, Git, PRs and the handoff. |
+| `slice-cleanup.mjs` | `/slice` step 2 | Removes the trees and local branches of merged slices. |
+| `slice-claim.mjs` | `/slice` step 4 | Claims a slice with a create-only push. |
+| `executor-preflight.mjs` | `/slice` step 6.1 | Checks the spec, the ACs and the tree before an executor starts. |
+| `batch-audit.mjs` | `/slice` step 6.2 | Audits the commits of a batch against its ACs. |
+| `commit-plan.mjs` | `/slice` step 6.6, the commit commands | Plans the commit or PR text from the client convention. |
+| `pr-gate.mjs` | `/slice` steps 6.6 and 7.6 | Rejects a bad PR body or title and lists unresolved review threads. |
+| `handoff.mjs` | `/slice` steps 7.6 and 9 | Writes the resume block and closes the handoff. |
+| `ticket-lint.mjs` | `/issue-writing` | Lints a ticket draft against its kind. |
+| `primer-lint.mjs` | `/primer` | Lints a primer page against the template. |
+| `verify-citations.mjs` | `/repo-forensics`, `/story-drift` | Checks the citations of the `scout` agent. |
+
+Some scripts live inside one skill: `spec-lint.mjs`, `deskcheck-lint.mjs`, `guardrail-scan.mjs` and the `/slice` helpers `resolve-verify-cmd.mjs`, `slice-tree.sh`, `batch-pick.sh`, `review-tree.sh` and `verify-lock.sh`.
 
 ## Domain references (`plugin/references/`)
 
@@ -67,6 +90,12 @@ Named per client in its CLAUDE.md (`## Stack recipes`, `## Review routing`, `## 
 /slice
   ├── step 0  Skill(repo-forensics) quick posture
   ├── /spec                                               (Route A)
+  ├── slice-state.mjs, slice-cleanup.mjs                  (2, route the ticket, remove merged trees)
+  ├── slice-claim.mjs                                     (4, create-only claim of the slice branch)
+  ├── executor-preflight.mjs                              (6.1, before each dispatch)
+  ├── batch-audit.mjs                                     (6.2, after each batch returns)
+  ├── commit-plan.mjs, pr-gate.mjs                        (6.6, PR text; 7.6, open review threads)
+  ├── handoff.mjs, notes-repo.mjs                         (7.6 and 9, resume block, close, publish)
   ├── scripts/resolve-verify-cmd.mjs, the verify command  (start, passed on as verify-cmd)
   ├── scripts/slice-tree.sh, one tree per wave slice      (Route W, references/parallel.md)
   ├── Agent(slice-executor)                               (6.1, per functional batch; a round's batches in parallel batch trees)

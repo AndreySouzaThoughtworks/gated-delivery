@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { statedCountProblems } from "../audit/guide-freshness.ts";
 import { siteWiringProblems } from "../audit/site-wiring.ts";
 import { buildSite, main, readTree } from "./build.ts";
-import { collectSiteData, directoryNames, exitCodesOf, fieldsOf, headingsOf, guardSectionNumbers, hooksOf, inventoryOf, markdownNames, pluginScripts, readText, scoreMutations, scriptIndex, scriptsCalled, tierOf, usageOf, warnOnlyChecks } from "./data.ts";
+import { collectSiteData, directoryNames, exitCodesOf, fieldsOf, headingsOf, guardSectionNumbers, hooksOf, inventoryOf, listScripts, shippedScriptFiles, sourceUsageOf, markdownNames, pluginScripts, readText, scoreMutations, scriptIndex, scriptsCalled, tierOf, usageOf, warnOnlyChecks } from "./data.ts";
 import type { Agent, Command, Hook, PluginScript, SiteData, Skill } from "./data.ts";
 import { demoOutput, expandVariable, mistakeRows, renderFragment } from "./fragments.ts";
 import { coverageProblems, handTypedCountProblems, leakProblems, linkProblems, quotationProblems, renderedCountProblems, siteProblems, siteReport, structureProblems, styleProblems } from "./gates.ts";
@@ -24,7 +24,7 @@ const PAGE = { path: "a.html", title: "A", summary: "s", body: "", source: "x" }
 const SKILL = { name: "alpha", path: "plugin/skills/alpha/SKILL.md", description: "d", rules: null, mutation: null, budget: null, inputs: [], sections: [], steps: [], scripts: [], tier: "none", stampedAt: null } as Skill;
 const AGENT = { name: "bot", path: "plugin/agents/bot.md", description: "d", rules: null, mutation: null, budget: null, model: null, tools: null } as Agent;
 const COMMAND = { name: "go", path: "plugin/commands/go.md", description: "d", rules: null, mutation: null, budget: null, allowedTools: null } as Command;
-const SCRIPT = { name: "s.mjs", path: "plugin/scripts/s.mjs", usage: [], exitCodes: [], exitWithoutArguments: 0 } as PluginScript;
+const SCRIPT = { name: "s.mjs", path: "plugin/scripts/s.mjs", usage: [], exitCodes: [], exitWithoutArguments: 0, group: "shared", usageFrom: "none" } as PluginScript;
 const DATA: SiteData = { skills: [SKILL], agents: [AGENT], commands: [COMMAND], hooks: [], pluginScripts: [SCRIPT] };
 const CONTEXT = { root: REPOSITORY, file: "docs-site-src/x.html", variables: {}, checks: [CHECK] };
 const INVENTORY_CONTEXT = { root: REPOSITORY, budgets: {}, mutations: new Map() };
@@ -73,8 +73,17 @@ const GUARDS: Guard[] = [
   ["renderFragment rejects an empty file name", () => renderFragment("x", { ...CONTEXT, file: "" }), /needs a file name/],
   ["x-mistake rejects a blank match", () => renderFragment(`<x-mistake match=" "/>`, CONTEXT), /blank match/],
   ["x-check rejects number zero", () => renderFragment(`<x-check number="0"/>`, CONTEXT), /check numbers start at 1/],
-  ["coverageProblems rejects non-array skills", () => coverageProblems({ ...DATA, skills: WRONG }, new Map()), /lists skills/],
-  ["coverageProblems rejects a non-Map", () => coverageProblems(DATA, WRONG), /Map of path to html/],
+  ["coverageProblems rejects non-array skills", () => coverageProblems({ ...DATA, skills: WRONG }, new Map(), []), /lists skills/],
+  ["coverageProblems rejects a non-Map", () => coverageProblems(DATA, WRONG, []), /Map of path to html/],
+  ["coverageProblems rejects a non-array of shipped scripts", () => coverageProblems(DATA, new Map(), WRONG), /list of files from disk/],
+  ["shippedScriptFiles rejects an empty root", () => shippedScriptFiles(""), /got an empty path/],
+  ["shippedScriptFiles rejects an absent root", () => shippedScriptFiles(ABSENT), /must exist to list scripts/],
+  ["scriptIndex rejects an empty root", () => scriptIndex(""), /scripts are indexed under the repository root/],
+  ["scriptIndex rejects an absent root", () => scriptIndex(ABSENT), /must exist to index scripts/],
+  ["listScripts rejects a folder outside the plugin", () => listScripts(REPOSITORY, "docs", "shared", false), /under plugin\//],
+  ["listScripts rejects an unknown group", () => listScripts(REPOSITORY, "plugin/scripts", "other" as never, false), /shared, skill or bootstrap/],
+  ["sourceUsageOf rejects a non-string", () => sourceUsageOf(WRONG), /read from script text/],
+  ["sourceUsageOf rejects a NUL character", () => sourceUsageOf("a\u0000"), /holds a NUL character/],
   ["handTypedCountProblems rejects an empty file name", () => handTypedCountProblems("", "x"), /needs a file name/],
   ["handTypedCountProblems rejects non-string text", () => handTypedCountProblems("f", WRONG), /fragment is text/],
   ["renderedCountProblems rejects a non-Map", () => renderedCountProblems(WRONG, []), /Map of path to html/],
@@ -109,8 +118,6 @@ const GUARDS: Guard[] = [
   ["tierOf rejects a path", () => tierOf(REPOSITORY, "a/b"), /is a folder name/],
   ["scriptsCalled rejects non-string text", () => scriptsCalled(WRONG, new Map()), /come from skill text/],
   ["scriptsCalled rejects a non-Map index", () => scriptsCalled("x", WRONG), /must be a Map/],
-  ["scriptIndex rejects an empty root", () => scriptIndex(""), /got an empty path/],
-  ["scriptIndex rejects an absent root", () => scriptIndex(ABSENT), /must exist to index scripts/],
   ["pluginScripts rejects an empty root", () => pluginScripts(""), /got an empty path/],
   ["pluginScripts rejects a root with no scripts", () => pluginScripts(ABSENT), /must exist under/],
   ["directoryNames rejects an empty folder", () => directoryNames(REPOSITORY, ""), /needs a name/],

@@ -15,16 +15,22 @@ export const TIER_NONE = "none";
 
 const FRONTMATTER = /^---\n([\s\S]*?)\n---/;
 const FRONTMATTER_LINE = /^([\w-]+):\s*(.*)$/;
-const SCRIPT_REFERENCE = /[\w./-]+\.mjs\b/g;
+const SCRIPT_REFERENCE = /[\w./-]+\.(?:mjs|sh)\b/g;
 const MUTATION_LINE = /mutation score: (\d+)\/(\d+)/;
 const USAGE_LINE = /^usage:/;
+const USAGE_PREFIX = /^usage:/i;
 const USAGE_CONTINUATION = /^\s+\S/;
 const USAGE_LITERAL = /"(usage: [^"]+)"/;
 const EXIT_CONSTANT = /^const (EXIT_[A-Z_]+) = (\d+);/gm;
 const SCRIPT_TIMEOUT_MS = 10000;
 const NOT_FOUND = -1;
 const UNKNOWN_EXIT = -1;
-const SCRIPT_EXTENSION = ".mjs";
+const SCRIPT_EXTENSIONS = [".mjs", ".sh"];
+const NODE_EXTENSION = ".mjs";
+const BOOTSTRAP_DIRECTORY = `${PLUGIN_DIRECTORY}/bootstrap`;
+const SOURCE_USAGE_COMMENT = /^(?:\/\/|#).*?\bUsage:\s*(.+)$/m;
+const SOURCE_USAGE_LITERAL = /["'`](usage: [^"'`]+)["'`]/;
+const COMMENT_LINE = /^(?:\/\/|#)(?!!)\s?(.*)$/;
 const TEST_MARKER = ".test.";
 const SUPPORT_MARKER = ".support.";
 
@@ -36,7 +42,9 @@ export type Agent = Instruction & { model: string | null; tools: string | null }
 export type Command = Instruction & { allowedTools: string | null };
 export type Hook = { file: string; path: string; event: string; matcher: string; tested: boolean };
 export type ExitCode = { code: number; name: string };
-export type PluginScript = { name: string; path: string; usage: string[]; exitCodes: ExitCode[]; exitWithoutArguments: number };
+export type ScriptGroup = "shared" | "skill" | "bootstrap";
+export type UsageFrom = "run" | "source" | "output" | "header" | "none";
+export type PluginScript = { name: string; path: string; group: ScriptGroup; usage: string[]; usageFrom: UsageFrom; exitCodes: ExitCode[]; exitWithoutArguments: number | null };
 export type SiteData = {
   skills: Skill[];
   agents: Agent[];
@@ -137,19 +145,42 @@ export const tierOf = (root: string, skill: string): { tier: Tier; stampedAt: st
   return { tier: "live", stampedAt: stamp.ranAt ?? null };
 };
 
+export const listScripts = (root: string, folder: string, group: ScriptGroup, recursive: boolean): { path: string; group: ScriptGroup }[] => {
+  assert(folder.startsWith(`${PLUGIN_DIRECTORY}/`), `scripts are listed from a folder under ${PLUGIN_DIRECTORY}/, got ${folder}; pass a plugin folder.`);
+  assert(["shared", "skill", "bootstrap"].includes(group), `a script group is shared, skill or bootstrap, got ${group}; pass one of them.`);
+  if (!existsSync(join(root, folder))) return [];
+  return readdirSync(join(root, folder), { recursive, encoding: "utf8" })
+    .filter((name) => SCRIPT_EXTENSIONS.some((extension) => name.endsWith(extension)) && !name.includes(TEST_MARKER) && !name.includes(SUPPORT_MARKER) && !name.split("/").includes("fixtures"))
+    .map((name) => ({ path: `${folder}/${name}`, group }));
+};
+
+export const shippedScriptFiles = (root: string): { path: string; group: ScriptGroup }[] => {
+  assert(root !== "", `scripts are listed under the repository root, got an empty path; pass the root.`);
+  assert(existsSync(root), `the repository root ${root} must exist to list scripts, got none; pass the root.`);
+  const skills = directoryNames(root, "skills").flatMap((skill) => listScripts(root, `${PLUGIN_DIRECTORY}/skills/${skill}/scripts`, "skill", false));
+  return [...listScripts(root, `${PLUGIN_DIRECTORY}/scripts`, "shared", false), ...skills, ...listScripts(root, BOOTSTRAP_DIRECTORY, "bootstrap", true)].toSorted((a, b) => a.path.localeCompare(b.path));
+};
+
 export const scriptIndex = (root: string) => {
   assert(root !== "", `scripts are indexed under the repository root, got an empty path; pass the root.`);
   assert(existsSync(root), `the repository root ${root} must exist to index scripts, got none; pass the root.`);
-  const index = new Map<string, string>();
-  const skillsPath = join(root, PLUGIN_DIRECTORY, "skills");
-  const folders = [`${PLUGIN_DIRECTORY}/scripts`, ...(existsSync(skillsPath) ? readdirSync(skillsPath).map((skill) => `${PLUGIN_DIRECTORY}/skills/${skill}/scripts`) : [])];
-  for (const folder of folders) {
-    if (!existsSync(join(root, folder))) continue;
-    for (const name of readdirSync(join(root, folder))) {
-      if (name.endsWith(SCRIPT_EXTENSION) && !name.includes(TEST_MARKER) && !name.includes(SUPPORT_MARKER)) index.set(name, `${folder}/${name}`);
-    }
+  return new Map(shippedScriptFiles(root).map(({ path }) => [path.split("/").at(-1) as string, path]));
+};
+
+export const sourceUsageOf = (source: string): string[] => {
+  assert(typeof source === "string", `usage text is read from script text, got ${typeof source}; pass the script body.`);
+  assert(!source.includes("\u0000"), `the script text holds a NUL character at offset ${source.indexOf("\u0000")}; pass a text file.`);
+  const commented = SOURCE_USAGE_COMMENT.exec(source)?.[1];
+  if (commented) return [`usage: ${commented}`];
+  const literal = SOURCE_USAGE_LITERAL.exec(source)?.[1];
+  if (literal) return [literal];
+  const header: string[] = [];
+  for (const line of source.split("\n").slice(source.startsWith("#!") ? 1 : 0)) {
+    const text = COMMENT_LINE.exec(line)?.[1];
+    if (text === undefined) break;
+    if (text !== "") header.push(text);
   }
-  return index;
+  return header;
 };
 
 export const scriptsCalled = (skillText: string, index: Map<string, string>) => {
@@ -164,10 +195,19 @@ export const pluginScripts = (root: string): PluginScript[] => {
   assert(existsSync(join(root, PLUGIN_DIRECTORY, "scripts")), `${PLUGIN_DIRECTORY}/scripts must exist under ${root}, got none; pass the repository root.`);
   const scratch = mkdtempSync(join(tmpdir(), "site-scripts-"));
   try {
-    return [...scriptIndex(root).values()].filter((path) => path.startsWith(`${PLUGIN_DIRECTORY}/scripts/`)).toSorted().map((path) => {
+    return shippedScriptFiles(root).map(({ path, group }) => {
       const source = readText(root, path);
+      const name = path.split("/").at(-1) as string;
+      const exitCodes = exitCodesOf(source);
+      const fromSource = sourceUsageOf(source);
+      const sourceKind: UsageFrom = fromSource.length === 0 ? "none" : USAGE_PREFIX.test(fromSource[0]) ? "source" : "header";
+      if (group === "bootstrap" || !path.endsWith(NODE_EXTENSION)) return { name, path, group, usage: fromSource, usageFrom: sourceKind, exitCodes, exitWithoutArguments: null };
       const run = spawnSync(process.execPath, [join(root, path)], { cwd: scratch, encoding: "utf8", timeout: SCRIPT_TIMEOUT_MS, input: "" });
-      return { name: path.split("/").at(-1) as string, path, usage: usageOf(`${run.stdout}${run.stderr}`, source), exitCodes: exitCodesOf(source), exitWithoutArguments: run.status ?? UNKNOWN_EXIT };
+      const output = `${run.stdout}${run.stderr}`;
+      const fromRun = usageOf(output, "");
+      const printed = output.split("\n").filter((line) => line.trim() !== "");
+      const [usage, usageFrom] = fromRun.length ? [fromRun, "run" as UsageFrom] : sourceKind === "source" ? [fromSource, "source" as UsageFrom] : printed.length ? [printed, "output" as UsageFrom] : [fromSource, sourceKind];
+      return { name, path, group, usage, usageFrom, exitCodes, exitWithoutArguments: run.status ?? UNKNOWN_EXIT };
     });
   } finally {
     rmSync(scratch, { recursive: true, force: true });

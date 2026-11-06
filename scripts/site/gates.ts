@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, posix } from "node:path";
 import { MAX_SENTENCE_WORDS, MIN_SHORT_SENTENCE_PERCENT, asdStyleProblems, shareOf } from "../audit/asd-style.ts";
 import { statedCountProblems } from "../audit/guide-freshness.ts";
+import { shippedScriptFiles } from "./data.ts";
 import type { SiteData } from "./data.ts";
 import { FRAGMENTS_DIRECTORY } from "./fragments.ts";
 import { unescapeHtml } from "./html.ts";
@@ -10,7 +11,7 @@ import { SKILLS_INDEX } from "./pages.ts";
 import { balanceProblems, tagsOf } from "./markup.ts";
 
 const QUOTATION = /<blockquote class="quote" data-source="([^"]+)">\s*<p>([\s\S]*?)<\/p>[\s\S]*?<\/blockquote>/g;
-const HAND_TYPED_COUNT = /(\d+)\s+(?:numbered\s+)?(skills|agents|commands|hooks|checks)\b/g;
+const HAND_TYPED_COUNT = /(\d+)\s+(?:numbered\s+)?(skills|agents|commands|hooks|checks|scripts)\b/g;
 const CHECK_CARD = /<article class="check-card"[\s\S]*?<\/article>/g;
 const TERMINAL_OUTPUT = /<x-(?:terminal|demo)\b[\s\S]*?(?:<\/x-terminal>|\/>)/g;
 const HEADING = /^h([1-6])$/;
@@ -28,16 +29,17 @@ const CSS_EXTERNAL = /@import|url\(\s*["']?(?:https?:)?\/\//i;
 export type SiteFiles = Map<string, string>;
 export type Sources = Record<string, string>;
 
-export const coverageProblems = (data: SiteData, files: SiteFiles) => {
+export const coverageProblems = (data: SiteData, files: SiteFiles, shipped: { path: string }[]) => {
   assert(Array.isArray(data.skills), `the coverage check lists skills, got ${typeof data.skills}; pass the collected data.`);
   assert(files instanceof Map, `the site files are a Map of path to html, got ${typeof files}; pass the map.`);
+  assert(Array.isArray(shipped), `the shipped scripts are a list of files from disk, got ${typeof shipped}; pass shippedScriptFiles(root).`);
   const problems: string[] = [];
   const expected: [string, string, string, string | null][] = [
     ...data.skills.map((skill): [string, string, string, string | null] => ["skill", skill.name, `skills/${skill.name}.html`, `skill-${skill.name}`]),
     ...data.agents.map((agent): [string, string, string, string | null] => ["agent", agent.name, "agents.html", `agent-${agent.name}`]),
     ...data.commands.map((command): [string, string, string, string | null] => ["command", command.name, "commands.html", `command-${command.name}`]),
     ...data.hooks.map((hook): [string, string, string, string | null] => ["hook", hook.file, "hooks.html", `hook-${hook.file}`]),
-    ...data.pluginScripts.map((script): [string, string, string, string | null] => ["plugin script", script.name, "plugin-scripts.html", `script-${script.name}`]),
+    ...shipped.map(({ path }): [string, string, string, string | null] => ["plugin script", path.split("/").at(-1) as string, "plugin-scripts.html", `script-${path.split("/").at(-1)}`]),
   ];
   for (const [kind, name, page, anchor] of expected) {
     const html = files.get(page);
@@ -156,7 +158,7 @@ export const siteProblems = ({ root, files, sources, data, counts, fragments }: 
   assert(files instanceof Map, `the site files are a Map of path to html, got ${typeof files}; pass the map.`);
   assert(Array.isArray(fragments), `the fragments are a list of files, got ${typeof fragments}; pass the fragment files.`);
   return [
-  ...coverageProblems(data, files),
+  ...coverageProblems(data, files, shippedScriptFiles(root)),
   ...fragments.flatMap(({ file, text }) => handTypedCountProblems(file, text)),
   ...renderedCountProblems(new Map([...files].filter(([page]) => sources[page]?.startsWith(FRAGMENTS_DIRECTORY))), counts),
   ...[...files].flatMap(([page, html]) => [

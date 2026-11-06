@@ -2,7 +2,7 @@ import assert from "node:assert";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { TIERS, TIER_NONE, guardSectionNumbers, warnOnlyChecks } from "./data.ts";
-import type { Agent, Command, Hook, Instruction, PluginScript, SiteData, Skill } from "./data.ts";
+import type { Agent, Command, Hook, Instruction, PluginScript, ScriptGroup, SiteData, Skill, UsageFrom } from "./data.ts";
 import { FRAGMENTS_DIRECTORY, renderFragment } from "./fragments.ts";
 import { bulletList, checkCard, escapeHtml, quotation, relativeLink, table } from "./html.ts";
 import type { CheckEntry, NavItem, Page } from "./html.ts";
@@ -47,7 +47,10 @@ export const siteVariables = (data: SiteData, checks: CheckEntry[], guardNumbers
     agents: data.agents.length,
     commands: data.commands.length,
     hooks: data.hooks.length,
-    pluginScripts: data.pluginScripts.length,
+    shippedScripts: data.pluginScripts.length,
+    sharedScripts: data.pluginScripts.filter(({ group }) => group === "shared").length,
+    skillScripts: data.pluginScripts.filter(({ group }) => group === "skill").length,
+    bootstrapScripts: data.pluginScripts.filter(({ group }) => group === "bootstrap").length,
     checks: checks.length,
     guardChecks: checks.filter(({ number }) => guardNumbers.includes(number)).length,
     standaloneChecks: checks.filter(({ number }) => !guardNumbers.includes(number)).length,
@@ -141,7 +144,7 @@ export const agentsPage = (agents: Agent[]): Page => {
     source: GENERATOR_SOURCE,
     body: [
       `<h1>Agents</h1>`,
-      `<p class="lead">The plugin ships ${agents.length} agents. A skill hands narrow work to an agent.</p>`,
+      `<p class="lead">The plugin ships ${agents.length} agents. Each agent does one kind of narrow work.</p>`,
       ...agents.map((agent) => instructionSection("agent", agent, [["Model", agent.model ? `<code>${escapeHtml(agent.model)}</code>` : "inherited from the session"], ["Tools", agent.tools ? `<code>${escapeHtml(agent.tools)}</code>` : NO_VALUE]])),
     ].join("\n"),
   };
@@ -182,23 +185,41 @@ export const hooksPage = (hooks: Hook[]): Page => {
   };
 };
 
+const SCRIPT_GROUPS: { group: ScriptGroup; id: string; heading: string; intro: string }[] = [
+  { group: "shared", id: "shared", heading: "Shared scripts", intro: "These Node scripts live in plugin/scripts. Several skills call them." },
+  { group: "skill", id: "in-a-skill", heading: "Scripts inside a skill", intro: "These scripts live in the folder of one skill. Only that skill calls them." },
+  { group: "bootstrap", id: "bootstrap", heading: "Bootstrap scripts", intro: "These Node scripts live in plugin/bootstrap. The bootstrap command runs them." },
+];
+const USAGE_NOTES: Record<UsageFrom, string> = {
+  run: "Usage text: the real output of a run with no arguments in an empty folder.",
+  source: "Usage text: read from the source of the script. The build did not run it.",
+  output: "No usage line exists. This is the real output of a run with no arguments.",
+  header: "No usage line exists. This is the header comment of the script.",
+  none: "This script has no usage text.",
+};
+
 export const pluginScriptsPage = (scripts: PluginScript[]): Page => {
   assert(Array.isArray(scripts), `the scripts page lists scripts, got ${typeof scripts}; pass the collected scripts.`);
   assert(new Set(scripts.map(({ name }) => name)).size === scripts.length, `script names must be unique, got ${JSON.stringify(scripts.map(({ name }) => name))}; rename one.`);
   return {
     path: "plugin-scripts.html",
     title: "Plugin scripts",
-    summary: "The Node scripts that skills call, with their usage lines and exit codes.",
+    summary: "Every script file the plugin ships, with its usage text and exit codes.",
     source: GENERATOR_SOURCE,
     body: [
       `<h1>Plugin scripts</h1>`,
-      `<p class="lead">The plugin ships ${scripts.length} Node scripts. Skills call them so that a script, not a prompt, does the exact work.</p>`,
-      `<p>The build ran each script with no arguments in an empty folder. The usage lines below are the real output.</p>`,
-      ...scripts.flatMap((script) => [
-        `<h2 id="script-${script.name}">${escapeHtml(script.name)}</h2>`,
-        script.usage.length ? `<pre><code>${escapeHtml(script.usage.join("\n"))}</code></pre>` : `<p>This script is a library. It has no command line.</p>`,
-        script.exitCodes.length ? table(["Exit code", "Meaning"], script.exitCodes.map(({ code, name }) => [String(code), escapeHtml(name)])) : "",
-        `<p>With no arguments it exits with code ${script.exitWithoutArguments}. Source: <code>${escapeHtml(script.path)}</code>.</p>`,
+      `<p class="lead">The plugin ships ${scripts.length} script files outside its hooks. A script, not a prompt, does the exact work.</p>`,
+      `<p>The page groups them by place. The hooks have their own page.</p>`,
+      ...SCRIPT_GROUPS.flatMap(({ group, id, heading, intro }) => [
+        `<h2 id="${id}">${heading}</h2>`,
+        `<p>${intro}</p>`,
+        ...scripts.filter((script) => script.group === group).flatMap((script) => [
+          `<h3 id="script-${script.name}">${escapeHtml(script.name)}</h3>`,
+          script.usage.length ? `<pre><code>${escapeHtml(script.usage.join("\n"))}</code></pre>` : "",
+          `<p>${USAGE_NOTES[script.usageFrom]}</p>`,
+          script.exitCodes.length ? table(["Exit code", "Meaning"], script.exitCodes.map(({ code, name }) => [String(code), escapeHtml(name)])) : "",
+          `<p>${script.exitWithoutArguments === null ? "" : `With no arguments it exits with code ${script.exitWithoutArguments}. `}Source: <code>${escapeHtml(script.path)}</code>.</p>`,
+        ]),
       ]),
     ].join("\n"),
   };
@@ -243,7 +264,7 @@ export const evalTiersPage = (data: SiteData): Page => {
         ['<span class="tier tier-static">static</span>', String(tierCounts.static), "No model ran. The scripts, the lint and the rule anchors of the skill all passed."],
         ['<span class="tier tier-waived">waived</span>', String(tierCounts.waived), "A person waived the eval and wrote down the reason."],
       ]),
-      `<p>A stamp holds a hash of the skill files. The guard fails when a skill changes and its stamp does not match.</p>`,
+      `<p>A stamp holds a hash of the skill files. The guard fails when a changed skill has no matching stamp.</p>`,
       `<h2 id="by-skill">Tier of each skill</h2>`,
       table(["Skill", "Tier", "Stamped at"], data.skills.map((skill) => [`<a href="skills/${skill.name}.html"><code>${escapeHtml(skill.name)}</code></a>`, `<span class="tier tier-${skill.tier}">${escapeHtml(skill.tier)}</span>`, skill.stampedAt ? escapeHtml(skill.stampedAt) : NO_VALUE])),
     ].join("\n"),

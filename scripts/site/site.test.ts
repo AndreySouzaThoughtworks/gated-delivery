@@ -1,12 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cpSync, existsSync, mkdtempSync, readFileSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { CHECKS } from "../audit/checks-registry.ts";
 import { statedCountProblems } from "../audit/guide-freshness.ts";
 import { buildSite, main } from "./build.ts";
-import { collectSiteData, exitCodesOf, guardSectionNumbers, frontmatter, scriptsCalled, usageOf } from "./data.ts";
+import { collectSiteData, exitCodesOf, guardSectionNumbers, shippedScriptFiles, sourceUsageOf, frontmatter, scriptsCalled, usageOf } from "./data.ts";
 import type { SiteData } from "./data.ts";
 import { demoOutput, mistakeRows, renderFragment } from "./fragments.ts";
 import { coverageProblems, handTypedCountProblems, leakProblems, linkProblems, quotationProblems, renderedCountProblems, siteReport, structureProblems, styleProblems } from "./gates.ts";
@@ -150,17 +150,17 @@ test("coverage names every skill, agent, command, hook and script that has no pl
     agents: [{ name: "bot", path: "p", description: "d", rules: null, mutation: null, budget: null, model: null, tools: null }],
     commands: [{ name: "go", path: "p", description: "d", rules: null, mutation: null, budget: null, allowedTools: null }],
     hooks: [{ file: "h.mjs", path: "p", event: "e", matcher: "m", tested: true }],
-    pluginScripts: [{ name: "s.mjs", path: "p", usage: [], exitCodes: [], exitWithoutArguments: 0 }],
+    pluginScripts: [{ name: "s.mjs", path: "p", usage: [], exitCodes: [], exitWithoutArguments: 0, group: "shared", usageFrom: "none" }],
   };
-  const problems = coverageProblems(data, new Map());
+  const problems = coverageProblems(data, new Map(), [{ path: "plugin/scripts/s.mjs" }]);
   for (const name of ["skill \"alpha\"", "agent \"bot\"", "command \"go\"", "hook \"h.mjs\"", "plugin script \"s.mjs\""]) {
     assert(problems.some((problem) => problem.startsWith(`${name} is on disk but not on the site`) && problem.includes("Fix:")), `${name} must be reported, got ${JSON.stringify(problems)}`);
   }
   const complete = new Map([["skills/alpha.html", `<h1 id="skill-alpha">`], ["skills/index.html", `<a href="alpha.html">`], ["agents.html", `<h2 id="agent-bot">`], ["commands.html", `<h2 id="command-go">`], ["hooks.html", `<h2 id="hook-h.mjs">`], ["plugin-scripts.html", `<h2 id="script-s.mjs">`]]);
-  assert.deepEqual(coverageProblems(data, complete), [], "a site that holds every item must pass");
+  assert.deepEqual(coverageProblems(data, complete, [{ path: "plugin/scripts/s.mjs" }]), [], "a site that holds every item must pass");
   complete.set("skills/index.html", "");
-  assert.match(coverageProblems(data, complete)[0], /skill "alpha" has a page but the skills index does not link it/);
-  assert.deepEqual(coverageProblems(emptyData, new Map()), [], "an empty inventory needs no page");
+  assert.match(coverageProblems(data, complete, [])[0], /skill "alpha" has a page but the skills index does not link it/);
+  assert.deepEqual(coverageProblems(emptyData, new Map(), []), [], "an empty inventory needs no page");
 });
 
 test("a hand-typed count in a fragment is rejected, a variable and a terminal block are not", () => {
@@ -240,4 +240,29 @@ test("helpers render relative links, cards and the report", () => {
   assert.throws(() => relativeLink("/a.html", "b.html"), /page paths must be relative to the site root/);
   assert.match(checkCard(FIXTURE_CHECKS[0]), /<code>code<\/code>/, "a card must render inline code");
   assert.match(siteReport(new Map([["a.html", "<p>Short.</p>"]]))[0], /site: 1 pages, \d+ bytes in total, largest a\.html/);
+});
+
+test("every script file on disk is listed, a planted one is reported by name, and usage comes from the source when no run prints it", () => {
+  const root = mkdtempSync(join(tmpdir(), "site-scripts-tree-"));
+  const planted: [string, string][] = [
+    ["plugin/scripts/a.mjs", "export {};\n"],
+    ["plugin/scripts/a.test.mjs", "export {};\n"],
+    ["plugin/scripts/fixtures/stub.mjs", "export {};\n"],
+    ["plugin/skills/alpha/scripts/b.sh", "#!/usr/bin/env bash\n# Usage: b.sh <x>\n"],
+    ["plugin/bootstrap/guards/c.mjs", "export {};\n"],
+    ["plugin/hooks/h.mjs", "export {};\n"],
+  ];
+  for (const [path, body] of planted) {
+    mkdirSync(dirname(join(root, path)), { recursive: true });
+    writeFileSync(join(root, path), body);
+  }
+  assert.deepEqual(shippedScriptFiles(root).map(({ path, group }) => `${group}:${path}`), ["bootstrap:plugin/bootstrap/guards/c.mjs", "shared:plugin/scripts/a.mjs", "skill:plugin/skills/alpha/scripts/b.sh"]);
+  const rendered = new Map([["plugin-scripts.html", `<h3 id="script-a.mjs">a</h3><h3 id="script-c.mjs">c</h3>`]]);
+  const problems = coverageProblems(emptyData, rendered, shippedScriptFiles(root));
+  assert.equal(problems.length, 1, `exactly the planted shell script is missing, got ${JSON.stringify(problems)}`);
+  assert.match(problems[0], /plugin script "b\.sh" is on disk but not on the site/);
+  assert.deepEqual(sourceUsageOf("#!/usr/bin/env bash\n# Usage: b.sh <x>\n"), ["usage: b.sh <x>"]);
+  assert.deepEqual(sourceUsageOf('const USAGE = "usage: node t.mjs <a>";\n'), ["usage: node t.mjs <a>"]);
+  assert.deepEqual(sourceUsageOf("#!/usr/bin/env bash\n# Shared helper.\n# Source it.\n\ncode\n"), ["Shared helper.", "Source it."]);
+  assert.deepEqual(sourceUsageOf("export {};\n"), []);
 });

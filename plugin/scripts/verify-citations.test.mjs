@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isInside, verifyText, violationFor } from "./verify-citations.mjs";
-import { assertActionable, assertEveryLineActionable, assertErrorIsActionable } from "./run-cli.test.support.mjs";
+import { assertActionable, assertEveryLineActionable, assertErrorIsActionable, assertErrorMatchesActionable } from "./run-cli.test.support.mjs";
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "verify-citations.mjs");
 const EXIT_VERIFIED = 0;
@@ -135,16 +135,16 @@ test("numbers each violation by its line in the input", () => {
 test("violationFor refuses a relative root and a root that is not its own realpath", () => {
   const { root, outside } = scratch();
   const finding = { path: "src/app.js", line: "1", quote: "const first = 1;" };
-  assert.throws(() => violationFor("repo", finding), /the root must be absolute, got "repo"/);
+  assertErrorMatchesActionable(() => violationFor("repo", finding), /the root must be absolute, got "repo"/);
   assertErrorIsActionable(() => violationFor("repo", finding));
   symlinkSync(root, join(outside, "alias"));
-  assert.throws(() => violationFor(join(outside, "alias"), finding), /the root must be its own realpath/);
+  assertErrorMatchesActionable(() => violationFor(join(outside, "alias"), finding), /the root must be its own realpath/);
   assert.equal(violationFor(realpathSync(root), finding), null);
 });
 
 test("isInside refuses a relative root and a relative target", () => {
-  assert.throws(() => isInside("repo", "/repo/a"), /the root must be absolute, got "repo"/);
-  assert.throws(() => isInside("/repo", "a"), /the target must be absolute, got "a"/);
+  assertErrorMatchesActionable(() => isInside("repo", "/repo/a"), /the root must be absolute, got "repo"/);
+  assertErrorMatchesActionable(() => isInside("/repo", "a"), /the target must be absolute, got "a"/);
   assertErrorIsActionable(() => isInside("repo", "/repo/a"));
   assertErrorIsActionable(() => isInside("/repo", "a"));
   assert.equal(isInside("/repo", "/repo/a"), true);
@@ -155,9 +155,9 @@ test("isInside refuses a relative root and a relative target", () => {
 
 test("verifyText refuses non-text input and a root that is not a directory", () => {
   const { root } = scratch();
-  assert.throws(() => verifyText(42, root), /the scout output must be text, got number/);
-  assert.throws(() => verifyText("", join(root, "missing")), /the root must be an existing directory/);
-  assert.throws(() => verifyText("", join(root, "src", "app.js")), /the root must be an existing directory/);
+  assertErrorMatchesActionable(() => verifyText(42, root), /.text. of the scout output must be text, got number/);
+  assertErrorMatchesActionable(() => verifyText("", join(root, "missing")), /the root must be an existing directory/);
+  assertErrorMatchesActionable(() => verifyText("", join(root, "src", "app.js")), /the root must be an existing directory/);
   assertErrorIsActionable(() => verifyText("", join(root, "missing")));
 });
 

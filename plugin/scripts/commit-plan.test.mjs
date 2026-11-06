@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkoutFacts, conventionOf, main, nearestClaudeMd, plan, prBodyFile, refusal, sourceOf, stagingProblems } from "./commit-plan.mjs";
-import { runScript } from "./run-cli.test.support.mjs";
+import { runScript, assertErrorMatchesActionable } from "./run-cli.test.support.mjs";
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "commit-plan.mjs");
 const EXIT_PLANNED = 0;
@@ -155,39 +155,39 @@ const defaultsCli = (cwd) => {
 };
 
 test("rejects a refusal without a message or with an unknown exit code", () => {
-  assert.throws(() => refusal("", EXIT_USAGE), /needs a message that says what to fix/);
-  assert.throws(() => refusal("x", 9), /exits with one of 1, 2, 3, got 9/);
+  assertErrorMatchesActionable(() => refusal("", EXIT_USAGE), /needs a .message. that says what to fix/);
+  assertErrorMatchesActionable(() => refusal("x", 9), /exit. of a refusal must be one of 1, 2, 3, got 9/);
 });
 
 test("rejects a convention source that is not text, an ambiguous CLAUDE.md and a non-object convention", () => {
-  assert.throws(() => conventionOf(undefined), /CLAUDE.md text must be a string/);
-  assert.throws(() => conventionOf(`${conventionWith("`a/`")}\n${conventionWith("`b/`")}`), /holds 2 "## Commit convention" sections; keep one/);
-  assert.throws(() => sourceOf("convention", ACME_ORIGIN), /convention must come from conventionOf, got string/);
-  assert.throws(() => sourceOf(undefined, undefined), /origin must be a string.*--origin <url>/);
+  assertErrorMatchesActionable(() => conventionOf(undefined), /CLAUDE.md text must be a string/);
+  assertErrorMatchesActionable(() => conventionOf(`${conventionWith("`a/`")}\n${conventionWith("`b/`")}`), /holds 2 "## Commit convention" sections; keep one/);
+  assertErrorMatchesActionable(() => sourceOf("convention", ACME_ORIGIN), /.convention. must come from conventionOf, got string/);
+  assertErrorMatchesActionable(() => sourceOf(undefined, undefined), /.origin. must be a string.*--origin <url>/);
 });
 
 test("rejects staging and body-file inputs that are not explicit values", () => {
-  assert.throws(() => stagingProblems("src/a.ts"), /must be a list/);
-  assert.throws(() => stagingProblems(["src/a.ts", ""]), /every staged path must be a non-empty string/);
-  assert.throws(() => prBodyFile(""), /branch name must be a non-empty string/);
-  assert.throws(() => prBodyFile("feat/x", "relative/notes"), /--local-notes must be an absolute directory.*Delivery notes/);
+  assertErrorMatchesActionable(() => stagingProblems("src/a.ts"), /must be a list/);
+  assertErrorMatchesActionable(() => stagingProblems(["src/a.ts", ""]), /every staged path must be a non-empty string/);
+  assertErrorMatchesActionable(() => prBodyFile(""), /.branch. name must be a non-empty string/);
+  assertErrorMatchesActionable(() => prBodyFile("feat/x", "relative/notes"), /--local-notes must be an absolute directory.*Delivery notes/);
 });
 
 test("rejects a blank description and a missing branch in plan", () => {
-  assert.throws(() => plan({ claudeMd: "", origin: "", branch: "b", type: "feat", description: "  " }), /--description must say what the change does/);
-  assert.throws(() => plan({ claudeMd: "", origin: "", branch: undefined, type: "feat", description: "x" }), /branch must be a string.*--branch <name>/);
+  assertErrorMatchesActionable(() => plan({ claudeMd: "", origin: "", branch: "b", type: "feat", description: "  " }), /--description must say what the change does/);
+  assertErrorMatchesActionable(() => plan({ claudeMd: "", origin: "", branch: undefined, type: "feat", description: "x" }), /.branch. must be a string.*--branch <name>/);
 });
 
 test("rejects relative or missing directories for the CLAUDE.md search and the checkout facts", () => {
-  assert.throws(() => nearestClaudeMd("relative"), /search directory must be absolute/);
-  assert.throws(() => nearestClaudeMd(join(tmpdir(), "commit-plan-absent")), /search directory must exist/);
-  assert.throws(() => checkoutFacts("relative"), /checkout directory must be absolute/);
-  assert.throws(() => checkoutFacts(join(tmpdir(), "commit-plan-absent")), /checkout directory must exist/);
+  assertErrorMatchesActionable(() => nearestClaudeMd("relative"), /search directory must be absolute/);
+  assertErrorMatchesActionable(() => nearestClaudeMd(join(tmpdir(), "commit-plan-absent")), /search directory must exist/);
+  assertErrorMatchesActionable(() => checkoutFacts("relative"), /checkout directory must be absolute/);
+  assertErrorMatchesActionable(() => checkoutFacts(join(tmpdir(), "commit-plan-absent")), /checkout directory must exist/);
 });
 
 test("rejects arguments that are not a list of strings", () => {
-  assert.throws(() => main("--type"), /arguments must be a list/);
-  assert.throws(() => main(["--type", 1]), /every argument must be a string/);
+  assertErrorMatchesActionable(() => main("--type"), /.argv. must be a list/);
+  assertErrorMatchesActionable(() => main(["--type", 1]), /every argument must be a string/);
 });
 
 test("conventionOf reads one section and nothing from a later heading", () => {

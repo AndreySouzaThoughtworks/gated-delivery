@@ -245,6 +245,12 @@
       "anchor": "STOP: the notes checkout ${path} is on ${branch}, not ${MAIN_BRANCH}",
       "kind": "stop",
       "why": "notes-repo publish refuses a checkout that is not on main"
+    },
+    {
+      "id": "spec.no-template-placeholder",
+      "anchor": "must not stay in the spec; replace it or put literal code in backticks",
+      "kind": "never",
+      "why": "a spec must not ship an unfilled template placeholder"
     }
   ],
   "exempt": [

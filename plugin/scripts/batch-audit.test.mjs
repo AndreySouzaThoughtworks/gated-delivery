@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { addedLines, auditRange, commitViolations } from "./batch-audit.mjs";
-import { assertActionable, assertErrorIsActionable } from "./run-cli.test.support.mjs";
+import { assertActionable, assertErrorIsActionable, assertErrorMatchesActionable } from "./run-cli.test.support.mjs";
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "batch-audit.mjs");
 const EXIT_CLEAN = 0;
@@ -181,22 +181,22 @@ test("skips merge commits", () => {
 test("addedLines keeps added lines of the new file only and rejects non-text", () => {
   const diff = "--- a/old.ts\n+++ b/new.ts\n@@ -0,0 +1,2 @@\n+first\n+++second\n-gone\n+++ /dev/null\n+orphan\n";
   assert.deepEqual(addedLines(diff), [{ file: "new.ts", text: "first" }, { file: "new.ts", text: "++second" }]);
-  assert.throws(() => addedLines(undefined), /must be text/);
+  assertErrorMatchesActionable(() => addedLines(undefined), /.diff. must be text/);
 });
 
 test("commitViolations rejects a malformed commit", () => {
   const forbidden = { ticket: TICKET };
-  assert.throws(() => commitViolations({ subject: 1, body: "", added: [] }, forbidden), /subject` and `body` must be text/);
-  assert.throws(() => commitViolations({ subject: CLEAN_SUBJECT, body: "", added: "" }, forbidden), /added` lines must be a list/);
+  assertErrorMatchesActionable(() => commitViolations({ subject: 1, body: "", added: [] }, forbidden), /subject` and `body` must be text/);
+  assertErrorMatchesActionable(() => commitViolations({ subject: CLEAN_SUBJECT, body: "", added: "" }, forbidden), /added` lines must be a list/);
   assertErrorIsActionable(() => commitViolations({ subject: 1, body: "", added: [] }, forbidden));
   assertErrorIsActionable(() => commitViolations({ subject: CLEAN_SUBJECT, body: "", added: "" }, forbidden));
 });
 
 test("auditRange rejects a range without dots and a non-positive AC count", () => {
   const repo = newRepo();
-  assert.throws(() => auditRange("base", { ticket: TICKET, acs: 1, complete: false, repo }), /<batch-base>\.\.HEAD/);
-  assert.throws(() => audit(repo, { acs: 0 }), /positive integer/);
-  assert.throws(() => audit(repo, { acs: 1.5 }), /positive integer/);
+  assertErrorMatchesActionable(() => auditRange("base", { ticket: TICKET, acs: 1, complete: false, repo }), /<batch-base>\.\.HEAD/);
+  assertErrorMatchesActionable(() => audit(repo, { acs: 0 }), /positive integer/);
+  assertErrorMatchesActionable(() => audit(repo, { acs: 1.5 }), /positive integer/);
   assertErrorIsActionable(() => auditRange("base", { ticket: TICKET, acs: 1, complete: false, repo }));
   assertErrorIsActionable(() => audit(repo, { acs: 0 }));
 });

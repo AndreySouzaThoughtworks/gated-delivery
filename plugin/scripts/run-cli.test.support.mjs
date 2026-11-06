@@ -64,3 +64,14 @@ export const assertErrorIsActionable = (action) => {
   assert(failure instanceof Error, "the action must throw an error, got none");
   assertActionable(failure.message);
 };
+
+/**
+ * @param {() => unknown} action
+ * @param {RegExp} pattern
+ */
+export const assertErrorMatchesActionable = (action, pattern) => {
+  assert(typeof action === "function", `the action must be a function, got ${typeof action}; pass a function.`);
+  assert(pattern instanceof RegExp, `the expected message must be a pattern, got ${typeof pattern}; pass a RegExp.`);
+  assert.throws(action, pattern);
+  assertErrorIsActionable(action);
+};

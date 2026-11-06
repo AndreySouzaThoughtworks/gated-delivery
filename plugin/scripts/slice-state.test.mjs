@@ -4,6 +4,7 @@ import { existsSync, writeFileSync } from "node:fs";
 import { lintSpec } from "../skills/spec/scripts/spec-lint.mjs";
 import { RESUME_REASON, ROUTE, STALE_REASON, chooseRoute } from "./slice-state.mjs";
 import { makeWorld, specText } from "./fixtures/slice-world.mjs";
+import { assertErrorMatchesActionable } from "./run-cli.test.support.mjs";
 
 const EXIT_ROUTED = 0;
 const EXIT_PRECONDITION = 1;
@@ -350,11 +351,11 @@ const slice = (n, extra = {}) => {
 };
 
 test("the router refuses a wave naming a slice it has no facts for", () => {
-  assert.throws(() => chooseRoute(facts([slice(1)], [[1], [2]])), /known slice/);
+  assertErrorMatchesActionable(() => chooseRoute(facts([slice(1)], [[1], [2]])), /known slice/);
 });
 
 test("the router refuses a merged slice that still has a holder", () => {
-  assert.throws(() => chooseRoute(facts([slice(1, { merged: true, heldBy: "bob" })], [[1]])), /no holder/);
+  assertErrorMatchesActionable(() => chooseRoute(facts([slice(1, { merged: true, heldBy: "bob" })], [[1]])), /no holder/);
 });
 
 test("the router takes the first row that fits, in the order the table gives", () => {

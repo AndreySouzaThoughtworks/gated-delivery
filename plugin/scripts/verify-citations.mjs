@@ -70,7 +70,7 @@ export const violationFor = (realRoot, { path, line, quote }) => {
  * @returns {string[]}
  */
 export const verifyText = (text, root) => {
-  assert(typeof text === "string", `the scout output must be text, got ${typeof text}`);
+  assert(typeof text === "string", `the \`text\` of the scout output must be text, got ${typeof text}; pass it as a string.`);
   assert(existsSync(root) && statSync(root).isDirectory(), `the root must be an existing directory, got ${JSON.stringify(root)}; pass one with --root.`);
   const realRoot = realpathSync(root);
   const violations = [];

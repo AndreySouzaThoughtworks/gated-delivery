@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { lintDraft, parseDraft } from "./ticket-lint.mjs";
+import { assertErrorMatchesActionable } from "./run-cli.test.support.mjs";
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "ticket-lint.mjs");
 const EXIT_CLEAN = 0;
@@ -341,11 +342,11 @@ test("exits 2 without a file", () => {
 });
 
 test("parseDraft rejects non-text", () => {
-  assert.throws(() => parseDraft(42), /must be text/);
+  assertErrorMatchesActionable(() => parseDraft(42), /must be text/);
 });
 
 test("parseDraft rejects a code fence that never closes", () => {
-  assert.throws(() => parseDraft(`${TASK}\n\`\`\`\nunclosed\n`), /never closed/);
+  assertErrorMatchesActionable(() => parseDraft(`${TASK}\n\`\`\`\nunclosed\n`), /never closed/);
 });
 
 test("exits 2 for a draft with an unclosed code fence", () => {
@@ -353,9 +354,9 @@ test("exits 2 for a draft with an unclosed code fence", () => {
 });
 
 test("lintDraft rejects a priorityConfirmed that is not a boolean", () => {
-  assert.throws(() => lintDraft(BUG, "bug", { priorityConfirmed: "yes" }), /must be a boolean/);
+  assertErrorMatchesActionable(() => lintDraft(BUG, "bug", { priorityConfirmed: "yes" }), /must be a boolean/);
 });
 
 test("lintDraft rejects a kind it does not know", () => {
-  assert.throws(() => lintDraft(TASK, "toString"), /the kind must be one of/);
+  assertErrorMatchesActionable(() => lintDraft(TASK, "toString"), /the kind must be one of/);
 });

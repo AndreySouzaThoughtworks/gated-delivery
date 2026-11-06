@@ -170,7 +170,7 @@
     },
     {
       "id": "issue-writing.unclosed-fence-hides-lines",
-      "anchor": "a code fence opened and never closed",
+      "anchor": "and never closed, which hides every line after it from the lint",
       "kind": "never",
       "why": "an unclosed fence would hide the rest of the draft from the lint"
     },

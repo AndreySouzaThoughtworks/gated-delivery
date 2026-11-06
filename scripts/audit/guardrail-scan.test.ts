@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ARMS, scanText } from "../../plugin/skills/issue-writing/scripts/guardrail-scan.mjs";
-import { assertEveryLineActionable, assertErrorIsActionable } from "../test-support/actionable.test.support.ts";
+import { assertEveryLineActionable, assertErrorIsActionable, assertErrorMatchesActionable } from "../test-support/actionable.test.support.ts";
 
 const SCAN = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "plugin", "skills", "issue-writing", "scripts", "guardrail-scan.mjs");
 
@@ -70,17 +70,17 @@ test("hits carry the one-based line number and an extra term adds an arm", () =>
 
 test("text that is not a string is refused", () => {
   const scan = scanText as (text: unknown) => unknown;
-  assert.throws(() => scan(Buffer.from("hello")), /the text to scan must be a string, got object/);
+  assertErrorMatchesActionable(() => scan(Buffer.from("hello")), /the .text. to scan must be a string, got object/);
 });
 
 test("an extra term that is not a regex is refused", () => {
-  assert.throws(() => scanText("hello", ["("]), /must be a valid regex/);
-  assert.throws(() => scanText("hello", [""]), /non-empty regex/);
-  assert.throws(() => scanText("hello", [".*"]), /must not match an empty line/);
+  assertErrorMatchesActionable(() => scanText("hello", ["("]), /must be a valid regex/);
+  assertErrorMatchesActionable(() => scanText("hello", [""]), /non-empty regex/);
+  assertErrorMatchesActionable(() => scanText("hello", [".*"]), /must not match an empty line/);
   for (const term of ["(", "", ".*"]) assertErrorIsActionable(() => scanText("hello", [term]));
   assert.equal(scanText("orchid", ["orchid"]).length, 1, "a term that needs text still matches it");
   const scan = scanText as (text: string, extraTerms: unknown) => unknown;
-  assert.throws(() => scan("hello", "orchid"), /extra terms must be a list/);
+  assertErrorMatchesActionable(() => scan("hello", "orchid"), /the .extraTerms. must be a list/);
 });
 
 test("the command line exits 1 with file:line and never prints the match, 0 when clean, 2 on bad usage", () => {
@@ -99,4 +99,5 @@ test("the command line exits 1 with file:line and never prints the match, 0 when
   assertEveryLineActionable(termHit.stdout);
   const usage = spawnSync("node", [SCAN], { encoding: "utf8", input: "password: hunter2\n" });
   assert.equal(usage.status, 2, `no file must be a usage error and never read stdin, got ${usage.status}`);
+  assertEveryLineActionable(usage.stderr);
 });

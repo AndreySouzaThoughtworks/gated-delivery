@@ -58,8 +58,8 @@ const USAGE = `usage: commit-plan.mjs --type <type> --description <text> [--clau
  * @returns {Refusal}
  */
 export const refusal = (message, exit) => {
-  assert(typeof message === "string" && message.length > 0, `a refusal needs a message that says what to fix, got ${JSON.stringify(message)}`);
-  assert(REFUSAL_EXITS.includes(exit), `a refusal exits with one of ${REFUSAL_EXITS.join(", ")}, got ${exit}`);
+  assert(typeof message === "string" && message.length > 0, `a refusal needs a \`message\` that says what to fix, got ${JSON.stringify(message)}; pass a non-empty string.`);
+  assert(REFUSAL_EXITS.includes(exit), `the \`exit\` of a refusal must be one of ${REFUSAL_EXITS.join(", ")}, got ${exit}; pass one of them.`);
   return Object.assign(new Error(message), { exit });
 };
 
@@ -68,7 +68,7 @@ export const refusal = (message, exit) => {
  * @returns {Record<string, string> | undefined}
  */
 export const conventionOf = (claudeMd) => {
-  assert(typeof claudeMd === "string", `the CLAUDE.md text must be a string, got ${typeof claudeMd}`);
+  assert(typeof claudeMd === "string", `the CLAUDE.md text must be a string, got ${typeof claudeMd}; pass the file contents.`);
   const sections = claudeMd.split(/^## /m).filter((part) => part.startsWith(COMMIT_CONVENTION_HEADING));
   assert(sections.length <= 1, `CLAUDE.md holds ${sections.length} "## ${COMMIT_CONVENTION_HEADING}" sections; keep one so the convention is not ambiguous`);
   if (sections.length === 0) return undefined;
@@ -81,8 +81,8 @@ export const conventionOf = (claudeMd) => {
  * @returns {string}
  */
 export const sourceOf = (convention, origin) => {
-  assert(typeof origin === "string", `the origin must be a string, got ${typeof origin}; pass --origin <url>`);
-  assert(convention === undefined || typeof convention === "object", `the convention must come from conventionOf, got ${typeof convention}`);
+  assert(typeof origin === "string", `the \`origin\` must be a string, got ${typeof origin}; pass --origin <url>`);
+  assert(convention === undefined || typeof convention === "object", `the \`convention\` must come from conventionOf, got ${typeof convention}; pass its result.`);
   if (convention?.Subject === undefined) return SOURCE_PLAIN;
   const backtickedOrigins = [...(convention["Applies to"] ?? "").matchAll(/`([^`]+)`/g)].map(([, needle]) => needle);
   if (backtickedOrigins.length === 0) return convention["Applies to"] === undefined ? SOURCE_PLAIN : SOURCE_PLAIN_UNPROVEN;
@@ -94,8 +94,8 @@ export const sourceOf = (convention, origin) => {
  * @returns {string[]}
  */
 export const stagingProblems = (paths) => {
-  assert(Array.isArray(paths), `the staged paths must be a list, got ${typeof paths}`);
-  assert(paths.every((path) => typeof path === "string" && path !== ""), `every staged path must be a non-empty string, got ${JSON.stringify(paths)}`);
+  assert(Array.isArray(paths), `the staged \`paths\` must be a list, got ${typeof paths}; pass an array.`);
+  assert(paths.every((path) => typeof path === "string" && path !== ""), `every staged path must be a non-empty string, got ${JSON.stringify(paths)}; drop the empty entries.`);
   return paths.flatMap((path) => {
     const shown = JSON.stringify(path);
     if (STAGE_ALL_FLAGS.has(path)) return [`${shown} stages everything; name each file of this change by explicit path`];
@@ -111,7 +111,7 @@ export const stagingProblems = (paths) => {
  * @returns {string}
  */
 export const prBodyFile = (branch, localNotes = DEFAULT_LOCAL_NOTES) => {
-  assert(typeof branch === "string" && branch !== "", `the branch name must be a non-empty string, got ${JSON.stringify(branch)}`);
+  assert(typeof branch === "string" && branch !== "", `the \`branch\` name must be a non-empty string, got ${JSON.stringify(branch)}; pass the current branch.`);
   assert(isAbsolute(localNotes), `--local-notes must be an absolute directory, got ${JSON.stringify(localNotes)}; pass the Local notes home from ## Delivery notes`);
   return join(localNotes, `${BODY_FILE_PREFIX}${branch.replaceAll("/", "-")}${BODY_FILE_SUFFIX}`);
 };
@@ -121,8 +121,8 @@ export const prBodyFile = (branch, localNotes = DEFAULT_LOCAL_NOTES) => {
  * @returns {CommitPlan}
  */
 export const plan = ({ claudeMd, origin, branch, type, description, ticket, localNotes }) => {
-  assert(typeof description === "string" && description.trim() !== "", `--description must say what the change does, got ${JSON.stringify(description)}`);
-  assert(typeof branch === "string", `the branch must be a string, got ${typeof branch}; pass --branch <name>`);
+  assert(typeof description === "string" && description.trim() !== "", `--description must say what the change does, got ${JSON.stringify(description)}; pass a sentence about the change.`);
+  assert(typeof branch === "string", `the \`branch\` must be a string, got ${typeof branch}; pass --branch <name>`);
   const convention = conventionOf(claudeMd);
   const source = sourceOf(convention, origin);
   const client = source === SOURCE_CLIENT;
@@ -143,8 +143,8 @@ export const plan = ({ claudeMd, origin, branch, type, description, ticket, loca
  * @returns {string | undefined}
  */
 export const nearestClaudeMd = (directory) => {
-  assert(isAbsolute(directory), `the search directory must be absolute, got ${JSON.stringify(directory)}`);
-  assert(existsSync(directory), `the search directory must exist, got ${directory}`);
+  assert(isAbsolute(directory), `the search directory must be absolute, got ${JSON.stringify(directory)}; pass an absolute path.`);
+  assert(existsSync(directory), `the search directory must exist, got ${directory}; create it or pass another path.`);
   const candidate = join(directory, CLAUDE_MD_NAME);
   if (existsSync(candidate)) return candidate;
   const parent = dirname(directory);
@@ -156,8 +156,8 @@ export const nearestClaudeMd = (directory) => {
  * @returns {{ origin: string, branch: string }}
  */
 export const checkoutFacts = (directory) => {
-  assert(isAbsolute(directory), `the checkout directory must be absolute, got ${JSON.stringify(directory)}`);
-  assert(existsSync(directory), `the checkout directory must exist, got ${directory}`);
+  assert(isAbsolute(directory), `the checkout directory must be absolute, got ${JSON.stringify(directory)}; pass an absolute path.`);
+  assert(existsSync(directory), `the checkout directory must exist, got ${directory}; create it or pass another path.`);
   const [origin, branch] = [ORIGIN_COMMAND, BRANCH_COMMAND].map((args) => {
     try {
       return execFileSync("git", args, { cwd: directory, encoding: ENCODING, stdio: ["ignore", "pipe", "ignore"] }).trim();
@@ -173,8 +173,8 @@ export const checkoutFacts = (directory) => {
  * @returns {number}
  */
 export const main = (argv) => {
-  assert(Array.isArray(argv), `the arguments must be a list, got ${typeof argv}`);
-  assert(argv.every((argument) => typeof argument === "string"), `every argument must be a string, got ${JSON.stringify(argv)}`);
+  assert(Array.isArray(argv), `\`argv\` must be a list, got ${typeof argv}; pass an array.`);
+  assert(argv.every((argument) => typeof argument === "string"), `every argument must be a string, got ${JSON.stringify(argv)}; pass strings only.`);
   try {
     const separator = argv.indexOf(PATHS_SEPARATOR);
     const flags = separator === -1 ? argv : argv.slice(0, separator);

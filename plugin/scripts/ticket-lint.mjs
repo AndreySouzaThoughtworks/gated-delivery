@@ -79,7 +79,7 @@ export const PLACEHOLDERS = [
  * @returns {Draft}
  */
 export const parseDraft = (raw) => {
-  assert(typeof raw === "string", `a draft must be text, got ${typeof raw}`);
+  assert(typeof raw === "string", `the \`raw\` draft must be text, got ${typeof raw}; pass the draft as a string.`);
   /** @type {Line[]} */
   const lines = [];
   /** @type {Map<string, number>} */
@@ -87,9 +87,13 @@ export const parseDraft = (raw) => {
   /** @type {Record<string, Field | undefined>} */
   const fields = {};
   let fenced = false;
+  let fenceOpenedAt = 0;
   let section;
   for (const [index, text] of raw.split(LINE_BREAK).entries()) {
-    if (FENCE.test(text)) fenced = !fenced;
+    if (FENCE.test(text)) {
+      fenced = !fenced;
+      if (fenced) fenceOpenedAt = index + ONE_BASED_OFFSET;
+    }
     else if (!fenced) {
       const number = index + ONE_BASED_OFFSET;
       const title = HEADING.exec(text)?.[1].toLowerCase();
@@ -104,7 +108,7 @@ export const parseDraft = (raw) => {
       lines.push({ number, text, prose: text.replace(INLINE_CODE, ""), section, heading: title !== undefined });
     }
   }
-  assert(!fenced, `a code fence opened and never closed, which hides every line after it from the lint; close the fence in a draft of ${lines.length} visible lines`);
+  assert(!fenced, `a code fence opened at line ${fenceOpenedAt} and never closed, which hides every line after it from the lint; add the closing fence after it`);
   const bodies = new Map([...titles.keys()].map((title) => [title, lines.filter((line) => line.section === title && !line.heading)]));
   return { lines, titles, bodies, fields };
 };
@@ -180,8 +184,8 @@ const RULES = [
  * @returns {Problem[]}
  */
 export const lintDraft = (raw, kind, options = {}) => {
-  assert(Object.hasOwn(REQUIRED_HEADINGS, kind), `the kind must be one of ${Object.keys(REQUIRED_HEADINGS).join(", ")}, got ${JSON.stringify(kind)}`);
-  assert([undefined, true, false].includes(options.priorityConfirmed), `priorityConfirmed must be a boolean when given, got ${JSON.stringify(options.priorityConfirmed)}`);
+  assert(Object.hasOwn(REQUIRED_HEADINGS, kind), `the kind must be one of ${Object.keys(REQUIRED_HEADINGS).join(", ")}, got ${JSON.stringify(kind)}; pass one of them.`);
+  assert([undefined, true, false].includes(options.priorityConfirmed), `priorityConfirmed must be a boolean when given, got ${JSON.stringify(options.priorityConfirmed)}; pass true or false.`);
   const draft = parseDraft(raw);
   const context = { kind, priorityConfirmed: options.priorityConfirmed === true };
   return RULES.flatMap((rule) => rule(draft, context)).sort((a, b) => a.line - b.line);
@@ -198,8 +202,8 @@ const main = (argv) => {
       options: { kind: { type: "string" }, "priority-confirmed": { type: "boolean" } },
       allowPositionals: true,
     });
-    assert(positionals.length === 1, `expected exactly one draft file, got ${positionals.length}`);
-    assert(values.kind !== undefined, `--kind is required, got ${JSON.stringify(values.kind)}`);
+    assert(positionals.length === 1, `ticket-lint needs exactly one draft file, got ${positionals.length}; pass one path.`);
+    assert(values.kind !== undefined, `--kind is required but missing, got ${JSON.stringify(values.kind)}; pass --kind with ${Object.keys(REQUIRED_HEADINGS).join(", ")}.`);
     const problems = lintDraft(readFileSync(positionals[0], ENCODING), values.kind, { priorityConfirmed: values["priority-confirmed"] });
     for (const { line, level, rule, detail } of problems) console.log(level === WARNING ? `${WARNING}: ${line}: ${rule}: ${detail}` : `${line}: ${rule}: ${detail}`);
     return problems.some((problem) => problem.level === ERROR) ? EXIT_PROBLEMS : EXIT_CLEAN;

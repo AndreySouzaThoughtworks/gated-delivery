@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DEFAULT_TEMPLATE_PATH, lintPrimer } from "./primer-lint.mjs";
-import { runScript } from "./run-cli.test.support.mjs";
+import { runScript, assertErrorMatchesActionable } from "./run-cli.test.support.mjs";
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "primer-lint.mjs");
 const EXIT_CLEAN = 0;
@@ -104,11 +104,11 @@ test("skips the neutral token rules for a client template", () => {
 });
 
 test("throws on a page that is not text", () => {
-  assert.throws(() => lintPrimer(undefined, TEMPLATE), /the page must be text/);
+  assertErrorMatchesActionable(() => lintPrimer(undefined, TEMPLATE), /the .html. page must be text/);
 });
 
 test("throws on a template without a style block", () => {
-  assert.throws(() => lintPrimer(validPage(), "<html></html>"), /template must hold a <style> block/);
+  assertErrorMatchesActionable(() => lintPrimer(validPage(), "<html></html>"), /template must hold a <style> block/);
 });
 
 test("exits 0 and prints nothing for the valid page", () => {
@@ -130,7 +130,7 @@ test("exits 1 with one line per problem prefixed by the file", () => {
 test("exits 2 without a page, with an empty template value, and with a missing file", () => {
   const noPage = runScript(SCRIPT, []);
   assert.equal(noPage.status, EXIT_USAGE);
-  assert.match(noPage.stderr, /expected one page to lint, got 0/);
+  assert.match(noPage.stderr, /needs one page to lint, got 0/);
   const emptyTemplate = runScript(SCRIPT, [writePage(validPage()), "--template", ""]);
   assert.equal(emptyTemplate.status, EXIT_USAGE);
   assert.match(emptyTemplate.stderr, /--template needs a path/);

@@ -13,6 +13,8 @@ import { BASELINE_FILE, UPDATE_COMMAND, budgetProblems, measureBudgets, readBase
 import { AUDIT_WORKFLOW, liveOptInProblems, workflowParityProblems } from "./ci-parity.ts";
 import { nodeFloorProblems } from "./node-floor.ts";
 import { baselineProblems } from "./message-actionability/check.ts";
+import { asdStyleProblems, styleDocuments } from "./asd-style.ts";
+import { GUIDE_FILE, guideProblems } from "./guide-freshness.ts";
 import { UNINVENTORIED_FILES_ARE_ERRORS, checkRuleInventories } from "./rule-inventory.ts";
 
 const ROOT = process.cwd();
@@ -793,6 +795,23 @@ if (existsSync(packagePath)) {
 // --- 32. Failure messages that name no value, rule or fix are baselined, and the baseline never grows ---
 const MESSAGE_ACTIONABILITY_SCRIPT = "scripts/audit/message-actionability.ts";
 if (existsSync(join(ROOT, MESSAGE_ACTIONABILITY_SCRIPT))) errors.push(...baselineProblems(ROOT, baseRef));
+
+// --- 33. README, AGENTS.md, the docs and the guide keep at least 80 percent of their sentences within 20 words ---
+const ASD_STYLE_SCRIPT = "scripts/audit/asd-style.ts";
+if (existsSync(join(ROOT, ASD_STYLE_SCRIPT))) errors.push(...asdStyleProblems(styleDocuments(ROOT)));
+
+// --- 34. The guide exists, names every skill, agent and command, states true counts, and the README links it ---
+const GUIDE_FRESHNESS_SCRIPT = "scripts/audit/guide-freshness.ts";
+if (existsSync(join(ROOT, GUIDE_FRESHNESS_SCRIPT))) {
+  const guidePath = join(ROOT, GUIDE_FILE);
+  errors.push(
+    ...guideProblems({
+      guide: existsSync(guidePath) ? read(guidePath) : null,
+      readme: existsSync(readmeFilePath) ? read(readmeFilePath) : "",
+      inventory: { skills, agents, commands, hooks: hookFiles.size },
+    }),
+  );
+}
 
 // --- report ---
 console.log(

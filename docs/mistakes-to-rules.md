@@ -1,6 +1,6 @@
 # Mistakes and the rules that catch them
 
-Each mistake below happened in this repo. The fix is a check that rules out the whole category, not a line of prose, and a test shows the check can fail. `scripts/audit/mistakes-table.test.ts` fails when a row names a file, guard check, zanity rule or test title that does not exist.
+Each mistake below happened in this repo. The fix is a check that rules out the whole category. It is never a line of prose. A test shows that the check can fail. `scripts/audit/mistakes-table.test.ts` fails when a row names a file, guard check, zanity rule or test title that does not exist.
 
 ## Mistakes caught by a rule
 
@@ -34,6 +34,8 @@ Each mistake below happened in this repo. The fix is a check that rules out the 
 | Skill prose grew with no limit, and nothing showed what the text cost in tokens on every session or invocation. | Cost that grows unseen | `check 28` and `evals/token-budget.json` | `scripts/audit/consistency-token-budget.test.ts` "check 28 rejects an instruction file that grew past its token budget" |
 | The `node 26` job repeated the `consistency` job by hand and lacked four of its steps: the plugin script tests, the leak guard self-test, the slice script tests and the guardrail scan. | A copy that drifts from its original | `check 29` | `scripts/audit/ci-parity.test.ts` "check 29 rejects a second job that repeats the consistency guard, naming both jobs and the fix"; `scripts/audit/ci-parity.test.ts` "check 29 rejects a matrix that lost a required check name or the name line" |
 | Three shell tests start real `claude -p` sessions on the maintainer's subscription, and nothing stopped a run by accident. | A costly action with no opt-in | `check 30` and `tests/require-live-opt-in.sh` | `scripts/audit/ci-parity.test.ts` "check 30 rejects a live test with no guard, and one that sources it after the session starts"; `tests/live-opt-in.test.sh` |
+| The docs went stale. One page said the guard has 23 checks when it had 32. Another said that no skill calls the `scout` agent when two skills did. A third quoted an assertion count that no check kept true. | Documentation that drifts from the repo | `check 34` for the guide: it must name every skill, agent and command and state true counts; `check 5` for the README counts | `scripts/audit/guide-freshness.test.ts` "a skill, agent or command the guide does not name is reported once each"; `scripts/audit/guide-freshness.test.ts` "a count that differs from the real one is reported for each kind" |
+| Several docs held sentences of 40 to 80 words, which are slow to read and hard to translate. Fewer than 60% of the sentences in `docs/development.md` had 20 words or fewer. | Prose that nobody can read quickly | `check 33` and `scripts/audit/asd-style.ts` | `scripts/audit/asd-style.test.ts` "a file at the threshold passes and a file one sentence below it is rejected with its share"; `scripts/audit/asd-style.test.ts` "a file of long sentences is rejected and lists only the longest sentences with line numbers" |
 
 ## Mistakes with no deterministic rule yet
 

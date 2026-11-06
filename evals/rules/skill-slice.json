@@ -187,9 +187,15 @@
     },
     {
       "id": "slice.notes-repo-clean-main",
-      "anchor": "any other state than clean on `main` — STOP and surface it",
+      "anchor": "any other state than clean on `main`, or 5 wrong repository — STOP and surface it",
       "kind": "stop",
       "why": "notes checkout must be clean on main"
+    },
+    {
+      "id": "slice.notes-repo-script-stops-wrong-repo",
+      "anchor": "STOP: the notes checkout ${path} has origin",
+      "kind": "stop",
+      "why": "notes-repo prepare refuses a checkout whose origin is another repository"
     },
     {
       "id": "slice.notes-repo-no-foreign-branch",
@@ -229,7 +235,7 @@
     },
     {
       "id": "slice.pull-notes-before-read",
-      "anchor": "With a separate notes repository, run `notes-repo.mjs prepare` first.",
+      "anchor": "With a separate notes repository, run `notes-repo.mjs prepare --repo-name <owner/name>` first.",
       "kind": "must",
       "why": "stale notes mislead routing"
     },
@@ -1495,7 +1501,7 @@
     },
     {
       "id": "slice.calls-notes-repo-prepare",
-      "anchor": "run `notes-repo.mjs prepare --repo-name <owner/name>`",
+      "anchor": "the **notes repository** — run `notes-repo.mjs prepare --repo-name <owner/name>`",
       "kind": "must",
       "why": "the notes checkout is resolved and checked by the script"
     },

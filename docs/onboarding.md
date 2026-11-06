@@ -52,7 +52,7 @@ Add the sections that the client needs to its `CLAUDE.md`. A folder-level `CLAUD
 | Variable | Default | Effect |
 |----------|---------|--------|
 | `GATED_DELIVERY_VERIFY_CMD` | unset | Verify command that `/slice` and `code-reviewer` run. Without it they read the `## Verification` Verify command from the nearest folder-level CLAUDE.md above the repo (a repo's own CLAUDE.md is ignored, since a cloned repo controls it), else the repo's own checks. |
-| `GATED_DELIVERY_NOTES_REPO` | unset | Local checkout of the separate notes repository. `notes-repo.mjs prepare` uses it before it clones one. |
+| `GATED_DELIVERY_NOTES_REPO` | unset | Local checkout of the separate notes repository. `notes-repo.mjs prepare` uses it before it clones one. Its `origin` must be the repository of `--repo-name`. Otherwise `prepare` exits 5. |
 | `GATED_DELIVERY_VERIFY_LOCK` | `~/.local/state/gated-delivery/verify.lock` | Lock file that serializes verify runs in parallel slice trees. |
 | `GATED_DELIVERY_VERIFY_LOCK_TIMEOUT_S` | `1800` | Seconds a verify run waits for the lock. |
 | `GATED_DELIVERY_RUN_TIMEOUT_SECONDS` | `1200` | Wall-clock budget for one eval run in `scripts/eval/run-scenarios.ts`. A run past it is stopped and flagged as a harness failure. |

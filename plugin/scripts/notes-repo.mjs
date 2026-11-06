@@ -12,6 +12,7 @@ const EXIT_GIT_FAILED = 1;
 const EXIT_USAGE = 2;
 const EXIT_CONFLICT = 3;
 const EXIT_STOP = 4;
+const EXIT_WRONG_REPO = 5;
 const ENCODING = "utf8";
 const GIT = "git";
 const GH = "gh";
@@ -21,13 +22,19 @@ const REMOTE = "origin";
 const MAIN_BRANCH = "main";
 const MAIN_REF = `refs/heads/${MAIN_BRANCH}`;
 const REMOTE_MAIN = `${REMOTE}/${MAIN_BRANCH}`;
+const REPO_NAME_PATTERN = /^[\w.-]+\/[\w.-]+$/;
+const TRAILING_SLASHES = /\/+$/;
+const GIT_SUFFIX = /\.git$/i;
+const REMOTE_SEPARATORS = /[/:]/;
+const REPO_NAME_SEGMENTS = 2;
+const NO_SUCH_CONFIG_KEY = 1;
 const PARSE_ARGS_CODE_PREFIX = "ERR_PARSE_ARGS";
 const LITERAL_PATHSPECS = "--literal-pathspecs";
 const NOTHING_STAGED = 0;
 const SOME_STAGED = 1;
 const NO_MERGE_IN_PROGRESS = 1;
 const USAGE = [
-  "usage: notes-repo.mjs prepare [--repo-name <owner/name> | --in-repo]",
+  "usage: notes-repo.mjs prepare (--repo-name <owner/name> | --in-repo)",
   "       notes-repo.mjs publish --path <checkout> --file <path>... --message <text>",
 ].join("\n");
 
@@ -69,12 +76,20 @@ const mergeOrigin = (path) => { // zanity: ignore[assertion-density] -- multi-ca
 const prepare = (argv) => {
   const { values } = parseArgs({ args: argv, options: { "repo-name": { type: "string" }, "in-repo": { type: "boolean" } } });
   if (values["in-repo"]) return { exit: EXIT_OK, report: { inRepo: true, path: null, branch: null, clean: null, behind: null } };
+  const repoName = values["repo-name"];
+  assert(repoName, "`prepare` needs `--repo-name <owner/name>`; pass the notes repository, or pass `--in-repo` when the notes live in the repository being changed");
+  assert(REPO_NAME_PATTERN.test(repoName), `--repo-name ${JSON.stringify(repoName)} is not owner/name; pass the repository as <owner>/<name>`);
   const configured = process.env[NOTES_REPO_ENV];
-  assert(configured || values["repo-name"], `no notes checkout: set ${NOTES_REPO_ENV}, pass --repo-name <owner/name>, or pass --in-repo when the notes live in the repository being changed`);
   let path = configured ? resolve(configured) : mkdtempSync(join(tmpdir(), CLONE_DIRECTORY_PREFIX));
-  if (!configured) run(GH, tmpdir(), ["repo", "clone", String(values["repo-name"]), path]);
+  if (!configured) run(GH, tmpdir(), ["repo", "clone", repoName, path]);
   assert(existsSync(join(path, ".git")), `${path} is not a git checkout`);
   path = realpathSync(path);
+  const origin = run(GIT, path, ["config", "--get", `remote.${REMOTE}.url`], [EXIT_OK, NO_SUCH_CONFIG_KEY]).out;
+  const [actualRepo, expectedRepo] = [origin, repoName].map((remote) => remote.trim().replace(TRAILING_SLASHES, "").replace(GIT_SUFFIX, "").split(REMOTE_SEPARATORS).slice(-REPO_NAME_SEGMENTS).join("/").toLowerCase());
+  if (actualRepo !== expectedRepo) {
+    console.error(`STOP: the notes checkout ${path} has origin ${origin || "(none)"}, not ${repoName}; point ${NOTES_REPO_ENV} at a checkout of ${repoName}, or unset it`);
+    return { exit: EXIT_WRONG_REPO, report: { inRepo: false, path, origin, expected: repoName } };
+  }
   const branch = run(GIT, path, ["rev-parse", "--abbrev-ref", "HEAD"]).out;
   const clean = run(GIT, path, ["status", "--porcelain"]).out === "";
   if (branch !== MAIN_BRANCH || !clean) {

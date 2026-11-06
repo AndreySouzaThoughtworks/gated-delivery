@@ -35,7 +35,7 @@ Ask in step 1, with `AskUserQuestion`, whether the primer is **personal** or **f
 Resolve the checkout for a team primer:
 
 1. The current repository, when it is the one `Team primer home` names. Pull and confirm a clean tree on `main`; `--in-repo` checks nothing.
-2. Otherwise run `node "<skill base directory>/../../scripts/notes-repo.mjs" prepare --repo-name <owner/name>` for that repository, and write under the `path` it prints. Exit 4: STOP and surface it; 3: ask the user; 1 or 2: surface stderr.
+2. Otherwise run `node "<skill base directory>/../../scripts/notes-repo.mjs" prepare --repo-name <owner/name>` and write under its `path`. Exit 4, or 5 (wrong repository): STOP and surface it; 3: ask the user; 1 or 2: surface stderr.
 3. When `Team primer home` is absent or the repository is unreachable, ask for a path before writing. When you cannot ask, write nothing — not into the working directory either: stop and report that `Team primer home` (or access to its repository) is missing. No way to ask is not permission to pick a location.
 
 ## Process

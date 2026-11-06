@@ -198,6 +198,21 @@ The live `gh` test exits 64 unless `GATED_DELIVERY_ALLOW_LIVE_GH=1` is set. Chec
 
 Before any write, the live `gh` test checks that the repository is private, is not a fork and has `sandbox` in its name. It exits 65 otherwise. It then creates one branch named `gated-delivery-live-gh-<random>` and one draft pull request. A `trap` closes that pull request and deletes that branch, even after a failure. The test prints the pull request number, so you can clean up by hand if the cleanup fails.
 
+The live `gh` test covers these paths with real data:
+
+- `notes-repo.mjs prepare` clones the repository with `gh repo clone`.
+- `slice-git.mjs` reads `state` with `gh pr view --json`.
+- `slice-state.mjs` reads the fields of `gh pr list --json`. The states are OPEN, CLOSED and MERGED. A merged pull request must hold a `mergeCommit.oid` object id. A closed pull request must hold a null `mergeCommit`.
+- `pr-gate.mjs` reads review threads. The test adds one inline review comment on the throwaway file. It checks that `pr-gate.mjs` prints exactly one unresolved thread with the `url` and `path` that GitHub gave. It then resolves the thread with the `resolveReviewThread` mutation. It checks that `pr-gate.mjs` prints none.
+- After the cleanup closes the pull request, `gh pr view` must print the state CLOSED.
+
+An assertion that needs merged or closed pull requests prints a `skip` line when the sandbox holds none. The last line then says how many assertions were skipped. A skip is not a pass. Keep at least one merged pull request in the sandbox.
+
+The live `gh` test does not cover these paths:
+
+- The limit of 100 review threads. `pr-gate.mjs` exits 2 beyond one page. A live test would need more than 100 threads, so only the stub tests cover it.
+- The merge flow. The test never merges a pull request, so a real merge is not tested live. The merged-state checks read pull requests that were merged earlier.
+
 With the opt-in set, the login-bound tests skip with exit 3 when the profile is not logged in. Point them at another profile with `GATED_DELIVERY_TEST_PROFILE=~/.claude-<name>`.
 
 Turn-end verification is the job of the `overwatch` plugin: [docs/onboarding.md](onboarding.md#install-overwatch-for-turn-end-verification). The knobs are in [docs/onboarding.md](onboarding.md#knobs-environment-variables).

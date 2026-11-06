@@ -24,6 +24,11 @@ readonly PR_TITLE='test: live gh probe'
 readonly COMMIT_IDENTITY=(-c user.name=gated-delivery-live-gh -c user.email=live-gh@example.invalid)
 readonly THREAD_FIELDS=(isResolved comments)
 readonly COMMENT_FIELDS=(url path)
+readonly COMMENT_BODY='Throwaway review comment from tests/live-gh.test.sh. It lives and dies with the draft pull request.'
+readonly COMMENT_LINE=1
+readonly COMMENT_SIDE=RIGHT
+readonly THREAD_ID_QUERY="query(\$owner: String!, \$repo: String!, \$number: Int!) { repository(owner: \$owner, name: \$repo) { pullRequest(number: \$number) { reviewThreads(first: 10) { nodes { id isResolved } } } } }"
+readonly RESOLVE_THREAD_MUTATION="mutation(\$id: ID!) { resolveReviewThread(input: {threadId: \$id}) { thread { isResolved } } }"
 readonly IMPORT_GH_JSON='const { ghJson } = await import(process.argv[1]); console.log(JSON.stringify(ghJson(process.cwd(), JSON.parse(process.argv[2]))));'
 
 core="$(cd "$(dirname "$0")/.." && pwd)"
@@ -35,6 +40,7 @@ branch=""
 pr_number=""
 branch_pushed=0
 failures=0
+skipped=0
 cleanup_failed=0
 
 refuse() {
@@ -52,6 +58,13 @@ cleanup() {
   trap - EXIT
   if [[ -n "${pr_number}" ]]; then
     gh pr close "${pr_number}" --repo "${sandbox}" >/dev/null 2>&1 || cleanup_failed=1
+    closed="$(gh pr view "${pr_number}" --repo "${sandbox}" --json state --jq .state 2>&1)"
+    if [[ "${closed}" == CLOSED ]]; then
+      echo "ok   gh pr view prints state CLOSED for PR #${pr_number} after the cleanup closed it"
+    else
+      echo "FAIL gh pr view prints state CLOSED for PR #${pr_number} after the cleanup closed it: real output was ${closed:0:${SHOWN_TEXT_LIMIT}}"
+      cleanup_failed=1
+    fi
   fi
   if [[ "${branch_pushed}" -eq 1 ]]; then
     git -C "${clone}" push --quiet origin --delete "${branch}" >/dev/null 2>&1 || cleanup_failed=1
@@ -73,6 +86,21 @@ expect() {
     echo "FAIL ${name}: expected ${expression}; real output was ${json:0:${SHOWN_TEXT_LIMIT}}"
     failures=$((failures + 1))
   fi
+}
+
+expect_when() {
+  local name="$1" json="$2" guard="$3" expression="$4"
+  if JSON_INPUT="${json}" GUARD="${guard}" node -e 'const d = JSON.parse(process.env.JSON_INPUT); process.exit(Function("d", "return (" + process.env.GUARD + ")")(d) ? 0 : 1);' 2>/dev/null; then
+    expect "${name}" "${json}" "${expression}"
+  else
+    echo "skip ${name}: nothing in the real output satisfies ${guard}, so the assertion has no data to check"
+    skipped=$((skipped + 1))
+  fi
+}
+
+run_gate() {
+  gate_status=0
+  gate="$(cd "${clone}" && node "${scripts}/pr-gate.mjs" --body-file "${body_file}" --title "${PR_TITLE}" --final-slice y --pr "${pr_number}" 2>&1)" || gate_status=$?
 }
 
 run_ghjson() {
@@ -151,15 +179,34 @@ expect "gh pr list prints isDraft true for the throwaway pull request" "${listed
 expect "gh pr list prints state OPEN for the throwaway pull request" "${listed}" "${ours}.state === \"OPEN\""
 expect "gh pr list prints headRefOid as a 40-character object id on every pull request" "${listed}" "d.every((pr) => /${OBJECT_ID_PATTERN}/.test(pr.headRefOid))"
 expect "gh pr list prints mergeCommit null for the unmerged throwaway pull request" "${listed}" "${ours}.mergeCommit === null"
-expect "gh pr list prints mergeCommit.oid as an object id on every merged pull request" "${listed}" "d.every((pr) => pr.mergeCommit === null || /${OBJECT_ID_PATTERN}/.test(pr.mergeCommit.oid))"
+expect "gh pr list prints only the states OPEN, CLOSED and MERGED" "${listed}" 'd.every((pr) => ["OPEN", "CLOSED", "MERGED"].includes(pr.state))'
+expect_when "gh pr list prints mergeCommit.oid as an object id on every merged pull request" "${listed}" 'd.some((pr) => pr.state === "MERGED")' "d.filter((pr) => pr.state === \"MERGED\").every((pr) => /${OBJECT_ID_PATTERN}/.test(pr.mergeCommit?.oid))"
+expect_when "gh pr list prints mergeCommit null on every closed pull request" "${listed}" 'd.some((pr) => pr.state === "CLOSED")' 'd.filter((pr) => pr.state === "CLOSED").every((pr) => pr.mergeCommit === null)'
 
 echo "== pr-gate.mjs: gh api graphql review threads"
 body_file="${work}/pr-body-${branch}.md"
 echo "Throwaway body." > "${body_file}"
-gate_status=0
-gate="$(cd "${clone}" && node "${scripts}/pr-gate.mjs" --body-file "${body_file}" --title "${PR_TITLE}" --final-slice y --pr "${pr_number}" 2>&1)" || gate_status=$?
+run_gate
 expect "pr-gate reads data.repository.pullRequest.reviewThreads.nodes and prints no unresolved thread (exit ${gate_status})" "${gate}" 'Array.isArray(d.unresolvedThreads) && d.unresolvedThreads.length === 0'
 expect "pr-gate prints title null and bodyPath null for a conforming title and body file (exit ${gate_status})" "${gate}" 'd.title === null && d.bodyPath === null'
+
+echo "== pr-gate.mjs: one real review thread, then resolved"
+head_sha="$(git -C "${clone}" rev-parse HEAD)"
+comment="$(gh api "repos/${sandbox}/pulls/${pr_number}/comments" -f body="${COMMENT_BODY}" -f commit_id="${head_sha}" -f path="${probe_file}" -F line="${COMMENT_LINE}" -f side="${COMMENT_SIDE}" 2>&1)" || setup_failed "gh api pulls/${pr_number}/comments failed (${comment:0:${SHOWN_TEXT_LIMIT}})"
+run_gate
+expect "pr-gate prints exactly one unresolved thread after the review comment (exit ${gate_status})" "${gate}" 'd.unresolvedThreads.length === 1'
+comment_url="$(node -e 'process.stdout.write(String(JSON.parse(process.argv[1]).html_url ?? ""))' "${comment}")"
+expect "pr-gate prints the thread url that GitHub gave the review comment" "${gate}" "d.unresolvedThreads[0]?.url === \"${comment_url}\" && d.unresolvedThreads[0].url.length > 0"
+expect "pr-gate prints the thread path ${probe_file}" "${gate}" "d.unresolvedThreads[0]?.path === \"${probe_file}\""
+expect "pr-gate exits 1 while a thread is unresolved" "{\"status\": ${gate_status}}" 'd.status === 1'
+threads="$(gh api graphql -F owner="${sandbox%%/*}" -F repo="${sandbox#*/}" -F number="${pr_number}" -f query="${THREAD_ID_QUERY}" 2>&1)" || setup_failed "gh api graphql review thread lookup failed (${threads:0:${SHOWN_TEXT_LIMIT}})"
+thread_id="$(node -e 'const nodes = JSON.parse(process.argv[1]).data.repository.pullRequest.reviewThreads.nodes; process.stdout.write(nodes.length === 1 ? nodes[0].id : "")' "${threads}")"
+[[ -n "${thread_id}" ]] || setup_failed "the pull request does not hold exactly one review thread in ${threads:0:${SHOWN_TEXT_LIMIT}}"
+resolved="$(gh api graphql -f query="${RESOLVE_THREAD_MUTATION}" -f id="${thread_id}" 2>&1)" || setup_failed "gh api graphql resolveReviewThread failed (${resolved:0:${SHOWN_TEXT_LIMIT}})"
+expect "resolveReviewThread prints isResolved true" "${resolved}" 'd.data.resolveReviewThread.thread.isResolved === true'
+run_gate
+expect "pr-gate prints no unresolved thread after the thread is resolved (exit ${gate_status})" "${gate}" 'd.unresolvedThreads.length === 0'
+expect "pr-gate exits 0 after the thread is resolved" "{\"status\": ${gate_status}}" 'd.status === 0'
 for type_name in PullRequestReviewThread PullRequestReviewComment; do
   type_fields="$(gh api graphql -f query="{ __type(name: \"${type_name}\") { fields { name } } }" 2>&1)" || { echo "FAIL gh api graphql introspection of ${type_name}: ${type_fields:0:${SHOWN_TEXT_LIMIT}}"; failures=$((failures + 1)); type_fields="{}"; }
   if [[ "${type_name}" == PullRequestReviewThread ]]; then wanted=("${THREAD_FIELDS[@]}"); else wanted=("${COMMENT_FIELDS[@]}"); fi
@@ -171,5 +218,9 @@ done
 if [[ "${failures}" -gt 0 ]]; then
   echo "${failures} live gh assertion(s) failed: the real gh output differs from what the scripts parse."
   exit 1
+fi
+if [[ "${skipped}" -gt 0 ]]; then
+  echo "live gh assertions passed, ${skipped} assertions skipped: the sandbox held no data for them."
+  exit 0
 fi
 echo "all live gh assertions passed"

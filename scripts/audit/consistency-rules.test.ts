@@ -148,13 +148,24 @@ test("rejects a hook missing from the skill graph", () => {
   mustReject(dir, /hook "h\.mjs" is not documented in docs\/skill-graph\.md\. Hint:/);
 });
 
-test("rejects manifests that carry different versions", () => {
+test("rejects a marketplace manifest that pins a version, naming the file, the rule and the fix", () => {
+  const dir = validRepo();
+  write(dir, ".claude-plugin/marketplace.json", JSON.stringify({ metadata: { version: "1.0.0" }, plugins: [{ name: "p", source: "plugin" }] }));
+  mustReject(dir, /\.claude-plugin\/marketplace\.json carries a version\. A pinned version freezes installed copies until someone changes it\. Hint: delete the "version" field; users then get every commit\./);
+
+  write(dir, ".claude-plugin/marketplace.json", JSON.stringify({ plugins: [{ name: "p", source: "plugin", version: "1.0.0" }] }));
+  mustReject(dir, /marketplace\.json carries a version/);
+
+  write(dir, ".claude-plugin/marketplace.json", JSON.stringify({ plugins: [{ name: "p", source: "plugin" }] }));
+  assert.equal(runGuard(dir).code, 0);
+});
+
+test("rejects a plugin manifest that pins a version, naming the file, the rule and the fix", () => {
   const dir = validRepo();
   write(dir, "plugin/.claude-plugin/plugin.json", JSON.stringify({ name: "p", version: "1.0.0" }));
-  write(dir, ".claude-plugin/marketplace.json", JSON.stringify({ metadata: { version: "1.0.1" }, plugins: [{ name: "p", source: "plugin" }] }));
-  mustReject(dir, /manifest versions disagree: .*plugin\.json says 1\.0\.0, .*marketplace\.json says 1\.0\.1\. Hint:/);
+  mustReject(dir, /plugin\/\.claude-plugin\/plugin\.json carries a version\. A pinned version freezes installed copies until someone changes it\. Hint: delete the "version" field; users then get every commit\./);
 
-  write(dir, ".claude-plugin/marketplace.json", JSON.stringify({ metadata: { version: "1.0.0" }, plugins: [{ name: "p", source: "plugin" }] }));
+  write(dir, "plugin/.claude-plugin/plugin.json", JSON.stringify({ name: "p" }));
   assert.equal(runGuard(dir).code, 0);
 });
 

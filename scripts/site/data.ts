@@ -244,6 +244,12 @@ export const collectSiteData = async (root: string): Promise<SiteData> => {
 const WARNING_PUSH = /warnings\.push/;
 const ERROR_PUSH = /errors\.push/;
 
+export const guardSectionNumbers = (root: string): number[] => {
+  assert(root !== "", `the guard source is read under the repository root, got an empty path; pass the root.`);
+  assert(existsSync(join(root, GUARD_FILE)), `${GUARD_FILE} must exist under ${root} to count the guard checks, got none; pass the repository root.`);
+  return [...sectionsOf(readText(root, GUARD_FILE)).keys()].toSorted((a, b) => a - b);
+};
+
 export const warnOnlyChecks = (root: string): number[] => {
   assert(root !== "", `the guard source is read under the repository root, got an empty path; pass the root.`);
   assert(existsSync(join(root, GUARD_FILE)), `${GUARD_FILE} must exist under ${root} to tell which checks only warn, got none; pass the repository root.`);

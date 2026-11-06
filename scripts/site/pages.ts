@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { TIERS, TIER_NONE, warnOnlyChecks } from "./data.ts";
+import { TIERS, TIER_NONE, guardSectionNumbers, warnOnlyChecks } from "./data.ts";
 import type { Agent, Command, Hook, Instruction, PluginScript, SiteData, Skill } from "./data.ts";
 import { FRAGMENTS_DIRECTORY, renderFragment } from "./fragments.ts";
 import { bulletList, checkCard, escapeHtml, quotation, relativeLink, table } from "./html.ts";
@@ -38,7 +38,7 @@ export const evidenceRows = ({ mutation, rules, budget }: Instruction) => {
   ];
 };
 
-export const siteVariables = (data: SiteData, checks: CheckEntry[]) => {
+export const siteVariables = (data: SiteData, checks: CheckEntry[], guardNumbers: number[]) => {
   assert(Array.isArray(data.skills), `the site data must list skills, got ${typeof data.skills}; pass the collected data.`);
   assert(Array.isArray(checks), `the checks must be a list, got ${typeof checks}; pass the registry rows.`);
   const tiers = Object.fromEntries([...TIERS, TIER_NONE].map((tier) => [`tiers.${tier}`, data.skills.filter((skill) => skill.tier === tier).length]));
@@ -49,6 +49,8 @@ export const siteVariables = (data: SiteData, checks: CheckEntry[]) => {
     hooks: data.hooks.length,
     pluginScripts: data.pluginScripts.length,
     checks: checks.length,
+    guardChecks: checks.filter(({ number }) => guardNumbers.includes(number)).length,
+    standaloneChecks: checks.filter(({ number }) => !guardNumbers.includes(number)).length,
     rules: [...data.skills, ...data.agents, ...data.commands].reduce((sum, { rules }) => sum + (rules ?? 0), 0),
     ...tiers,
   };
@@ -155,7 +157,7 @@ export const commandsPage = (commands: Command[]): Page => {
     source: GENERATOR_SOURCE,
     body: [
       `<h1>Commands</h1>`,
-      `<p class="lead">The plugin ships ${commands.length} commands. Each command limits the tools it may use.</p>`,
+      `<p class="lead">The plugin ships ${commands.length} commands. A command can limit the tools it may use.</p>`,
       ...commands.map((command) => instructionSection("command", command, [["Allowed tools", command.allowedTools ? `<code>${escapeHtml(command.allowedTools)}</code>` : NO_VALUE]])),
     ].join("\n"),
   };
@@ -202,18 +204,18 @@ export const pluginScriptsPage = (scripts: PluginScript[]): Page => {
   };
 };
 
-export const checksPage = (checks: CheckEntry[], warnOnly: number[]): Page => {
+export const checksPage = (checks: CheckEntry[], warnOnly: number[], guardNumbers: number[]): Page => {
   assert(Array.isArray(checks), `the checks page lists checks, got ${typeof checks}; pass the registry rows.`);
   assert(warnOnly.every((number) => checks.some((check) => check.number === number)), `every warn-only check needs a registry row, got ${JSON.stringify(warnOnly)} against ${JSON.stringify(checks.map(({ number }) => number))}; fix the guard sections or the registry.`);
   assert(new Set(checks.map(({ number }) => number)).size === checks.length, `check numbers must be unique, got ${JSON.stringify(checks.map(({ number }) => number))}; renumber the repeat.`);
   return {
     path: "ci-checks.html",
     title: "CI checks",
-    summary: "Every numbered check of the consistency guard, with its rule, its fix and a real message.",
+    summary: "Every numbered CI check, with its rule, its fix and a real message.",
     source: GENERATOR_SOURCE,
     body: [
       `<h1>CI checks</h1>`,
-      `<p class="lead">The consistency guard runs ${checks.length} numbered checks. Each one turns a past mistake into a rule that a script enforces.</p>`,
+      `<p class="lead">CI runs ${checks.length} numbered checks: ${checks.filter(({ number }) => guardNumbers.includes(number)).length} inside the consistency guard and ${checks.filter(({ number }) => !guardNumbers.includes(number)).length} standalone scripts. Each one is a rule that a script enforces.</p>`,
       `<p>The registry has no severity field. The page reads severity from the guard source.</p>`,
       `<div class="callout"><p>Most checks fail the pull request. ${warnOnly.length === 0 ? "No check only warns." : `These checks only warn: ${warnOnly.join(", ")}.`}</p></div>`,
       `<h2 id="checks">All checks</h2>`,
@@ -237,7 +239,7 @@ export const evalTiersPage = (data: SiteData): Page => {
       `<p class="lead">Each skill carries one stamp. The stamp says how the skill was last proven.</p>`,
       `<h2 id="tiers">The three tiers</h2>`,
       table(["Tier", "Skills", "Meaning"], [
-        ['<span class="tier tier-live">live</span>', String(tierCounts.live), "A real model session ran the scenarios of the skill. A person paid for that run."],
+        ['<span class="tier tier-live">live</span>', String(tierCounts.live), "A real model session ran the scenarios of the skill. Such a run costs money."],
         ['<span class="tier tier-static">static</span>', String(tierCounts.static), "No model ran. The scripts, the lint and the rule anchors of the skill all passed."],
         ['<span class="tier tier-waived">waived</span>', String(tierCounts.waived), "A person waived the eval and wrote down the reason."],
       ]),
@@ -250,7 +252,8 @@ export const evalTiersPage = (data: SiteData): Page => {
 
 export const buildPages = (root: string, data: SiteData, checks: CheckEntry[]): Page[] => {
   assert(checks.length > 0, `the checks page needs registry rows, got none; pass the registry.`);
-  const variables = siteVariables(data, checks);
+  const guardNumbers = guardSectionNumbers(root);
+  const variables = siteVariables(data, checks, guardNumbers);
   const scriptPages = new Map(data.pluginScripts.map((script) => [script.path, `plugin-scripts.html#script-${script.name}`]));
   const handWritten = HAND_WRITTEN_PAGES.map(({ fragment, path, title, summary }): Page => {
     const source = `${FRAGMENTS_DIRECTORY}/${fragment}`;
@@ -265,7 +268,7 @@ export const buildPages = (root: string, data: SiteData, checks: CheckEntry[]): 
     commandsPage(data.commands),
     hooksPage(data.hooks),
     pluginScriptsPage(data.pluginScripts),
-    checksPage(checks, warnOnlyChecks(root)),
+    checksPage(checks, warnOnlyChecks(root), guardNumbers),
     evalTiersPage(data),
   ];
 };

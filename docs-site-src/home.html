@@ -7,10 +7,10 @@
 <p>The plugin has no client baked in. Your repository supplies the client facts in its <code>CLAUDE.md</code>. The facts cover the tracker, the commit convention and the verify command.</p>
 
 <h2 id="why">Why it is different</h2>
-<p>Most agent setups rely on prompts. A prompt is a request, and a model can ignore a request.</p>
+<p>A prompt is a request, and a model can ignore a request.</p>
 <p>gated-delivery moves the rules into the repository. A hook, a script or a CI check enforces each rule. Enforcement does not depend on the memory of a model.</p>
 <ul class="cards">
-  <li><strong>Deterministic rules.</strong> The consistency guard runs {{checks}} numbered checks on every pull request.</li>
+  <li><strong>Deterministic rules.</strong> CI runs {{checks}} numbered checks: {{guardChecks}} inside the consistency guard and {{standaloneChecks}} standalone scripts.</li>
   <li><strong>Rules that can fail.</strong> A mutation score shows that deleting a rule line gets caught.</li>
   <li><strong>Honest evidence.</strong> The plugin holds {{tiers.static}} static stamps and {{tiers.live}} live stamps. The site says so openly.</li>
 </ul>
@@ -27,10 +27,10 @@ claude plugin marketplace add andrey1souza/gated-delivery
 <p>Install at user scope. Then run <code>/reload-plugins</code> so the agents register in the running session.</p>
 
 <h2 id="demo">See a gate fail</h2>
-<p>A skill never trusts a draft by eye. It runs a script. The script below checks a story draft.</p>
+<p>The issue-writing skill lints a ticket draft with a script before it shows the draft. The script below checks a story draft.</p>
 <p>The draft lacks two sections. The build ran the script on that draft and captured the output below.</p>
 <x-demo name="ticket-lint"/>
-<p>The script exits with code 1. A skill reads that code and stops. It does not guess.</p>
+<p>The script exits with code 1. The skill documents that code as errors to fix.</p>
 
 <h2 id="next">Where to go next</h2>
 <ul>

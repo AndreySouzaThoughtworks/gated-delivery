@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { collectSiteData } from "./data.ts";
+import { collectSiteData, guardSectionNumbers } from "./data.ts";
 import { siteProblems, siteReport } from "./gates.ts";
 import type { SiteFiles, Sources } from "./gates.ts";
 import { layout } from "./html.ts";
@@ -44,7 +44,7 @@ export const buildSite = async (root: string, outDirectory: string, checks: Chec
     writeFileSync(join(outDirectory, page.path), layout(page, NAVIGATION));
   }
   const sources: Sources = Object.fromEntries(pages.map(({ path, source }) => [path, source]));
-  const variables = siteVariables(data, checks);
+  const variables = siteVariables(data, checks, guardSectionNumbers(root));
   const counts = COUNT_LABELS.map((label): [string, number] => [label, variables[label as keyof typeof variables]]);
   const fragments = fragmentFiles(root).map((file) => ({ file, text: readFileSync(join(root, file), "utf8") }));
   const files = readTree(outDirectory);

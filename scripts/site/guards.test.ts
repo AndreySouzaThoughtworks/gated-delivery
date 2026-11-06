@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { statedCountProblems } from "../audit/guide-freshness.ts";
 import { siteWiringProblems } from "../audit/site-wiring.ts";
 import { buildSite, main, readTree } from "./build.ts";
-import { collectSiteData, directoryNames, exitCodesOf, fieldsOf, headingsOf, hooksOf, inventoryOf, markdownNames, pluginScripts, readText, scoreMutations, scriptIndex, scriptsCalled, tierOf, usageOf, warnOnlyChecks } from "./data.ts";
+import { collectSiteData, directoryNames, exitCodesOf, fieldsOf, headingsOf, guardSectionNumbers, hooksOf, inventoryOf, markdownNames, pluginScripts, readText, scoreMutations, scriptIndex, scriptsCalled, tierOf, usageOf, warnOnlyChecks } from "./data.ts";
 import type { Agent, Command, Hook, PluginScript, SiteData, Skill } from "./data.ts";
 import { demoOutput, expandVariable, mistakeRows, renderFragment } from "./fragments.ts";
 import { coverageProblems, handTypedCountProblems, leakProblems, linkProblems, quotationProblems, renderedCountProblems, siteProblems, siteReport, structureProblems, styleProblems } from "./gates.ts";
@@ -119,8 +119,8 @@ const GUARDS: Guard[] = [
   ["markdownNames rejects a climbing folder", () => markdownNames(REPOSITORY, ".."), /must not climb out/],
   ["hooksOf rejects an empty root", () => hooksOf(""), /got an empty path/],
   ["hooksOf rejects an absent root", () => hooksOf(ABSENT), /must exist to read hooks/],
-  ["siteVariables rejects non-array skills", () => siteVariables({ ...DATA, skills: WRONG }, []), /must list skills/],
-  ["siteVariables rejects non-array checks", () => siteVariables(DATA, WRONG), /checks must be a list/],
+  ["siteVariables rejects non-array skills", () => siteVariables({ ...DATA, skills: WRONG }, [], []), /must list skills/],
+  ["siteVariables rejects non-array checks", () => siteVariables(DATA, WRONG, []), /checks must be a list/],
   ["evidenceRows rejects a fractional rule count", () => evidenceRows({ ...SKILL, rules: 1.5 }), /whole number or null/],
   ["evidenceRows rejects more kills than mutants", () => evidenceRows({ ...SKILL, mutation: { killed: 3, total: 2 } }), /cannot exceed all mutants/],
   ["evidenceTable rejects an empty path", () => evidenceTable({ ...SKILL, path: "" }), /names its source file/],
@@ -139,9 +139,11 @@ const GUARDS: Guard[] = [
   ["hooksPage rejects a hook with no file", () => hooksPage([{ event: "e" } as unknown as Hook]), /needs a file name/],
   ["pluginScriptsPage rejects a non-array", () => pluginScriptsPage(WRONG), /lists scripts/],
   ["pluginScriptsPage rejects a repeated name", () => pluginScriptsPage([SCRIPT, SCRIPT]), /script names must be unique/],
-  ["checksPage rejects a non-array", () => checksPage(WRONG, []), /lists checks/],
-  ["checksPage rejects a repeated number", () => checksPage([CHECK, CHECK], []), /check numbers must be unique/],
-  ["checksPage rejects a warn-only number with no row", () => checksPage([CHECK], [9]), /every warn-only check needs a registry row/],
+  ["checksPage rejects a non-array", () => checksPage(WRONG, [], []), /lists checks/],
+  ["checksPage rejects a repeated number", () => checksPage([CHECK, CHECK], [], []), /check numbers must be unique/],
+  ["checksPage rejects a warn-only number with no row", () => checksPage([CHECK], [9], []), /every warn-only check needs a registry row/],
+  ["guardSectionNumbers rejects an empty root", () => guardSectionNumbers(""), /got an empty path/],
+  ["guardSectionNumbers rejects a root with no guard", () => guardSectionNumbers(ABSENT), /to count the guard checks/],
   ["warnOnlyChecks rejects an empty root", () => warnOnlyChecks(""), /got an empty path/],
   ["warnOnlyChecks rejects a root with no guard", () => warnOnlyChecks(ABSENT), /to tell which checks only warn/],
   ["evalTiersPage rejects non-array skills", () => evalTiersPage({ ...DATA, skills: WRONG }), /lists skills/],

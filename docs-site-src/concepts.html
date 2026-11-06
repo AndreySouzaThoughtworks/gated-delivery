@@ -1,10 +1,10 @@
 <h1>Concepts</h1>
-<p class="lead">Five ideas explain the design. They also explain why the repository checks itself.</p>
+<p class="lead">These ideas explain the design. They also explain why the repository checks itself.</p>
 
 <h2 id="harden-the-codebase">Harden the codebase, not the agent</h2>
 <p>An agent forgets, drifts and guesses. A repository does not. So the repository holds the guardrails.</p>
 <p>Hooks, CI jobs and lint scripts run every time. They need no memory of earlier sessions.</p>
-<p>The plugin registers {{hooks}} hooks. The hooks run with no model call. They block only a narrow set of commands, as the hook page explains.</p>
+<p>The plugin registers {{hooks}} hooks. They run with no model call. One hook denies a small set of catastrophic shell commands. The other formats a file after an edit. The first is an accident guard, not a security boundary.</p>
 
 <h2 id="guidance-is-not-a-guardrail">Guidance is not a guardrail</h2>
 <p>A line in a prompt is a request. A model can ignore it. A script that exits with a non-zero code is a guardrail.</p>
@@ -18,7 +18,7 @@
 <p>A test then proves that the check can fail. A check that cannot fail proves nothing.</p>
 <p>The file <code>docs/mistakes-to-rules.md</code> records each mistake next to its rule and its test. Here is one real row.</p>
 <x-mistake match="assertion-density was switched off"/>
-<p>The consistency guard has {{checks}} numbered checks. The <a href="ci-checks.html">CI checks</a> page lists them all.</p>
+<p>CI runs {{checks}} numbered checks: {{guardChecks}} inside the consistency guard and {{standaloneChecks}} standalone scripts. The <a href="ci-checks.html">CI checks</a> page lists them all.</p>
 
 <h2 id="static-and-live-evals">Static evals and live evals</h2>
 <p>A live eval runs a real model session. It shows what a model does with a skill. It costs money, so it runs only on request.</p>

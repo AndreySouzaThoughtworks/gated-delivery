@@ -10,7 +10,7 @@ import { SKILLS_INDEX } from "./pages.ts";
 import { balanceProblems, tagsOf } from "./markup.ts";
 
 const QUOTATION = /<blockquote class="quote" data-source="([^"]+)">\s*<p>([\s\S]*?)<\/p>[\s\S]*?<\/blockquote>/g;
-const HAND_TYPED_COUNT = /(\d+)\s+(skills|agents|commands|hooks|checks)\b/g;
+const HAND_TYPED_COUNT = /(\d+)\s+(?:numbered\s+)?(skills|agents|commands|hooks|checks)\b/g;
 const CHECK_CARD = /<article class="check-card"[\s\S]*?<\/article>/g;
 const TERMINAL_OUTPUT = /<x-(?:terminal|demo)\b[\s\S]*?(?:<\/x-terminal>|\/>)/g;
 const HEADING = /^h([1-6])$/;

@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { CHECKS } from "../audit/checks-registry.ts";
 import { statedCountProblems } from "../audit/guide-freshness.ts";
 import { buildSite, main } from "./build.ts";
-import { collectSiteData, exitCodesOf, frontmatter, scriptsCalled, usageOf } from "./data.ts";
+import { collectSiteData, exitCodesOf, guardSectionNumbers, frontmatter, scriptsCalled, usageOf } from "./data.ts";
 import type { SiteData } from "./data.ts";
 import { demoOutput, mistakeRows, renderFragment } from "./fragments.ts";
 import { coverageProblems, handTypedCountProblems, leakProblems, linkProblems, quotationProblems, renderedCountProblems, siteReport, structureProblems, styleProblems } from "./gates.ts";
@@ -63,6 +63,10 @@ test("the real registry renders every row, names the checks that only warn, and 
   assert.deepEqual(problems, [], `the real registry must build clean, got ${problems.join("; ")}`);
   const page = files.get("ci-checks.html") as string;
   for (const check of CHECKS) assert(page.includes(`id="check-${check.number}"`), `the checks page must hold a card for check ${check.number}`);
+  const [, total, guard, standalone] = /CI runs (\d+) numbered checks: (\d+) inside the consistency guard and (\d+) standalone/.exec(page) as RegExpExecArray;
+  assert.equal(Number(total), CHECKS.length, `the page must state the registry row count, got ${total}`);
+  assert.equal(Number(guard) + Number(standalone), CHECKS.length, `guard ${guard} and standalone ${standalone} checks must add up to ${CHECKS.length}`);
+  assert.equal(Number(guard), guardSectionNumbers(root).length, `the guard count must equal the sections of the guard source, got ${guard}`);
   assert.match(page, /These checks only warn: 7\./, "the page must name the check that only warns, read from the guard source");
   assert.match(page, /The registry has no severity field/, "the page must say that the registry has no severity field");
   assert.equal(await main(["--check"], mkdtempSync(join(tmpdir(), "site-no-registry-"))), 1, "a root with no registry must fail the build");
@@ -70,6 +74,7 @@ test("the real registry renders every row, names the checks that only warn, and 
 
 test("planted bad fragments each fail the build with the page, the rule and the fix", async () => {
   const cases: [string, string, RegExp][] = [
+    ["a hand-typed check count", `<p>CI runs 40 numbered checks.</p>`, /docs-site-src\/home\.html types the count "40 numbered checks" by hand\. Rule: .* Fix: write \{\{checks\}\}/],
     ["a hand-typed count", `<p>We ship 5 skills.</p>`, /docs-site-src\/home\.html types the count "5 skills" by hand\. Rule: .* Fix: write \{\{skills\}\}/],
     ["a long sentence", `<p>${LONG_SENTENCE}</p>`.repeat(30), /index\.html has \d+% of its \d+ sentences .* Fix: edit docs-site-src\/home\.html/],
     ["a dead link", `<p><a href="nowhere.html">gone</a></p>`, /index\.html:\d+ links to nowhere\.html, but nowhere\.html is not a page of the site\. Rule: .* Fix:/],

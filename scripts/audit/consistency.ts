@@ -10,6 +10,7 @@ import { join, resolve, sep } from "node:path";
 import { BASE_REF_ENV, changedPaths, changedSkills, fileAtBase, stampStatus, waiverReason } from "../eval/changed-skills.ts";
 import { parseChecks, scenarioIds } from "../eval/run-checks.ts";
 import { BASELINE_FILE, UPDATE_COMMAND, budgetProblems, measureBudgets, readBaseline } from "./token-budget/budget.ts";
+import { AUDIT_WORKFLOW, liveOptInProblems, workflowParityProblems } from "./ci-parity.ts";
 import { UNINVENTORIED_FILES_ARE_ERRORS, checkRuleInventories } from "./rule-inventory.ts";
 
 const ROOT = process.cwd();
@@ -104,15 +105,24 @@ for (const p of marketplace.plugins ?? []) {
   if (!existsSync(manifest)) errors.push(`marketplace plugin "${p.name}": source "${p.source}" has no .claude-plugin/plugin.json`);
 }
 
-// --- 5. README inventory counts match reality ---
-const readme = read(join(ROOT, "README.md"));
-for (const [label, actual] of [
+// --- 5. Inventory counts in the docs match reality, and a missing count fails ---
+const REQUIRED_INVENTORY_DOCS = ["README.md"];
+const OPTIONAL_INVENTORY_DOCS = ["docs/development.md"];
+const inventory = [
   ["skills", skills.length],
   ["agents", agents.length],
   ["hooks", hookFiles.size],
-]) {
-  const m = readme.match(new RegExp(`(\\d+)\\s+${label}\\b`));
-  if (m && Number(m[1]) !== actual) errors.push(`README says "${m[1]} ${label}", actual is ${actual}`);
+  ["commands", commands.length],
+] as const;
+const countedInventory = inventory.filter(([label, actual]) => label !== "commands" || actual > 0);
+const inventoryDocs = [...REQUIRED_INVENTORY_DOCS, ...OPTIONAL_INVENTORY_DOCS.filter((doc) => existsSync(join(ROOT, doc)))];
+for (const doc of inventoryDocs) {
+  const text = read(join(ROOT, doc));
+  for (const [label, actual] of countedInventory) {
+    const stated = text.match(new RegExp(`(\\d+)\\s+${label}\\b`));
+    if (!stated) errors.push(`${doc} does not state how many ${label} ship, and there are ${actual}. Hint: write the count as digits, for example "${actual} ${label}"; a number written as a word is not read.`);
+    else if (Number(stated[1]) !== actual) errors.push(`${doc} says "${stated[1]} ${label}", actual is ${actual}. Hint: change it to "${actual} ${label}".`);
+  }
 }
 
 // --- 6. Every skill/agent is documented in the canonical inventory ---
@@ -781,6 +791,13 @@ if (existsSync(join(ROOT, TOKEN_BUDGET_SCRIPT))) {
   if (tokenBaseline === null) errors.push(`${BASELINE_FILE} is missing. Hint: run ${UPDATE_COMMAND}.`);
   else errors.push(...budgetProblems(measureBudgets(ROOT), tokenBaseline));
 }
+
+// --- 29. The audit workflow runs the consistency steps in one matrix job, under the names branch protection requires ---
+const auditWorkflowPath = join(ROOT, AUDIT_WORKFLOW);
+if (existsSync(auditWorkflowPath)) errors.push(...workflowParityProblems(read(auditWorkflowPath)));
+
+// --- 30. A test that launches a real claude -p session refuses to run without the explicit opt-in ---
+errors.push(...liveOptInProblems(ROOT));
 
 // --- report ---
 console.log(

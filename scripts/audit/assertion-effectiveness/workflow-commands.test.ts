@@ -22,6 +22,10 @@ const NOT_TEST_COMMANDS = [
   "node --test plugin/hooks/*.test.mjs plugin/bootstrap/*.test.mjs plugin/bootstrap/guards/*.test.mjs plugin/scripts/*.test.mjs",
   "bash tests/leak-guard.test.sh",
   "bash tests/slice-scripts.test.sh",
+  "bash tests/live-opt-in.test.sh",
+  "bash tests/install-gitleaks.test.sh",
+  "bash scripts/ci/install-gitleaks.sh",
+  "bash tests/pre-push.test.sh",
 ];
 
 test("workflowRunCommands reads inline and block scalar run steps, and ignores other keys", () => {

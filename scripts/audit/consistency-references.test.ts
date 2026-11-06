@@ -105,6 +105,7 @@ test("a relative path from a skill that resolves stays silent", () => {
 test("a command is a local name, invoked with or without the plugin prefix", () => {
   const dir = validRepo();
   write(dir, "plugin/commands/ship.md", "---\ndescription: ship it\n---\n");
+  write(dir, "README.md", "The plugin — 1 skills, 1 agents, 1 hooks, 1 commands.\n\n[MIT](LICENSE)\n");
   write(dir, "plugin/skills/alpha/SKILL.md", "---\nname: alpha\ndescription: x\n---\n\n## Heading One\n\nRun `/ship`, or `/gated-delivery:ship`.\n");
   const { code, out } = runGuard(dir);
   assert.equal(code, 0, out);
@@ -163,6 +164,7 @@ test("a manifest description naming a skill that does not exist is reported", ()
 test("a manifest description naming only real skills, commands and paths stays silent", () => {
   const dir = validRepo();
   write(dir, "plugin/commands/ship.md", "---\ndescription: ship it\n---\n");
+  write(dir, "README.md", "The plugin — 1 skills, 1 agents, 1 hooks, 1 commands.\n\n[MIT](LICENSE)\n");
   write(
     dir,
     "plugin/.claude-plugin/plugin.json",

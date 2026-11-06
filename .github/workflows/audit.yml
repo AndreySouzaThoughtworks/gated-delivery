@@ -26,8 +26,16 @@ jobs:
           args: check . --baseline zanity-baseline.json --new-only --agent --fail-on warning --strict
 
   consistency:
-    name: consistency
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: consistency
+            node-version: 22
+          - name: node 26
+            node-version: 26
     env:
       GATED_DELIVERY_BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
     steps:
@@ -37,7 +45,11 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 22
+          node-version: ${{ matrix.node-version }}
+      - name: Install dev dependencies
+        run: npm ci
+      - name: Type check
+        run: npx tsc --noEmit
       - name: Plugin consistency
         run: node scripts/audit/consistency.ts
       - name: Suppression guard
@@ -59,10 +71,31 @@ jobs:
         run: node --test plugin/scripts/*.test.mjs
       - name: Eval checks are runnable
         run: node scripts/eval/run-checks.ts --lint
+      - name: Verify-command resolver tests
+        run: node --test scripts/*.test.ts
+      - name: Spec lint accepts the known-good spec
+        run: node plugin/skills/spec/scripts/spec-lint.mjs scripts/audit/fixtures/valid-spec.md
+      - name: Deskcheck lint accepts the known-good page
+        run: node plugin/skills/deskcheck/scripts/deskcheck-lint.mjs scripts/audit/fixtures/deskcheck/valid.html
+      - name: Guardrail scan accepts the issue-writing templates and examples
+        run: |
+          for file in plugin/skills/issue-writing/templates/*.md plugin/skills/issue-writing/examples/*.md; do
+            node plugin/skills/issue-writing/scripts/guardrail-scan.mjs "$file"
+          done
       - name: Leak guard self-test
         run: bash tests/leak-guard.test.sh
       - name: Slice worktree and verify-lock tests
         run: bash tests/slice-scripts.test.sh
+      - name: Live-test opt-in guard
+        run: bash tests/live-opt-in.test.sh
+      - name: Gitleaks installer rejects a wrong checksum
+        run: bash tests/install-gitleaks.test.sh
+      - name: Install gitleaks at the pinned release
+        env:
+          GITLEAKS_INSTALL_DIR: ${{ runner.temp }}/gitleaks-bin
+        run: bash scripts/ci/install-gitleaks.sh
+      - name: Pre-push hook tests
+        run: bash tests/pre-push.test.sh
 
   guardrail-scripts:
     name: guardrail scripts
@@ -100,49 +133,6 @@ jobs:
         run: npm ci
       - name: Type check
         run: npx tsc --noEmit
-
-  node-26:
-    name: node 26
-    runs-on: ubuntu-latest
-    env:
-      GATED_DELIVERY_BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 26
-      - name: Install dev dependencies
-        run: npm ci
-      - name: Type check
-        run: npx tsc --noEmit
-      - name: Plugin consistency
-        run: node scripts/audit/consistency.ts
-      - name: Suppression guard
-        run: node scripts/audit/suppressions.ts
-      - name: JSDoc holds types only
-        run: node scripts/audit/jsdoc-types-only.ts
-      - name: No history comments in source
-        run: node scripts/audit/comments.ts
-      - name: Zanity baseline only shrinks
-        if: github.event_name == 'pull_request'
-        run: node plugin/bootstrap/guards/ratchet.mjs --baseline zanity-baseline.json --base-ref "$GATED_DELIVERY_BASE_REF"
-      - name: Hook behaviour tests
-        run: node --test plugin/hooks/*.test.mjs
-      - name: Script tests (the guard and the eval runner)
-        run: node --test scripts/audit/*.test.ts scripts/eval/*.test.ts scripts/cursor/*.test.ts
-      - name: Bootstrap and client guard tests
-        run: node --test plugin/bootstrap/*.test.mjs plugin/bootstrap/guards/*.test.mjs
-      - name: Eval checks are runnable
-        run: node scripts/eval/run-checks.ts --lint
-      - name: Verify-command resolver tests
-        run: node --test scripts/*.test.ts
-      - name: Spec lint accepts the known-good spec
-        run: node plugin/skills/spec/scripts/spec-lint.mjs scripts/audit/fixtures/valid-spec.md
-      - name: Deskcheck lint accepts the known-good page
-        run: node plugin/skills/deskcheck/scripts/deskcheck-lint.mjs scripts/audit/fixtures/deskcheck/valid.html
 
   plugin-tests-old-node:
     name: node 18 and 20 plugin tests

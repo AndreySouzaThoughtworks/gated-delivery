@@ -1,0 +1,1 @@
+{ "script": "plugin/scripts/ticket-lint.mjs", "args": ["draft.md", "--kind", "story"] }

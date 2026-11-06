@@ -13,6 +13,7 @@ This repo is **both** the marketplace and the plugin. The marketplace manifest l
 | `.claude-plugin/marketplace.json` | Marketplace manifest. It points at `./plugin`. |
 | `docs/` | [guide](guide.html) · [onboarding](onboarding.md) · [skill-graph](skill-graph.md) · [evals](evals.md) · [exponential-engineering](exponential-engineering.md) · [mistakes-to-rules](mistakes-to-rules.md) · [client-context](../plugin/references/client-context.md) |
 | `scripts/` | `leak-guard.sh`, the consistency guard and its helpers (`audit/`), the eval tools (`eval/`), the Cursor adapters (`cursor/`) and CI helpers (`ci/`). |
+| `docs-site-src/`, `scripts/site/` | The hand-written site pages and the generator that builds the documentation site. |
 | `evals/` | `fixtures/` holds run directories for eval scenarios. `results/` holds one stamp or waiver per skill. `rules/` holds one rule inventory per instruction file. `token-budget.json` holds the token budgets. |
 | `tools/claude-code/` | The pinned `claude` CLI that the dormant CI evals job installs. |
 | `tests/` | Shell tests for the leak guard, the pre-push hook, the slice scripts, profile isolation and the live-test opt-in. Login-bound tests cover the commit commands, `code-reviewer` and `issue-writing`. |
@@ -97,6 +98,25 @@ When a file fails, the message lists the five longest sentences with line number
 ### The guide
 
 Check 34 (`scripts/audit/guide-freshness.ts`) keeps [`docs/guide.html`](guide.html) true. It fails when the guide is missing. It fails when the guide does not name every skill, agent and command under `plugin/`. It fails when the guide states a count of skills, agents, commands or hooks that differs from the real count. It fails when the README does not link the guide. It ignores counts inside `<pre>` blocks, because those blocks quote script output.
+
+### The documentation site
+
+`node scripts/site/build.ts` writes a static site to `docs-site/`. The folder is not committed. The script has no runtime dependency and runs under Node 22.18 or later.
+
+The generator reads the skills, agents, commands, hooks, plugin scripts, eval stamps, rule inventories, token budgets and the checks registry from disk. It never types a count or a name by hand. The hand-written pages are fragments in `docs-site-src/`. A fragment gets its numbers from variables such as `{{skills}}`.
+
+Run `node scripts/site/build.ts --check` before you push. It builds into a temp folder and writes nothing to `docs-site/`. It fails with a file, a rule and a fix when a gate fails.
+
+- Every skill, agent, command, hook and plugin script appears on the site.
+- A fragment holds no hand-typed count of skills, agents, commands, hooks or checks.
+- Internal links and anchors resolve. Ids are unique. Every image has alt text. Headings do not skip a level. Each page has one h1.
+- The HTML is well formed.
+- The output holds no local path, no email address except a noreply one, and no token.
+- At least 80% of the sentences of each page have 20 words or fewer. A quotation block that equals its source file byte for byte is left out of that share.
+
+The CI checks page reads the registry through `checksRegistry()`. The build fails when that module is missing. The page names the checks that only warn, because the registry has no severity field. It reads that from the guard source.
+
+The `consistency` job runs the site check. `node scripts/audit/site-wiring.ts` fails when the build script or that CI step is missing.
 
 ## Token budget
 

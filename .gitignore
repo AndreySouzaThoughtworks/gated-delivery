@@ -7,3 +7,6 @@ node_modules/
 # Claude Code state that `claude plugin` commands can drop into the current folder.
 backups/
 policy-limits.json*
+
+# Generated documentation site (node scripts/site/build.ts).
+docs-site/

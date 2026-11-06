@@ -7,7 +7,7 @@
 import assert from "node:assert";
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
-import { BASE_REF_ENV, changedPaths, changedSkills, fileAtBase, stampStatus, waiverReason } from "../eval/changed-skills.ts";
+import { BASE_REF_ENV, changedSkills, stampStatus, waiverReason } from "../eval/changed-skills.ts";
 import { parseChecks, scenarioIds } from "../eval/run-checks.ts";
 import { BASELINE_FILE, UPDATE_COMMAND, budgetProblems, measureBudgets, readBaseline } from "./token-budget/budget.ts";
 import { AUDIT_WORKFLOW, liveOptInProblems, workflowParityProblems } from "./ci-parity.ts";
@@ -532,16 +532,13 @@ for (const hook of hookFiles) {
   if (!skillGraph.includes(hook)) errors.push(`hook "${hook}" is not documented in docs/skill-graph.md. Hint: add a row naming it and what it does.`);
 }
 
-// --- 15. The two manifests carry one version ---
-// plugin.json and marketplace.json each state a version; a release that bumps one leaves installs
-// resolving different versions depending on the path they came through.
-const manifestVersions = [
-  ["plugin/.claude-plugin/plugin.json", existsSync(pluginManifest) ? JSON.parse(read(pluginManifest)).version : undefined],
-  [".claude-plugin/marketplace.json", marketplace.metadata?.version],
-].filter(([, version]) => version !== undefined);
-if (new Set(manifestVersions.map(([, version]) => version)).size > 1) {
-  errors.push(`manifest versions disagree: ${manifestVersions.map(([file, version]) => `${file} says ${version}`).join(", ")}. Hint: bump both in the same commit.`);
-}
+// --- 15. The marketplace manifest pins no version ---
+// A pinned version freezes installed copies until someone changes it. Without one, Claude Code
+// uses the commit SHA, so every commit is a new version.
+const MARKETPLACE_FILE = ".claude-plugin/marketplace.json";
+const PINNED_VERSION_RULE = `carries a version. A pinned version freezes installed copies until someone changes it. Hint: delete the "version" field; users then get every commit.`;
+const marketplaceVersions = [marketplace.metadata?.version, ...(marketplace.plugins ?? []).map((p: { version?: string }) => p.version)];
+if (marketplaceVersions.some((version) => version !== undefined)) errors.push(`${MARKETPLACE_FILE} ${PINNED_VERSION_RULE}`);
 
 // --- 16. Every GATED_DELIVERY_ variable the code reads is documented ---
 // A knob nobody can find is not a knob: run-scenarios once read a variable that
@@ -633,26 +630,10 @@ if (baseRef) {
   }
 }
 
-// --- 19. A change to shipped plugin files against the base ref carries a version bump ---
-// Installs cache the plugin by version. Behaviour merged under an unchanged version never reaches an
-// install, and a hook deleted from main keeps firing from the cached copy and fails every Stop event
-// with MODULE_NOT_FOUND.
-const PLUGIN_PREFIX = "plugin/";
-const VERSION_FILE = "plugin/.claude-plugin/plugin.json";
-const TEST_FILE_NAME = /\.test\.[^/]+$/;
-const MAX_NAMED_FILES = 3;
-if (baseRef) {
-  const shipped = [...changedPaths(ROOT, baseRef)]
-    .filter((path) => path.startsWith(PLUGIN_PREFIX) && path !== VERSION_FILE && !TEST_FILE_NAME.test(path))
-    .sort();
-  const versionAtBase = JSON.parse(fileAtBase(ROOT, baseRef, VERSION_FILE) ?? "{}").version;
-  const versionNow = existsSync(pluginManifest) ? JSON.parse(read(pluginManifest)).version : undefined;
-  if (shipped.length && versionAtBase !== undefined && versionAtBase === versionNow) {
-    const named = shipped.slice(0, MAX_NAMED_FILES).join(", ");
-    const more = shipped.length > MAX_NAMED_FILES ? ` and ${shipped.length - MAX_NAMED_FILES} more` : "";
-    errors.push(`plugin files changed (${named}${more}) but the version is still ${versionNow}. Installs cache the plugin by version, so they never receive these changes. Hint: bump the version in ${VERSION_FILE} and .claude-plugin/marketplace.json in this PR`);
-  }
-}
+// --- 19. The plugin manifest pins no version ---
+// Same rule as check 15, for the plugin manifest.
+const PLUGIN_MANIFEST_FILE = "plugin/.claude-plugin/plugin.json";
+if (existsSync(pluginManifest) && JSON.parse(read(pluginManifest)).version !== undefined) errors.push(`${PLUGIN_MANIFEST_FILE} ${PINNED_VERSION_RULE}`);
 
 // --- 20. Shipped plugin code imports no TypeScript file ---
 const PLUGIN_SCRIPT_EXTENSIONS = [".mjs", ".js", ".cjs", ".ts", ".mts", ".cts"];

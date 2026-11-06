@@ -4,8 +4,7 @@
     "name": "Andrey Souza"
   },
   "metadata": {
-    "description": "Client-neutral AI-assisted delivery flow.",
-    "version": "0.10.24"
+    "description": "Client-neutral AI-assisted delivery flow."
   },
   "plugins": [
     {

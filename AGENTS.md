@@ -9,7 +9,7 @@ This file is the one source of the repo rules for every agent (Claude Code, Curs
 - Never raise `zanity-baseline.json`, loosen `zanity.toml`, or add a suppression without a reason (`scripts/audit/suppressions.ts`). Fix the code.
 - Only the `scout` agent pins a `model:`, and it pins `haiku`; every other agent inherits the session model. Consistency check 26 enforces this.
 - Every fixed mistake becomes a deterministic rule with a test, recorded in `docs/mistakes-to-rules.md`. A line of prose is not a fix.
-- Every non-test file you change under `plugin/` needs a version bump in `plugin/.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` (consistency check 19). Prefer putting new tooling outside `plugin/`, which ships to client installs.
+- Never add a `version` field to `plugin/.claude-plugin/plugin.json` or `.claude-plugin/marketplace.json` (consistency checks 15 and 19). Without one, Claude Code uses the commit SHA, so every commit is a new version and nobody bumps anything. Prefer putting new tooling outside `plugin/`, which ships to client installs.
 
 ## Git and publishing
 

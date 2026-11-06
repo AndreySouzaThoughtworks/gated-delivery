@@ -5,7 +5,7 @@ import { join } from "node:path";
 
 import { write, validRepo, runGuard } from "../test-support/consistency-fixtures.test.support.ts";
 
-const MODEL_POLICY_HINT = /only the scout pins a model; every other agent inherits the session model/;
+const MODEL_POLICY_HINT = /pin a model only on the scout, since every other agent inherits the session model/;
 
 const writeAgent = (dir: string, name: string, modelLine: string) => {
   assert(modelLine === "" || modelLine.endsWith("\n"), `a model line must end with a newline or be empty, got ${JSON.stringify(modelLine)}`);

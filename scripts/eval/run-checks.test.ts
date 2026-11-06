@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 import { basename, join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseChecks, parseExpect, runCheck, scenarioIds } from "./run-checks.ts";
+import { assertActionable } from "../test-support/actionable.test.support.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, "..", "..");
@@ -262,6 +263,14 @@ const repoWith = (skill: string, evalsBody: string) => {
   return dir;
 };
 
+const PROBLEM_INDENT = / {9}\S/;
+const problemsIn = (out: string) => {
+  assert(typeof out === "string", `the lint output must be text, got ${typeof out}`);
+  const problems = out.split("\n").filter((line) => PROBLEM_INDENT.test(line)).map((line) => line.trim());
+  assert(problems.length > 0, `the lint output must hold an indented problem line, got ${JSON.stringify(out)}`);
+  return problems;
+};
+
 const cli = (cwd: string, args: string[]) => {
   assert(existsSync(cwd), `cli ran in ${cwd}, which does not exist; expected an existing folder`);
   assert(args.length > 0, `cli got ${args.length} arguments; expected --lint or a skill and an output file`);
@@ -392,11 +401,21 @@ test("--lint rejects a malformed expect line and an unknown scenario id, and acc
   const red1 = cli(malformed, ["--lint"]);
   assert.equal(red1.code, 1);
   assert.match(red1.out, /malformed expect/);
+  problemsIn(red1.out).forEach(assertActionable);
 
   const unknown = repoWith("alpha", SCENARIO_TABLE + fence("# a\n# expect: >=1 on 1,7\ngrep -c a output.md"));
   const red2 = cli(unknown, ["--lint"]);
   assert.equal(red2.code, 1);
   assert.match(red2.out, /unknown scenario "7"/);
+  problemsIn(red2.out).forEach(assertActionable);
+
+  const repeated = repoWith("alpha", SCENARIO_TABLE + fence("# a\n# expect: >=1 on 1,1\ngrep -c a output.md"));
+  problemsIn(cli(repeated, ["--lint"]).out).forEach(assertActionable);
+
+  const twice = repoWith("alpha", SCENARIO_TABLE + fence("# a\n# expect: >=1 on 1\n# expect: >=1 on 1\ngrep -c a output.md"));
+  const twiceProblems = problemsIn(cli(twice, ["--lint"]).out);
+  assert(twiceProblems.some((problem) => problem.includes("named by two expect lines")), `a scenario named twice must be reported, got ${JSON.stringify(twiceProblems)}`);
+  twiceProblems.forEach(assertActionable);
 });
 
 const TOOL_USE_WRITE = '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Write","input":{"file_path":"/x/a.html"}}]}}\n';
@@ -487,4 +506,13 @@ test("--lint with a skill name lints only that skill and rejects a skill with no
   const ghost = cli(dir, ["--lint", "ghost"]);
   assert.equal(ghost.code, 1);
   assert.match(ghost.out, /BROKEN ghost: no evals.md to lint/);
+});
+
+test("--scenario names a broken check, quotes what it printed and says how to fix it", () => {
+  const dir = repoWith("alpha", SCENARIO_TABLE + fence("# Reads a missing file.\n# expect: >=1 on 1\nexit 3"));
+  const result = cli(dir, ["alpha", outputFile("a\n"), "--scenario", "1"]);
+  const [broken] = result.out.split("\n").filter((line) => line.includes("must run cleanly"));
+  assert(broken !== undefined, `a broken check must be reported, got ${JSON.stringify(result.out)}`);
+  assert.match(broken, /^check "Reads a missing file\." must run cleanly, but printed /);
+  assertActionable(broken);
 });

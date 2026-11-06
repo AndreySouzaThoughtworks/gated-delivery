@@ -1,0 +1,1221 @@
+{
+  "schema_version": 1,
+  "identity_version": 1,
+  "findings": [
+    {
+      "path": "plugin/hooks/lib/read-hook-input.mjs",
+      "rule": "not-actionable",
+      "message": "a hook payload must arrive on stdin, got ${} characters"
+    },
+    {
+      "path": "plugin/hooks/lib/read-hook-input.mjs",
+      "rule": "not-actionable",
+      "message": "a hook payload is a JSON object, got ${}"
+    },
+    {
+      "path": "plugin/scripts/batch-audit.mjs",
+      "rule": "not-actionable",
+      "message": "a diff must be text, got ${}"
+    },
+    {
+      "path": "plugin/scripts/batch-audit.mjs",
+      "rule": "not-actionable",
+      "message": "batch-audit: ${} ${}"
+    },
+    {
+      "path": "plugin/scripts/executor-preflight.mjs",
+      "rule": "not-actionable",
+      "message": "Relevant files"
+    },
+    {
+      "path": "plugin/scripts/executor-preflight.mjs",
+      "rule": "not-actionable",
+      "message": "executor-preflight: ${} ${}"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "the timestamp source must be a Date, got ${}"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "the timestamp source must be a valid date"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "the text to split must be a string, got ${}"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "the heading prefix must be ${} or ${}, got ${}"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "the head must be a string, got ${}"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "every part needs a markdown heading"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "${} is not a Resume heading"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "the parts must be a list, got ${}"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "${} is not a Resume heading"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "only one actor's own block resolves by Updated, got ${} and ${}"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "${} needs a valid \"Updated:\" line in both files to pick the later one"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "${} differs between the files but both say Updated: ${}"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "ours must be a string, got ${}"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "theirs must be a string, got ${}"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "the text under ${} before its first entry differs"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "ours must be a string, got ${}"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "theirs must be a string, got ${}"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "the text before the first section differs"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "${} ${}; only Resume blocks and Carry forward entries merge"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "the actor must be one non-empty line, got ${}"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "the slice must be a number, got ${}"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "--${} is required"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "--${} must be one line"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "--ours, --theirs and --out are all required"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "both input files must exist, got ${} and ${}"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "--dir, --outcome-file and --spec are all required"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "${} does not exist; there is no handoff to close"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "${} is empty; the outcome is written by the model before closing"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "${} needs frontmatter with a status: line"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "unknown subcommand ${}"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "handoff: STOP and ask the user: ${}"
+    },
+    {
+      "path": "plugin/scripts/handoff.mjs",
+      "rule": "not-actionable",
+      "message": "handoff: ${}${}"
+    },
+    {
+      "path": "plugin/scripts/notes-repo.mjs",
+      "rule": "not-actionable",
+      "message": "${} ${} failed: ${}"
+    },
+    {
+      "path": "plugin/scripts/notes-repo.mjs",
+      "rule": "not-actionable",
+      "message": "git merge ${} failed without a conflict: ${}"
+    },
+    {
+      "path": "plugin/scripts/notes-repo.mjs",
+      "rule": "not-actionable",
+      "message": "no notes checkout: set ${}, pass --repo-name <owner/name>, or pass --in-repo when the notes live in the repository being changed"
+    },
+    {
+      "path": "plugin/scripts/notes-repo.mjs",
+      "rule": "not-actionable",
+      "message": "${} is not a git checkout"
+    },
+    {
+      "path": "plugin/scripts/notes-repo.mjs",
+      "rule": "not-actionable",
+      "message": "STOP: the notes checkout ${} must be clean and on ${}; it is on ${} and ${}"
+    },
+    {
+      "path": "plugin/scripts/notes-repo.mjs",
+      "rule": "not-actionable",
+      "message": "--path <checkout> is required"
+    },
+    {
+      "path": "plugin/scripts/notes-repo.mjs",
+      "rule": "not-actionable",
+      "message": "--file needs at least one path, got ${}; publishing stages named files only"
+    },
+    {
+      "path": "plugin/scripts/notes-repo.mjs",
+      "rule": "not-actionable",
+      "message": "--message <text> is required"
+    },
+    {
+      "path": "plugin/scripts/notes-repo.mjs",
+      "rule": "not-actionable",
+      "message": "${} is not a git checkout"
+    },
+    {
+      "path": "plugin/scripts/notes-repo.mjs",
+      "rule": "not-actionable",
+      "message": "${} is a directory; name each file, since a directory stages everything under it"
+    },
+    {
+      "path": "plugin/scripts/notes-repo.mjs",
+      "rule": "not-actionable",
+      "message": "STOP: the notes checkout ${} is on ${}, not ${}; nothing was committed or pushed"
+    },
+    {
+      "path": "plugin/scripts/notes-repo.mjs",
+      "rule": "not-actionable",
+      "message": "unknown subcommand ${}"
+    },
+    {
+      "path": "plugin/scripts/notes-repo.mjs",
+      "rule": "not-actionable",
+      "message": "notes-repo: ${}${}"
+    },
+    {
+      "path": "plugin/scripts/pr-gate.mjs",
+      "rule": "not-actionable",
+      "message": "pr-gate: ${} ${}"
+    },
+    {
+      "path": "plugin/scripts/primer-lint.mjs",
+      "rule": "not-actionable",
+      "message": "the page must be text, got ${}"
+    },
+    {
+      "path": "plugin/scripts/primer-lint.mjs",
+      "rule": "not-actionable",
+      "message": "the template must hold a <style> block to compare against, got ${}"
+    },
+    {
+      "path": "plugin/scripts/primer-lint.mjs",
+      "rule": "not-actionable",
+      "message": "expected one page to lint, got ${}"
+    },
+    {
+      "path": "plugin/scripts/primer-lint.mjs",
+      "rule": "not-actionable",
+      "message": "--template needs a path, got ${}"
+    },
+    {
+      "path": "plugin/scripts/primer-lint.mjs",
+      "rule": "not-actionable",
+      "message": "primer-lint: ${} ${}"
+    },
+    {
+      "path": "plugin/scripts/slice-claim.mjs",
+      "rule": "not-actionable",
+      "message": "slice-claim: ${} ${}"
+    },
+    {
+      "path": "plugin/scripts/slice-claim.mjs",
+      "rule": "not-actionable",
+      "message": "slice-claim: ${}"
+    },
+    {
+      "path": "plugin/scripts/slice-cleanup.mjs",
+      "rule": "not-actionable",
+      "message": "slice-cleanup: ${} ${}"
+    },
+    {
+      "path": "plugin/scripts/slice-cleanup.mjs",
+      "rule": "not-actionable",
+      "message": "slice-cleanup: ${}"
+    },
+    {
+      "path": "plugin/scripts/slice-git.mjs",
+      "rule": "not-actionable",
+      "message": "git needs an absolute repository path, got ${}"
+    },
+    {
+      "path": "plugin/scripts/slice-git.mjs",
+      "rule": "not-actionable",
+      "message": "git needs a subcommand, got ${}"
+    },
+    {
+      "path": "plugin/scripts/slice-git.mjs",
+      "rule": "not-actionable",
+      "message": "gh needs an absolute repository path, got ${}"
+    },
+    {
+      "path": "plugin/scripts/slice-git.mjs",
+      "rule": "not-actionable",
+      "message": "gh output is only parsed as JSON when asked for it, got ${}"
+    },
+    {
+      "path": "plugin/scripts/slice-git.mjs",
+      "rule": "not-actionable",
+      "message": "--ticket must be a tracker key such as PROJ-123, got ${}"
+    },
+    {
+      "path": "plugin/scripts/slice-git.mjs",
+      "rule": "not-actionable",
+      "message": "--actor must be a handle such as alice or alice@laptop, got ${}"
+    },
+    {
+      "path": "plugin/scripts/slice-git.mjs",
+      "rule": "not-actionable",
+      "message": "the ticket must be a tracker key before it joins a branch pattern, got ${}"
+    },
+    {
+      "path": "plugin/scripts/slice-git.mjs",
+      "rule": "not-actionable",
+      "message": "the repository must be an absolute path, got ${}"
+    },
+    {
+      "path": "plugin/scripts/slice-state.mjs",
+      "rule": "not-actionable",
+      "message": "every --spec path must be a file, got ${}"
+    },
+    {
+      "path": "plugin/scripts/slice-state.mjs",
+      "rule": "not-actionable",
+      "message": "Rollout slice headings must read \"### Slice <n> — <ACs> — exposure: <kind>\", got ${}"
+    },
+    {
+      "path": "plugin/scripts/slice-state.mjs",
+      "rule": "not-actionable",
+      "message": "gh pr list must print a JSON array, got ${}"
+    },
+    {
+      "path": "plugin/scripts/slice-state.mjs",
+      "rule": "not-actionable",
+      "message": "every PR needs a head branch and a state, got ${}"
+    },
+    {
+      "path": "plugin/scripts/slice-state.mjs",
+      "rule": "not-actionable",
+      "message": "every wave member must be a known slice, got waves ${} for slices ${}"
+    },
+    {
+      "path": "plugin/scripts/slice-state.mjs",
+      "rule": "not-actionable",
+      "message": "a merged slice must have no holder, got ${}"
+    },
+    {
+      "path": "plugin/scripts/slice-state.mjs",
+      "rule": "not-actionable",
+      "message": "--repo must be an existing directory, got ${}"
+    },
+    {
+      "path": "plugin/scripts/slice-state.mjs",
+      "rule": "not-actionable",
+      "message": "--notes-repo must be an existing directory, got ${}"
+    },
+    {
+      "path": "plugin/scripts/slice-state.mjs",
+      "rule": "not-actionable",
+      "message": "slice-state: ${} ${}"
+    },
+    {
+      "path": "plugin/scripts/slice-state.mjs",
+      "rule": "not-actionable",
+      "message": "slice-state: ${}"
+    },
+    {
+      "path": "plugin/scripts/ticket-lint.mjs",
+      "rule": "not-actionable",
+      "message": "a draft must be text, got ${}"
+    },
+    {
+      "path": "plugin/scripts/ticket-lint.mjs",
+      "rule": "not-actionable",
+      "message": "a code fence opened and never closed, which hides every line after it from the lint; close the fence in a draft of ${} visible lines"
+    },
+    {
+      "path": "plugin/scripts/ticket-lint.mjs",
+      "rule": "not-actionable",
+      "message": "the kind must be one of ${}, got ${}"
+    },
+    {
+      "path": "plugin/scripts/ticket-lint.mjs",
+      "rule": "not-actionable",
+      "message": "priorityConfirmed must be a boolean when given, got ${}"
+    },
+    {
+      "path": "plugin/scripts/ticket-lint.mjs",
+      "rule": "not-actionable",
+      "message": "expected exactly one draft file, got ${}"
+    },
+    {
+      "path": "plugin/scripts/ticket-lint.mjs",
+      "rule": "not-actionable",
+      "message": "--kind is required, got ${}"
+    },
+    {
+      "path": "plugin/scripts/ticket-lint.mjs",
+      "rule": "not-actionable",
+      "message": "ticket-lint: ${} ${}"
+    },
+    {
+      "path": "plugin/scripts/verify-citations.mjs",
+      "rule": "not-actionable",
+      "message": "the scout output must be text, got ${}"
+    },
+    {
+      "path": "plugin/scripts/verify-citations.mjs",
+      "rule": "not-actionable",
+      "message": "verify-citations: ${} ${}"
+    },
+    {
+      "path": "plugin/skills/deskcheck/scripts/deskcheck-lint.mjs",
+      "rule": "not-actionable",
+      "message": "the page must be text, got ${}"
+    },
+    {
+      "path": "plugin/skills/deskcheck/scripts/deskcheck-lint.mjs",
+      "rule": "not-actionable",
+      "message": "the template must be text, got ${}"
+    },
+    {
+      "path": "plugin/skills/deskcheck/scripts/deskcheck-lint.mjs",
+      "rule": "not-actionable",
+      "message": "the page holds a <script> element; remove it, the page is static"
+    },
+    {
+      "path": "plugin/skills/deskcheck/scripts/deskcheck-lint.mjs",
+      "rule": "not-actionable",
+      "message": "the page loads a remote stylesheet, font or file (a link rel, @import or url(//...)); embed the CSS and assets in the file"
+    },
+    {
+      "path": "plugin/skills/deskcheck/scripts/deskcheck-lint.mjs",
+      "rule": "not-actionable",
+      "message": "the template must hold exactly one Content-Security-Policy meta tag to compare against, got ${} in ${}"
+    },
+    {
+      "path": "plugin/skills/deskcheck/scripts/deskcheck-lint.mjs",
+      "rule": "not-actionable",
+      "message": "usage: node <skill base directory>/scripts/deskcheck-lint.mjs <deskcheck.html>..."
+    },
+    {
+      "path": "plugin/skills/issue-writing/scripts/guardrail-scan.mjs",
+      "rule": "not-actionable",
+      "message": "the text to scan must be a string, got ${}"
+    },
+    {
+      "path": "plugin/skills/issue-writing/scripts/guardrail-scan.mjs",
+      "rule": "not-actionable",
+      "message": "extra terms must be a list, got ${}"
+    },
+    {
+      "path": "plugin/skills/issue-writing/scripts/guardrail-scan.mjs",
+      "rule": "not-actionable",
+      "message": "usage: node <skill base directory>/scripts/guardrail-scan.mjs <file> [${} <regex>]..."
+    },
+    {
+      "path": "plugin/skills/slice/scripts/resolve-verify-cmd.mjs",
+      "rule": "not-actionable",
+      "message": "cwd must be a non-empty path, got ${}"
+    },
+    {
+      "path": "plugin/skills/slice/scripts/resolve-verify-cmd.mjs",
+      "rule": "not-actionable",
+      "message": "env must be an object of variables, got ${}"
+    },
+    {
+      "path": "plugin/skills/slice/scripts/resolve-verify-cmd.mjs",
+      "rule": "not-actionable",
+      "message": "${} must be text when set, got ${}: ${}"
+    },
+    {
+      "path": "plugin/skills/slice/scripts/resolve-verify-cmd.mjs",
+      "rule": "not-actionable",
+      "message": "cwd must be a non-empty path, got ${}"
+    },
+    {
+      "path": "plugin/skills/spec/scripts/spec-lint.mjs",
+      "rule": "not-actionable",
+      "message": "a ${} part must not contain another ${} heading, got one inside ${}"
+    },
+    {
+      "path": "plugin/skills/spec/scripts/spec-lint.mjs",
+      "rule": "not-actionable",
+      "message": "a spec must be text, got ${}"
+    },
+    {
+      "path": "plugin/skills/spec/scripts/spec-lint.mjs",
+      "rule": "not-actionable",
+      "message": "the frontmatter block must start at the first character, got offset ${}"
+    },
+    {
+      "path": "plugin/skills/spec/scripts/spec-lint.mjs",
+      "rule": "not-actionable",
+      "message": "a spec must be text, got ${}"
+    },
+    {
+      "path": "plugin/skills/spec/scripts/spec-lint.mjs",
+      "rule": "not-actionable",
+      "message": "template placeholder ${} is still in the spec; replace it or put literal code in backticks"
+    },
+    {
+      "path": "plugin/skills/spec/scripts/spec-lint.mjs",
+      "rule": "not-actionable",
+      "message": "Rollout heading ${} must read \"### Slice <n> — <AC list> — exposure: ${}\""
+    },
+    {
+      "path": "plugin/skills/spec/scripts/spec-lint.mjs",
+      "rule": "not-actionable",
+      "message": "Slice ${} is in wave ${} but its dependencies put it in wave ${}; a slice joins the earliest wave after everything it depends on"
+    },
+    {
+      "path": "plugin/skills/spec/scripts/spec-lint.mjs",
+      "rule": "not-actionable",
+      "message": "cross-repo AC[${}] owner is ${}; name the most likely owning person, team or role"
+    },
+    {
+      "path": "plugin/skills/spec/scripts/spec-lint.mjs",
+      "rule": "not-actionable",
+      "message": "Contradictions holds neither a row nor the line ${}; an empty ledger reads as skipped"
+    },
+    {
+      "path": "plugin/skills/spec/scripts/spec-lint.mjs",
+      "rule": "not-actionable",
+      "message": "usage: node <skill base directory>/scripts/spec-lint.mjs <spec.md>..."
+    },
+    {
+      "path": "scripts/audit/assertion-effectiveness/assertion-probe.mjs",
+      "rule": "not-actionable",
+      "message": "probe needs a non-empty site id, got ${}"
+    },
+    {
+      "path": "scripts/audit/assertion-effectiveness/assertion-probe.mjs",
+      "rule": "not-actionable",
+      "message": "site id ${} must not contain a tab or newline, which delimit the log records"
+    },
+    {
+      "path": "scripts/audit/assertion-effectiveness/assertion-sites.ts",
+      "rule": "not-actionable",
+      "message": "functionNameOf names the function around a call, got node kind ${}"
+    },
+    {
+      "path": "scripts/audit/assertion-effectiveness/assertion-sites.ts",
+      "rule": "not-actionable",
+      "message": "a call expression always has a parent, got ${}; the tree is detached"
+    },
+    {
+      "path": "scripts/audit/assertion-effectiveness/assertion-sites.ts",
+      "rule": "not-actionable",
+      "message": "findAssertSites needs a repo-relative path, got ${}"
+    },
+    {
+      "path": "scripts/audit/assertion-effectiveness/assertion-sites.ts",
+      "rule": "not-actionable",
+      "message": "findAssertSites reads ${} files, got ${}"
+    },
+    {
+      "path": "scripts/audit/assertion-effectiveness/assertion-sites.ts",
+      "rule": "not-actionable",
+      "message": "an assert site in ${} needs an enclosing function name or ${}"
+    },
+    {
+      "path": "scripts/audit/assertion-effectiveness/assertion-sites.ts",
+      "rule": "not-actionable",
+      "message": "an assert site in ${} needs condition text"
+    },
+    {
+      "path": "scripts/audit/assertion-effectiveness/assertion-sites.ts",
+      "rule": "not-actionable",
+      "message": "instrumentText imports the probe by file URL, got ${}"
+    },
+    {
+      "path": "scripts/audit/assertion-effectiveness/assertion-sites.ts",
+      "rule": "not-actionable",
+      "message": "the text no longer matches ${}; analyse the same text that is instrumented"
+    },
+    {
+      "path": "scripts/audit/assertion-effectiveness/assertion-verdict.ts",
+      "rule": "not-actionable",
+      "message": "readEvidence needs the absolute log directory, got ${}"
+    },
+    {
+      "path": "scripts/audit/assertion-effectiveness/assertion-verdict.ts",
+      "rule": "not-actionable",
+      "message": "${} holds ${}, which the probe never writes; its files are named <pid>${}"
+    },
+    {
+      "path": "scripts/audit/assertion-effectiveness/assertion-verdict.ts",
+      "rule": "not-actionable",
+      "message": "${} holds a malformed record ${}; expected <site id>${}${} or ${}"
+    },
+    {
+      "path": "scripts/audit/assertion-effectiveness/assertion-verdict.ts",
+      "rule": "not-actionable",
+      "message": "judgeSites needs the instrumented sites, got ${}"
+    },
+    {
+      "path": "scripts/audit/assertion-effectiveness/assertion-verdict.ts",
+      "rule": "not-actionable",
+      "message": "the log names sites that were never instrumented: ${}; the log directory is stale"
+    },
+    {
+      "path": "scripts/audit/assertion-effectiveness/assertion-verdict.ts",
+      "rule": "not-actionable",
+      "message": "the baseline lists one site twice among its ${} entries; each key must appear once"
+    },
+    {
+      "path": "scripts/audit/assertion-effectiveness/assertion-verdict.ts",
+      "rule": "not-actionable",
+      "message": "two unproven sites share a baseline key; ${} sites gave ${} keys"
+    },
+    {
+      "path": "scripts/audit/assertion-effectiveness/assertion-verdict.ts",
+      "rule": "not-actionable",
+      "message": "${} has no condition or message, so its baseline entry would not work as a to-do item"
+    },
+    {
+      "path": "scripts/audit/assertion-effectiveness/assertion-verdict.ts",
+      "rule": "not-actionable",
+      "message": "two of the ${} unproven sites share a key, so the baseline could not tell them apart"
+    },
+    {
+      "path": "scripts/audit/assertion-effectiveness/assertion-verdict.ts",
+      "rule": "not-actionable",
+      "message": "${} must hold a findings array of ${} entries with path and message"
+    },
+    {
+      "path": "scripts/audit/assertion-effectiveness/assertion-verdict.ts",
+      "rule": "not-actionable",
+      "message": "${} was false ${} times in ${} evaluations; the log is corrupt"
+    },
+    {
+      "path": "scripts/audit/assertion-effectiveness/assertion-verdict.ts",
+      "rule": "not-actionable",
+      "message": "a verdict outside proven, unproven and unevaluated was found among ${} sites"
+    },
+    {
+      "path": "scripts/audit/assertion-effectiveness/workflow-commands.ts",
+      "rule": "not-actionable",
+      "message": "a command is text, got ${}"
+    },
+    {
+      "path": "scripts/audit/assertion-effectiveness/workflow-commands.ts",
+      "rule": "not-actionable",
+      "message": "a command must hold more than whitespace, got ${}"
+    },
+    {
+      "path": "scripts/audit/assertion-effectiveness/workflow-commands.ts",
+      "rule": "not-actionable",
+      "message": "the workflow text is empty, got ${}"
+    },
+    {
+      "path": "scripts/audit/assertion-effectiveness/workflow-commands.ts",
+      "rule": "not-actionable",
+      "message": "a run step in the workflow has no command among ${}"
+    },
+    {
+      "path": "scripts/audit/assertion-effectiveness/workflow-commands.ts",
+      "rule": "not-actionable",
+      "message": "the workflow text holds no run step; got ${} characters"
+    },
+    {
+      "path": "scripts/audit/assertion-effectiveness/workflow-commands.ts",
+      "rule": "not-actionable",
+      "message": "a command is declared twice among the ${} declared and excluded commands"
+    },
+    {
+      "path": "scripts/audit/ci-parity.ts",
+      "rule": "not-actionable",
+      "message": "${} must hold a \"${}\" section, got ${} lines without one"
+    },
+    {
+      "path": "scripts/audit/ci-parity.ts",
+      "rule": "not-actionable",
+      "message": "${} must hold at least one job, got none"
+    },
+    {
+      "path": "scripts/audit/ci-parity.ts",
+      "rule": "not-actionable",
+      "message": "the workflow is text, got ${}"
+    },
+    {
+      "path": "scripts/audit/ci-parity.ts",
+      "rule": "not-actionable",
+      "message": "${} must not be empty, got ${} characters"
+    },
+    {
+      "path": "scripts/audit/ci-parity.ts",
+      "rule": "not-actionable",
+      "message": "the repo root is a path, got ${}"
+    },
+    {
+      "path": "scripts/audit/ci-parity.ts",
+      "rule": "not-actionable",
+      "message": "the repo root must exist, got ${}"
+    },
+    {
+      "path": "scripts/audit/ci-parity.ts",
+      "rule": "not-actionable",
+      "message": "${}: line ${} launches claude -p without the opt-in guard before it. Rule: a test that starts a real session on the subscription refuses to run unless ${}=1. Fix: add `source \"$(dirname \"$0\")/${}\"` above the first claude call."
+    },
+    {
+      "path": "scripts/audit/comments.ts",
+      "rule": "not-actionable",
+      "message": "the slash index must be a whole number from 0, got ${}"
+    },
+    {
+      "path": "scripts/audit/comments.ts",
+      "rule": "not-actionable",
+      "message": "a regex literal starts at a slash, got ${} at index ${}"
+    },
+    {
+      "path": "scripts/audit/comments.ts",
+      "rule": "not-actionable",
+      "message": "a step starts at a whole index from 0, got ${}"
+    },
+    {
+      "path": "scripts/audit/comments.ts",
+      "rule": "not-actionable",
+      "message": "a step reads a character inside the ${} of the source, got index ${}"
+    },
+    {
+      "path": "scripts/audit/comments.ts",
+      "rule": "not-actionable",
+      "message": "a step starts at a whole index from 0, got ${}"
+    },
+    {
+      "path": "scripts/audit/comments.ts",
+      "rule": "not-actionable",
+      "message": "a step reads a character inside the ${} of the source, got index ${}"
+    },
+    {
+      "path": "scripts/audit/comments.ts",
+      "rule": "not-actionable",
+      "message": "the source must be text, got ${}"
+    },
+    {
+      "path": "scripts/audit/comments.ts",
+      "rule": "not-actionable",
+      "message": "the source must be text, got a NUL byte at index ${}"
+    },
+    {
+      "path": "scripts/audit/comments.ts",
+      "rule": "not-actionable",
+      "message": "the comments must be a list, got ${}"
+    },
+    {
+      "path": "scripts/audit/comments.ts",
+      "rule": "not-actionable",
+      "message": "the comments must arrive in line order, got lines ${}"
+    },
+    {
+      "path": "scripts/audit/comments.ts",
+      "rule": "not-actionable",
+      "message": "an offence names its file, got ${}"
+    },
+    {
+      "path": "scripts/audit/comments.ts",
+      "rule": "not-actionable",
+      "message": "a file name must fit one report line, got ${}"
+    },
+    {
+      "path": "scripts/audit/comments.ts",
+      "rule": "not-actionable",
+      "message": "an offence location reads <file>:<line>, got ${}"
+    },
+    {
+      "path": "scripts/audit/comments.ts",
+      "rule": "not-actionable",
+      "message": "an offence names one of ${}, got ${}"
+    },
+    {
+      "path": "scripts/audit/jsdoc-types-only.ts",
+      "rule": "not-actionable",
+      "message": "${}:${} prose in a JSDoc block, only type tags are allowed: \"${}\""
+    },
+    {
+      "path": "scripts/audit/jsdoc-types-only.ts",
+      "rule": "not-actionable",
+      "message": "${}:${} ${}: \"@${} ${}\""
+    },
+    {
+      "path": "scripts/audit/node-floor.ts",
+      "rule": "not-actionable",
+      "message": "today must be a valid date, got ${}"
+    },
+    {
+      "path": "scripts/audit/node-floor.ts",
+      "rule": "not-actionable",
+      "message": "documents must be a list of files, got ${}"
+    },
+    {
+      "path": "scripts/audit/node-floor.ts",
+      "rule": "not-actionable",
+      "message": "${} sets the Node floor to ${}, which reached end of life on ${}. Hint: raise engines.node, the README and docs to the oldest release still in security support (${})."
+    },
+    {
+      "path": "scripts/audit/node-floor.ts",
+      "rule": "not-actionable",
+      "message": "${} says \"${}\" but ${} sets the floor to Node ${}. Hint: make the document and engines.node name the same release."
+    },
+    {
+      "path": "scripts/audit/rule-inventory-backtest.ts",
+      "rule": "not-actionable",
+      "message": "usage: node scripts/audit/rule-inventory-backtest.ts --file <path> [--commit <sha>]"
+    },
+    {
+      "path": "scripts/audit/rule-inventory-mutation.ts",
+      "rule": "not-actionable",
+      "message": "usage: node scripts/audit/rule-inventory-mutation.ts <inventory.json>"
+    },
+    {
+      "path": "scripts/audit/rule-inventory-mutation.ts",
+      "rule": "not-actionable",
+      "message": "the inventory fails before any mutation; a score would credit collateral failures. Fix it first."
+    },
+    {
+      "path": "scripts/audit/rule-inventory.ts",
+      "rule": "not-actionable",
+      "message": "${}: exempt entry \"${}\" has a blank reason. Hint: say why the line is not a rule."
+    },
+    {
+      "path": "scripts/audit/rule-inventory.ts",
+      "rule": "not-actionable",
+      "message": "${}: anchor \"${}\" is in none of ${}. Hint: the rule line was deleted or reworded; restore it or update the anchor."
+    },
+    {
+      "path": "scripts/audit/rule-inventory.ts",
+      "rule": "not-actionable",
+      "message": "${}: ${}:${} ${}. Hint: add a rule with an anchor or an exempt entry with a reason."
+    },
+    {
+      "path": "scripts/audit/suppressions.ts",
+      "rule": "not-actionable",
+      "message": "${} has no .git; expected the root of a git checkout, since tracked files come from git ls-files"
+    },
+    {
+      "path": "scripts/audit/suppressions.ts",
+      "rule": "not-actionable",
+      "message": "${} suppressions are below the ${} recorded in ${}; lower the file to ${} to lock in the gain"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "lintCheck needs a skill folder name, got ${}"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "lintCheck could not start ${}: ${}"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "scriptTestsCheck needs a skill folder name, got ${}"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "scriptTestsCheck needs an existing repository directory, got ${}"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "ruleAnchorsCheck needs a skill folder name, got ${}"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "ruleAnchorsCheck needs an existing repository directory, got ${}"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "${} is not a usable inventory: ${}"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "agentsNamedBy needs a skill folder name, got ${}"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "${}/${}/${} is empty; expected the skill text the agent names are matched against"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "skillHash needs the repository root, got ${}"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "skillHash needs a skill folder name, got ${}"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "changedPaths needs an existing repository directory, got ${}"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "changedPaths needs a base ref, got ${}; expected a branch or commit name"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "fileAtBase needs a base ref, got ${}; expected a branch or commit name"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "fileAtBase needs a path relative to the repository root, got ${}"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "changedSkills needs the repository root, got ${}"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "changedSkills needs a base ref, got ${}; expected a branch or commit name"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "stampPath needs the repository root, got ${}"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "stampPath needs a skill folder name, got ${}; anything else could point outside ${}"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "no stamp for ${} at ${}"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "stamp ${} holds ${}; expected a JSON object"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "stamp for ${} has no ${} entry; expected a waiver"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "stamp for ${} has ${}=${}; expected the waiver reason text"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "stampStatus needs the repository root, got ${}"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "stampStatus needs a skill folder name, got ${}"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "probeProblem built a blank problem ${}; expected null or a readable detail"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "${} has verdicts=${}; expected an object of scenario verdicts"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "stampStatically needs a skill folder name, got ${}"
+    },
+    {
+      "path": "scripts/eval/changed-skills.ts",
+      "rule": "not-actionable",
+      "message": "stampStatically needs an existing repository directory, got ${}"
+    },
+    {
+      "path": "scripts/eval/judge.ts",
+      "rule": "not-actionable",
+      "message": "findRow needs a scenario id, got ${}"
+    },
+    {
+      "path": "scripts/eval/judge.ts",
+      "rule": "not-actionable",
+      "message": "findRow input contains the pipe placeholder at index ${}; escaped pipes would be mistaken for it"
+    },
+    {
+      "path": "scripts/eval/judge.ts",
+      "rule": "not-actionable",
+      "message": "splitClauses needs Pass Criteria text, got ${}"
+    },
+    {
+      "path": "scripts/eval/judge.ts",
+      "rule": "not-actionable",
+      "message": "aggregate got results ${}; expected only ${}"
+    },
+    {
+      "path": "scripts/eval/judge.ts",
+      "rule": "not-actionable",
+      "message": "filesUnder needs an existing directory, got ${}"
+    },
+    {
+      "path": "scripts/eval/judge.ts",
+      "rule": "not-actionable",
+      "message": "readRun needs a run folder, got ${}"
+    },
+    {
+      "path": "scripts/eval/judge.ts",
+      "rule": "not-actionable",
+      "message": "run folder ${} has no files; there is nothing to check quotes against"
+    },
+    {
+      "path": "scripts/eval/judge.ts",
+      "rule": "not-actionable",
+      "message": "settle produced results ${}; expected only ${}"
+    },
+    {
+      "path": "scripts/eval/judge.ts",
+      "rule": "not-actionable",
+      "message": "judge output is not JSON: ${}"
+    },
+    {
+      "path": "scripts/eval/judge.ts",
+      "rule": "not-actionable",
+      "message": "judge output is JSON but not an object: ${}"
+    },
+    {
+      "path": "scripts/eval/judge.ts",
+      "rule": "not-actionable",
+      "message": "judge reported an error: ${}"
+    },
+    {
+      "path": "scripts/eval/judge.ts",
+      "rule": "not-actionable",
+      "message": "judge output does not match the clause schema"
+    },
+    {
+      "path": "scripts/eval/judge.ts",
+      "rule": "not-actionable",
+      "message": "judge graded a clause more than once, ids ${}; rerun the judge"
+    },
+    {
+      "path": "scripts/eval/judge.ts",
+      "rule": "not-actionable",
+      "message": "judge needs a scenario id and a run folder, got ${} and ${}"
+    },
+    {
+      "path": "scripts/eval/judge.ts",
+      "rule": "not-actionable",
+      "message": "No such skill: ${}"
+    },
+    {
+      "path": "scripts/eval/judge.ts",
+      "rule": "not-actionable",
+      "message": "${} contains a NUL character at index ${}; remove it, it stands in for an escaped pipe"
+    },
+    {
+      "path": "scripts/eval/judge.ts",
+      "rule": "not-actionable",
+      "message": "No scenario ${} in ${}"
+    },
+    {
+      "path": "scripts/eval/judge.ts",
+      "rule": "not-actionable",
+      "message": "No ${} in ${}"
+    },
+    {
+      "path": "scripts/eval/judge.ts",
+      "rule": "not-actionable",
+      "message": "could not run ${}: ${}"
+    },
+    {
+      "path": "scripts/eval/judge.ts",
+      "rule": "not-actionable",
+      "message": "${} exited ${}: ${}"
+    },
+    {
+      "path": "scripts/eval/run-checks.ts",
+      "rule": "not-actionable",
+      "message": "a shell argument cannot carry a NUL byte, got ${}"
+    },
+    {
+      "path": "scripts/eval/run-checks.ts",
+      "rule": "not-actionable",
+      "message": "an expect is one line, got ${}"
+    },
+    {
+      "path": "scripts/eval/run-checks.ts",
+      "rule": "not-actionable",
+      "message": "a check runs against an output file, got ${}"
+    },
+    {
+      "path": "scripts/eval/run-checks.ts",
+      "rule": "not-actionable",
+      "message": "the prelude holds assignments only, got ${}"
+    },
+    {
+      "path": "scripts/eval/run-checks.ts",
+      "rule": "not-actionable",
+      "message": "No such skill: ${}"
+    },
+    {
+      "path": "scripts/eval/run-checks.ts",
+      "rule": "not-actionable",
+      "message": "a comparison expect carries an integer, got ${}"
+    },
+    {
+      "path": "scripts/eval/run-checks.ts",
+      "rule": "not-actionable",
+      "message": "skills are read from ${}; run from the repository root"
+    },
+    {
+      "path": "scripts/eval/run-scenarios.ts",
+      "rule": "not-actionable",
+      "message": "a template must carry ${} or the prompt is dropped, got ${}"
+    },
+    {
+      "path": "scripts/eval/run-scenarios.ts",
+      "rule": "not-actionable",
+      "message": "a template is filled with a prompt, got ${}"
+    },
+    {
+      "path": "scripts/eval/run-scenarios.ts",
+      "rule": "not-actionable",
+      "message": "every summary row needs the columns ${}, got ${}"
+    },
+    {
+      "path": "scripts/eval/run-scenarios.ts",
+      "rule": "not-actionable",
+      "message": "a TSV cell cannot hold a tab or newline, got ${}"
+    },
+    {
+      "path": "scripts/eval/run-scenarios.ts",
+      "rule": "not-actionable",
+      "message": "could not signal process group ${}: ${}"
+    },
+    {
+      "path": "scripts/eval/run-scenarios.ts",
+      "rule": "not-actionable",
+      "message": "a fixture must stay under ${}, got ${}"
+    },
+    {
+      "path": "scripts/eval/run-scenarios.ts",
+      "rule": "not-actionable",
+      "message": "the ${} arm must not load the plugin, got ${}"
+    },
+    {
+      "path": "scripts/eval/run-scenarios.ts",
+      "rule": "not-actionable",
+      "message": "a smoke run needs at least one scenario to choose from, got ${}"
+    },
+    {
+      "path": "scripts/eval/run-scenarios.ts",
+      "rule": "not-actionable",
+      "message": "scenario ids must be unique, got ${}"
+    },
+    {
+      "path": "scripts/eval/run-scenarios.ts",
+      "rule": "not-actionable",
+      "message": "scenario ids must be unique, got ${}"
+    },
+    {
+      "path": "scripts/eval/run-scenarios.ts",
+      "rule": "not-actionable",
+      "message": "every result must belong to a listed scenario, got ${} for ${}"
+    },
+    {
+      "path": "scripts/eval/run-scenarios.ts",
+      "rule": "not-actionable",
+      "message": "skills are read from ${}; run from the repository root"
+    },
+    {
+      "path": "scripts/eval/run-scenarios.ts",
+      "rule": "not-actionable",
+      "message": "harness error, not an eval failure: ${}"
+    }
+  ]
+}

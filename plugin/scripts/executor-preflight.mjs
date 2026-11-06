@@ -35,11 +35,11 @@ const RULE_DIRTY_WORKTREE = "worktree-dirty";
  * @returns {Problem[]}
  */
 export const worktreeProblems = (directory) => { // zanity: ignore[assertion-density] -- single-invariant: the path check is the only input precondition, and git decides everything else
-  assert(typeof directory === "string" && directory !== "", `the worktree must be a directory path, got ${JSON.stringify(directory)}`);
+  assert(typeof directory === "string" && directory !== "", `\`--worktree\` must name a directory, got ${JSON.stringify(directory)}; pass the worktree the executor runs in.`);
   const inside = spawnSync("git", ["-C", directory, "rev-parse", "--is-inside-work-tree"], { encoding: ENCODING });
-  if (inside.status !== 0 || inside.stdout.trim() !== "true") return [{ rule: RULE_NOT_A_WORKTREE, detail: `${directory} is not a git worktree` }];
+  if (inside.status !== 0 || inside.stdout.trim() !== "true") return [{ rule: RULE_NOT_A_WORKTREE, detail: `${directory} must be a git worktree, but is not one; pass the executor worktree.` }];
   const changes = spawnSync("git", ["-C", directory, "status", "--porcelain"], { encoding: ENCODING });
-  return changes.stdout.trim() === "" ? [] : [{ rule: RULE_DIRTY_WORKTREE, detail: `${directory} has uncommitted changes` }];
+  return changes.stdout.trim() === "" ? [] : [{ rule: RULE_DIRTY_WORKTREE, detail: `${directory} must be clean, but has uncommitted changes; commit or stash them.` }];
 };
 
 /**
@@ -48,8 +48,8 @@ export const worktreeProblems = (directory) => { // zanity: ignore[assertion-den
  * @returns {Problem[]}
  */
 export const missingFileProblems = (section, base) => {
-  assert(typeof section === "string", `the Relevant files section must be text, got ${typeof section}`);
-  assert(isAbsolute(base), `the base directory must be absolute, got ${JSON.stringify(base)}`);
+  assert(typeof section === "string", `the "Relevant files" section must be text, got ${typeof section}; pass the section body.`);
+  assert(isAbsolute(base), `the base directory must be absolute, got ${JSON.stringify(base)}; pass a full path.`);
   /** @type {Problem[]} */
   const problems = [];
   for (const line of section.split("\n")) {
@@ -57,7 +57,7 @@ export const missingFileProblems = (section, base) => {
     if (!bullet) continue;
     const path = bullet[1].replace(LINE_SUFFIX, "");
     const listed = existsSync(resolve(base, path)) || GLOB_CHARACTER.test(path) || ADDED_FILE_WORDING.test(bullet[2]);
-    if (!listed) problems.push({ rule: RULE_MISSING_RELEVANT_FILE, detail: `${path} is listed under Relevant files but does not exist under ${base}` });
+    if (!listed) problems.push({ rule: RULE_MISSING_RELEVANT_FILE, detail: `${path} is listed under Relevant files but does not exist under ${base}; fix the path or mark the file as added.` });
   }
   return problems;
 };
@@ -68,19 +68,19 @@ export const missingFileProblems = (section, base) => {
  * @returns {{ problems: Problem[], skip: number[] }}
  */
 export const specProblems = (raw, { slice, acs, base }) => { // zanity: ignore[assertion-density] -- single-invariant: the slice-number check is the only input precondition, and parseSpec asserts the text type
-  assert(Number.isInteger(slice) && slice > 0, `the slice must be a positive integer, got ${slice}`);
+  assert(Number.isInteger(slice) && slice > 0, `the slice "${slice}" must be a positive integer; pass the slice number from the Rollout.`);
   const spec = parseSpec(raw);
   /** @type {Problem[]} */
   const problems = [];
-  if (UNRESOLVED_DECISION.test(spec.bodies["Open decisions"] ?? "")) problems.push({ rule: RULE_UNRESOLVED_DECISION, detail: "Open decisions still holds an unresolved entry" });
-  if (spec.criteria.length === 0) problems.push({ rule: RULE_EMPTY_ACCEPTANCE_CRITERIA, detail: "the Acceptance criteria section holds no criterion" });
+  if (UNRESOLVED_DECISION.test(spec.bodies["Open decisions"] ?? "")) problems.push({ rule: RULE_UNRESOLVED_DECISION, detail: 'the "Open decisions" section still holds an unresolved entry; resolve it or ask the user.' });
+  if (spec.criteria.length === 0) problems.push({ rule: RULE_EMPTY_ACCEPTANCE_CRITERIA, detail: 'the "Acceptance criteria" section holds no criterion; add one before the slice starts.' });
   problems.push(...missingFileProblems(spec.bodies["Relevant files"] ?? "", base));
   const target = spec.slices.find((candidate) => candidate.number === slice);
-  if (!target) problems.push({ rule: RULE_SLICE_NOT_FOUND, detail: `Rollout has no Slice ${slice}` });
+  if (!target) problems.push({ rule: RULE_SLICE_NOT_FOUND, detail: `the Rollout has no "Slice ${slice}"; pass a slice the Rollout lists.` });
   const skip = [];
   for (const id of acs ?? target?.acs ?? []) {
     if (spec.criteria.some((criterion) => criterion.id === id && criterion.tag === CROSS_REPO_TAG)) skip.push(id);
-    else if (target && !target.acs.includes(id)) problems.push({ rule: RULE_AC_OUTSIDE_SLICE, detail: `AC[${id}] is not assigned to Slice ${slice}, which holds ${target.acs.join(", ")}` });
+    else if (target && !target.acs.includes(id)) problems.push({ rule: RULE_AC_OUTSIDE_SLICE, detail: `AC[${id}] is not assigned to Slice ${slice}, which holds ${target.acs.join(", ")}; pass only those ACs.` });
   }
   return { problems, skip };
 };
@@ -92,9 +92,9 @@ export const specProblems = (raw, { slice, acs, base }) => { // zanity: ignore[a
 const main = (argv) => {
   try {
     const { values } = parseArgs({ args: argv, options: { spec: { type: "string" }, slice: { type: "string" }, acs: { type: "string" }, worktree: { type: "string" } } });
-    assert(values.spec && POSITIVE_INTEGER.test(values.slice ?? ""), `--spec and a positive --slice are required, got ${JSON.stringify(values.spec)} and ${JSON.stringify(values.slice)}`);
+    assert(values.spec && POSITIVE_INTEGER.test(values.slice ?? ""), `\`--spec\` and a positive \`--slice\` must be given, got ${JSON.stringify(values.spec)} and ${JSON.stringify(values.slice)}; pass both.`);
     const acs = values.acs?.split(AC_LIST_SEPARATOR).map((id) => (POSITIVE_INTEGER.test(id.trim()) ? Number(id) : Number.NaN));
-    assert(acs === undefined || acs.every(Number.isInteger), `--acs must be a comma-separated list of positive integers, got ${JSON.stringify(values.acs)}`);
+    assert(acs === undefined || acs.every(Number.isInteger), `\`--acs\` must be a comma-separated list of positive integers, got ${JSON.stringify(values.acs)}; pass a list such as 1,2.`);
     const found = specProblems(readFileSync(values.spec, ENCODING), { slice: Number(values.slice), acs, base: resolve(values.worktree ?? process.cwd()) });
     const problems = [...found.problems, ...(values.worktree === undefined ? [] : worktreeProblems(values.worktree))];
     console.log(JSON.stringify({ ok: problems.length === 0, problems, skip: found.skip }));

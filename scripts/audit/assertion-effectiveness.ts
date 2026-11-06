@@ -49,7 +49,7 @@ const instrumentCopy = (copy: string, files: string[]) => {
       !file.includes(FIXTURE_SEGMENT) &&
       basename(file) !== PROBE_FILE_NAME,
   );
-  assert(targets.length > 0, `none of ${files.length} tracked files is a non-test ${SOURCE_EXTENSIONS.join(" or ")} file under ${INSTRUMENTED_ROOTS.join(" or ")}`);
+  assert(targets.length > 0, `none of ${files.length} tracked files is a non-test ${SOURCE_EXTENSIONS.join(" or ")} file under ${INSTRUMENTED_ROOTS.map((root) => `"${root}"`).join(" or ")}; pass --repo with a checkout that holds source there.`);
   const probeDirectory = join(copy, PROBE_DIRECTORY);
   mkdirSync(join(probeDirectory, LOG_DIRECTORY), { recursive: true });
   copyFileSync(PROBE_SOURCE, join(probeDirectory, PROBE_FILE_NAME));
@@ -70,7 +70,7 @@ const instrumentCopy = (copy: string, files: string[]) => {
   } finally {
     api.close();
   }
-  assert(sites.length > 0, `no assert call found in ${targets.length} instrumentable files; there is nothing to measure`);
+  assert(sites.length > 0, `no assert call found in ${targets.length} instrumentable files under ${INSTRUMENTED_ROOTS.map((root) => `"${root}"`).join(" or ")}; add one to a source file.`);
   return sites;
 };
 
@@ -112,7 +112,7 @@ try {
   );
   const failed = results.filter((result) => !result.passed);
   if (failed.length > 0) {
-    console.error(failed.map((result) => `tests failed in the instrumented copy: ${result.command}\n${result.output}`).join("\n\n"));
+    console.error(failed.map((result) => `the tests must pass in the instrumented copy, but command "${result.command}" failed; fix the failing test, then rerun.\n${result.output}`).join("\n\n"));
     process.exitCode = EXIT_TESTS_FAILED;
   } else {
     const judged = judgeSites(sites, readEvidence(join(copy, PROBE_DIRECTORY, LOG_DIRECTORY)));
@@ -125,7 +125,7 @@ try {
       const baseline = existsSync(baselinePath) ? parseBaseline(readFileSync(baselinePath, "utf8"), values.baseline) : [];
       const { added, removable } = compareToBaseline(judged, baseline);
       if (removable.length > 0) {
-        console.error(`${removable.length} baseline entries are now proven or gone; prune them with \`node scripts/audit/assertion-effectiveness.ts --update-baseline\`:\n${removable.map((finding) => `  ${finding.path} | ${finding.message}  ${finding.condition}`).join("\n")}`);
+        console.error(`${removable.length} baseline entries are stale, now proven or gone; prune them with \`node scripts/audit/assertion-effectiveness.ts --update-baseline\`:\n${removable.map((finding) => `  ${finding.path} | ${finding.message}  ${finding.condition}`).join("\n")}`);
         process.exitCode = EXIT_STALE_BASELINE;
       }
       if (added.length > 0) {

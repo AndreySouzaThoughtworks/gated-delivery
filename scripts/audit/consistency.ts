@@ -12,6 +12,7 @@ import { parseChecks, scenarioIds } from "../eval/run-checks.ts";
 import { BASELINE_FILE, UPDATE_COMMAND, budgetProblems, measureBudgets, readBaseline } from "./token-budget/budget.ts";
 import { AUDIT_WORKFLOW, liveOptInProblems, workflowParityProblems } from "./ci-parity.ts";
 import { nodeFloorProblems } from "./node-floor.ts";
+import { baselineProblems } from "./message-actionability/check.ts";
 import { UNINVENTORIED_FILES_ARE_ERRORS, checkRuleInventories } from "./rule-inventory.ts";
 
 const ROOT = process.cwd();
@@ -41,7 +42,7 @@ function frontmatterName(file: string) { // zanity: ignore[assertion-density] --
   if (!block) return null;
   const line = block[1].match(/^name:\s*(.+)$/m);
   const name = line ? line[1].trim() : null;
-  assert(name === null || name.length > 0, `${file} declares a blank name; give it a frontmatter name`);
+  assert(name === null || name.length > 0, `${file} declares a blank name, but a name must not be blank; give it a frontmatter name`);
   return name;
 }
 
@@ -51,10 +52,10 @@ const skills = dirs(skillsDir);
 for (const skill of skills) {
   const dir = join(skillsDir, skill);
   for (const required of ["SKILL.md", "evals.md"]) {
-    if (!existsSync(join(dir, required))) errors.push(`skill "${skill}" is missing ${required}`);
+    if (!existsSync(join(dir, required))) errors.push(`skill "${skill}" is missing ${required}. Hint: add it.`);
   }
   const name = frontmatterName(join(dir, "SKILL.md"));
-  if (name && name !== skill) errors.push(`skill "${skill}": frontmatter name "${name}" != dir name`);
+  if (name && name !== skill) errors.push(`skill "${skill}": frontmatter name "${name}" must equal the dir name. Hint: rename one to match the other.`);
 }
 
 // --- 2. Agents: frontmatter name matches filename ---
@@ -64,7 +65,7 @@ const agents = readdirSync(agentsDir)
   .map((f) => f.replace(/\.md$/, ""));
 for (const agent of agents) {
   const name = frontmatterName(join(agentsDir, `${agent}.md`));
-  if (name && name !== agent) errors.push(`agent "${agent}": frontmatter name "${name}" != filename`);
+  if (name && name !== agent) errors.push(`agent "${agent}": frontmatter name "${name}" must equal the filename. Hint: rename one to match the other.`);
 }
 
 // --- 2a. Commands: every command file carries a frontmatter description ---
@@ -74,7 +75,7 @@ const commands = existsSync(commandsDir)
   : [];
 for (const command of commands) {
   const block = read(join(commandsDir, `${command}.md`)).match(/^---\n([\s\S]*?)\n---/);
-  if (!block || !/^description:\s*\S/m.test(block[1])) errors.push(`command "${command}" has no frontmatter description`);
+  if (!block || !/^description:\s*\S/m.test(block[1])) errors.push(`command "${command}" has no frontmatter description. Hint: add a "description:" line.`);
 }
 
 // --- 3. Hooks: valid JSON, references resolve, no orphan hook files ---
@@ -90,20 +91,20 @@ try {
   JSON.parse(raw); // validate
   for (const m of raw.matchAll(/hooks\/([\w.-]+\.mjs)/g)) {
     referenced.add(m[1]);
-    if (!hookFiles.has(m[1])) errors.push(`hooks.json references missing hook file "${m[1]}"`);
+    if (!hookFiles.has(m[1])) errors.push(`hooks.json references missing hook file "${m[1]}". Hint: add the file or drop the reference.`);
   }
 } catch (e) {
-  errors.push(`hooks.json invalid JSON: ${e instanceof Error ? e.message : e}`);
+  errors.push(`hooks.json holds invalid JSON (${e instanceof Error ? e.message : e}). Hint: fix the syntax.`);
 }
 for (const f of hookFiles) {
-  if (!referenced.has(f)) warnings.push(`hook file "${f}" is not referenced in hooks.json`);
+  if (!referenced.has(f)) warnings.push(`hook file "${f}" is not referenced in hooks.json. Hint: add it to hooks.json or delete it.`);
 }
 
 // --- 4. Marketplace source resolves to a real plugin ---
 const marketplace = JSON.parse(read(join(ROOT, ".claude-plugin", "marketplace.json")));
 for (const p of marketplace.plugins ?? []) {
   const manifest = join(ROOT, p.source, ".claude-plugin", "plugin.json");
-  if (!existsSync(manifest)) errors.push(`marketplace plugin "${p.name}": source "${p.source}" has no .claude-plugin/plugin.json`);
+  if (!existsSync(manifest)) errors.push(`marketplace plugin "${p.name}": source "${p.source}" has no .claude-plugin/plugin.json. Hint: add the manifest or fix the source.`);
 }
 
 // --- 5. Inventory counts in the docs match reality, and a missing count fails ---
@@ -122,7 +123,7 @@ for (const doc of inventoryDocs) {
   for (const [label, actual] of countedInventory) {
     const stated = text.match(new RegExp(`(\\d+)\\s+${label}\\b`));
     if (!stated) errors.push(`${doc} does not state how many ${label} ship, and there are ${actual}. Hint: write the count as digits, for example "${actual} ${label}"; a number written as a word is not read.`);
-    else if (Number(stated[1]) !== actual) errors.push(`${doc} says "${stated[1]} ${label}", actual is ${actual}. Hint: change it to "${actual} ${label}".`);
+    else if (Number(stated[1]) !== actual) errors.push(`${doc} says "${stated[1]} ${label}", which is not the actual count of ${actual}. Hint: change it to "${actual} ${label}".`);
   }
 }
 
@@ -131,10 +132,10 @@ for (const doc of inventoryDocs) {
 // because a name repeated in three tables can appear in each while the descriptions disagree.
 const skillGraph = read(join(ROOT, "docs", "skill-graph.md"));
 for (const skill of skills) {
-  if (!skillGraph.includes(skill)) errors.push(`skill "${skill}" is not documented in docs/skill-graph.md`);
+  if (!skillGraph.includes(skill)) errors.push(`skill "${skill}" is not documented in docs/skill-graph.md. Hint: add a row for it.`);
 }
 for (const agent of agents) {
-  if (!skillGraph.includes(agent)) errors.push(`agent "${agent}" is not documented in docs/skill-graph.md`);
+  if (!skillGraph.includes(agent)) errors.push(`agent "${agent}" is not documented in docs/skill-graph.md. Hint: add a row for it.`);
 }
 
 // --- 6a. No doc references a skill or agent that does not exist ---
@@ -178,7 +179,7 @@ for (const file of docFiles) {
     referenced.map((raw) => raw.replace(LOCAL_PREFIX_PATTERN, "")).filter((name) => !name.includes(":") && !RESOLVABLE_NAMES.has(name)),
   );
   for (const name of unresolved) {
-    errors.push(`${file.slice(ROOT.length + 1)} references "${name}", which is not a skill or agent in this repo`);
+    errors.push(`${file.slice(ROOT.length + 1)} references "${name}", which is not a skill or agent in this repo. Hint: fix the name or add the skill.`);
   }
 }
 
@@ -195,7 +196,7 @@ for (const [manifest, descriptions] of manifestDescriptions) {
   for (const description of descriptions.filter(Boolean)) {
     for (const [, raw] of description.matchAll(/(?<![\w./])\/([a-z][\w:-]*)/g)) {
       const name = raw.replace(LOCAL_PREFIX_PATTERN, "");
-      if (!name.includes(":") && !RESOLVABLE_NAMES.has(name)) errors.push(`${manifest} description names "/${raw}", which is not a skill or command in this repo`);
+      if (!name.includes(":") && !RESOLVABLE_NAMES.has(name)) errors.push(`${manifest} description names "/${raw}", which is not a skill or command in this repo. Hint: fix the name or add it.`);
     }
   }
 }
@@ -213,11 +214,11 @@ const referenceFiles = existsSync(referencesDir)
 if (existsSync(referencesDir)) {
   const indexPath = join(referencesDir, REFERENCE_INDEX);
   if (!existsSync(indexPath)) {
-    errors.push(`plugin/references/ has no ${REFERENCE_INDEX}`);
+    errors.push(`plugin/references/ has no ${REFERENCE_INDEX}. Hint: add the index.`);
   } else {
     const index = read(indexPath);
     for (const file of referenceFiles) {
-      if (!index.includes(file)) errors.push(`reference "${file}" is not indexed in plugin/references/${REFERENCE_INDEX}`);
+      if (!index.includes(file)) errors.push(`reference "${file}" is not indexed in plugin/references/${REFERENCE_INDEX}. Hint: add a row for it.`);
     }
     // Every bare `.md` filename the index names, whatever notation carries it. Matching the link
     // form `](./x.md)` alone left `](x.md)` and a plain-text row green over a deleted file, while
@@ -229,17 +230,17 @@ if (existsSync(referencesDir)) {
     named.delete("CLAUDE.md");
     for (const name of named) {
       if (!existsSync(join(referencesDir, name))) {
-        errors.push(`plugin/references/${REFERENCE_INDEX} names "${name}", which does not exist`);
+        errors.push(`plugin/references/${REFERENCE_INDEX} names "${name}", which does not exist. Hint: remove the row or add the file.`);
       }
     }
     if (!skillGraph.includes(REFERENCE_INDEX)) {
-      errors.push(`docs/skill-graph.md does not document plugin/references/${REFERENCE_INDEX}`);
+      errors.push(`docs/skill-graph.md does not document plugin/references/${REFERENCE_INDEX}. Hint: add a row for it.`);
     }
   }
 } else {
   for (const file of docFiles) {
     if (read(file).includes(REFERENCE_INDEX)) {
-      errors.push(`${file.slice(ROOT.length + 1)} points at ${REFERENCE_INDEX}, which no longer exists`);
+      errors.push(`${file.slice(ROOT.length + 1)} points at ${REFERENCE_INDEX}, which no longer exists. Hint: update the pointer.`);
     }
   }
 }
@@ -253,7 +254,7 @@ for (const skill of skills) {
   if (!existsSync(skillFile)) continue;
   for (const m of read(skillFile).matchAll(/`((?:\.\.\/)+[\w./-]+\.(?:md|html|json))`/g)) {
     if (!existsSync(resolve(join(skillsDir, skill), m[1]))) {
-      errors.push(`${skill}/SKILL.md points at "${m[1]}", which does not resolve from that directory`);
+      errors.push(`${skill}/SKILL.md points at "${m[1]}", which does not resolve from that directory. Hint: fix the path.`);
     }
   }
 }
@@ -267,7 +268,7 @@ for (const skill of skills) {
 for (const skill of skills) {
   const evalsPath = join(skillsDir, skill, "evals.md");
   if (existsSync(evalsPath) && parseChecks(read(evalsPath)).checks.length === 0) {
-    warnings.push(`skill "${skill}" has no runnable "## Deterministic Checks" fence — --lint measures nothing for it`);
+    warnings.push(`skill "${skill}" has no runnable "## Deterministic Checks" fence, so --lint measures nothing for it. Hint: add the fence.`);
   }
 }
 
@@ -275,7 +276,7 @@ for (const skill of skills) {
   const evalsPath = join(skillsDir, skill, "evals.md");
   if (!existsSync(evalsPath)) continue;
   for (const check of parseChecks(read(evalsPath)).checks.filter((c) => !c.expects.length)) {
-    warnings.push(`${skill}/evals.md: check "${check.label}" has no "# expect:" line — --scenario cannot grade it`);
+    warnings.push(`${skill}/evals.md: check "${check.label}" has no "# expect:" line, so --scenario cannot grade it. Hint: add the line.`);
   }
 }
 
@@ -343,7 +344,7 @@ for (const skill of skills) {
         const clash = headings.find((h) => h.includes(term));
         if (clash) {
           warnings.push(
-            `${skill}/evals.md:${lineNo + 1}: check keyed on "${term}", also in SKILL.md heading "${clash}" — it may match a failing run`,
+            `${skill}/evals.md:${lineNo + 1}: check keyed on "${term}" must not also appear in SKILL.md heading "${clash}", or it may match a failing run. Hint: rename one of them.`,
           );
         }
       }
@@ -359,7 +360,7 @@ for (const skill of skills) {
     //     Multiple -e flags are correct in both.
     for (const span of line.match(/`[^`]*`/g) ?? []) {
       if (span.includes("|") && !span.includes("\\|")) {
-        warnings.push(`${at}: unescaped "|" in a table-cell code span — use repeated -e flags instead`);
+        warnings.push(`${at}: a table-cell code span must not hold an unescaped "|". Hint: use repeated -e flags instead.`);
       }
     }
 
@@ -370,7 +371,7 @@ for (const skill of skills) {
       if (term.length < 4) continue;
       const clash = headings.find((h) => h.includes(term));
       if (clash) {
-        warnings.push(`${at}: measure "${term}" also appears in SKILL.md heading "${clash}" — it may match a failing run`);
+        warnings.push(`${at}: measure "${term}" must not also appear in SKILL.md heading "${clash}", or it may match a failing run. Hint: rename one of them.`);
       }
     }
   });
@@ -404,9 +405,9 @@ const quotedItems = (list: string) => {
 
 const zanityConfigPath = join(ROOT, ZANITY_CONFIG);
 if (!existsSync(zanityConfigPath)) {
-  errors.push(`${ZANITY_CONFIG} is missing. Hint: zanity is a required check, so the repo must configure it.`);
+  errors.push(`${ZANITY_CONFIG} is missing. Hint: add it, since zanity is a required check.`);
 } else if (read(zanityConfigPath).startsWith(BYTE_ORDER_MARK)) {
-  errors.push(`${ZANITY_CONFIG} starts with a byte order mark, which hides its first line from the guard. Hint: re-save it without one.`);
+  errors.push(`${ZANITY_CONFIG} must not start with a byte order mark, which hides its first line from the guard. Hint: re-save it without one.`);
 } else {
   const config = read(zanityConfigPath).replace(/#.*$/gm, "");
   if (!/^select\s*=\s*\["all"\]/m.test(config)) {
@@ -420,16 +421,16 @@ if (!existsSync(zanityConfigPath)) {
     const expected = ZANITY_ALLOWED_DISABLES[header] ?? [];
     const disabled = [...body.matchAll(DISABLE_LIST)].flatMap(([, list]) => quotedItems(list));
     if (scopesPaths && !ZANITY_TEST_FILES_TABLES.includes(header)) {
-      errors.push(`${ZANITY_CONFIG} scopes rules off in [${header}]. Hint: only ${ZANITY_TEST_FILES_TABLE_LIST} may do that, so fix the findings in code instead.`);
+      errors.push(`${ZANITY_CONFIG} must not scope rules off in [${header}]; only ${ZANITY_TEST_FILES_TABLE_LIST} may. Hint: fix the findings in code instead.`);
     } else if (!scopesPaths && PATHS_KEY.test(body)) {
-      errors.push(`${ZANITY_CONFIG} sets a paths key outside a [paths...] table. Hint: only ${ZANITY_TEST_FILES_TABLE_LIST} may scope rules off, written as its own table.`);
+      errors.push(`${ZANITY_CONFIG} must not set a paths key outside a [paths...] table. Hint: write ${ZANITY_TEST_FILES_TABLE_LIST} as its own table.`);
     } else if (disabled.length !== expected.length || !expected.every((rule) => disabled.includes(rule))) {
       errors.push(`${ZANITY_CONFIG} disables ${disabled.join(", ") || "nothing"} under [${header || "top level"}]. Hint: only ${Object.entries(ZANITY_ALLOWED_DISABLES).map(([table, rules]) => `[${table}] may disable exactly ${rules.join(", ")}`).join(" and ")}; fix the findings in code instead.`);
     }
   }
   const excluded = quotedItems(config.match(/^exclude\s*=\s*\[([^\]]*)\]/m)?.[1] ?? "");
   for (const path of excluded.filter((p) => !ZANITY_ALLOWED_EXCLUDES.includes(p))) {
-    errors.push(`${ZANITY_CONFIG} excludes ${path}, which hides it from every check. Hint: only ${ZANITY_ALLOWED_EXCLUDES.join(", ")} may be excluded.`);
+    errors.push(`${ZANITY_CONFIG} must not exclude ${path}, which hides it from every check. Hint: remove it; only ${ZANITY_ALLOWED_EXCLUDES.join(", ")} may be excluded.`);
   }
 }
 
@@ -462,7 +463,7 @@ for (const skill of skills) {
   for (const line of read(evalsPath).split("\n")) {
     if (line.startsWith("## ")) inScenarios = line.startsWith(SCENARIOS_HEADING);
     const id = inScenarios ? line.match(SCENARIO_ROW_ID)?.[1] : undefined;
-    if (id && seen.has(id)) errors.push(`${skill}/evals.md repeats scenario id ${id}. Hint: ids stay stable, so give the newer row the next unused number.`);
+    if (id && seen.has(id)) errors.push(`${skill}/evals.md repeats scenario id ${id}. Hint: give the newer row the next unused number, since ids stay stable.`);
     if (id) seen.add(id);
   }
 }
@@ -623,7 +624,7 @@ if (baseRef) {
   for (const skill of changedSkills(ROOT, baseRef)) {
     const status = stampStatus(ROOT, skill);
     if (status === "waived") {
-      warnings.push(`skill ${skill} ships on a waiver: ${waiverReason(ROOT, skill)}. Hint: run node scripts/eval/changed-skills.ts and replace evals/results/${skill}.json once credentials exist`);
+      warnings.push(`skill ${skill} ships on a waiver, which must give way to a stamp: ${waiverReason(ROOT, skill)}. Hint: run node scripts/eval/changed-skills.ts and replace evals/results/${skill}.json once credentials exist`);
     } else if (status !== "ok" && status !== "static") {
       errors.push(`skill ${skill} ${STAMP_PROBLEM[status]}. Hint: skill ${skill} changed since its evals last passed; run node scripts/eval/changed-skills.ts --static ${skill} (no model run) or the live run, and commit evals/results/${skill}.json`);
     }
@@ -645,7 +646,7 @@ const pluginScripts = existsSync(PLUGIN)
   : [];
 for (const file of pluginScripts) {
   for (const specifier of read(file).match(TYPESCRIPT_IMPORT) ?? []) {
-    errors.push(`${file.slice(ROOT.length + 1)} imports TypeScript (${specifier.trim()}). Hint: shipped plugin code is plain JavaScript run with node file.mjs on Node 22 and later, with no build, and Node 22 before 22.18 cannot load .ts; import a .mjs file instead.`);
+    errors.push(`${file.slice(ROOT.length + 1)} must not import TypeScript (${specifier.trim()}). Hint: import a .mjs file instead, since shipped plugin code is plain JavaScript that runs without a build.`);
   }
 }
 
@@ -667,7 +668,7 @@ if (existsSync(cursorHooksPath)) {
         if (!existsSync(join(ROOT, script))) errors.push(`${CURSOR_HOOKS_FILE}: ${event} runs ${script}, which does not exist. Hint: point the hook at a real script or remove it.`);
       }
       if (event === SHELL_GUARD_EVENT && hook.failClosed !== true) {
-        errors.push(`${CURSOR_HOOKS_FILE}: the ${event} hook "${hook.command}" must set "failClosed": true. Hint: Cursor lets the command run when a hook crashes unless failClosed is set.`);
+        errors.push(`${CURSOR_HOOKS_FILE}: the ${event} hook "${hook.command}" must set "failClosed": true. Hint: set it, since Cursor lets the command run when a hook crashes unless failClosed is set.`);
       }
     }
   }
@@ -700,7 +701,7 @@ if (existsSync(guardSourcePath)) {
   for (let number = 1; number <= lastNumber; number++) {
     const count = checksPerNumber.get(number) ?? 0;
     if (count === 0) errors.push(`${GUARD_SOURCE} has no check ${number} but numbers up to ${lastNumber}. Hint: renumber so the checks run from 1 to ${lastNumber} with no gap.`);
-    if (count > 1) errors.push(`${GUARD_SOURCE} numbers ${count} checks ${number}. Hint: two branches added a check at once; renumber the later one.`);
+    if (count > 1) errors.push(`${GUARD_SOURCE} must not repeat check number ${number}, but numbers ${count} checks ${number}. Hint: renumber the later one, since two branches added a check at once.`);
   }
 }
 
@@ -741,7 +742,7 @@ if (existsSync(stampsDirectoryPath) && existsSync(readmeFilePath)) {
   const actual = `${liveCount} live, ${staticCount} static, ${waivedCount} waived of ${stamps.length}`;
   const stated = read(readmeFilePath).match(STAMP_STATEMENT);
   if (!stated) {
-    errors.push(`${README_FILE} has no "${STAMP_STATEMENT_FORM}" line, and ${STAMPS_DIRECTORY} holds ${actual} skill stamps. Hint: state the numbers so a reader sees the eval status.`);
+    errors.push(`${README_FILE} has no "${STAMP_STATEMENT_FORM}" line, and ${STAMPS_DIRECTORY} holds ${actual} skill stamps. Hint: write the numbers so a reader sees the eval status.`);
   } else if (stated.slice(1).map(Number).join() !== [liveCount, staticCount, waivedCount, stamps.length].join()) {
     errors.push(`${README_FILE} says ${stated[1]} live, ${stated[2]} static, ${stated[3]} waived of ${stated[4]} skill stamps, but ${STAMPS_DIRECTORY} holds ${actual}. Hint: update the README line when a stamp changes.`);
   }
@@ -749,14 +750,13 @@ if (existsSync(stampsDirectoryPath) && existsSync(readmeFilePath)) {
 
 // --- 26. Only allow-listed agents pin a model, and to the value the list names ---
 const MODEL_PINNING_AGENTS: Record<string, string> = { scout: "haiku" };
-const MODEL_POLICY_HINT = "only the scout pins a model; every other agent inherits the session model";
 const MODEL_LINE = /^model:\s*(.*)$/m;
 for (const agent of agents) {
   const frontmatter = read(join(agentsDir, `${agent}.md`)).match(/^---\n([\s\S]*?)\n---/)?.[1] ?? "";
   const pinned = frontmatter.match(MODEL_LINE)?.[1].trim();
   const expected = Object.hasOwn(MODEL_PINNING_AGENTS, agent) ? MODEL_PINNING_AGENTS[agent] : undefined;
-  if (pinned === undefined && expected !== undefined) errors.push(`agent "${agent}" has no model, but must pin "${expected}". Hint: ${MODEL_POLICY_HINT}.`);
-  if (pinned !== undefined && pinned !== expected) errors.push(`agent "${agent}" pins model "${pinned}"${expected === undefined ? ", but is not allowed to pin one" : `, but must pin "${expected}"`}. Hint: ${MODEL_POLICY_HINT}.`);
+  if (pinned === undefined && expected !== undefined) errors.push(`agent "${agent}" has no model, but must pin "${expected}". Hint: pin a model only on the scout, since every other agent inherits the session model.`);
+  if (pinned !== undefined && pinned !== expected) errors.push(`agent "${agent}" pins model "${pinned}"${expected === undefined ? ", but is not allowed to pin one" : `, but must pin "${expected}"`}. Hint: pin a model only on the scout, since every other agent inherits the session model.`);
 }
 
 // --- 27. Every rule in an inventoried instruction file is still present, and every marker line is accounted for ---
@@ -790,6 +790,10 @@ if (existsSync(packagePath)) {
   errors.push(...nodeFloorProblems({ engines: JSON.parse(read(packagePath)).engines?.node, documents, today: new Date() }));
 }
 
+// --- 32. Failure messages that name no value, rule or fix are baselined, and the baseline never grows ---
+const MESSAGE_ACTIONABILITY_SCRIPT = "scripts/audit/message-actionability.ts";
+if (existsSync(join(ROOT, MESSAGE_ACTIONABILITY_SCRIPT))) errors.push(...baselineProblems(ROOT, baseRef));
+
 // --- report ---
 console.log(
   `gated-delivery audit: ${skills.length} skills, ${agents.length} agents, ${hookFiles.size} hooks` +
@@ -799,7 +803,7 @@ console.log(
 for (const w of warnings) console.log(`  WARN  ${w}`);
 for (const e of errors) console.log(`  ERROR ${e}`);
 if (errors.length) {
-  console.error(`\n${errors.length} consistency error(s) — fix before merge.`);
+  console.error(`\n${errors.length} consistency error(s) must not reach main; fix them before merge.`);
   process.exit(1);
 }
 console.log(warnings.length ? `\nOK (${warnings.length} warning(s)).` : "\nOK.");

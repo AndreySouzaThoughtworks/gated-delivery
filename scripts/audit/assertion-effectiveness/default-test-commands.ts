@@ -1,6 +1,6 @@
 export const DEFAULT_TEST_COMMANDS = [
   "node --test plugin/hooks/*.test.mjs",
-  "node --test scripts/audit/*.test.ts scripts/eval/*.test.ts scripts/cursor/*.test.ts",
+  "node --test scripts/audit/*.test.ts scripts/audit/message-actionability/*.test.ts scripts/eval/*.test.ts scripts/cursor/*.test.ts",
   "node --test plugin/bootstrap/*.test.mjs plugin/bootstrap/guards/*.test.mjs",
   "node --test plugin/scripts/*.test.mjs",
   "node scripts/eval/run-checks.ts --lint",

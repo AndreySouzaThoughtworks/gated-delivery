@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // The tracker guardrail scan from plugin/skills/issue-writing/SKILL.md ("Guardrail scan before any write"),
 // as a script that always reads the named file. Usage: node <skill base directory>/scripts/guardrail-scan.mjs <file> [--term <regex>]...
-// Prints "<file>:<line>: <arm>" per hit (never the matched text, which may be the secret) and exits 1 on any hit.
+// Prints "<file>:<line>: <arm> is banned in tickets; redact it." per hit (never the matched text, which may be the secret) and exits 1 on any hit.
 // Exit 2 on bad usage. Each --term is one more case-insensitive regex arm, like the skill's Extra guardrail term.
 
 import assert from "node:assert";
@@ -34,15 +34,15 @@ const EXIT_USAGE = 2;
  * @returns {RegExp}
  */
 const compileTerm = (term) => {
-  assert(typeof term === "string" && term.length > 0, `each ${TERM_FLAG} must be a non-empty regex, which would otherwise match every line, got ${JSON.stringify(term)}`);
+  assert(typeof term === "string" && term.length > 0, `each \`${TERM_FLAG}\` must be a non-empty regex, got ${JSON.stringify(term)}; pass a word or pattern to flag.`);
   let compiled;
   try {
     compiled = new RegExp(term, "i");
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    throw new assert.AssertionError({ message: `each ${TERM_FLAG} must be a valid regex, got ${JSON.stringify(term)}; ${detail}` });
+    throw new assert.AssertionError({ message: `each ${TERM_FLAG} must be a valid regex, got ${JSON.stringify(term)} (${detail}); fix the pattern.` });
   }
-  assert(!compiled.test(""), `each ${TERM_FLAG} must not match an empty line, which would flag every line, got ${JSON.stringify(term)}`);
+  assert(!compiled.test(""), `each ${TERM_FLAG} must not match an empty line, got ${JSON.stringify(term)}; add text the pattern must match.`);
   return compiled;
 };
 
@@ -68,6 +68,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     process.exit(EXIT_USAGE);
   }
   const hits = scanText(readFileSync(file, "utf8"), extraTerms);
-  for (const { line, arm } of hits) process.stdout.write(`${file}:${line}: ${arm}\n`);
+  for (const { line, arm } of hits) process.stdout.write(`${file}:${line}: ${arm} is banned in tickets; redact it.\n`);
   process.exit(hits.length > 0 ? EXIT_HITS : 0);
 }

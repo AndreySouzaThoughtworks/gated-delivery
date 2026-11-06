@@ -79,11 +79,11 @@ test("a zanity config list with a blank quoted item stops the guard", () => {
 test("reports a frontmatter name that disagrees with its directory or filename", () => {
   const dirSkill = validRepo();
   write(dirSkill, "plugin/skills/alpha/SKILL.md", "---\nname: not-alpha\ndescription: x\n---\n");
-  assert.match(runGuard(dirSkill).out, /frontmatter name "not-alpha" != dir name/);
+  assert.match(runGuard(dirSkill).out, /frontmatter name "not-alpha" must equal the dir name/);
 
   const dirAgent = validRepo();
   write(dirAgent, "plugin/agents/bot.md", "---\nname: not-bot\ndescription: x\n---\n");
-  assert.match(runGuard(dirAgent).out, /frontmatter name "not-bot" != filename/);
+  assert.match(runGuard(dirAgent).out, /frontmatter name "not-bot" must equal the filename/);
 });
 
 test("reports hooks.json problems", () => {
@@ -93,7 +93,7 @@ test("reports hooks.json problems", () => {
 
   const malformed = validRepo();
   write(malformed, "plugin/hooks/hooks.json", "{ not json");
-  assert.match(runGuard(malformed).out, /hooks\.json invalid JSON/);
+  assert.match(runGuard(malformed).out, /hooks\.json holds invalid JSON/);
 });
 
 test("warns on an orphan hook file", () => {
@@ -118,7 +118,7 @@ test("reports inventory counts that disagree with reality", () => {
   write(dir, "README.md", "The plugin — 9 skills, 1 agents, 1 hooks.\n");
   const { code, out } = runGuard(dir);
   assert.equal(code, 1);
-  assert.match(out, /README.md says "9 skills", actual is 1/);
+  assert.match(out, /README.md says "9 skills", which is not the actual count of 1/);
 });
 
 test("reports a skill or agent missing from the canonical inventory", () => {
@@ -235,14 +235,14 @@ test("warns on an unescaped pipe inside a table-cell code span", () => {
   // fixes rendering but breaks the raw text.
   const dir = validRepo();
   write(dir, "plugin/skills/alpha/evals.md", ONE_SCENARIO + '| x | `grep -iEc "foo|bar" out` |\n');
-  assert.match(runGuard(dir).out, /unescaped "\|" in a table-cell code span/);
+  assert.match(runGuard(dir).out, /a table-cell code span must not hold an unescaped "\|"/);
 });
 
 test("warns when a measure is keyed on one of the skill's own headings", () => {
   // Such a measure fires on any output of that shape, including a run that failed the scenario.
   const dir = validRepo();
   write(dir, "plugin/skills/alpha/evals.md", ONE_SCENARIO + '| x | `grep -c -e "Heading One" out` |\n');
-  assert.match(runGuard(dir).out, /measure "heading one" also appears in SKILL\.md heading/);
+  assert.match(runGuard(dir).out, /measure "heading one" must not also appear in SKILL\.md heading/);
 });
 
 test("warns when a check inside the fence is keyed on one of the skill's own headings", () => {
@@ -254,7 +254,7 @@ test("warns when a check inside the fence is keyed on one of the skill's own hea
     "plugin/skills/alpha/evals.md",
     ONE_SCENARIO + "| Signal | How to Measure |\n|---|---|\n| x | y |\n\n## Deterministic Checks\n\n```bash\ngrep -iEc \"heading one\" output.md\n```\n",
   );
-  assert.match(runGuard(dir).out, /check keyed on "heading one", also in SKILL\.md heading/);
+  assert.match(runGuard(dir).out, /check keyed on "heading one" must not also appear in SKILL\.md heading/);
 });
 
 test("a `## ` comment inside the fence does not hide the checks after it", () => {
@@ -323,7 +323,7 @@ test("a command count written as a word is reported, and digits pass", () => {
 
   write(dir, "README.md", "The plugin — 1 skills, 1 agents, 1 hooks, 2 commands.\n\n[MIT](LICENSE)\n");
   const wrong = runGuard(dir);
-  assert.match(wrong.out, /README\.md says "2 commands", actual is 1\. Hint: change it to "1 commands"/);
+  assert.match(wrong.out, /README\.md says "2 commands", which is not the actual count of 1\. Hint: change it to "1 commands"/);
 
   write(dir, "README.md", "The plugin — 1 skills, 1 agents, 1 hooks, 1 commands.\n\n[MIT](LICENSE)\n");
   const digits = runGuard(dir);
@@ -335,7 +335,7 @@ test("docs/development.md is checked for inventory counts when it exists", () =>
   write(dir, "docs/development.md", "The plugin — 1 skills, 2 agents, 1 hooks.\n");
   const stale = runGuard(dir);
   assert.equal(stale.code, 1, stale.out);
-  assert.match(stale.out, /docs\/development\.md says "2 agents", actual is 1/);
+  assert.match(stale.out, /docs\/development\.md says "2 agents", which is not the actual count of 1/);
 
   write(dir, "docs/development.md", "The plugin — 1 skills, 1 agents, 1 hooks.\n");
   const fresh = runGuard(dir);

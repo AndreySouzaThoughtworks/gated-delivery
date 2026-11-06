@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gate, listUnresolvedThreads } from "./pr-gate.mjs";
+import { assertActionable, assertErrorIsActionable } from "./run-cli.test.support.mjs";
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "pr-gate.mjs");
 const EXIT_CLEAN = 0;
@@ -43,6 +44,12 @@ const scratch = (reply = threadsReply([])) => {
   assert(existsSync(join(stubs, "gh")), `the gh stub must exist in ${stubs}`);
   assert(typeof reply === "string", `the canned reply must be text, got ${typeof reply}`);
   return { directory, stubs };
+};
+
+const failureOf = (result) => {
+  assert(typeof result.stderr === "string", `a result needs stderr text, got ${typeof result.stderr}`);
+  assert(result.stderr.startsWith("pr-gate: "), `the failure must start with "pr-gate: ", got ${JSON.stringify(result.stderr)}`);
+  return result.stderr.split("\n")[0].replace(/^pr-gate: /, "");
 };
 
 const cli = ({ body, title = GOOD_TITLE, finalSlice = NOT_FINAL, extra = [], reply, bodyName = "pr-body-feat-x.md" }) => {
@@ -86,6 +93,7 @@ test("rejects a title that is only the ticket id and a description", () => {
   const result = cli({ body: "ok\n", title: "PROJ-1: x" });
   assert.equal(result.status, EXIT_HITS);
   assert.match(JSON.parse(result.stdout).title, /does not match/);
+  assertActionable(JSON.parse(result.stdout).title);
 });
 
 for (const title of ["feat: add it", "fix(api)!: drop it", "docs(PROJ-2): explain", "chore: bump", "test: cover", "refactor(core): split"]) {
@@ -110,6 +118,7 @@ test("rejects a title convention that matches an empty title", () => {
   const result = cli({ body: "ok\n", extra: ["--title-convention", ".*"] });
   assert.equal(result.status, EXIT_USAGE);
   assert.match(result.stderr, /does not match an empty title/);
+  assertActionable(failureOf(result));
 });
 
 test("rejects any unresolved review thread", () => {
@@ -140,18 +149,22 @@ test("never calls gh without --pr", () => {
 test("exits 2 when the reply holds no threads", () => {
   const result = cli({ body: "ok\n", extra: ["--pr", String(PR_NUMBER)], reply: JSON.stringify({ data: { repository: { pullRequest: null } } }) });
   assert.equal(result.status, EXIT_USAGE);
-  assert.match(result.stderr, /holds no reviewThreads\.nodes/);
+  assert.match(result.stderr, /has no `reviewThreads\.nodes`/);
+  assertActionable(failureOf(result));
 });
 
 test("exits 2 when threads span more than one page", () => {
   const result = cli({ body: "ok\n", extra: ["--pr", String(PR_NUMBER)], reply: threadsReply([thread(true)], true) });
   assert.equal(result.status, EXIT_USAGE);
   assert.match(result.stderr, /has more than 100 review threads/);
+  assertActionable(failureOf(result));
 });
 
 test("exits 2 for a pull request number that is not positive", () => {
   assert.equal(cli({ body: "ok\n", extra: ["--pr", "0"] }).status, EXIT_USAGE);
   assert.equal(cli({ body: "ok\n", extra: ["--pr", "abc"] }).status, EXIT_USAGE);
+  assertActionable(failureOf(cli({ body: "ok\n", extra: ["--pr", "abc"] })));
+  assertActionable(failureOf(cli({ body: "ok\n", extra: ["--pr", "0"] })));
 });
 
 test("rejects a body file whose directory swallowed the branch slash", () => {
@@ -163,11 +176,13 @@ test("rejects a body file whose directory swallowed the branch slash", () => {
   const result = spawnSync("node", [SCRIPT, "--body-file", bodyFile, "--title", GOOD_TITLE, "--final-slice", NOT_FINAL], { encoding: "utf8" });
   assert.equal(result.status, EXIT_HITS);
   assert.match(JSON.parse(result.stdout).bodyPath, /every \/ in the branch name replaced by -/);
+  assertActionable(JSON.parse(result.stdout).bodyPath);
 });
 
 test("rejects a body file that is not named pr-body-<branch>.md", () => {
   assert.equal(cli({ body: "ok\n", bodyName: "body.md" }).status, EXIT_HITS);
   assert.equal(cli({ body: "ok\n", bodyName: "pr-body-feat-x.txt" }).status, EXIT_HITS);
+  assertActionable(JSON.parse(cli({ body: "ok\n", bodyName: "body.md" }).stdout).bodyPath);
 });
 
 test("accepts a body file named pr-body-<branch>.md", () => {
@@ -183,11 +198,14 @@ test("prints the four result keys", () => {
 test("exits 2 for a final-slice value other than y or n", () => {
   const result = cli({ body: "ok\n", finalSlice: "maybe" });
   assert.equal(result.status, EXIT_USAGE);
-  assert.match(result.stderr, /--final-slice must be y or n/);
+  assert.match(result.stderr, /`--final-slice` must be y or n/);
+  assertActionable(failureOf(result));
 });
 
 test("exits 2 when a required flag is missing", () => {
-  assert.equal(spawnSync("node", [SCRIPT, "--title", GOOD_TITLE], { encoding: "utf8" }).status, EXIT_USAGE);
+  const result = spawnSync("node", [SCRIPT, "--title", GOOD_TITLE], { encoding: "utf8" });
+  assert.equal(result.status, EXIT_USAGE);
+  assertActionable(failureOf(result));
 });
 
 test("exits 2 for a body file that does not exist", () => {
@@ -197,9 +215,11 @@ test("exits 2 for a body file that does not exist", () => {
 });
 
 test("gate rejects a final-slice value it does not know", () => {
-  assert.throws(() => gate({ body: "", bodyPath: "/tmp/pr-body-a.md", title: GOOD_TITLE, finalSlice: "x", titleConvention: "^feat", threads: [] }), /--final-slice must be y or n/);
+  assert.throws(() => gate({ body: "", bodyPath: "/tmp/pr-body-a.md", title: GOOD_TITLE, finalSlice: "x", titleConvention: "^feat", threads: [] }), /`--final-slice` must be y or n/);
+  assertErrorIsActionable(() => gate({ body: "", bodyPath: "/tmp/pr-body-a.md", title: GOOD_TITLE, finalSlice: "x", titleConvention: "^feat", threads: [] }));
 });
 
 test("listUnresolvedThreads rejects a pull request number it cannot use", () => {
   assert.throws(() => listUnresolvedThreads(-1), /positive integer/);
+  assertErrorIsActionable(() => listUnresolvedThreads(-1));
 });

@@ -7,7 +7,7 @@ import { dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { lintSpec } from "../skills/spec/scripts/spec-lint.mjs";
 import { missingFileProblems, specProblems, worktreeProblems } from "./executor-preflight.mjs";
-import { runScript } from "./run-cli.test.support.mjs";
+import { assertActionable, assertErrorIsActionable, runScript } from "./run-cli.test.support.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SCRIPT = join(HERE, "executor-preflight.mjs");
@@ -52,6 +52,7 @@ const specWith = (replacements) => {
 
 const rulesOf = (result) => {
   assert(Array.isArray(result.problems), `a result needs a problems list, got ${JSON.stringify(result)}`);
+  for (const { detail } of result.problems) assertActionable(detail);
   const rules = result.problems.map(({ rule }) => rule);
   assert(rules.every((rule) => rule !== ""), `every problem must name a rule, got ${JSON.stringify(rules)}`);
   return rules;
@@ -103,6 +104,7 @@ test("rejects a Relevant files path that does not exist and names it", () => {
   const result = check(raw);
   assert.deepEqual(rulesOf(result), ["missing-relevant-file"]);
   assert.match(result.problems[0].detail, /src\/orders\/gone\.ts/);
+  assertActionable(result.problems[0].detail);
 });
 
 test("accepts a Relevant files bullet that names a file the ticket adds", () => {
@@ -123,12 +125,15 @@ test("ignores backticked commands that are not paths in Relevant files", () => {
 test("missingFileProblems rejects a non-text section and a relative base", () => {
   assert.throws(() => missingFileProblems(undefined, newWorktree()), /must be text/);
   assert.throws(() => missingFileProblems("", "relative/base"), /must be absolute/);
+  assertErrorIsActionable(() => missingFileProblems(undefined, newWorktree()));
+  assertErrorIsActionable(() => missingFileProblems("", "relative/base"));
 });
 
 test("rejects an AC outside the slice and names both", () => {
   const result = check(VALID_SPEC, { acs: [1, 2] });
   assert.deepEqual(rulesOf(result), ["ac-outside-slice"]);
   assert.match(result.problems[0].detail, /AC\[2\] is not assigned to Slice 1/);
+  assertActionable(result.problems[0].detail);
 });
 
 test("lists cross-repo ACs to skip instead of rejecting them", () => {
@@ -141,6 +146,7 @@ test("rejects a slice the Rollout does not hold", () => {
 
 test("rejects a slice that is not a positive integer", () => {
   assert.throws(() => check(VALID_SPEC, { slice: 0 }), /positive integer/);
+  assertErrorIsActionable(() => check(VALID_SPEC, { slice: 0 }));
 });
 
 test("accepts a clean worktree", () => {
@@ -151,6 +157,7 @@ test("rejects a dirty worktree with an untracked file and with an edited file", 
   const untracked = newWorktree();
   writeFileSync(join(untracked, "scratch.txt"), "x\n");
   assert.deepEqual(worktreeProblems(untracked).map(({ rule }) => rule), ["worktree-dirty"]);
+  assertActionable(worktreeProblems(untracked)[0].detail);
   const edited = newWorktree();
   writeFileSync(join(edited, "src", "orders", "order.ts"), "changed\n");
   assert.deepEqual(worktreeProblems(edited).map(({ rule }) => rule), ["worktree-dirty"]);
@@ -159,8 +166,10 @@ test("rejects a dirty worktree with an untracked file and with an edited file", 
 test("rejects a directory that is not a git worktree and a missing directory", () => {
   const plain = mkdtempSync(join(tmpdir(), "executor-preflight-plain-"));
   assert.deepEqual(worktreeProblems(plain).map(({ rule }) => rule), ["worktree-not-a-git-worktree"]);
+  assertActionable(worktreeProblems(plain)[0].detail);
   assert.deepEqual(worktreeProblems(join(plain, "missing")).map(({ rule }) => rule), ["worktree-not-a-git-worktree"]);
-  assert.throws(() => worktreeProblems(""), /directory path/);
+  assert.throws(() => worktreeProblems(""), /must name a directory/);
+  assertErrorIsActionable(() => worktreeProblems(""));
 });
 
 
@@ -198,4 +207,7 @@ test("exits 2 on missing arguments, a bad slice, a bad AC list and an unreadable
   assert.equal(runScript(SCRIPT, ["--spec", spec, "--slice", "0"]).status, EXIT_USAGE);
   assert.equal(runScript(SCRIPT, ["--spec", spec, "--slice", "1", "--acs", "1,x"]).status, EXIT_USAGE);
   assert.equal(runScript(SCRIPT, ["--spec", `${spec}.missing`, "--slice", "1"]).status, EXIT_USAGE);
+  for (const args of [["--slice", "1"], ["--spec", spec], ["--spec", spec, "--slice", "0"], ["--spec", spec, "--slice", "1", "--acs", "1,x"]]) {
+    assertActionable(runScript(SCRIPT, args).stderr.split("\n")[0].replace(/^executor-preflight: /, ""));
+  }
 });

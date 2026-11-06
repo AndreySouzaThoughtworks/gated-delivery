@@ -26,7 +26,7 @@ claude plugin marketplace add AndreySouzaThoughtworks/gated-delivery
 /reload-plugins
 ```
 
-Install at user scope and run `/reload-plugins` afterwards, or the agents stay unregistered in the running session. To update, run `claude plugin update gated-delivery@gated-delivery` (or `/plugin update`), then `/reload-plugins`. The plugin has no version number: Claude Code uses the commit SHA, so every commit is an update. The hooks run on Node 18 or later. [Onboarding](docs/onboarding.md) covers one profile per client, the notes folder and the environment variables you can set.
+Install at user scope and run `/reload-plugins` afterwards, or the agents stay unregistered in the running session. To update, run `claude plugin update gated-delivery@gated-delivery` (or `/plugin update`), then `/reload-plugins`. The plugin has no version number: Claude Code uses the commit SHA, so every commit is an update. The plugin hooks run on Node 22 or later, the oldest Node release still in security support. Dev tooling needs Node 22.18 or later, which strips types. CI tests Node 22 and 26. [Onboarding](docs/onboarding.md) covers one profile per client, the notes folder and the environment variables you can set.
 
 ## How it works
 

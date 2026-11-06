@@ -1,33 +1,20 @@
 import { test } from "node:test";
 import assert from "node:assert";
-import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { gitRepo } from "../test-support/git-fixture.test.support.ts";
 
+const FIXTURE_PREFIX = "jsdoc-types-only-test-";
 const GUARD = join(dirname(fileURLToPath(import.meta.url)), "jsdoc-types-only.ts");
 const SHIPPED_FILE = "plugin/a.mjs";
 const SHIPPED_TEST_FILE = "plugin/a.test.mjs";
 const OUTSIDE_FILE = "scripts/b.mjs";
 
-const gitRepo = (files: Record<string, string>) => {
-  assert(Object.keys(files).length > 0, `a fixture repo needs at least one file, got ${Object.keys(files).length}`);
-  const dir = mkdtempSync(join(tmpdir(), "jsdoc-types-only-test-"));
-  execFileSync("git", ["init", "-q"], { cwd: dir });
-  for (const [path, body] of Object.entries(files)) {
-    mkdirSync(dirname(join(dir, path)), { recursive: true });
-    writeFileSync(join(dir, path), body);
-  }
-  execFileSync("git", ["add", "-A"], { cwd: dir });
-  const staged = execFileSync("git", ["ls-files"], { cwd: dir, encoding: "utf8" }).split("\n").filter(Boolean);
-  assert(staged.length === Object.keys(files).length, `every fixture file must be staged, got ${staged.length} of ${Object.keys(files).length}`);
-  return dir;
-};
-
 const verdict = (files: Record<string, string>) => {
   assert(Object.values(files).every((body) => body.endsWith("\n")), `every fixture file must end in a newline, got ${Object.keys(files).find((path) => !files[path].endsWith("\n"))}`);
-  const result = spawnSync("node", [GUARD, "--repo", gitRepo(files)], { encoding: "utf8" });
+  const result = spawnSync("node", [GUARD, "--repo", gitRepo(files, FIXTURE_PREFIX)], { encoding: "utf8" });
   assert(result.status !== null, `the guard must exit on its own, got signal ${result.signal}`);
   return { code: result.status, out: result.stdout + result.stderr };
 };

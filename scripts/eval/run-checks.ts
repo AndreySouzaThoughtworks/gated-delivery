@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 // Executes the `## Deterministic Checks` fence from a skill's evals.md.
 //
-// Until now nothing ran those fences — they were documentation. Every measure defect this repo has
-// shipped (a `\|` that matches a literal pipe, a key that also names a heading) was invisible
-// precisely because no command was ever executed.
+// A fence that no command ever executes hides its measure defects: a `\|` that matches a literal
+// pipe, a key that also names a heading.
 //
 //   node scripts/eval/run-checks.ts --lint                           every skill: prove each command RUNS
 //   node scripts/eval/run-checks.ts --lint <skill>                   the same for one skill

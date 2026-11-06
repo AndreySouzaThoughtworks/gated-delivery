@@ -4,7 +4,7 @@
 //
 // Prettier is spawned as a plain .cjs file under this same Node, never through a package manager.
 // Reaching it through `pnpm` needs a shell on some platforms, and `shell: true` would hand the file
-// path back to a shell and reinstate the command injection this file was fixed for. Resolving the
+// path back to a shell, where a file named `$(id -u)/a.ts` would run as a command. Resolving the
 // CLI and running it directly keeps one shell-free code path.
 
 import { execFileSync } from "node:child_process";
@@ -36,7 +36,7 @@ if (!existsSync(resolve(process.cwd(), filePath))) process.exit(EXIT_OK);
 // prettier 3 ships `bin/prettier.cjs`, prettier 2 ships `bin-prettier.js` at the package root, and
 // either literal silently stops formatting every repo on the other major.
 // Resolved from the edited repo, so it picks up that repo's prettier version. Absent — the common
-// case for a plugin installed everywhere — is a silent no-op, same as before.
+// case for a plugin installed everywhere — is a silent no-op.
 let cli = null;
 try {
   const manifest = createRequire(join(process.cwd(), "package.json")).resolve("prettier/package.json");
@@ -49,9 +49,9 @@ try {
 if (!cli) process.exit(EXIT_OK);
 
 try {
-  // execFileSync, not execSync: passing args as an array means no shell parses them. The string
-  // form interpolated the path into a shell command inside double quotes, where `$(...)` and
-  // backticks still expand — a file named `$(id -u)/a.ts` got formatted as `501/a.ts`.
+  // execFileSync, not execSync: passing args as an array means no shell parses them. A string
+  // command would interpolate the path into a shell, where `$(...)` and backticks expand even
+  // inside double quotes.
   execFileSync(process.execPath, [cli, "--write", filePath], {
     stdio: "ignore",
     cwd: process.cwd(),

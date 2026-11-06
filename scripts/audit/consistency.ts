@@ -116,10 +116,8 @@ for (const [label, actual] of [
 }
 
 // --- 6. Every skill/agent is documented in the canonical inventory ---
-// One place, deliberately. These tables used to be repeated in plugin/README.md, docs/skill-graph.md
-// and docs/onboarding.md; the guard only ever checked that a NAME appeared, never that the three
-// descriptions agreed — and they drifted (onboarding still described the format hook as running
-// `pnpm exec prettier` long after the hook stopped using pnpm). The other docs now link here.
+// One place, deliberately: the inventory lives in docs/skill-graph.md and the other docs link to it,
+// because a name repeated in three tables can appear in each while the descriptions disagree.
 const skillGraph = read(join(ROOT, "docs", "skill-graph.md"));
 for (const skill of skills) {
   if (!skillGraph.includes(skill)) errors.push(`skill "${skill}" is not documented in docs/skill-graph.md`);
@@ -129,10 +127,8 @@ for (const agent of agents) {
 }
 
 // --- 6a. No doc references a skill or agent that does not exist ---
-// Section 6 checks presence: every skill reaches the inventory. It never checked absence, so a
-// reference SURVIVING a deletion was invisible — a merged skill's old name sat in repo-forensics for
-// the rest of that release, and a later rename left the same reference in the same file. Same rot
-// class as the onboarding.md drift, on the other side of the equality.
+// Section 6 checks presence: every skill reaches the inventory. This section checks absence: a
+// reference that survives a deletion or a rename is rot on the other side of the equality.
 // Only names that must resolve locally are checked: a bare `Skill(x)` / `Agent(x)` / `/x`, or an
 // explicit `gated-delivery:` prefix. A name carrying another plugin's prefix lives outside this repo and
 // cannot be verified from here.
@@ -176,8 +172,8 @@ for (const file of docFiles) {
 }
 
 // --- 6a'. Manifest descriptions advertise only what ships ---
-// Both manifests kept advertising a story-rewrite skill after it was deleted; prose cannot be resolved
-// against the inventory, so descriptions name skills as `/name` and every such name must resolve.
+// Prose cannot be resolved against the inventory, so descriptions name skills as `/name` and every
+// such name must resolve.
 // A slash preceded by a word character, dot or slash is a path or an "and/or", not a skill.
 const pluginManifest = join(PLUGIN, ".claude-plugin", "plugin.json");
 const manifestDescriptions = [
@@ -627,9 +623,9 @@ if (baseRef) {
 }
 
 // --- 19. A change to shipped plugin files against the base ref carries a version bump ---
-// Installs cache the plugin by version. Behaviour merged under a version that did not change never
-// reaches an install, so a hook deleted from main kept firing from the cached copy and failed every
-// Stop event with MODULE_NOT_FOUND.
+// Installs cache the plugin by version. Behaviour merged under an unchanged version never reaches an
+// install, and a hook deleted from main keeps firing from the cached copy and fails every Stop event
+// with MODULE_NOT_FOUND.
 const PLUGIN_PREFIX = "plugin/";
 const VERSION_FILE = "plugin/.claude-plugin/plugin.json";
 const TEST_FILE_NAME = /\.test\.[^/]+$/;

@@ -4,7 +4,7 @@ This file is the one source of the repo rules for every agent (Claude Code, Curs
 
 ## Code
 
-- Write self-documenting code. Names carry intent, so add no explanatory comments. Replace magic numbers and strings with named constants.
+- Write self-documenting code. Names carry intent, so add no explanatory comments. Replace magic numbers and strings with named constants. A comment that remains states a constraint the code cannot show, in the present tense, and never tells the history of a change: `scripts/audit/comments.ts` rejects "until now", "used to", "no longer", "was moved", "regression:", PR and commit references and dates ([docs/development.md](docs/development.md)). History belongs in the commit message.
 - Every function gets real assertions that can fail, with messages that show the values read. `zanity`'s assertion-density rule applies everywhere, `scripts/audit/assertion-effectiveness.ts` fails an assertion that no test makes fail, a function with no honest second invariant carries a coded, counted suppression (`scripts/audit/suppression-reason-codes.ts`, `scripts/audit/suppressions.count`), and `scripts/audit/consistency.ts` (check 17) rejects a condition that cannot vary.
 - Never raise `zanity-baseline.json`, loosen `zanity.toml`, or add a suppression without a reason (`scripts/audit/suppressions.ts`). Fix the code.
 - Only the `scout` agent pins a `model:`, and it pins `haiku`; every other agent inherits the session model. Consistency check 26 enforces this.

@@ -142,7 +142,6 @@ test("an index naming CLAUDE.md as client context is not a dangling reference", 
 });
 
 test("a manifest description naming a skill that does not exist is reported", () => {
-  // Both manifests advertised "a quick behavioural story rewrite" long after that skill was deleted.
   // Prose cannot be resolved, so the descriptions name skills as `/name` and the guard resolves those.
   for (const manifest of ["plugin/.claude-plugin/plugin.json", ".claude-plugin/marketplace.json"]) {
     const dir = validRepo();

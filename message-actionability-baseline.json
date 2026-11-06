@@ -275,11 +275,6 @@
     {
       "path": "plugin/scripts/notes-repo.mjs",
       "rule": "not-actionable",
-      "message": "no notes checkout: set ${}, pass --repo-name <owner/name>, or pass --in-repo when the notes live in the repository being changed"
-    },
-    {
-      "path": "plugin/scripts/notes-repo.mjs",
-      "rule": "not-actionable",
       "message": "${} is not a git checkout"
     },
     {

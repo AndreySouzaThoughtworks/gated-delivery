@@ -35,7 +35,7 @@ If no candidate file exists, resolve `spec-path` from repository evidence before
 - The Spec placement rule (`## Delivery notes`) covers this repository → follow it.
 - Existing accepted `docs/specs/` history or repository guidance allowing planning artifacts → use `docs/specs/{ticket-id}-{slug}.md`.
 - Repository guidance or deletion history rejecting planning artifacts → use `{ticket-id}/spec.md` in the Shared notes home (`## Delivery notes`). When no Shared notes home is declared, ask where external specs live and record the answer there.
-- Keep one spec. For external storage, run `node "<skill base directory>/../../scripts/notes-repo.mjs" prepare --repo-name <owner/name>` and use the `path` it prints. Exit 4: STOP and surface it; 3: ask the user; 1 or 2: surface stderr. The installed plugin cache is read-only.
+- Keep one spec. For external storage run `node "<skill base directory>/../../scripts/notes-repo.mjs" prepare --repo-name <owner/name>` and use its `path`. Exit 4, or 5 (wrong repository): STOP and surface it; 3: ask the user; 1 or 2: surface stderr. Plugin cache is read-only.
 
 **Then ask user for anything repo can't tell you.** Before moving on, ask whether they have more context — examples: RFCs, message-interface specs, design docs, links, prior art, much of which live outside repo (Notion, sibling repos). Don't treat an absent in-repo document as a gap until you ask: a missing canonical reference is usually one the user can provide. Fold reusable context into the canonical owner named by the repository instructions; when none exists, keep it in the spec rather than inventing a new location.
 

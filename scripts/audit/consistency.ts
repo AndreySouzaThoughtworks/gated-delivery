@@ -15,6 +15,7 @@ import { nodeFloorProblems } from "./node-floor.ts";
 import { baselineProblems } from "./message-actionability/check.ts";
 import { asdStyleProblems, styleDocuments } from "./asd-style.ts";
 import { GUIDE_FILE, guideProblems } from "./guide-freshness.ts";
+import { ticDriftProblems } from "./prose-tic-drift.ts";
 import { UNINVENTORIED_FILES_ARE_ERRORS, checkRuleInventories } from "./rule-inventory.ts";
 
 const ROOT = process.cwd();
@@ -812,6 +813,9 @@ if (existsSync(join(ROOT, GUIDE_FRESHNESS_SCRIPT))) {
     }),
   );
 }
+
+// --- 35. The tic list lives in prose-scan.mjs, and no other file under plugin/ or evals/ repeats it as a regex alternation ---
+errors.push(...(await ticDriftProblems(ROOT)));
 
 // --- report ---
 console.log(

@@ -10,6 +10,7 @@ import { join, resolve, sep } from "node:path";
 import { BASE_REF_ENV, changedPaths, changedSkills, fileAtBase, stampStatus, waiverReason } from "../eval/changed-skills.ts";
 import { parseChecks, scenarioIds } from "../eval/run-checks.ts";
 import { BASELINE_FILE, UPDATE_COMMAND, budgetProblems, measureBudgets, readBaseline } from "./token-budget/budget.ts";
+import { AUDIT_WORKFLOW, liveOptInProblems, workflowParityProblems } from "./ci-parity.ts";
 import { UNINVENTORIED_FILES_ARE_ERRORS, checkRuleInventories } from "./rule-inventory.ts";
 
 const ROOT = process.cwd();
@@ -785,6 +786,13 @@ if (existsSync(join(ROOT, TOKEN_BUDGET_SCRIPT))) {
   if (tokenBaseline === null) errors.push(`${BASELINE_FILE} is missing. Hint: run ${UPDATE_COMMAND}.`);
   else errors.push(...budgetProblems(measureBudgets(ROOT), tokenBaseline));
 }
+
+// --- 29. The audit workflow runs the consistency steps in one matrix job, under the names branch protection requires ---
+const auditWorkflowPath = join(ROOT, AUDIT_WORKFLOW);
+if (existsSync(auditWorkflowPath)) errors.push(...workflowParityProblems(read(auditWorkflowPath)));
+
+// --- 30. A test that launches a real claude -p session refuses to run without the explicit opt-in ---
+errors.push(...liveOptInProblems(ROOT));
 
 // --- report ---
 console.log(

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
+# shellcheck source=./require-live-opt-in.sh
+source "$(dirname "$0")/require-live-opt-in.sh"
+
 readonly EXIT_NOT_LOGGED_IN=3
 readonly CONVENTIONAL_SUBJECT='^(feat|fix|chore|refactor|docs|test|perf|build|ci|style)(\([^)]*\))?!?: .+'
 readonly TICKET_KEY='[A-Z][A-Z0-9]+-[0-9]+'

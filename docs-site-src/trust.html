@@ -1,0 +1,70 @@
+<h1>Trust</h1>
+<p class="lead">This page shows what the project measures, how it measures it, and what it does not verify.</p>
+<p>Every number below comes from a file in the repository. The build reads the files each time it runs.</p>
+
+<h2 id="inventories">Rule inventories</h2>
+<p>A rule inventory lists the load-bearing rules of one skill, agent or command. Each rule has a literal anchor: a phrase that must stay in the file.</p>
+<p><a href="ci-checks.html#check-27">Check 27</a> of the consistency guard fails when an anchor is gone. The repository holds {{inventories}} inventories under <code>evals/rules</code>. Together they hold {{rules}} rules for skills, agents and commands.</p>
+<x-data name="rule-kinds"/>
+<p>The kind <code>stop</code> marks a rule about stopping or blocking. The kind <code>never</code> marks a ban.</p>
+
+<h3 id="mutation">Mutation score</h3>
+<p>A guard that never fails proves nothing. So the project tests the guard.</p>
+<p><code>scripts/audit/rule-inventory-mutation.ts</code> deletes each line that holds an anchor. It runs the inventory check on every mutant. A mutant is killed when the check reports the missing anchor.</p>
+<p>The build runs that script for every inventory. The table shows the live result.</p>
+<x-data name="rule-inventories"/>
+<h3 id="unprotected">Unprotected share</h3>
+<p>The last column counts the non-blank lines of the files that hold no rule anchor. Nothing guards those lines.</p>
+<p>The share is high. The inventories pin the rules that carry the most risk. They do not pin each sentence.</p>
+<p>An inventory proves that the text is present. It does not prove that a model follows the rule.</p>
+
+<h2 id="token-budget">Token budget</h2>
+<p>Instruction text costs tokens in every session. So each instruction file has a budget in <code>evals/token-budget.json</code>.</p>
+<p><a href="ci-checks.html#check-28">Check 28</a> fails when a file grows past its budget. The file lists {{budgetFiles}} budgets that sum to {{budgetTotal}} estimated tokens.</p>
+<p>The estimate divides the characters by four. It uses no tokenizer and calls no API. It moves with the text, which is all a ratchet needs.</p>
+<x-data name="token-budgets"/>
+
+<h2 id="stamps">Stamp tiers</h2>
+<p>A skill carries at most one stamp. The <a href="eval-tiers.html">Eval tiers</a> page explains the three tiers.</p>
+<x-data name="stamps"/>
+<p>A static stamp says the tooling is intact. The scripts pass, the eval checks lint and the rule anchors are present. It does not say that a model follows the skill.</p>
+
+<h2 id="suppressions">Suppressions</h2>
+<p>A suppression silences a lint rule for one line. Each one needs a reason of four or more meaningful words.</p>
+<p>A suppression of the rule <code>assertion-density</code> must start with a reason code. The count may not rise without a reviewer. The committed count is {{suppressionTotal}}.</p>
+<x-data name="suppressions"/>
+<p>The coded rows come from a scan of <code>plugin</code>, <code>scripts</code> and <code>tests</code>. The total comes from <code>scripts/audit/suppressions.count</code>. The row for other markers is the difference.</p>
+
+<h2 id="assertions">Assertion effectiveness</h2>
+<p>An assertion that no test can make fail protects nothing. <code>scripts/audit/assertion-effectiveness.ts</code> finds such assertions.</p>
+<p>It copies the tracked files to a temporary folder. It instruments each assertion in non-test code and runs the tests. It lists every assertion that no test made fail.</p>
+<p>That run is slow, so the site build does not run it. The site shows only the size of the baseline file that holds the known findings. The row for <code>assertion-effectiveness-baseline.json</code> in the next table is that size.</p>
+<x-data name="ratchets"/>
+<p>Each file in the table is a ratchet. It may shrink. It may not grow. The <a href="develop.html#ratchets">Develop</a> page explains how.</p>
+
+<h2 id="not-verified">What is not verified</h2>
+<p>This project checks a lot. It does not check everything. Each limit below names its source.</p>
+
+<h3 id="no-live-evals">Live model runs</h3>
+<x-data name="live-evidence"/>
+<p>The maintainer keeps live evals off. The <code>evals</code> workflow is dormant and is not a required check. The source is the section "Skill evals" of <code>docs/development.md</code>.</p>
+<p>So the project does not show that a model follows each skill. It shows that the tooling around the skills works.</p>
+
+<h3 id="stubs">Scripts run against stubs</h3>
+<p>The tests of the plugin scripts run against a stub of <code>gh</code>. The stub answers as the real program is expected to answer.</p>
+<p>One opt-in test calls the real <code>gh</code> against a private sandbox repository. It is <code>tests/live-gh.test.sh</code>. CI never runs it. It exits with code 64 unless <code>GATED_DELIVERY_ALLOW_LIVE_GH=1</code> is set.</p>
+<p>That test does not cover the limit of 100 review threads. It does not cover a real merge. The source is the section "Tests" of <code>docs/development.md</code>.</p>
+
+<h3 id="platforms">Platforms</h3>
+<x-data name="ci-platforms"/>
+<p>The plugin hooks and scripts are Node files. Nothing in the repository says how they behave on Windows.</p>
+
+<h3 id="other-limits">Other limits</h3>
+<ul>
+  <li>The sentence check measures length only. It does not prove that prose is clear or true.</li>
+  <li>The message check is a pattern proxy. It cannot judge whether a fix is correct.</li>
+  <li>Some mistakes still depend on human review. The <a href="mistakes.html#open">Mistakes</a> page lists them.</li>
+</ul>
+<x-callout>
+  <p>Read each number on this page as a statement about the tooling. None of them says that a model behaves.</p>
+</x-callout>

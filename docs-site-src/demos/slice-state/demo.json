@@ -1,0 +1,13 @@
+{
+  "script": "plugin/scripts/slice-state.mjs",
+  "args": ["--ticket", "T-1", "--actor", "demo", "--spec", "docs/specs/T-1-demo.md"],
+  "cwd": "work",
+  "env": { "GH_STUB": "$ROOT/plugin/scripts/fixtures/gh-stub.mjs", "GH_STUB_FIXTURE": "$FIXTURE/gh.json" },
+  "setup": [
+    "git init -q -b main --bare origin.git",
+    "git init -q -b main work",
+    "mkdir -p work/docs/specs",
+    "node --input-type=module -e \"import { specText } from '$ROOT/plugin/scripts/fixtures/slice-world.mjs'; process.stdout.write(specText());\" > work/docs/specs/T-1-demo.md",
+    "cd work && git remote add origin ../origin.git && git add -A && git commit -q -m 'docs: add the spec' && git push -q -u origin main"
+  ]
+}

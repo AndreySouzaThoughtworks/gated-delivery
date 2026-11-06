@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { collectSiteData, guardSectionNumbers } from "./data.ts";
-import { siteProblems, siteReport } from "./gates.ts";
+import { siteProblems, siteReport, trackedFiles } from "./gates.ts";
 import type { SiteFiles, Sources } from "./gates.ts";
 import { layout } from "./html.ts";
 import type { CheckEntry } from "./html.ts";
@@ -48,7 +48,7 @@ export const buildSite = async (root: string, outDirectory: string, checks: Chec
   const counts = COUNT_LABELS.map((label): [string, number] => [label, variables[label as keyof typeof variables]]);
   const fragments = fragmentFiles(root).map((file) => ({ file, text: readFileSync(join(root, file), "utf8") }));
   const files = readTree(outDirectory);
-  return { files, problems: siteProblems({ root, files, sources, data, counts, fragments }) };
+  return { files, problems: siteProblems({ root, files, sources, data, counts, fragments, tracked: trackedFiles(root) }) };
 };
 
 export const main = async (argv: string[], root: string, loader: (root: string) => Promise<CheckEntry[]> = loadChecks) => {

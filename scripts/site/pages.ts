@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { TIERS, TIER_NONE, guardSectionNumbers, warnOnlyChecks } from "./data.ts";
 import type { Agent, Command, Hook, Instruction, PluginScript, ScriptGroup, SiteData, Skill, UsageFrom } from "./data.ts";
+import { factVariables } from "./facts.ts";
 import { FRAGMENTS_DIRECTORY, renderFragment } from "./fragments.ts";
 import { bulletList, checkCard, escapeHtml, quotation, relativeLink, table } from "./html.ts";
 import type { CheckEntry, NavItem, Page } from "./html.ts";
@@ -11,11 +12,21 @@ export const GENERATOR_SOURCE = "scripts/site/pages.ts";
 export const HAND_WRITTEN_PAGES = [
   { fragment: "home.html", path: "index.html", title: "Home", summary: "Ship every change as small verified slices, with guardrails in the repository." },
   { fragment: "concepts.html", path: "concepts.html", title: "Concepts", summary: "The ideas behind gated-delivery: harden the codebase, turn mistakes into rules, and separate guidance from guardrails." },
+  { fragment: "delivery-flow.html", path: "delivery-flow.html", title: "Delivery flow", summary: "How one ticket becomes slices: spec, route, claim, batches, review and pull request, with real script output." },
+  { fragment: "trust.html", path: "trust.html", title: "Trust", summary: "What the project proves, how it measures that, and what it does not verify." },
+  { fragment: "mistakes.html", path: "mistakes.html", title: "Mistakes to rules", summary: "Each real mistake of the project next to the check that rules it out." },
+  { fragment: "install.html", path: "install.html", title: "Install and update", summary: "Install the plugin, update it, understand its version, Node policy, environment variables and profiles." },
+  { fragment: "develop.html", path: "develop.html", title: "Develop", summary: "Add a rule with its reject-case test, run the audit locally and understand the ratchets." },
 ];
 export const SKILLS_INDEX = "skills/index.html";
 export const NAVIGATION: NavItem[] = [
   { path: "index.html", label: "Home" },
   { path: "concepts.html", label: "Concepts" },
+  { path: "delivery-flow.html", label: "Delivery flow" },
+  { path: "install.html", label: "Install" },
+  { path: "develop.html", label: "Develop" },
+  { path: "trust.html", label: "Trust" },
+  { path: "mistakes.html", label: "Mistakes" },
   { path: SKILLS_INDEX, label: "Skills" },
   { path: "agents.html", label: "Agents" },
   { path: "commands.html", label: "Commands" },
@@ -145,7 +156,8 @@ export const agentsPage = (agents: Agent[]): Page => {
     body: [
       `<h1>Agents</h1>`,
       `<p class="lead">The plugin ships ${agents.length} agents. Each agent does one kind of narrow work.</p>`,
-      ...agents.map((agent) => instructionSection("agent", agent, [["Model", agent.model ? `<code>${escapeHtml(agent.model)}</code>` : "inherited from the session"], ["Tools", agent.tools ? `<code>${escapeHtml(agent.tools)}</code>` : NO_VALUE]])),
+      `<p>The Called from row lists each skill, command or agent whose file names the agent. The build finds the names by text search.</p>`,
+      ...agents.map((agent) => instructionSection("agent", agent, [["Model", agent.model ? `<code>${escapeHtml(agent.model)}</code>` : "inherited from the session"], ["Tools", agent.tools ? `<code>${escapeHtml(agent.tools)}</code>` : NO_VALUE], ["Called from", agent.calledFrom?.length ? agent.calledFrom.map((caller) => escapeHtml(caller)).join(", ") : NO_VALUE]])),
     ].join("\n"),
   };
 };
@@ -274,12 +286,12 @@ export const evalTiersPage = (data: SiteData): Page => {
 export const buildPages = (root: string, data: SiteData, checks: CheckEntry[]): Page[] => {
   assert(checks.length > 0, `the checks page needs registry rows, got none; pass the registry.`);
   const guardNumbers = guardSectionNumbers(root);
-  const variables = siteVariables(data, checks, guardNumbers);
+  const variables = { ...siteVariables(data, checks, guardNumbers), ...factVariables(root) };
   const scriptPages = new Map(data.pluginScripts.map((script) => [script.path, `plugin-scripts.html#script-${script.name}`]));
   const handWritten = HAND_WRITTEN_PAGES.map(({ fragment, path, title, summary }): Page => {
     const source = `${FRAGMENTS_DIRECTORY}/${fragment}`;
     assert(existsSync(join(root, source)), `${source} is missing, so the page ${path} cannot render. Fix: add the fragment file.`);
-    return { path, title, summary, source, body: renderFragment(readFileSync(join(root, source), "utf8"), { root, file: source, variables, checks }) };
+    return { path, title, summary, source, body: renderFragment(readFileSync(join(root, source), "utf8"), { root, file: source, variables, checks, data }) };
   });
   return [
     ...handWritten,

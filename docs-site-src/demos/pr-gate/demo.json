@@ -1,0 +1,5 @@
+{
+  "script": "plugin/scripts/pr-gate.mjs",
+  "args": ["--body-file", "notes/pr-body-feat-T-1-login.md", "--title", "add login", "--final-slice", "n"],
+  "setup": ["mkdir notes", "printf 'Closes T-1\\n' > notes/pr-body-feat-T-1-login.md"]
+}

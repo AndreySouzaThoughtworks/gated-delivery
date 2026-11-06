@@ -6,6 +6,8 @@ export const AUDIT_WORKFLOW = ".github/workflows/audit.yml";
 export const REQUIRED_MATRIX_NAMES = ["consistency", "node 26"];
 export const LIVE_OPT_IN_FILE = "require-live-opt-in.sh";
 export const LIVE_OPT_IN_VARIABLE = "GATED_DELIVERY_ALLOW_LIVE_CLAUDE";
+export const LIVE_GH_OPT_IN_FILE = "require-live-gh-opt-in.sh";
+export const LIVE_GH_OPT_IN_VARIABLE = "GATED_DELIVERY_ALLOW_LIVE_GH";
 export const OPT_IN_EXEMPT_TESTS = ["tests/profile-isolation.test.sh"];
 
 const TESTS_DIRECTORY = "tests";
@@ -55,21 +57,33 @@ export const workflowParityProblems = (workflowText: string) => {
   return problems;
 };
 
+const MUTATING_GH = /\bgh (?:pr (?:create|close|merge|edit|comment|ready|reopen|review)|issue (?:create|close|edit|comment|delete|reopen|transfer)|repo\b|release (?:create|delete|edit|upload)|label (?:create|edit|delete)|api\b.*(?: -X\b| --method\b))/;
+
+type OptInRule = { guardFile: string; variable: string; call: RegExp; action: string; reason: string };
+
+const OPT_IN_RULES: OptInRule[] = [
+  { guardFile: LIVE_OPT_IN_FILE, variable: LIVE_OPT_IN_VARIABLE, call: LIVE_SESSION, action: "launches claude -p", reason: "a test that starts a real session on the subscription refuses to run" },
+  { guardFile: LIVE_GH_OPT_IN_FILE, variable: LIVE_GH_OPT_IN_VARIABLE, call: MUTATING_GH, action: "runs a mutating gh command", reason: "a test that writes to a real GitHub repository refuses to run" },
+];
+
 export const liveOptInProblems = (root: string) => {
   assert(typeof root === "string", `the repo root is a path, got ${typeof root}`);
   assert(existsSync(root), `the repo root must exist, got ${root}`);
   const testsPath = join(root, TESTS_DIRECTORY);
   if (!existsSync(testsPath)) return [];
   const problems: string[] = [];
-  if (!existsSync(join(testsPath, LIVE_OPT_IN_FILE))) problems.push(`${TESTS_DIRECTORY}/${LIVE_OPT_IN_FILE} is missing. Rule: live tests source it to refuse an accidental run. Fix: restore it.`);
-  for (const name of readdirSync(testsPath).filter((file) => file.endsWith(".test.sh")).sort()) {
-    const path = `${TESTS_DIRECTORY}/${name}`;
-    const lines = readFileSync(join(root, path), "utf8").split("\n");
-    const firstSession = lines.findIndex((line) => LIVE_SESSION.test(line));
-    if (firstSession === NOT_FOUND || OPT_IN_EXEMPT_TESTS.includes(path)) continue;
-    const guard = lines.findIndex((line) => line.includes(LIVE_OPT_IN_FILE));
-    if (guard === NOT_FOUND || guard > firstSession) {
-      problems.push(`${path}: line ${firstSession + 1} launches claude -p without the opt-in guard before it. Rule: a test that starts a real session on the subscription refuses to run unless ${LIVE_OPT_IN_VARIABLE}=1. Fix: add \`source "$(dirname "$0")/${LIVE_OPT_IN_FILE}"\` above the first claude call.`);
+  const testNames = readdirSync(testsPath).filter((file) => file.endsWith(".test.sh")).sort();
+  for (const rule of OPT_IN_RULES) {
+    if (!existsSync(join(testsPath, rule.guardFile))) problems.push(`${TESTS_DIRECTORY}/${rule.guardFile} is missing. Rule: live tests source it to refuse an accidental run. Fix: restore it.`);
+    for (const name of testNames) {
+      const path = `${TESTS_DIRECTORY}/${name}`;
+      const lines = readFileSync(join(root, path), "utf8").split("\n");
+      const firstCall = lines.findIndex((line) => rule.call.test(line));
+      if (firstCall === NOT_FOUND || OPT_IN_EXEMPT_TESTS.includes(path)) continue;
+      const guard = lines.findIndex((line) => line.includes(rule.guardFile));
+      if (guard === NOT_FOUND || guard > firstCall) {
+        problems.push(`${path}: line ${firstCall + 1} ${rule.action} without the opt-in guard before it. Rule: ${rule.reason} unless ${rule.variable}=1, so the guard must come first; fix: add \`source "$(dirname "$0")/${rule.guardFile}"\` above the first call.`);
+      }
     }
   }
   return problems;

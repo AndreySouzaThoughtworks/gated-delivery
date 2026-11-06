@@ -60,6 +60,8 @@ Add the sections that the client needs to its `CLAUDE.md`. A folder-level `CLAUD
 | `GATED_DELIVERY_GUARD` | unset | Set to `off` only when the Bash guard itself is broken and blocks every command. It then allows everything, so unset it once the guard works. Set it in the environment that starts Claude Code. Writing it inside a command does nothing. |
 | `GATED_DELIVERY_BASE_REF` | `origin/main` for `changed-skills.ts`; unset for the guard | Git ref that a skill change is measured against. The consistency guard checks eval stamps only when it is set. CI sets it on pull requests. |
 | `GATED_DELIVERY_ALLOW_LIVE_CLAUDE` | unset | Set to `1` to let `tests/commit-convention.test.sh`, `tests/code-reviewer-scope.test.sh` and `tests/issue-writing.test.sh` start. Each launches real `claude -p` sessions that spend your logged-in subscription, so each exits 64 without it. |
+| `GATED_DELIVERY_ALLOW_LIVE_GH` | unset | Set to `1` to let `tests/live-gh.test.sh` start: `GATED_DELIVERY_ALLOW_LIVE_GH=1 bash tests/live-gh.test.sh`. It creates one branch and one draft pull request in a private sandbox repository, then closes and deletes them. It exits 64 without the variable. |
+| `GATED_DELIVERY_GH_SANDBOX` | `AndreySouzaThoughtworks/aifsd-e2e-sandbox` | The `<owner>/<name>` repository that `tests/live-gh.test.sh` writes to. It must be private, not a fork, and have `sandbox` in its name. Otherwise the test exits 65 before any write. |
 
 ## What runs automatically (hooks, zero setup)
 

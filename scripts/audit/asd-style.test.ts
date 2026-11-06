@@ -108,7 +108,7 @@ test("html drops scripts, styles, code, tables, headings and tags, keeps prose a
     "<script>const a = 1;</script>",
     "</body></html>",
   ].join("\n");
-  const sentences = sentencesOf({ file: "docs/guide.html", text });
+  const sentences = sentencesOf({ file: "docs/page.html", text });
   assert.deepEqual(sentences.map(({ text: sentence, line }) => [sentence.slice(0, 20), line]), [
     ["Read the guide and r", 5],
     ["One & two.", 8],
@@ -124,14 +124,14 @@ test("documents that are not a list are refused", () => {
   assert.throws(() => asdStyleProblems(undefined as never), /documents must be a list/);
 });
 
-test("the graded files are the root documents, docs markdown and the guide, and a missing one is skipped", () => {
+test("the graded files are the root documents and docs markdown only, and a missing one is skipped", () => {
   const dir = mkdtempSync(join(tmpdir(), "gated-delivery-asd-test-"));
   write(dir, "README.md", "Hi.");
   write(dir, "docs/b.md", "Hi.");
-  write(dir, "docs/guide.html", "<p>Hi.</p>");
+  write(dir, "docs/page.html", "<p>Hi.</p>");
   write(dir, "docs/notes.txt", "Hi.");
   write(dir, "plugin/skills/x/SKILL.md", "Hi.");
-  assert.deepEqual(styleDocuments(dir).map(({ file }) => file), ["README.md", "docs/b.md", "docs/guide.html"]);
+  assert.deepEqual(styleDocuments(dir).map(({ file }) => file), ["README.md", "docs/b.md"]);
 });
 
 test("each block function refuses input it cannot grade, naming the fix", () => {

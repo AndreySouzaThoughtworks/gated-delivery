@@ -22,8 +22,8 @@ This file is the one source of the repo rules for every agent (Claude Code, Curs
 ## Docs
 
 - Write docs in ASD-STE100 style. Use sentences of 20 words or fewer, the active voice and one term per thing. Use the imperative for instructions.
-- `scripts/audit/asd-style.ts` grades `README.md`, `AGENTS.md`, `plugin/README.md`, `docs/*.md` and `docs/guide.html`. It fails a file when fewer than 80% of its sentences have 20 words or fewer (check 33). Run `node scripts/audit/asd-style-report.ts` to see the share per file and the longest sentences.
-- Keep `docs/guide.html` in step with the plugin. Check 34 fails when the guide misses a skill, agent or command, states a wrong count, or the README does not link it.
+- `scripts/audit/asd-style.ts` grades `README.md`, `AGENTS.md`, `plugin/README.md`, and `docs/*.md`. It fails a file when fewer than 80% of its sentences have 20 words or fewer (check 33). Run `node scripts/audit/asd-style-report.ts` to see the share per file and the longest sentences.
+- The site comes from `scripts/site/build.ts` and `docs-site-src/`. Run `node scripts/site/build.ts --check` after a change to the plugin. Check 34 fails when the build script or the sources are missing, or the README does not link the site.
 - Do not hard-code a number that can drift, unless a check guards it.
 
 ## Git and publishing

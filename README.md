@@ -18,7 +18,7 @@ gated-delivery is a Claude Code plugin. It has no client baked in. A spec turns 
 
 It ships 12 skills, 3 agents and 2 hooks, plus 3 commands.
 
-New here? Open the [guide](docs/guide.html) in a browser. It explains the whole repository with examples and real commands.
+New here? Read the [documentation site](https://andrey1souza.github.io/gated-delivery/). It explains the whole repository with examples and real commands.
 
 ## Get started
 
@@ -113,7 +113,7 @@ The `overwatch` plugin handles turn-end verification. [Onboarding](docs/onboardi
 
 This repository holds its own guardrails. Nine status checks are required on `main`. A consistency guard fails when the docs, the inventory or the settings drift from the files. A table records every fixed mistake next to the rule and the test that now catch it. [How this repo applies exponential engineering](docs/exponential-engineering.md) explains each mechanism and where it falls short.
 
-Prose is held to rules too. A script grades each document and fails it when fewer than 80% of its sentences have 20 words or fewer. Another script fails when the guide drifts from the plugin.
+Prose is held to rules too. A script grades each document and fails it when fewer than 80% of its sentences have 20 words or fewer. The site build fails when a page drifts from the plugin.
 
 Skill evals are the weak spot. Status of the skill stamps: **0 live, 12 static, 0 waived** of 12 skill stamps.
 
@@ -125,7 +125,7 @@ Skill evals are the weak spot. Status of the skill stamps: **0 live, 12 static, 
 
 | To | Read |
 |---|---|
-| Take a guided tour with examples | [Guide](docs/guide.html) |
+| Take a guided tour with examples | [Documentation site](https://andrey1souza.github.io/gated-delivery/) |
 | Install, set up profiles and knobs | [Onboarding](docs/onboarding.md) |
 | See every skill, agent and hook | [Skills, agents and hooks](docs/skill-graph.md) |
 | Tell the plugin about your client | [Client context](plugin/references/client-context.md) |

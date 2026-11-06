@@ -14,7 +14,8 @@ import { AUDIT_WORKFLOW, liveOptInProblems, workflowParityProblems } from "./ci-
 import { nodeFloorProblems } from "./node-floor.ts";
 import { baselineProblems } from "./message-actionability/check.ts";
 import { asdStyleProblems, styleDocuments } from "./asd-style.ts";
-import { GUIDE_FILE, guideProblems } from "./guide-freshness.ts";
+import { siteFreshnessProblems } from "./site-freshness.ts";
+import { SITE_BUILD_SCRIPT, SITE_SOURCES_DIRECTORY } from "./site-wiring.ts";
 import { ticDriftProblems } from "./prose-tic-drift.ts";
 import { UNINVENTORIED_FILES_ARE_ERRORS, checkRuleInventories } from "./rule-inventory.ts";
 
@@ -797,19 +798,18 @@ if (existsSync(packagePath)) {
 const MESSAGE_ACTIONABILITY_SCRIPT = "scripts/audit/message-actionability.ts";
 if (existsSync(join(ROOT, MESSAGE_ACTIONABILITY_SCRIPT))) errors.push(...baselineProblems(ROOT, baseRef));
 
-// --- 33. README, AGENTS.md, the docs and the guide keep at least 80 percent of their sentences within 20 words ---
+// --- 33. README, AGENTS.md and the docs keep at least 80 percent of their sentences within 20 words; the site build grades its own pages ---
 const ASD_STYLE_SCRIPT = "scripts/audit/asd-style.ts";
 if (existsSync(join(ROOT, ASD_STYLE_SCRIPT))) errors.push(...asdStyleProblems(styleDocuments(ROOT)));
 
-// --- 34. The guide exists, names every skill, agent and command, states true counts, and the README links it ---
-const GUIDE_FRESHNESS_SCRIPT = "scripts/audit/guide-freshness.ts";
-if (existsSync(join(ROOT, GUIDE_FRESHNESS_SCRIPT))) {
-  const guidePath = join(ROOT, GUIDE_FILE);
+// --- 34. The site build script and sources exist, and the README links the site ---
+const SITE_FRESHNESS_SCRIPT = "scripts/audit/site-freshness.ts";
+if (existsSync(join(ROOT, SITE_FRESHNESS_SCRIPT))) {
   errors.push(
-    ...guideProblems({
-      guide: existsSync(guidePath) ? read(guidePath) : null,
+    ...siteFreshnessProblems({
+      buildScriptPresent: existsSync(join(ROOT, SITE_BUILD_SCRIPT)),
+      sourcesPresent: existsSync(join(ROOT, SITE_SOURCES_DIRECTORY)),
       readme: existsSync(readmeFilePath) ? read(readmeFilePath) : "",
-      inventory: { skills, agents, commands, hooks: hookFiles.size },
     }),
   );
 }

@@ -1,6 +1,6 @@
 # Developing gated-delivery
 
-This page shows how the repository is laid out, which checks every change passes and how to run the tests. For what the plugin does and how to install it, see the [README](../README.md). For a tour with examples, open the [guide](guide.html).
+This page shows how the repository is laid out, which checks every change passes and how to run the tests. For what the plugin does and how to install it, see the [README](../README.md). For a tour with examples, read the [documentation site](https://andrey1souza.github.io/gated-delivery/).
 
 ## Repository layout
 
@@ -11,7 +11,7 @@ This repo is **both** the marketplace and the plugin. The marketplace manifest l
 | `plugin/` | The plugin: 12 skills, 3 agents, 2 hooks, 3 commands. Inventory and call graph: [docs/skill-graph.md](skill-graph.md). |
 | `plugin/scripts/` | The Node scripts that skills call, each with a colocated test. |
 | `.claude-plugin/marketplace.json` | Marketplace manifest. It points at `./plugin`. |
-| `docs/` | [guide](guide.html) · [onboarding](onboarding.md) · [skill-graph](skill-graph.md) · [evals](evals.md) · [exponential-engineering](exponential-engineering.md) · [mistakes-to-rules](mistakes-to-rules.md) · [client-context](../plugin/references/client-context.md) |
+| `docs/` | [onboarding](onboarding.md) · [skill-graph](skill-graph.md) · [evals](evals.md) · [exponential-engineering](exponential-engineering.md) · [mistakes-to-rules](mistakes-to-rules.md) · [client-context](../plugin/references/client-context.md) |
 | `scripts/` | `leak-guard.sh`, the consistency guard and its helpers (`audit/`), the eval tools (`eval/`), the Cursor adapters (`cursor/`) and CI helpers (`ci/`). |
 | `docs-site-src/`, `scripts/site/` | The hand-written site pages and the generator that builds the documentation site. |
 | `evals/` | `fixtures/` holds run directories for eval scenarios. `results/` holds one stamp or waiver per skill. `rules/` holds one rule inventory per instruction file. `token-budget.json` holds the token budgets. |
@@ -34,7 +34,7 @@ Fixtures stay outside `plugin/`. Installs do not carry them.
 | `consistency` | One matrix job on Node 22. It runs the steps in `.github/workflows/audit.yml`: `tsc`, the consistency guard, the lint scripts, the unit tests of hooks, scripts, bootstrap and evals, `run-checks --lint`, the leak guard self-test, the slice script tests, the live-test opt-in test and the pre-push hook test |
 | `workflows` | `actionlint` and `zizmor --pedantic` on `.github/` |
 | `shell` | `shellcheck` at its strictest on every shell file |
-| `Links (lychee)` | `lychee` on the README, `docs/` and `plugin/` markdown, and on the guide |
+| `Links (lychee)` | `lychee` on the README, `docs/` and `plugin/` markdown, and on the external links of `docs-site-src/` |
 | `Spelling (typos)` | `typos` with `.typos.toml`. It excludes the generated assertion baseline and allows the ordinal suffix `nd`. |
 | `gitleaks` | Secret scan |
 | `node 26` | The same matrix job on Node 26 |
@@ -89,15 +89,11 @@ The messages that still fail are frozen in `message-actionability-baseline.json`
 
 ### Docs style
 
-Every document must keep 80% or more of its sentences within 20 words. `scripts/audit/asd-style.ts` grades `README.md`, `AGENTS.md`, `plugin/README.md`, `docs/*.md` and the visible text of `docs/guide.html`.
+Every document must keep 80% or more of its sentences within 20 words. `scripts/audit/asd-style.ts` grades `README.md`, `AGENTS.md`, `plugin/README.md`, and `docs/*.md`. The site build grades the pages of the site with its own ASD-STE100 gate, so check 33 does not grade them.
 
 The check ignores code blocks, inline code, tables, headings and link targets. It treats each list item as one sentence. The constants `MAX_SENTENCE_WORDS` and `MIN_SHORT_SENTENCE_PERCENT` set the limits.
 
 When a file fails, the message lists the five longest sentences with line numbers. Split each one. `node scripts/audit/asd-style-report.ts` prints the share for every file.
-
-### The guide
-
-Check 34 (`scripts/audit/guide-freshness.ts`) keeps [`docs/guide.html`](guide.html) true. It fails when the guide is missing. It fails when the guide does not name every skill, agent and command under `plugin/`. It fails when the guide states a count of skills, agents, commands or hooks that differs from the real count. It fails when the README does not link the guide. It ignores counts inside `<pre>` blocks, because those blocks quote script output.
 
 ### The documentation site
 
@@ -116,7 +112,29 @@ Run `node scripts/site/build.ts --check` before you push. It builds into a temp 
 
 The CI checks page reads the registry through `checksRegistry()`. The build fails when that module is missing. The page names the checks that only warn, because the registry has no severity field. It reads that from the guard source.
 
-The `consistency` job runs the site check. `node scripts/audit/site-wiring.ts` fails when the build script or that CI step is missing.
+The `consistency` job runs the site check. `node scripts/audit/site-wiring.ts` fails when the build script, that CI step or `.github/workflows/site.yml` is missing. It also fails when the workflow has no `build` job or no `deploy` job.
+
+Check 34 (`scripts/audit/site-freshness.ts`) fails when `scripts/site/build.ts` or `docs-site-src/` is missing. It fails when the README does not link the site URL.
+
+### Deploy the site
+
+The site lives at <https://andrey1souza.github.io/gated-delivery/>.
+
+`.github/workflows/site.yml` has two jobs. The `build` job runs on every pull request and every push to `main`. It runs `node scripts/site/build.ts` and uploads `docs-site/` as a Pages artifact. The `deploy` job runs only on a push to `main`. It publishes that artifact with `actions/deploy-pages`.
+
+GitHub Pages is off until the maintainer turns it on. Run this command once after the first merge:
+
+```bash
+gh api -X POST repos/andrey1souza/gated-delivery/pages -f build_type=workflow
+```
+
+Until then, the `deploy` job fails at the `actions/configure-pages` step. The message says that Pages is not enabled. Run the command, then re-run the job.
+
+`lychee` skips the site URL, because the page does not exist before the first deploy.
+
+### Preview the site
+
+Run `node scripts/site/build.ts`. Then open `docs-site/index.html` in a browser. The build needs no server.
 
 ## Token budget
 

@@ -75,7 +75,7 @@ export const GUARD_PLANTS: Record<number, Plant> = {
   30: { files: { [`tests/${LIVE_OPT_IN_FILE}`]: "exit 64\n", [`tests/${LIVE_GH_OPT_IN_FILE}`]: "exit 64\n", "tests/live.test.sh": "#!/usr/bin/env bash\nclaude -p ping\n" }, match: /tests\/live\.test\.sh/ },
   31: { files: { "package.json": JSON.stringify({ engines: { node: ">=22.18" } }), "README.md": `${README_COUNTS}\nHooks run on Node 18 or later.\n` }, match: /README\.md says "Node 18 or later"/ },
   33: { files: { "scripts/audit/asd-style.ts": "", "docs/long.md": LONG_SENTENCE }, match: /docs\/long\.md has/ },
-  34: { files: { "scripts/audit/guide-freshness.ts": "" }, match: /docs\/guide\.html is missing/ },
+  34: { files: { "scripts/audit/site-freshness.ts": "" }, match: /^scripts\/site\/build\.ts is missing\. Rule:/ },
   35: {
     files: {
       "plugin/skills/prose-writing/SKILL.md": SKILL_HEADER.replace("alpha", "prose-writing"),

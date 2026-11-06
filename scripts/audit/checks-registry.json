@@ -331,13 +331,13 @@
   },
   {
     "number": 34,
-    "id": "guide-freshness",
-    "title": "Guide names every asset and true counts",
-    "rule": "docs/guide.html names every skill, agent and command, states true counts, and the README links it.",
-    "fix": "Add the missing names, correct the counts, or link the guide from the README.",
-    "example": "docs/guide.html is missing. Hint: restore the guide, since the README links it.",
+    "id": "site-freshness",
+    "title": "Site has sources and the README links it",
+    "rule": "The site build script and sources exist, and the README links the site URL.",
+    "fix": "Restore the build script or the sources, or link the site URL from the README.",
+    "example": "scripts/site/build.ts is missing. Rule: the README links a site that this script builds. Fix: restore the script.",
     "mistake": "Documentation that drifts from the repo",
-    "source": "scripts/audit/guide-freshness.ts#guideProblems"
+    "source": "scripts/audit/site-freshness.ts#siteFreshnessProblems"
   },
   {
     "number": 35,
@@ -392,9 +392,9 @@
   {
     "number": 40,
     "id": "site-wiring",
-    "title": "Site has a build script and CI step",
-    "rule": "A repository with site sources has a build script and a CI step that runs it.",
-    "fix": "Restore the build script, or add the step that runs it to the audit workflow.",
+    "title": "Site builds in CI and deploys",
+    "rule": "A repository with site sources has a build script, a CI step and a deploy workflow.",
+    "fix": "Restore the build script, the audit step or the site workflow.",
     "example": "scripts/site/build.ts is missing, but docs-site-src/ holds the site sources. Rule: the sources always have a generator. Fix: restore the script, or remove docs-site-src/.",
     "mistake": null,
     "source": "scripts/audit/site-wiring.ts"

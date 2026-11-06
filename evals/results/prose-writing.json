@@ -9,8 +9,12 @@
       {
         "name": "script-tests",
         "result": "none"
+      },
+      {
+        "name": "rule-anchors",
+        "result": "pass"
       }
     ],
-    "ranAt": "2026-11-05T16:48:16.169Z"
+    "ranAt": "2026-11-06T10:37:04.130Z"
   }
 }

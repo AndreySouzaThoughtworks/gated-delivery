@@ -32,14 +32,11 @@ Ask in step 1, with `AskUserQuestion`, whether the primer is **personal** or **f
 
 `{subject}` is the ticket key the primer explains, written as the tracker writes it, or a 2–4 word lowercase hyphenated topic when no key applies. `{slug}` is 2–4 words, lowercase, hyphens, naming this primer's angle (`oauth2-capability`). Primers on one subject share its folder and link to each other by bare filename.
 
-Resolve the checkout for a team primer the way `deskcheck` resolves the notes repository (its *Output location*, step 3):
+Resolve the checkout for a team primer:
 
-1. The current repository, when it is the one `Team primer home` names.
-2. Otherwise the local checkout at `GATED_DELIVERY_NOTES_REPO`, when that is the same repository.
-3. Otherwise clone that repository with `gh` into a temporary directory.
-4. When `Team primer home` is absent or the repository is unreachable, ask for a path before writing. When you cannot ask, write nothing — not into the working directory either: stop and report that `Team primer home` (or access to its repository) is missing. No way to ask is not permission to pick a location.
-
-Pull before writing, and confirm the working tree is clean and on `main`.
+1. The current repository, when it is the one `Team primer home` names. Pull and confirm a clean tree on `main`; `--in-repo` checks nothing.
+2. Otherwise run `node "<skill base directory>/../../scripts/notes-repo.mjs" prepare --repo-name <owner/name>` for that repository, and write under the `path` it prints. Exit 4: STOP and surface it; 3: ask the user; 1 or 2: surface stderr.
+3. When `Team primer home` is absent or the repository is unreachable, ask for a path before writing. When you cannot ask, write nothing — not into the working directory either: stop and report that `Team primer home` (or access to its repository) is missing. No way to ask is not permission to pick a location.
 
 ## Process
 

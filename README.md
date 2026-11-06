@@ -7,7 +7,7 @@
 Issue-driven, test-first delivery for Claude Code.<br>
 Specs split the work into PR-sized slices. Guards and gates check each one.
 
-[![CI](https://github.com/AndreySouzaThoughtworks/gated-delivery/actions/workflows/audit.yml/badge.svg?branch=main)](https://github.com/AndreySouzaThoughtworks/gated-delivery/actions/workflows/audit.yml)
+[![CI](https://github.com/andrey1souza/gated-delivery/actions/workflows/audit.yml/badge.svg?branch=main)](https://github.com/andrey1souza/gated-delivery/actions/workflows/audit.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 </div>
@@ -23,7 +23,7 @@ New here? Open the [guide](docs/guide.html) in a browser. It explains the whole 
 ## Get started
 
 ```text
-claude plugin marketplace add AndreySouzaThoughtworks/gated-delivery
+claude plugin marketplace add andrey1souza/gated-delivery
 /plugin install gated-delivery@gated-delivery
 /reload-plugins
 ```

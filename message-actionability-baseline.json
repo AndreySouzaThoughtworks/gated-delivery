@@ -313,11 +313,6 @@
       "message": "the repo root must exist, got ${}"
     },
     {
-      "path": "scripts/audit/ci-parity.ts",
-      "rule": "not-actionable",
-      "message": "${}: line ${} ${} without the opt-in guard before it. Rule: ${} unless ${}=1; fix: add `source \"$(dirname \"$0\")/${}\"` above the first call."
-    },
-    {
       "path": "scripts/audit/comments.ts",
       "rule": "not-actionable",
       "message": "the slash index must be a whole number from 0, got ${}"

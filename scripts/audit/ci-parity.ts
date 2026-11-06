@@ -82,7 +82,7 @@ export const liveOptInProblems = (root: string) => {
       if (firstCall === NOT_FOUND || OPT_IN_EXEMPT_TESTS.includes(path)) continue;
       const guard = lines.findIndex((line) => line.includes(rule.guardFile));
       if (guard === NOT_FOUND || guard > firstCall) {
-        problems.push(`${path}: line ${firstCall + 1} ${rule.action} without the opt-in guard before it. Rule: ${rule.reason} unless ${rule.variable}=1; fix: add \`source "$(dirname "$0")/${rule.guardFile}"\` above the first call.`);
+        problems.push(`${path}: line ${firstCall + 1} ${rule.action} without the opt-in guard before it. Rule: ${rule.reason} unless ${rule.variable}=1, so the guard must come first; fix: add \`source "$(dirname "$0")/${rule.guardFile}"\` above the first call.`);
       }
     }
   }

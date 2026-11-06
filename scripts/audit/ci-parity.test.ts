@@ -73,7 +73,7 @@ test("check 30 rejects a live test with no guard, and one that sources it after 
   assert.deepEqual(liveOptInProblems(repoWithTests({ "bare.test.sh": UNGUARDED_LIVE_TEST })).length, 1);
   const { code, out } = runGuard(repoWithTests({ "late.test.sh": GUARD_AFTER_SESSION }));
   assert.equal(code, 1);
-  assert.match(out, /tests\/late\.test\.sh: line 2 launches claude -p without the opt-in guard before it\. Rule: .* unless GATED_DELIVERY_ALLOW_LIVE_CLAUDE=1; fix: add `source/);
+  assert.match(out, /tests\/late\.test\.sh: line 2 launches claude -p without the opt-in guard before it\. Rule: .* unless GATED_DELIVERY_ALLOW_LIVE_CLAUDE=1, so the guard must come first; fix: add `source/);
 });
 
 test("check 30 exempts only the named profile-isolation test, and reports a missing guard file", () => {
@@ -90,7 +90,7 @@ test("check 30 rejects each mutating gh command that has no gh guard before it, 
   for (const command of MUTATING_GH_COMMANDS) {
     const problems = liveOptInProblems(repoWithTests({ "writes.test.sh": `#!/usr/bin/env bash\n${command}\n` }));
     assert.equal(problems.length, 1, `${command} must be reported once, got ${JSON.stringify(problems)}`);
-    assert.match(problems[0], /tests\/writes\.test\.sh: line 2 runs a mutating gh command without the opt-in guard before it\. Rule: .* unless GATED_DELIVERY_ALLOW_LIVE_GH=1; fix: add `source .*require-live-gh-opt-in\.sh"` above the first call\./);
+    assert.match(problems[0], /tests\/writes\.test\.sh: line 2 runs a mutating gh command without the opt-in guard before it\. Rule: .* unless GATED_DELIVERY_ALLOW_LIVE_GH=1, so the guard must come first; fix: add `source .*require-live-gh-opt-in\.sh"` above the first call\./);
   }
 });
 

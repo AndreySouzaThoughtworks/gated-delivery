@@ -1,5 +1,5 @@
 ---
-allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git branch:*), Bash(git log:*), Bash(git add:*), Bash(git commit:*), Bash(git config:*)
+allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git branch:*), Bash(git log:*), Bash(git add:*), Bash(git commit:*), Bash(git config:*), Bash(node:*)
 description: Create one commit that follows the client's commit convention, with explicit staging
 ---
 
@@ -15,21 +15,19 @@ description: Create one commit that follows the client's commit convention, with
 
 Create a single commit that passes this repo's hooks on the first try.
 
-**Convention.** Read the `## Commit convention` section of the nearest CLAUDE.md. It may name:
+**Plan.** Run, with this change's files by explicit path after `--`:
 
-| Key | Meaning |
-|-----|---------|
-| Applies to | Origins the convention covers, e.g. an org prefix |
-| Subject | Subject template, e.g. `<type>(<KEY>-<N>): <description>` |
-| Ticket key | Where the key comes from and which values the hooks reject |
-| Branch | Branch name template, used by `/gated-delivery:commit-push-pr` |
-| Remote | Extra rules for syncing and pushing PR branches, used by `/gated-delivery:commit-push-pr` |
+```
+node "${CLAUDE_PLUGIN_ROOT}/scripts/commit-plan.mjs" --type <type> --description "<text>" -- <path>...
+```
 
-Use the convention only when the origin matches **Applies to**. Otherwise — or when no section exists — use plain Conventional Commits: `<type>[(<scope>)][!]: <description>` with `<type>` one of `feat fix chore refactor docs test perf build ci style`.
+It reads the nearest CLAUDE.md `## Commit convention` and prints `{source, subject, branchTemplate, prBodyFile}`. Commit with `subject` verbatim. Use the convention only when the origin matches **Applies to**: `client` is a match on a backticked origin, `plain` is plain Conventional Commits. `plain-unproven` means **Applies to** is prose: read it, and when it covers the origin, build the subject from the convention's **Subject** template.
 
-When the convention requires a ticket key and the branch name carries none, stop and ask which ticket this belongs to. Never guess a key and never fall back to a keyless subject.
+Exit 1: STOP and ask which ticket this belongs to, then rerun with `--ticket <KEY-N>`. Never guess a key and never fall back to a keyless subject.
 
-**Staging.** Stage the files belonging to this change by explicit path. Never `git add -A`, `git add .`, or a bare wildcard. Stage untracked files only when they are clearly part of the change; never stage agent scratch directories (`.claude/`, `*/.claude/`, agent notes). If untracked files look ambiguous, list them and ask.
+Exit 3: STOP. Never `git add -A`, `git add .`, or a bare wildcard. Exit 2: fix the flags stderr names.
+
+**Staging.** Stage the files belonging to this change by explicit path. Stage untracked files only when they are clearly part of the change; never stage agent scratch directories (`.claude/`, `*/.claude/`, agent notes). If untracked files look ambiguous, list them and ask.
 
 **Message body.** Explain why, not what, and only when the subject isn't self-evident. End the message with the attribution lines the harness supplies for commits, unless the user's own instructions say otherwise.
 

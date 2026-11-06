@@ -1,5 +1,5 @@
 ---
-allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git branch:*), Bash(git switch:*), Bash(git log:*), Bash(git add:*), Bash(git commit:*), Bash(git fetch:*), Bash(git push:*), Bash(git reset --hard:*), Bash(git reset -q --hard:*), Bash(git cherry-pick:*), Bash(git rev-list:*), Bash(git merge-base:*), Bash(git config:*), Bash(gh pr create:*), Bash(gh pr view:*), Write
+allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git branch:*), Bash(git switch:*), Bash(git log:*), Bash(git add:*), Bash(git commit:*), Bash(git fetch:*), Bash(git push:*), Bash(git reset --hard:*), Bash(git reset -q --hard:*), Bash(git cherry-pick:*), Bash(git rev-list:*), Bash(git merge-base:*), Bash(git config:*), Bash(gh pr create:*), Bash(gh pr view:*), Bash(node:*), Write
 description: Commit, fast-forward push to an explicit refspec, and open a PR — following the client's commit convention
 ---
 
@@ -16,10 +16,16 @@ description: Commit, fast-forward push to an explicit refspec, and open a PR —
 
 Work through these steps in order. Stop at the checkpoint.
 
-**1. Branch.** If on the default branch, create a feature branch. Use the **Branch** template from the `## Commit convention` section of the nearest CLAUDE.md when the origin matches its **Applies to**; otherwise `<type>/<short-desc>`. If already on a feature branch, use it. When the convention requires a ticket key and none can be derived, ask which ticket this belongs to.
+**1. Plan.** Run the script of `/gated-delivery:commit`, adding `--local-notes <Local notes home from ## Delivery notes>` when the client names one:
 
-**2. Commit.** Apply the rules of `/gated-delivery:commit` here, without the Skill tool — this command does not allow it, and that command's commit-only scope would end the run before the push:
-- Subject: the convention's **Subject** template when the origin matches its **Applies to**; otherwise plain Conventional Commits. Never guess a ticket key and never fall back to a keyless subject.
+```
+node "${CLAUDE_PLUGIN_ROOT}/scripts/commit-plan.mjs" --type <type> --description "<text>" -- <path>...
+```
+
+It prints `{source, subject, branchTemplate, prBodyFile}`. Exit 1: STOP and ask which ticket this belongs to, then rerun with `--ticket <KEY-N>`. Exit 3: STOP. Exit 2: fix the flags stderr names. On `plain-unproven` follow `/gated-delivery:commit`.
+
+**2. Branch and commit.** If on the default branch, create a feature branch from `branchTemplate`. If already on a feature branch, use it. Then apply the rules of `/gated-delivery:commit` here, without the Skill tool — this command does not allow it, and that command's commit-only scope would end the run before the push:
+- Subject: `subject` verbatim. Never guess a ticket key and never fall back to a keyless subject.
 - Stage by explicit path. Never `git add -A`, `git add .` or a bare wildcard, and never stage `.claude/` or agent notes.
 - Body only when the subject is not self-evident, explaining why. End with the attribution lines the harness supplies for commits, unless the user's own instructions say otherwise.
 
@@ -57,10 +63,10 @@ With `push.default = upstream`, a branch whose upstream is `origin/<default-bran
 
 Commit as the repo's configured identity — never pass `-c user.email`. GitHub rejects pushes authored with a private address (`GH007`).
 
-**6. Open the PR.** Write the body with the Write tool to `<local-notes>/pr-body-<branch-with-slashes-as-dashes>.md` — replace every `/` in the branch name with `-`, or the file lands in a new directory — where `<local-notes>` is the Local notes home from `## Delivery notes` in the client's CLAUDE.md, default `~/.local/state/gated-delivery/`. Then pass the file:
+**6. Open the PR.** Write the body with the Write tool to the `prBodyFile` the script printed. Then pass the file:
 
 ```
-gh pr create --title "<title>" --body-file <path>
+gh pr create --title "<title>" --body-file <prBodyFile>
 ```
 
 Never pass the body inline with `--body`, through a heredoc, or on stdin: a `##` heading after a newline trips Claude Code's quoting check, and a redirect cannot be checked. The body leads with What changes and How verified, each bullet carrying its own reason. Link the ticket and spec rather than restating them. End with the attribution lines the harness supplies for pull requests, unless the user's own instructions say otherwise.

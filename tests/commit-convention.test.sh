@@ -41,7 +41,7 @@ new_repo() {
 run_commit() {
   (cd "$1" && claude -p "/gated-delivery:commit" --plugin-dir "${plugin}" \
     --allowedTools "Bash(git status:*)" "Bash(git diff:*)" "Bash(git branch:*)" "Bash(git log:*)" \
-    "Bash(git add:*)" "Bash(git commit:*)" "Bash(git config:*)" </dev/null >"$1.out" 2>&1)
+    "Bash(git add:*)" "Bash(git commit:*)" "Bash(git config:*)" "Bash(node:*)" </dev/null >"$1.out" 2>&1)
 }
 
 last_subject() { git -C "$1" log -1 --format=%s; }

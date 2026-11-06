@@ -1,9 +1,58 @@
 {
   "file": "plugin/commands/commit.md",
+  "files": ["plugin/scripts/commit-plan.mjs"],
   "rules": [
     {
+      "id": "commit.calls-commit-plan",
+      "anchor": "scripts/commit-plan.mjs\" --type",
+      "kind": "must",
+      "why": "subject, ticket key, origin match and staging are decided by the script"
+    },
+    {
+      "id": "commit.bad-staging-stop",
+      "anchor": "Exit 3: STOP.",
+      "kind": "stop",
+      "why": "a refused path list halts the commit"
+    },
+    {
+      "id": "commit.usage-exit-fixes-flags",
+      "anchor": "Exit 2: fix the flags stderr names",
+      "kind": "must",
+      "why": "a usage error is fixed from the script's message"
+    },
+    {
+      "id": "commit.script-asks-ticket",
+      "anchor": "ask which ticket this belongs to, then rerun with --ticket",
+      "kind": "stop",
+      "why": "the script exits 1 on a keyless branch and says how to continue"
+    },
+    {
+      "id": "commit.script-refuses-stage-all",
+      "anchor": "stages everything; name each file of this change by explicit path",
+      "kind": "never",
+      "why": "the script exits 3 on add-all flags"
+    },
+    {
+      "id": "commit.script-refuses-glob",
+      "anchor": "is a glob or pathspec magic; name each file by explicit path",
+      "kind": "never",
+      "why": "the script exits 3 on globs and pathspec magic"
+    },
+    {
+      "id": "commit.script-refuses-scratch",
+      "anchor": "is agent scratch; leave .claude/ and agent notes out of the commit",
+      "kind": "never",
+      "why": "the script exits 3 on .claude/ paths"
+    },
+    {
+      "id": "commit.script-matches-only-proven-origins",
+      "anchor": "const backtickedOrigins",
+      "kind": "must",
+      "why": "only backticked Applies to origins count as a match; prose falls back to plain"
+    },
+    {
       "id": "commit.ask-ticket-key",
-      "anchor": "stop and ask which ticket this belongs to",
+      "anchor": "STOP and ask which ticket this belongs to",
       "kind": "stop",
       "why": "a required key missing from the branch is asked"
     },
@@ -45,7 +94,7 @@
     },
     {
       "id": "commit.convention-origin-match",
-      "anchor": "Use the convention only when the origin matches **Applies to**.",
+      "anchor": "Use the convention only when the origin matches **Applies to**",
       "kind": "must",
       "why": "a foreign origin gets plain Conventional Commits"
     }

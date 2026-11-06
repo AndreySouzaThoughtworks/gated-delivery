@@ -712,7 +712,7 @@ const TSCONFIG_FILE = "tsconfig.json";
 const REQUIRED_TSC_FLAGS = ["strict", "checkJs", "noUnusedLocals", "noUnusedParameters"];
 const tsconfigPath = join(ROOT, TSCONFIG_FILE);
 if (!existsSync(tsconfigPath)) {
-  errors.push(`${TSCONFIG_FILE} is missing. Hint: restore it; the typecheck job and this guard rely on it.`);
+  errors.push(`${TSCONFIG_FILE} is missing. Hint: restore it; the consistency job and this guard rely on it.`);
 } else {
   const compilerOptions = JSON.parse(read(tsconfigPath)).compilerOptions ?? {};
   for (const flag of REQUIRED_TSC_FLAGS) {

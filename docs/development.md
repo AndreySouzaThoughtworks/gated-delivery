@@ -41,7 +41,7 @@ Fixtures stay outside `plugin/`. Installs do not carry them.
 
 `consistency` and `node 26` are two entries of one job in `.github/workflows/audit.yml`. So the two cannot drift. Check 29 fails when a second job runs the consistency guard or an entry loses its name.
 
-Two more jobs in `audit.yml` run on every pull request but are not required: `typecheck` and `guardrail scripts`. A third workflow, `evals`, is dormant and not required.
+The `evals` workflow is dormant. It is not a required check.
 
 ## Node policy
 

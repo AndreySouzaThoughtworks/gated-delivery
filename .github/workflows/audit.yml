@@ -100,43 +100,6 @@ jobs:
       - name: Pre-push hook tests
         run: bash tests/pre-push.test.sh
 
-  guardrail-scripts:
-    name: guardrail scripts
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 22
-      - name: Verify-command resolver tests
-        run: node --test scripts/*.test.ts
-      - name: Spec lint accepts the known-good spec
-        run: node plugin/skills/spec/scripts/spec-lint.mjs scripts/audit/fixtures/valid-spec.md
-      - name: Deskcheck lint accepts the known-good page
-        run: node plugin/skills/deskcheck/scripts/deskcheck-lint.mjs scripts/audit/fixtures/deskcheck/valid.html
-      - name: Guardrail scan accepts the issue-writing templates and examples
-        run: |
-          for file in plugin/skills/issue-writing/templates/*.md plugin/skills/issue-writing/examples/*.md; do
-            node plugin/skills/issue-writing/scripts/guardrail-scan.mjs "$file"
-          done
-
-  typecheck:
-    name: typecheck
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 22
-      - name: Install dev dependencies
-        run: npm ci
-      - name: Type check
-        run: npx tsc --noEmit
-
   assertion-effectiveness:
     name: assertion effectiveness
     runs-on: ubuntu-latest

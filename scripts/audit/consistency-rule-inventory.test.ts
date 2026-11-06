@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
+import { markdownFilesUnder, unlistedSupportingFiles } from "./rule-inventory.ts";
 import { write, validRepo, runGuard } from "../test-support/consistency-fixtures.test.support.ts";
 
 const INVENTORIED_SKILL = "plugin/skills/alpha/SKILL.md";
@@ -133,4 +134,28 @@ test("a section headed with NOT counts every line under it as a marker line", ()
   const dir = withInventory(inventoryOf(), body);
   assert.match(runGuard(dir).out, /SKILL\.md:10 - Auto-merge PRs\./);
   assert.doesNotMatch(runGuard(dir).out, /SKILL\.md:14 plain/);
+});
+
+test("a supporting skill file with marker lines must be named by an inventory, and a scenario file is not scanned", () => {
+  const SUPPORTING_FILE = "plugin/skills/alpha/templates/story.md";
+  const SCENARIO_PATH = "plugin/skills/alpha/evals.md";
+  const dir = withInventory(inventoryOf());
+  write(dir, SUPPORTING_FILE, `${RULE_LINE}\n`);
+  write(dir, SCENARIO_PATH, `${RULE_LINE}\n`);
+  const rejected = runGuard(dir);
+  assert.equal(rejected.code, 1, rejected.out);
+  assert.match(rejected.out, /no rule inventory lists plugin\/skills\/alpha\/templates\/story\.md in "file" or "files": 1 marker lines/);
+  assert.doesNotMatch(rejected.out, /no rule inventory lists plugin\/skills\/alpha\/evals\.md/);
+  const covered = withInventory(inventoryOf({ files: [SUPPORTING_FILE] }));
+  write(covered, SUPPORTING_FILE, `${RULE_LINE}\n`);
+  const accepted = runGuard(covered);
+  assert.equal(accepted.code, 0, accepted.out);
+});
+
+test("the supporting-file scan rejects a blank or missing folder, a blank root and a covered set that is not a Set", () => {
+  const dir = validRepo();
+  assert.throws(() => markdownFilesUnder(dir, " "), /directory must name a folder/);
+  assert.throws(() => markdownFilesUnder(dir, "plugin/skills/missing"), /must exist under/);
+  assert.throws(() => unlistedSupportingFiles(" ", new Set()), /root must name the repository root/);
+  assert.throws(() => unlistedSupportingFiles(dir, ["a"] as unknown as Set<string>), /covered must be a Set/);
 });

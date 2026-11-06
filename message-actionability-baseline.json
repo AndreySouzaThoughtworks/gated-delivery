@@ -23,6 +23,76 @@
       "message": "batch-audit: ${} ${}"
     },
     {
+      "path": "plugin/scripts/commit-plan.mjs",
+      "rule": "not-actionable",
+      "message": "a refusal needs a message that says what to fix, got ${}"
+    },
+    {
+      "path": "plugin/scripts/commit-plan.mjs",
+      "rule": "not-actionable",
+      "message": "a refusal exits with one of ${}, got ${}"
+    },
+    {
+      "path": "plugin/scripts/commit-plan.mjs",
+      "rule": "not-actionable",
+      "message": "the CLAUDE.md text must be a string, got ${}"
+    },
+    {
+      "path": "plugin/scripts/commit-plan.mjs",
+      "rule": "not-actionable",
+      "message": "the convention must come from conventionOf, got ${}"
+    },
+    {
+      "path": "plugin/scripts/commit-plan.mjs",
+      "rule": "not-actionable",
+      "message": "the staged paths must be a list, got ${}"
+    },
+    {
+      "path": "plugin/scripts/commit-plan.mjs",
+      "rule": "not-actionable",
+      "message": "every staged path must be a non-empty string, got ${}"
+    },
+    {
+      "path": "plugin/scripts/commit-plan.mjs",
+      "rule": "not-actionable",
+      "message": "the branch name must be a non-empty string, got ${}"
+    },
+    {
+      "path": "plugin/scripts/commit-plan.mjs",
+      "rule": "not-actionable",
+      "message": "--description must say what the change does, got ${}"
+    },
+    {
+      "path": "plugin/scripts/commit-plan.mjs",
+      "rule": "not-actionable",
+      "message": "the search directory must be absolute, got ${}"
+    },
+    {
+      "path": "plugin/scripts/commit-plan.mjs",
+      "rule": "not-actionable",
+      "message": "the search directory must exist, got ${}"
+    },
+    {
+      "path": "plugin/scripts/commit-plan.mjs",
+      "rule": "not-actionable",
+      "message": "the checkout directory must be absolute, got ${}"
+    },
+    {
+      "path": "plugin/scripts/commit-plan.mjs",
+      "rule": "not-actionable",
+      "message": "the checkout directory must exist, got ${}"
+    },
+    {
+      "path": "plugin/scripts/commit-plan.mjs",
+      "rule": "not-actionable",
+      "message": "the arguments must be a list, got ${}"
+    },
+    {
+      "path": "plugin/scripts/commit-plan.mjs",
+      "rule": "not-actionable",
+      "message": "every argument must be a string, got ${}"
+    },
+    {
       "path": "plugin/scripts/executor-preflight.mjs",
       "rule": "not-actionable",
       "message": "Relevant files"
@@ -861,6 +931,21 @@
       "path": "scripts/audit/rule-inventory.ts",
       "rule": "not-actionable",
       "message": "${}: ${}:${} ${}. Hint: add a rule with an anchor or an exempt entry with a reason."
+    },
+    {
+      "path": "scripts/audit/rule-inventory.ts",
+      "rule": "not-actionable",
+      "message": "${} must exist under ${}; check before scanning it"
+    },
+    {
+      "path": "scripts/audit/rule-inventory.ts",
+      "rule": "not-actionable",
+      "message": "root must name the repository root, got a blank; pass the root"
+    },
+    {
+      "path": "scripts/audit/rule-inventory.ts",
+      "rule": "not-actionable",
+      "message": "covered must be a Set of file paths, got ${}"
     },
     {
       "path": "scripts/audit/suppressions.ts",

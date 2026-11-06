@@ -1,0 +1,33 @@
+{
+  "file": "plugin/skills/prose-writing/SKILL.md",
+  "files": [
+    "plugin/skills/prose-writing/writing.md"
+  ],
+  "rules": [
+    {
+      "id": "prose-writing.no-controlled-vocabulary",
+      "anchor": "Do not apply ASD-STE100's controlled vocabulary.",
+      "kind": "limit",
+      "why": "only the sentence-construction principles apply"
+    },
+    {
+      "id": "prose-writing.never-hide-assumptions",
+      "anchor": "**Never hide assumptions.**",
+      "kind": "never",
+      "why": "every factual claim is labelled by how it is known"
+    },
+    {
+      "id": "prose-writing.never-state-assumption-as-fact",
+      "anchor": "Never state an assumption as fact",
+      "kind": "never",
+      "why": "an assumption is stated as an assumption"
+    },
+    {
+      "id": "prose-writing.placement-right-place",
+      "anchor": "if that place isn't here, cut it",
+      "kind": "must",
+      "why": "information lives in the artifact that owns it"
+    }
+  ],
+  "exempt": []
+}

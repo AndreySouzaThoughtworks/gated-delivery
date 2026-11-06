@@ -1,6 +1,37 @@
 {
   "file": "plugin/commands/commit-push-pr.md",
+  "files": ["plugin/scripts/commit-plan.mjs"],
   "rules": [
+    {
+      "id": "commit-push-pr.calls-commit-plan",
+      "anchor": "scripts/commit-plan.mjs\" --type",
+      "kind": "must",
+      "why": "subject, branch template, ticket key and PR body path are decided by the script"
+    },
+    {
+      "id": "commit-push-pr.ask-ticket-key",
+      "anchor": "Exit 1: STOP and ask which ticket this belongs to",
+      "kind": "stop",
+      "why": "a required key missing from the branch is asked"
+    },
+    {
+      "id": "commit-push-pr.bad-staging-stop",
+      "anchor": "Exit 3: STOP.",
+      "kind": "stop",
+      "why": "a refused path list halts the commit"
+    },
+    {
+      "id": "commit-push-pr.usage-exit-fixes-flags",
+      "anchor": "Exit 2: fix the flags stderr names",
+      "kind": "must",
+      "why": "a usage error is fixed from the script's message"
+    },
+    {
+      "id": "commit-push-pr.pr-body-file-from-script",
+      "anchor": "to the `prBodyFile` the script printed",
+      "kind": "must",
+      "why": "the body file name comes from the script, so no new directory is created"
+    },
     {
       "id": "commit-push-pr.stop-at-checkpoint",
       "anchor": "Stop at the checkpoint.",

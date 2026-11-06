@@ -70,10 +70,16 @@ only_read_only_calls() {
   [[ -f "${work}/gh-calls" ]] && ! grep -qvE '^repo view ' "${work}/gh-calls"
 }
 
+no_write_calls() {
+  [[ ! -e "${work}/gh-calls" ]] || ! grep -qE '^(api|pr (create|close))|graphql|--method|-X' "${work}/gh-calls"
+}
+
 run_gh_test STUB_GH_VIEW="${SAFE_VIEW}"
 status=$?
 [[ "${status}" -eq "${EXIT_REFUSED}" && ! -e "${work}/gh-calls" ]]
 check "${GH_TEST} refuses without the opt-in and never calls gh" "$?"
+no_write_calls
+check "${GH_TEST} sends no review comment, thread mutation or pull request write without the opt-in" "$?"
 grep -q "${GH_TEST}.test.sh: refusing to start.*Fix: rerun with ${GH_OPT_IN_VARIABLE}=1" "${work}/output"
 check "${GH_TEST} names its file, the rule and the fix" "$?"
 
@@ -87,6 +93,8 @@ for unsafe in "public:${PUBLIC_VIEW}" "fork:${FORK_VIEW}" "misnamed:${UNNAMED_VI
   status=$?
   [[ "${status}" -eq "${EXIT_SANDBOX_UNSAFE}" ]] && only_read_only_calls
   check "${GH_TEST} refuses a ${unsafe%%:*} repository before any write" "$?"
+  no_write_calls
+  check "${GH_TEST} sends no review comment or thread mutation for a ${unsafe%%:*} repository" "$?"
   grep -q "refusing to write to .*Rule: .*private repository that is not a fork.*Fix: set GATED_DELIVERY_GH_SANDBOX=<owner>/<name>" "${work}/output"
   check "${GH_TEST} names the rule and the fix for a ${unsafe%%:*} repository" "$?"
 done

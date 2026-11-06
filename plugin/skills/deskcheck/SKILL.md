@@ -29,7 +29,7 @@ After the narrative checkpoint, write one HTML file:
 
 1. Use `output-path` when supplied.
 2. Otherwise resolve the Shared notes home for this ticket — substitute the ticket key for `{ticket-id}` — and write `deskcheck.html` directly inside it, creating the directory when needed. The home already names the ticket directory: `notes/{ticket-id}/` gives `notes/PROJ-208/deskcheck.html`, never `notes/PROJ-208/PROJ-208/deskcheck.html`.
-3. When the Shared notes home is in a separate repository, the home is relative to that repository's checkout, not to the repository being changed: write into the local checkout at `GATED_DELIVERY_NOTES_REPO` when set; otherwise clone that repository with `gh` into a temporary directory. Before writing, confirm the checkout's working tree is clean and on `main`.
+3. When the Shared notes home is in a separate repository, the home is relative to that repository's checkout, not to the repository being changed: run `node "<skill base directory>/../../scripts/notes-repo.mjs" prepare --repo-name <owner/name>` and write into the `path` it prints. Exit 4: STOP and surface it; 3: ask the user; 1 or 2: surface stderr.
 4. When none of these is reachable, ask for a path before writing.
 
 Use this skill's `templates/deskcheck.html`. The result is a single static HTML file with its CSS and assets embedded. The shell has five placeholders: title, ticket key, ticket URL, prepared date and the authored body. When `## Artifact style` names a Disclosure, put its wording in the footer in place of the template's line.

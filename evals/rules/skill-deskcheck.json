@@ -78,10 +78,34 @@
       "anchor": "Ask only when a materially different audience",
       "kind": "limit",
       "why": "audience question is conditional"
+    },
+    {
+      "id": "deskcheck.calls-notes-repo-prepare",
+      "anchor": "notes-repo.mjs\" prepare --repo-name <owner/name>",
+      "kind": "must",
+      "why": "the notes checkout is resolved and checked by the script"
+    },
+    {
+      "id": "deskcheck.notes-repo-exit-4-stops",
+      "anchor": "Exit 4: STOP and surface it",
+      "kind": "stop",
+      "why": "prepare exit 4 means the checkout is not clean on main"
+    },
+    {
+      "id": "deskcheck.notes-repo-script-stops-dirty",
+      "anchor": "STOP: the notes checkout ${path} must be clean and on ${MAIN_BRANCH}",
+      "kind": "stop",
+      "why": "notes-repo prepare refuses a checkout that is not clean on main"
     }
   ],
-  "exempt": [],
+  "exempt": [
+    {
+      "anchor": "STOP: the notes checkout ${path} is on ${branch}, not ${MAIN_BRANCH}",
+      "reason": "the publish refusal; deskcheck never calls notes-repo publish"
+    }
+  ],
   "files": [
-    "plugin/skills/deskcheck/scripts/deskcheck-lint.mjs"
+    "plugin/skills/deskcheck/scripts/deskcheck-lint.mjs",
+    "plugin/scripts/notes-repo.mjs"
   ]
 }

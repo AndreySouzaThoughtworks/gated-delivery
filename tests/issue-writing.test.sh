@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
+# shellcheck source=./require-live-opt-in.sh
+source "$(dirname "$0")/require-live-opt-in.sh"
+
 readonly EXIT_NOT_LOGGED_IN=3
 readonly IMPLEMENTATION_NOUNS='PracticeCaller(Service|Handler)|practice-caller\.service|/v1/llm|practice_calls|x-acme-tenant'
 readonly CLIENT_SECRETS='mongodb\+srv|hunter2|acme-internal|x-acme-'

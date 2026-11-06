@@ -44,6 +44,7 @@ Add the sections the client needs to its CLAUDE.md (a folder-level CLAUDE.md abo
 | `GATED_DELIVERY_RUN_MODEL` | unset | Model passed as `--model` to each eval run in `scripts/eval/run-scenarios.ts`. The `--model` flag wins. |
 | `GATED_DELIVERY_GUARD` | unset | Set to `off` only when the Bash guard itself is broken and blocks every command: it then allows everything, so unset it once the guard is fixed. Set it in the environment that starts Claude Code; writing it inside a command does nothing. |
 | `GATED_DELIVERY_BASE_REF` | `origin/main` for `changed-skills.ts`; unset for the guard | Git ref a skill change is measured against. The consistency guard checks eval stamps only when it is set; CI sets it on pull requests. |
+| `GATED_DELIVERY_ALLOW_LIVE_CLAUDE` | unset | Set to `1` to let `tests/commit-convention.test.sh`, `tests/code-reviewer-scope.test.sh` and `tests/issue-writing.test.sh` start. Each launches real `claude -p` sessions that spend your logged-in subscription, so each exits 64 without it. |
 
 ## What runs automatically (hooks — zero setup)
 

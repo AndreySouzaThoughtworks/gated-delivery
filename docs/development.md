@@ -12,7 +12,7 @@ This repo is **both** marketplace and plugin: the marketplace manifest lives at 
 | `plugin/` | The plugin — 12 skills, 3 agents, 2 hooks, 3 commands. Inventory and call graph: [docs/skill-graph.md](skill-graph.md). |
 | `.claude-plugin/marketplace.json` | Marketplace manifest; points at `./plugin`. |
 | `docs/` | [onboarding](onboarding.md) · [skill-graph](skill-graph.md) · [evals](evals.md) · [exponential-engineering](exponential-engineering.md) · [client-context](../plugin/references/client-context.md) |
-| `scripts/` | `leak-guard.sh`, the consistency guard (`audit/`) and the eval tools (`eval/`). |
+| `scripts/` | `leak-guard.sh`, the consistency guard (`audit/`), the eval tools (`eval/`) and CI helpers (`ci/`). |
 | `evals/` | `fixtures/`: run directories for eval scenarios that need more than a persona, kept outside `plugin/` so installs do not carry them. `results/`: one stamp or waiver per skill whose evals were run or waived. |
 | `tools/claude-code/` | The pinned `claude` CLI that the dormant CI evals job installs. |
 | `tests/` | Shell tests for the leak guard, the pre-push hook, the slice scripts, profile isolation and the behaviour of the commit commands, `code-reviewer` and `issue-writing`. |
@@ -28,14 +28,16 @@ This repo is **both** marketplace and plugin: the marketplace manifest lives at 
 | Check | Runs |
 |-------|------|
 | `zanity` | `zanity check . --fail-on warning --strict`, pinned to one release |
-| `consistency` | The consistency guard, the hook, guard and eval-tool unit tests, `run-checks --lint`, the leak guard's self-test and the slice script tests |
+| `consistency` | One matrix job on Node 22 with the checks below, shared with `node 26`: `tsc`, the consistency guard, the hook, guard, plugin script and eval-tool unit tests, `run-checks --lint`, the lint and scan scripts, the leak guard's self-test, the slice script tests, the live-test opt-in test, and the pre-push hook test with gitleaks installed from a pinned release and checksum |
 | `workflows` | `actionlint` and `zizmor --pedantic` on `.github/` |
 | `shell` | `shellcheck` at its strictest on every shell file |
 | `links` | `lychee` on the README, `docs/` and `plugin/` markdown |
 | `spelling` | `typos` with `.typos.toml`: the generated assertion baseline is excluded and the ordinal suffix `nd` is allowed |
 | `gitleaks` | Secret scan |
-| `node 26` | The Node-dependent checks again on Node 26, as well as on the 22 floor |
+| `node 26` | The same matrix job on Node 26. Both names are matrix entries of one job in `.github/workflows/audit.yml`, so the two cannot drift; check 29 fails if a second job runs the consistency guard or an entry loses its name |
 | `assertion effectiveness` | `scripts/audit/assertion-effectiveness.ts`: every assertion in non-test code must make some test fail. Its baseline is empty |
+
+Three more jobs in `audit.yml` run on every pull request but are not required: `typecheck`, `guardrail scripts` and `node 18 and 20 plugin tests`.
 
 The rules guard themselves. The consistency guard fails if `zanity.toml` drops `select = ["all"]`, disables anything except the process and filesystem rules for test files, or excludes more than the fixtures. It also fails on an `assert`, `if` or `while` whose condition cannot vary, since a check that cannot fail proves nothing, and on a skill that changed without a passing eval stamp or a recorded waiver. Check 27 fails when a rule listed in an inventory under `evals/rules/` is deleted or reworded out of its file, or when a marker line (`never`, `STOP`, `CHECKPOINT` and the like) is covered by no rule ([docs/evals.md](evals.md#rule-inventory)). Every mistake made here and the check that now catches it: [docs/mistakes-to-rules.md](mistakes-to-rules.md), kept honest by a test. The guard's own sections are listed in `scripts/audit/consistency.ts`. `scripts/audit/token-budget.ts` measures the instruction files; check 28 fails any of them that outgrows its budget in `evals/token-budget.json` (see [Token budget](#token-budget)). A banned phrase from `plugin/skills/prose-writing/writing.md` in a skill or agent file is an error. `scripts/audit/suppressions.ts` fails any lint, type or coverage suppression without `<marker> -- <reason of four or more meaningful words>` (a zanity ignore must name exactly one rule, and an `assertion-density` ignore must start with a reason code from `scripts/audit/suppression-reason-codes.ts` followed by a colon and a specific reason; zanity's density rule applies everywhere, so a function with no honest second invariant carries such a coded, counted suppression instead of an assertion that cannot fail) and any count different from `scripts/audit/suppressions.count`, which a reviewer must accept before it is raised. `scripts/audit/jsdoc-types-only.ts` fails any JSDoc block in a shipped `plugin/**/*.mjs` (tests excluded) that holds prose or anything beyond type tags such as `@param {T} name`, `@returns {T}` and `@typedef`, naming the file:line and the text. `scripts/audit/assertion-effectiveness.ts` copies the tracked files to a temp directory, instruments every `assert(...)` in the non-test source under `plugin/` and `scripts/`, runs the test commands there and lists each assertion that no test ever made fail (never false, or never evaluated), grouped by file with its condition; it fails on any such assertion missing from `assertion-effectiveness-baseline.json`, which only shrinks (`plugin/bootstrap/guards/ratchet.mjs` checks that in pull requests). It runs as the `assertion effectiveness` job in `.github/workflows/audit.yml`.
 
@@ -85,7 +87,9 @@ Each skill's `evals.md` holds scenarios and a `## Deterministic Checks` fence. C
 |---------|---------------|--------|
 | `bash tests/leak-guard.test.sh` | No | The guard rejects client terms, skips only well-formed integrity hashes in fixture lockfiles and logs each skip, and fails closed without a denylist |
 | `bash tests/slice-scripts.test.sh` | No | Parallel slice and batch worktrees stay isolated, claims are create-only, batches are picked back in order, and the verify lock serializes runs |
-| `bash tests/pre-push.test.sh` | No | The pre-push hook rejects a push carrying a leak in any pushed commit and lets clean pushes and branch deletions through |
+| `bash tests/pre-push.test.sh` | No | The pre-push hook rejects a push carrying a leak in any pushed commit and lets clean pushes and branch deletions through. It skips with exit 3 when gitleaks is missing; CI installs it with `scripts/ci/install-gitleaks.sh` |
+| `bash tests/install-gitleaks.test.sh` | No | The installer refuses an archive whose checksum differs from the pinned one, a failed download and a missing install directory |
+| `bash tests/live-opt-in.test.sh` | No | Each login-bound test below refuses to start without `GATED_DELIVERY_ALLOW_LIVE_CLAUDE=1`, and starts its login probe with it. A stub `claude` stands in, so no session starts |
 | `node --test plugin/hooks/*.test.mjs scripts/audit/*.test.ts scripts/eval/*.test.ts` | No | Hook behaviour, the consistency guard and the eval tools on broken and valid fixtures |
 | `npm ci && npx tsc --noEmit` | No | The dev scripts under `scripts/` type-check; they run on Node 22.18 or newer, which strips the types itself |
 | `node scripts/audit/consistency.ts` | No | Inventory, references, docs, settings and eval stamps agree with the files |
@@ -94,6 +98,6 @@ Each skill's `evals.md` holds scenarios and a `## Deterministic Checks` fence. C
 | `bash tests/profile-isolation.test.sh [project-dir]` | No | A fresh profile installs the core, loads no client plugin or MCP server and has its own login |
 | `bash tests/commit-convention.test.sh`, `tests/code-reviewer-scope.test.sh`, `tests/issue-writing.test.sh` | Yes | The commit command follows the convention, `code-reviewer` reports scope creep, `issue-writing` keeps secrets out of the tracker |
 
-Login-bound tests skip with exit 3 when the profile is not logged in. Point them at another profile with `GATED_DELIVERY_TEST_PROFILE=~/.claude-<name>`.
+The three login-bound tests exit 64 unless `GATED_DELIVERY_ALLOW_LIVE_CLAUDE=1` is set, because each starts real `claude -p` sessions on your subscription (check 30 fails a new test that launches `claude -p` without that guard). `tests/profile-isolation.test.sh` is exempt: it uses an empty profile that is never logged in. With the opt-in set, they skip with exit 3 when the profile is not logged in. Point them at another profile with `GATED_DELIVERY_TEST_PROFILE=~/.claude-<name>`.
 
 Turn-end verification is the `overwatch` plugin's job: [docs/onboarding.md](onboarding.md#install-overwatch-for-turn-end-verification). Knobs: [docs/onboarding.md](onboarding.md#knobs-environment-variables).

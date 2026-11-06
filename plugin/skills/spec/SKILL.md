@@ -6,7 +6,7 @@ description: Create a spec file from a tracker ticket. Walks the user through th
 
 **Hold drafts in conversation until sign-off.** Draft spec content lives in conversation until step 9. Do not write it until the user signs off on every section.
 
-**Branch preconditions.** A repo-hosted spec written at step 9 must land on `main` or the ticket's own branch (`feat/{ticket-id}-*`), with a clean working tree. Any other state — STOP and ask the user how to proceed. An external working spec is committed only in the notes repository — the repository holding the Shared notes home (`## Delivery notes` in the client's CLAUDE.md); do not mutate the changed repository to store it. Before reading from or writing to that notes-repo checkout, verify it too: working tree clean and HEAD on `main`, otherwise STOP.
+**Branch preconditions.** A repo-hosted spec written at step 9 must land on `main` or the ticket's own branch (`feat/{ticket-id}-*`), with a clean working tree. Any other state — STOP and ask the user how to proceed. An external working spec is committed only in the notes repository — the repository holding the Shared notes home (`## Delivery notes` in the client's CLAUDE.md); do not mutate the changed repository to store it.
 
 ## Inputs
 
@@ -35,7 +35,7 @@ If no candidate file exists, resolve `spec-path` from repository evidence before
 - The Spec placement rule (`## Delivery notes`) covers this repository → follow it.
 - Existing accepted `docs/specs/` history or repository guidance allowing planning artifacts → use `docs/specs/{ticket-id}-{slug}.md`.
 - Repository guidance or deletion history rejecting planning artifacts → use `{ticket-id}/spec.md` in the Shared notes home (`## Delivery notes`). When no Shared notes home is declared, ask where external specs live and record the answer there.
-- Keep one spec. For external storage, use the writable notes-repo checkout at `GATED_DELIVERY_NOTES_REPO`; when unset, clone it with `gh` into a temporary directory. The installed plugin cache is read-only.
+- Keep one spec. For external storage, run `node "<skill base directory>/../../scripts/notes-repo.mjs" prepare --repo-name <owner/name>` and use the `path` it prints. Exit 4: STOP and surface it; 3: ask the user; 1 or 2: surface stderr. The installed plugin cache is read-only.
 
 **Then ask user for anything repo can't tell you.** Before moving on, ask whether they have more context — examples: RFCs, message-interface specs, design docs, links, prior art, much of which live outside repo (Notion, sibling repos). Don't treat an absent in-repo document as a gap until you ask: a missing canonical reference is usually one the user can provide. Fold reusable context into the canonical owner named by the repository instructions; when none exists, keep it in the spec rather than inventing a new location.
 
@@ -222,10 +222,8 @@ For a repo-hosted spec, leave the file uncommitted on the current allowed branch
 
 For an external working spec:
 
-1. Verify the notes-repo checkout against the branch preconditions above, then pull its `main` before writing.
-2. Write `{ticket-id}/spec.md` in the Shared notes home.
-3. Commit and push directly to the notes repository's `main`; never force-push.
-4. If remote `main` moved, merge it, preserve both tickets' changes, rerun the consistency check, then push.
+1. Write `{ticket-id}/spec.md` in the prepared checkout's Shared notes home.
+2. Run `notes-repo.mjs publish --path <notes checkout> --file {ticket-id}/spec.md --message <text>`: it pushes `main`; never force-push. Exit 4 off `main`: STOP and surface it; 3: merge `origin/main` by hand, preserve both tickets' changes, rerun the consistency check, publish again; 1 or 2: surface stderr.
 
 Update frontmatter:
 

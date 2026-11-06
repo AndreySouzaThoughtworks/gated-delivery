@@ -2,7 +2,14 @@
   "file": "plugin/skills/issue-writing/SKILL.md",
   "files": [
     "plugin/skills/issue-writing/workflows/story.md",
-    "plugin/scripts/ticket-lint.mjs"
+    "plugin/scripts/ticket-lint.mjs",
+    "plugin/skills/issue-writing/templates/story.md",
+    "plugin/skills/issue-writing/templates/bug.md",
+    "plugin/skills/issue-writing/templates/spike.md",
+    "plugin/skills/issue-writing/templates/task.md",
+    "plugin/skills/issue-writing/trackers/github.md",
+    "plugin/skills/issue-writing/trackers/jira.md",
+    "plugin/skills/issue-writing/examples/tracer-story.md"
   ],
   "rules": [
     {
@@ -298,6 +305,84 @@
       "anchor": "reader must not have to open standard",
       "kind": "must",
       "why": "an API deviation is stated in the story, not by pointing at the standard"
+    },
+    {
+      "id": "issue-writing.template-story-role-generality",
+      "anchor": "Check for more general user value before reaching for \"as an engineer\"",
+      "kind": "must",
+      "why": "the story role is the user unless the user benefit is hard to phrase"
+    },
+    {
+      "id": "issue-writing.template-story-ac-not-exhaustive",
+      "anchor": "not always exhaustive",
+      "kind": "limit",
+      "why": "acceptance criteria are exemplary and well covered, not a test list"
+    },
+    {
+      "id": "issue-writing.template-story-placeholder-set-in-given",
+      "anchor": "never in note above table",
+      "kind": "never",
+      "why": "the full value set of a placeholder is named in Given"
+    },
+    {
+      "id": "issue-writing.template-story-constraint-once",
+      "anchor": "*Never only place constraint appears",
+      "kind": "never",
+      "why": "a constraint stated in a bullet must also stand in the criteria"
+    },
+    {
+      "id": "issue-writing.template-story-no-identifier-citation",
+      "anchor": "Never cite identifier in body and",
+      "kind": "never",
+      "why": "an identifier is cited once, not in both body and references"
+    },
+    {
+      "id": "issue-writing.template-bug-no-suspected-cause",
+      "anchor": "Do not put a suspected cause here.",
+      "kind": "never",
+      "why": "the observed result holds symptoms, not hypotheses"
+    },
+    {
+      "id": "issue-writing.template-bug-no-secrets",
+      "anchor": "Never include credentials, personal data, customer identifiers",
+      "kind": "never",
+      "why": "a bug scope section carries no secrets or personal data"
+    },
+    {
+      "id": "issue-writing.template-spike-no-research-backlog",
+      "anchor": "Do not let this become an unrelated research backlog.",
+      "kind": "limit",
+      "why": "secondary questions serve the primary question"
+    },
+    {
+      "id": "issue-writing.template-task-link-not-carrier",
+      "anchor": "Do not rely on a link to carry information required to perform the task.",
+      "kind": "never",
+      "why": "a task states what it needs in its own text"
+    },
+    {
+      "id": "issue-writing.github-no-restricted-detail-in-comment",
+      "anchor": "goes to the spec home or Shared notes home instead — never a comment",
+      "kind": "never",
+      "why": "GitHub comments are public to every reader of the repository"
+    },
+    {
+      "id": "issue-writing.github-no-invented-state",
+      "anchor": "never invent a state",
+      "kind": "never",
+      "why": "GitHub states beyond open and closed are labels or project fields that exist"
+    },
+    {
+      "id": "issue-writing.jira-no-hardcoded-field-id",
+      "anchor": "are per-board — never hard-code one",
+      "kind": "never",
+      "why": "Jira custom field ids differ per board"
+    },
+    {
+      "id": "issue-writing.jira-no-foreign-transition-id",
+      "anchor": "never reuse an ID from another project",
+      "kind": "never",
+      "why": "Jira transition ids are workflow-specific"
     }
   ],
   "exempt": [
@@ -308,6 +393,14 @@
     {
       "anchor": "while it never fires",
       "reason": "rationale of issue-writing.task-guard-criterion"
+    },
+    {
+      "anchor": "Service acts as owner, never as autonomous cross-tenant actor",
+      "reason": "worked example story text, not an instruction"
+    },
+    {
+      "anchor": "retry will never succeed",
+      "reason": "worked example table row, not an instruction"
     }
   ]
 }

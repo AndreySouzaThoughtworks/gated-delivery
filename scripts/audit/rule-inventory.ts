@@ -1,5 +1,5 @@
 import assert from "node:assert";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 export const RULES_DIRECTORY = "evals/rules";
@@ -8,13 +8,16 @@ export const RULE_KINDS = ["stop", "never", "must", "checkpoint", "limit", "othe
 export const UNINVENTORIED_FILES_ARE_ERRORS = true;
 const HEADING = /^#{1,6} /;
 const LIMITS_HEADING = /^#{1,6} .*\bNOT\b/;
+const SKILL_ENTRY = "SKILL.md";
 const INSTRUCTION_DIRECTORIES = [
-  { directory: "plugin/skills", entry: "SKILL.md" },
+  { directory: "plugin/skills", entry: SKILL_ENTRY },
   { directory: "plugin/agents", entry: null },
   { directory: "plugin/commands", entry: null },
 ];
 const MARKDOWN_EXTENSION = ".md";
 const JSON_EXTENSION = ".json";
+const SKILLS_DIRECTORY = "plugin/skills";
+const SCENARIO_FILE = "evals.md";
 
 export type Rule = { id: string; anchor: string; kind: string; why: string };
 export type Exempt = { anchor: string; reason: string };
@@ -65,17 +68,40 @@ export function inventoryProblems(root: string, name: string, inventory: Invento
   return problems;
 }
 
+export const markdownFilesUnder = (root: string, directory: string): string[] => {
+  assert(directory.trim() !== "", `directory must name a folder under ${root}, got a blank; pass the folder to scan`);
+  assert(existsSync(join(root, directory)), `${directory} must exist under ${root}; check before scanning it`);
+  return readdirSync(join(root, directory)).flatMap((name) => {
+    const path = join(directory, name);
+    return statSync(join(root, path)).isDirectory() ? markdownFilesUnder(root, path) : name.endsWith(MARKDOWN_EXTENSION) ? [path] : [];
+  });
+};
+
+export const unlistedSupportingFiles = (root: string, covered: Set<string>): string[] => {
+  assert(root.trim() !== "", `root must name the repository root, got a blank; pass the root`);
+  assert(covered instanceof Set, `covered must be a Set of file paths, got ${typeof covered}`);
+  if (!existsSync(join(root, SKILLS_DIRECTORY))) return [];
+  const supportingFiles = markdownFilesUnder(root, SKILLS_DIRECTORY).filter((file) => !file.endsWith(`/${SCENARIO_FILE}`) && !file.endsWith(`/${SKILL_ENTRY}`));
+  return supportingFiles.sort().flatMap((file) => {
+    const markers = markerLines(readFileSync(join(root, file), "utf8")).length;
+    return markers > 0 && !covered.has(file) ? [`no rule inventory lists ${file} in "file" or "files": ${markers} marker lines`] : [];
+  });
+};
+
 export function checkRuleInventories(root: string) { // zanity: ignore[assertion-density] -- exported-and-tested: the guard's report is the only observable result, and its tests pin each finding
   const directory = join(root, RULES_DIRECTORY);
   const names = existsSync(directory) ? readdirSync(directory).filter((name) => name.endsWith(JSON_EXTENSION)).sort() : [];
   const problems: string[] = [];
   const inventoried = new Set<string>();
+  const covered = new Set<string>();
   for (const name of names) {
     const label = `${RULES_DIRECTORY}/${name}`;
     try {
       const inventory: Inventory = JSON.parse(readFileSync(join(directory, name), "utf8"));
       problems.push(...inventoryProblems(root, label, inventory));
       inventoried.add(inventory.file);
+      covered.add(inventory.file);
+      for (const file of inventory.files ?? []) covered.add(file);
     } catch (failure) {
       problems.push(`${label} is not a usable inventory: ${failure instanceof Error ? failure.message : failure}. Hint: fix its JSON shape.`);
     }
@@ -92,5 +118,6 @@ export function checkRuleInventories(root: string) { // zanity: ignore[assertion
       if (markers > 0 && !inventoried.has(file)) uninventoried.push(`no rule inventory for ${file}: ${markers} marker lines`);
     }
   }
+  uninventoried.push(...unlistedSupportingFiles(root, covered));
   return { problems, uninventoried };
 }

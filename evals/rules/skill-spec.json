@@ -2,7 +2,8 @@
   "file": "plugin/skills/spec/SKILL.md",
   "files": [
     "plugin/skills/spec/templates/change.md",
-    "plugin/skills/spec/scripts/spec-lint.mjs"
+    "plugin/skills/spec/scripts/spec-lint.mjs",
+    "plugin/scripts/notes-repo.mjs"
   ],
   "rules": [
     {
@@ -25,9 +26,9 @@
     },
     {
       "id": "spec.stop-dirty-notes-repo",
-      "anchor": "working tree clean and HEAD on `main`, otherwise STOP",
+      "anchor": "STOP: the notes checkout ${path} must be clean and on ${MAIN_BRANCH}",
       "kind": "stop",
-      "why": "notes checkout verified before use"
+      "why": "notes-repo prepare refuses a checkout that is not clean on main"
     },
     {
       "id": "spec.no-missing-context-files",
@@ -214,6 +215,36 @@
       "anchor": "when the ticket touches a technology its `## Domain references` section lists",
       "kind": "must",
       "why": "client-specific technology references are read before ACs promise behaviour"
+    },
+    {
+      "id": "spec.calls-notes-repo-prepare",
+      "anchor": "notes-repo.mjs\" prepare --repo-name <owner/name>",
+      "kind": "must",
+      "why": "the notes checkout is resolved and checked by the script"
+    },
+    {
+      "id": "spec.notes-repo-exit-4-stops",
+      "anchor": "Exit 4: STOP and surface it",
+      "kind": "stop",
+      "why": "prepare exit 4 means the checkout is not clean on main"
+    },
+    {
+      "id": "spec.calls-notes-repo-publish",
+      "anchor": "notes-repo.mjs publish --path <notes checkout> --file {ticket-id}/spec.md",
+      "kind": "must",
+      "why": "the external spec reaches the notes main through the script"
+    },
+    {
+      "id": "spec.notes-repo-publish-exit-4-stops",
+      "anchor": "Exit 4 off `main`: STOP and surface it",
+      "kind": "stop",
+      "why": "publish exit 4 means the checkout is off main and nothing was pushed"
+    },
+    {
+      "id": "spec.notes-repo-script-stops-off-main",
+      "anchor": "STOP: the notes checkout ${path} is on ${branch}, not ${MAIN_BRANCH}",
+      "kind": "stop",
+      "why": "notes-repo publish refuses a checkout that is not on main"
     }
   ],
   "exempt": [

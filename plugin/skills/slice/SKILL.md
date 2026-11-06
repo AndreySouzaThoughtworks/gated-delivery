@@ -195,14 +195,14 @@ Run after 6.3 and 6.4, once their fixes are committed. Run `pnpm test` or the re
 
 #### 6.6. Open or update the draft PR
 
-After the first batch commits, write the body with the Write tool to `$LOCAL_NOTES/pr-body-<branch-with-slashes-as-dashes>.md` — replace every `/` in the branch name with `-`, or the file lands in a new directory. Gate it, then open a draft PR against `<slice-base>`:
+After the first batch commits, write the body with the Write tool to the `prBodyFile` of `node "<skill base directory>/../../scripts/commit-plan.mjs" --type <type> --description "<slice title>" --local-notes "$LOCAL_NOTES"` (exit 1: ask which ticket and STOP). Gate it, then open a draft PR against `<slice-base>`:
 
 ```bash
 node "<skill base directory>/../../scripts/pr-gate.mjs" --body-file <body path> --title "{type}({ticket-id}): {slice title}" --final-slice y|n [--pr <number>] [--title-convention <regex>]
 gh pr create --draft --base <slice-base> --title "{type}({ticket-id}): {slice title}" --body-file <body path>
 ```
 
-`--final-slice y` only for the final unmerged slice; `--pr` once the PR exists (it then lists unresolved review threads); `--title-convention` when the client's `## Commit convention` names a **PR title** check, since a bare `{ticket-id}: {title}` fails it even when every commit is conventional. It prints `{title, closingKeywords, unresolvedThreads, bodyPath}`. Exit 0 clean. Exit 1: each non-null or non-empty field is a defect — fix it and rerun. Exit 2: usage or a failing `gh`, surface stderr. Pass the body by `--body-file`, also to `gh pr edit` for every later update — never an inline `--body`, a heredoc or stdin, which trip the shell-safety checks.
+`--final-slice y` only for the final unmerged slice; `--pr` once the PR exists (it then lists unresolved review threads); `--title-convention` when the client's `## Commit convention` names a **PR title** check. It prints `{title, closingKeywords, unresolvedThreads, bodyPath}`. Exit 0 clean. Exit 1: each non-null or non-empty field is a defect — fix it and rerun. Exit 2: usage or a failing `gh`, surface stderr. Pass the body by `--body-file`, also to `gh pr edit` for every later update — never an inline `--body`, a heredoc or stdin, which trip the shell-safety checks.
 
 The initial body links the ticket and the spec and quotes this slice's Rollout entry. Push every later batch to the same PR. Do not request reviewers before the slice-end gates pass.
 

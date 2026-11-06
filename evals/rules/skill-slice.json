@@ -7,7 +7,8 @@
     "plugin/scripts/slice-claim.mjs",
     "plugin/scripts/notes-repo.mjs",
     "plugin/scripts/handoff.mjs",
-    "plugin/scripts/pr-gate.mjs"
+    "plugin/scripts/pr-gate.mjs",
+    "plugin/scripts/commit-plan.mjs"
   ],
   "rules": [
     {
@@ -1521,6 +1522,18 @@
       "anchor": "scripts/pr-gate.mjs\" --body-file",
       "kind": "must",
       "why": "the PR title, closing keyword, threads and body path are gated by the script"
+    },
+    {
+      "id": "slice.calls-commit-plan",
+      "anchor": "scripts/commit-plan.mjs\" --type",
+      "kind": "must",
+      "why": "the PR body file name is built by the script, so a branch slash cannot land the file in a new directory"
+    },
+    {
+      "id": "slice.commit-plan-asks-ticket",
+      "anchor": "(exit 1: ask which ticket and STOP)",
+      "kind": "stop",
+      "why": "a keyless branch is asked, not guessed"
     },
     {
       "id": "slice.calls-executor-preflight",

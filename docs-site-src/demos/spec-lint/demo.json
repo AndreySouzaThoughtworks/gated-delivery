@@ -1,0 +1,5 @@
+{
+  "script": "plugin/skills/spec/scripts/spec-lint.mjs",
+  "args": ["change.md"],
+  "setup": ["cp $ROOT/plugin/skills/spec/templates/change.md change.md"]
+}

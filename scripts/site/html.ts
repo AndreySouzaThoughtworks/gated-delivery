@@ -76,6 +76,14 @@ export const table = (headers: string[], rows: string[][]) => {
     .join("")}</tbody></table></div>`;
 };
 
+export const stackedTable = (headers: string[], rows: string[][]) => {
+  assert(headers.length > 0, `a stacked table needs at least one column, got none; pass the headers.`);
+  assert(rows.every((row) => row.length === headers.length), `every row needs ${headers.length} cells, got ${JSON.stringify(rows.map((row) => row.length))}; pad or trim the rows.`);
+  return `<div class="table-scroll"><table class="stacked"><thead><tr>${headers.map((header) => `<th scope="col">${escapeHtml(header)}</th>`).join("")}</tr></thead><tbody>${rows
+    .map((row) => `<tr>${row.map((cell, index) => `<td data-label="${escapeHtml(headers[index])}">${cell}</td>`).join("")}</tr>`)
+    .join("")}</tbody></table></div>`;
+};
+
 export const checkCard = ({ number, id, title, rule, fix, example, mistake, source }: CheckEntry) => {
   assert(Number.isInteger(number) && number > 0, `a check number is a positive integer, got ${number}; fix the registry row.`);
   assert(title !== "" && id !== "", `check ${number} needs an id and a title, got "${id}" and "${title}"; fix the registry row.`);

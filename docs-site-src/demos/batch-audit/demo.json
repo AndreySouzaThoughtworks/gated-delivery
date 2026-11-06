@@ -1,0 +1,9 @@
+{
+  "script": "plugin/scripts/batch-audit.mjs",
+  "args": ["main..HEAD", "--ticket", "T-1", "--acs", "2"],
+  "cwd": "work",
+  "setup": [
+    "git init -q -b main work",
+    "cd work && echo one > a.txt && git add a.txt && git commit -q -m 'chore: start' && git checkout -q -b feat/T-1-login && echo two > login.ts && git add login.ts && git commit -q -m 'wip for AC1'"
+  ]
+}

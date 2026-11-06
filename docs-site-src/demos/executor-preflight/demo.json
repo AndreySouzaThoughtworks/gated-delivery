@@ -1,0 +1,8 @@
+{
+  "script": "plugin/scripts/executor-preflight.mjs",
+  "args": ["--spec", "docs/specs/T-1-demo.md", "--slice", "2", "--acs", "1"],
+  "setup": [
+    "mkdir -p docs/specs",
+    "node --input-type=module -e \"import { specText } from '$ROOT/plugin/scripts/fixtures/slice-world.mjs'; process.stdout.write(specText());\" > docs/specs/T-1-demo.md"
+  ]
+}

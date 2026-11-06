@@ -1,0 +1,10 @@
+{
+  "script": "plugin/scripts/slice-claim.mjs",
+  "args": ["--ticket", "T-1", "--slice", "1", "--slug", "add-login", "--tree", "../slice-1"],
+  "cwd": "work",
+  "setup": [
+    "git init -q -b main --bare origin.git",
+    "git init -q -b main work",
+    "cd work && git config user.name Demo && git remote add origin ../origin.git && echo hello > a.txt && git add a.txt && git commit -q -m 'chore: start' && git push -q -u origin main"
+  ]
+}

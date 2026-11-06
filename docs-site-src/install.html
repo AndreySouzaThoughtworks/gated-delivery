@@ -1,0 +1,68 @@
+<h1>Install and update</h1>
+<p class="lead">Install the plugin and reload it. Update it with one command. This page also explains the version, the Node policy, the environment variables and profiles.</p>
+
+<h2 id="install">Install</h2>
+<p>Run the first line in a shell. Run the other two lines inside Claude Code.</p>
+<x-terminal title="Install">
+claude plugin marketplace add {{repository}}
+/plugin install {{pluginId}}
+/reload-plugins
+</x-terminal>
+<p>Install at user scope. Then run <code>/reload-plugins</code>. Without it, the agents stay unregistered in the running session. Claude Code then reports <code>agent type not found</code>.</p>
+<p>To check the install, run <code>claude plugin list</code> and look for <code>Scope: user</code>.</p>
+<p>The sources are <code>README.md</code> and <code>docs/onboarding.md</code>.</p>
+
+<h2 id="first-commands">First commands</h2>
+<p>These are the commands you run most. Replace <code>PROJ-123</code> with a ticket key from your tracker.</p>
+<x-terminal title="Daily use">
+/gated-delivery:bootstrap
+/spec PROJ-123
+/slice PROJ-123
+/gated-delivery:commit
+/gated-delivery:commit-push-pr
+</x-terminal>
+<p>The bootstrap command adds missing guardrails to a client repository. It shows a plan and writes nothing until you confirm each group.</p>
+<p>The spec skill writes the spec. The slice skill runs the slices. The <a href="delivery-flow.html">Delivery flow</a> page shows both. The <a href="commands.html">Commands</a> page lists every command.</p>
+
+<h2 id="update">Update</h2>
+<x-terminal title="Update">
+claude plugin update {{pluginId}}
+/reload-plugins
+</x-terminal>
+<p>The command <code>/plugin update</code> does the same inside Claude Code. Run <code>/reload-plugins</code> after it.</p>
+
+<h2 id="version">What the version string means</h2>
+<x-data name="version-policy"/>
+<p>With no version field, Claude Code uses the commit SHA of the repository as the version. The source is the comment above check 15 in <code>scripts/audit/consistency.ts</code>.</p>
+<p>So every commit on <code>main</code> is a new version. A commit that changes only documents is still a commit. It is a new version too, even when no plugin file changed.</p>
+<p>The update command fetches that new version. A user may see an update with no change in behaviour.</p>
+<p>This is on purpose. A pinned version froze installs once.</p>
+<x-mistake match="A pinned plugin version froze installs"/>
+<p>Check 15 fails when a manifest holds a version. See it on the <a href="ci-checks.html#check-15">CI checks</a> page.</p>
+
+<h2 id="node">Node policy</h2>
+<p>The plugin hooks and scripts run as <code>node file.mjs</code> on your machine. They need Node {{nodeFloor}} or later. That is the oldest release that still gets security fixes.</p>
+<p>You need Node {{nodeDevFloor}} or later to work on this repository. That release strips TypeScript types, so the dev scripts need no build step.</p>
+<p>The floor reaches end of life on {{nodeFloorEndOfLife}}. Then the policy says to raise it.</p>
+<x-data name="node-releases"/>
+<p>The table comes from <code>NODE_END_OF_LIFE</code> in <code>scripts/audit/node-floor.ts</code>. The floor comes from <code>engines.node</code> in <code>package.json</code>.</p>
+<p>Check 31 enforces the policy. It fails when the floor reaches its end-of-life date. It fails when a document names another floor.</p>
+<p>A release below the floor is end of life. No job tests it. The source is <code>docs/development.md</code>.</p>
+
+<h2 id="environment">Environment variables</h2>
+<p>These variables change how the scripts behave. The table comes from the section "Knobs (environment variables)" of <code>docs/onboarding.md</code>.</p>
+<p>Check 16 fails when the code reads a <code>GATED_DELIVERY_</code> variable that no markdown names.</p>
+<x-data name="env-vars"/>
+
+<h2 id="profiles">One profile per client</h2>
+<p>Each <code>CLAUDE_CONFIG_DIR</code> is a separate Claude Code profile. It has its own login, plugins, memory and history. Install the plugin into each profile that you use.</p>
+<x-terminal title="Install into one profile">
+export CLAUDE_CONFIG_DIR=~/.claude-personal
+claude
+claude plugin marketplace add {{repository}}
+claude plugin install {{pluginId}}
+</x-terminal>
+<p>Run <code>/login</code> once in the new profile.</p>
+<p>The skills keep notes and review trees in a machine-local folder. Allow that folder once for each profile. Add this line to the <code>settings.json</code> of the profile.</p>
+<x-excerpt file="docs/onboarding.md" start="{ &quot;permissions&quot;" lines="1"/>
+<p>Keep client plugins, MCP servers and the client <code>CLAUDE.md</code> in that client profile only.</p>

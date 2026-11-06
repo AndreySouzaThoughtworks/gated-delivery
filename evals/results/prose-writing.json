@@ -1,5 +1,5 @@
 {
-  "hash": "c8c25947dc02ec7372ae230fad31ce1a95d78d07120c7facaf22fa7882d2e98e",
+  "hash": "f8ef8c52ce137522863dde9139787990d188318bf6050fc417fe7a0d2f7d6e21",
   "static": {
     "checks": [
       {
@@ -8,13 +8,13 @@
       },
       {
         "name": "script-tests",
-        "result": "none"
+        "result": "pass"
       },
       {
         "name": "rule-anchors",
         "result": "pass"
       }
     ],
-    "ranAt": "2026-11-06T10:37:04.130Z"
+    "ranAt": "2026-11-06T16:41:38.806Z"
   }
 }

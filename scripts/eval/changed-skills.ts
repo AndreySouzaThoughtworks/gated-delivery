@@ -66,6 +66,7 @@ const NODE_TEST = ["node", "--test"];
 export const SKILL_SCRIPT_TESTS: Record<string, string[][]> = {
   deskcheck: [[...NODE_TEST, "scripts/audit/deskcheck-lint.test.ts"]],
   "issue-writing": [[...NODE_TEST, "scripts/audit/guardrail-scan.test.ts"]],
+  "prose-writing": [[...NODE_TEST, "scripts/audit/prose-scan.test.ts", "scripts/audit/consistency-prose-tics.test.ts"]],
   slice: [[...NODE_TEST, "scripts/resolve-verify-cmd.test.ts"], ["bash", "tests/slice-scripts.test.sh"]],
   spec: [[...NODE_TEST, "scripts/audit/spec-lint.test.ts"]],
 };

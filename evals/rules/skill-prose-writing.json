@@ -1,7 +1,8 @@
 {
   "file": "plugin/skills/prose-writing/SKILL.md",
   "files": [
-    "plugin/skills/prose-writing/writing.md"
+    "plugin/skills/prose-writing/writing.md",
+    "plugin/skills/prose-writing/scripts/prose-scan.mjs"
   ],
   "rules": [
     {
@@ -27,6 +28,24 @@
       "anchor": "if that place isn't here, cut it",
       "kind": "must",
       "why": "information lives in the artifact that owns it"
+    },
+    {
+      "id": "prose-writing.pre-filter-calls-the-scan",
+      "anchor": "Run `node \"<skill base directory>/scripts/prose-scan.mjs\" <file>` on each file about to be committed.",
+      "kind": "must",
+      "why": "the tic list lives in one script, so the skill holds no regex copy that can drift"
+    },
+    {
+      "id": "prose-writing.exit-one-lists-hits",
+      "anchor": "Exit 1 prints one `file:line: tic \"text\" is not allowed; fix: <how>` line per hit.",
+      "kind": "must",
+      "why": "a hit gives the line and the fix, so the reader acts without opening the script"
+    },
+    {
+      "id": "prose-writing.exit-two-surfaces-output",
+      "anchor": "Exit 2 is a usage error: surface the output.",
+      "kind": "stop",
+      "why": "a usage error means the scan did not run, so a clean result is not claimed"
     }
   ],
   "exempt": []

@@ -18,7 +18,7 @@ Invoke a skill with `/skill-name` or `Skill(name)`. Invoke an agent with `Agent(
 | `/primer` | Research a topic and render a styled, WCAG-AA HTML "primer" — a skim-able top-to-bottom explainer (numbered sections, key box, SVG diagrams, tables, glossary). Labels claims Verified/Inferred; signs off the outline before rendering into `templates/primer.html`. Stands apart from the dev-flow loop — a knowledge/doc tool. | "Make me a primer / mental-model doc / explainer on X" when a shareable artifact is wanted. |
 | `/deskcheck` | Render completed work as a self-contained HTML walkthrough of value, criteria, a runnable demonstration and settled decisions, then record the feedback in the same file. | "Deskcheck PROJ-123" or preparing a demo of finished work. |
 | `/issue-writing` | Draft, refine, review and safely publish a tracker issue as a Story, Task, Bug or Spike against its own template in `templates/`. | Authoring or grooming any ticket; `/spec` 10 and `/slice` 7.6 and 9 route tracker writes through it. |
-| `/prose-writing` | Construction, relevance and placement pass over prose that outlives the conversation — commit messages, PR text, code comments, markdown, spec sections, skill and agent instructions, ticket text. The rules live in `writing.md` beside the skill; the skill holds the pass that applies them. | Before writing or editing durable prose, and before staging a docs change. |
+| `/prose-writing` | Construction, relevance and placement pass over prose that outlives the conversation — commit messages, PR text, code comments, markdown, spec sections, skill and agent instructions, ticket text. The rules live in `writing.md` beside the skill; the skill holds the pass that applies them. The tic list lives only in `scripts/prose-scan.mjs`. | Before writing or editing durable prose, and before staging a docs change. |
 | `/story-drift` | Check a groomed Story or Task against its linked tickets, epic, specs, decision records and PRs, and report only what makes its text wrong now. | Before `/spec` on a ticket groomed a while ago. |
 
 ## Commands
@@ -63,7 +63,7 @@ Skills call these scripts so that a rule becomes an exit code. Each script has a
 | `primer-lint.mjs` | `/primer` | Lints a primer page against the template. |
 | `verify-citations.mjs` | `/repo-forensics`, `/story-drift` | Checks the citations of the `scout` agent. |
 
-Some scripts live inside one skill: `spec-lint.mjs`, `deskcheck-lint.mjs`, `guardrail-scan.mjs` and the `/slice` helpers `resolve-verify-cmd.mjs`, `slice-tree.sh`, `batch-pick.sh`, `review-tree.sh` and `verify-lock.sh`.
+Some scripts live inside one skill: `spec-lint.mjs`, `deskcheck-lint.mjs`, `guardrail-scan.mjs`, `prose-scan.mjs` and the `/slice` helpers `resolve-verify-cmd.mjs`, `slice-tree.sh`, `batch-pick.sh`, `review-tree.sh` and `verify-lock.sh`.
 
 ## Domain references (`plugin/references/`)
 

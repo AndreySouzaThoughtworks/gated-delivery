@@ -19,14 +19,7 @@ Scope is artifacts that outlive the conversation, the same as `writing.md`. Chat
 
 This finds the named phrases and nothing else. It is the cheap first pass, and **a pass that stops here has not happened.** Everything whose only fault is that it sounds good — a triplet, an aphorism, a paragraph introducing the section below it — matches no pattern here and survives every hit being fixed.
 
-```bash
-# staged changes
-git diff --cached -U0 | grep '^+' | grep -nEi \
-  'not just|rather than|instead of|earns its place|load-bearing|worth noting|the point is|the interesting bit|honestly|to be fair|does not|it.s not [a-z]+, it'
-
-# a file about to be committed
-grep -nEi 'not just|rather than|instead of|earns its place|load-bearing|worth noting|the point is|does not' <path>
-```
+Run `node "<skill base directory>/scripts/prose-scan.mjs" <file>` on each file about to be committed. For staged changes: `git diff --cached -U0 | grep '^+[^+]' | node "<skill base directory>/scripts/prose-scan.mjs" -`. Exit 0: clean. Exit 1 prints one `file:line: tic "text" is not allowed; fix: <how>` line per hit. Exit 2 is a usage error: surface the output.
 
 Every hit is a candidate for review, and some survive it.
 
@@ -50,8 +43,8 @@ Apply the four lenses below to each paragraph as you go. They are what you read 
 | --- | --- | --- |
 | Walk-up, announcing frame, affirm-then-justify, editorialising lead-in | Does sentence one carry a fact, or announce, affirm or editorialise first — "Two things remain open", "Good question, and it matters", "To be fair"? | Delete it. Open on the fact. |
 | Self-commentary | "this reads better as", "that is a virtue rather than a workaround" | Delete. Prose does not review itself. |
-| Negation-contrast | grep `rather than`, `instead of`, `not a .* but` | Keep only where the contrast is the information — a migration note, a corrected assumption. Otherwise state the positive and drop the foil. |
-| "not just A, but B"; define-by-absence | grep `not just`; "X is not Y, it's Z" | State B; write "X is Z". |
+| Negation-contrast | the scan flags `rather than` and `instead of` | Keep only where the contrast is the information — a migration note, a corrected assumption. Otherwise state the positive and drop the foil. |
+| "not just A, but B"; define-by-absence | the scan flags `not just`; "X is not Y, it's Z" | State B; write "X is Z". |
 | Negative space | "does not use X", an enumerated list of absences | Cut the absences. A positive claim stands alone. |
 | Banned phrases | the pre-filter | Rewrite the claim in its own words. |
 | Triplet or anaphora | Does a sentence repeat a structure for cadence — "four kinds, four templates, four bars"? | Keep the one that carries a fact. Rhythm is not a claim. |

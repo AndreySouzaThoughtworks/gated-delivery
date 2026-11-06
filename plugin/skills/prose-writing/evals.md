@@ -75,12 +75,13 @@ check and still fail all three. A phrase that only the original wording contains
 
 ```bash
 # Tics left in the artifact — expect 0 on scenario 1. Artifact checks read only the text after the
-# marker, because the report above it may quote the tics it removed. "cache", "chose" and "versus"
-# catch the reworded tics: the change never touches a cache, so any mention is the negative space
-# ("The cache layer is unchanged."), and "chose"/"versus" is the debate recap. Other rewordings need
-# the manual read. Alone this passes an empty artifact, so the next check requires the content.
+# marker, because the report above it may quote the tics it removed. The tic list lives in
+# scripts/prose-scan.mjs, so each hit is one line of its output. "cache", "chose" and "versus" catch
+# the reworded tics the list cannot: the change never touches a cache, so any mention is the negative
+# space ("The cache layer is unchanged."), and "chose"/"versus" is the debate recap. Other rewordings
+# need the manual read. Alone this passes an empty artifact, so the next check requires the content.
 # expect: ==0 on 1
-awk '/^--- REVISED ---$/{r=1;next} r' output.md | grep -ciE -e "worth noting" -e "went back and forth" -e "doesn.t touch" -e "not just" -e "cache" -e "chose" -e "versus"
+{ awk '/^--- REVISED ---$/{r=1;next} r' output.md | node "$WORKTREE/plugin/skills/prose-writing/scripts/prose-scan.mjs" -; awk '/^--- REVISED ---$/{r=1;next} r' output.md | grep -iE "cache|chose|versus"; } | grep -c .
 # The revised body carries the cap and its reason — expect 1 on scenario 1: "three", "per batch" and a
 # reason word all appear after the marker. A missing marker or an empty artifact scores 0.
 # expect: ==1 on 1

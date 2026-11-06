@@ -28,6 +28,7 @@ const HISTORY_SAMPLES: Record<string, string[]> = {
     "The check has been renamed twice.",
     "We replaced the loop with a table.",
     "The old behaviour skipped hidden files.",
+    "The old behavior skipped hidden files.",
     "The other docs now link here.",
     "A newly added guard covers the case.",
   ],

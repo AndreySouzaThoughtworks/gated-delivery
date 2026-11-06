@@ -46,7 +46,7 @@ export const HISTORY_RULES: HistoryRule[] = [
   {
     name: "change-narration",
     pattern: new RegExp(
-      `\\b(?:was|were|has been|have been|had been|got) (?:\\w+ly )?(?:${CHANGE_VERBS})\\b|\\b(?:we|i) (?:${CHANGE_VERBS}|rewrote|switched)\\b|\\b(?:the )?(?:old|previous|former|earlier|prior) (?:behaviou?r|version|implementation|code|name|form|approach|way|check|logic)\\b|\\bnow (?:${PRESENT_TENSE_CHANGE_VERBS})s?\\b|\\bnewly (?:added|introduced)\\b`,
+      `\\b(?:was|were|has been|have been|had been|got) (?:\\w+ly )?(?:${CHANGE_VERBS})\\b|\\b(?:we|i) (?:${CHANGE_VERBS}|rewrote|switched)\\b|\\b(?:the )?(?:old|previous|former|earlier|prior) (?:(?:behavior|behaviour)|version|implementation|code|name|form|approach|way|check|logic)\\b|\\bnow (?:${PRESENT_TENSE_CHANGE_VERBS})s?\\b|\\bnewly (?:added|introduced)\\b`,
       "i",
     ),
     hint: `describe the code as it is, not the edit that made it so; ${COMMENT_FORMAT}`,

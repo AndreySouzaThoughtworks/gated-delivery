@@ -11,6 +11,7 @@ import { BASE_REF_ENV, changedPaths, changedSkills, fileAtBase, stampStatus, wai
 import { parseChecks, scenarioIds } from "../eval/run-checks.ts";
 import { BASELINE_FILE, UPDATE_COMMAND, budgetProblems, measureBudgets, readBaseline } from "./token-budget/budget.ts";
 import { AUDIT_WORKFLOW, liveOptInProblems, workflowParityProblems } from "./ci-parity.ts";
+import { nodeFloorProblems } from "./node-floor.ts";
 import { UNINVENTORIED_FILES_ARE_ERRORS, checkRuleInventories } from "./rule-inventory.ts";
 
 const ROOT = process.cwd();
@@ -654,8 +655,6 @@ if (baseRef) {
 }
 
 // --- 20. Shipped plugin code imports no TypeScript file ---
-// Plugin code and its tests run on Node 18 and 20, which cannot load .ts: a test importing a dev
-// helper from scripts/ failed there with ERR_UNKNOWN_FILE_EXTENSION.
 const PLUGIN_SCRIPT_EXTENSIONS = [".mjs", ".js", ".cjs", ".ts", ".mts", ".cts"];
 const TYPESCRIPT_IMPORT = /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)["'][^"'\n]*\.[cm]?ts["']/g;
 const pluginScripts = existsSync(PLUGIN)
@@ -665,7 +664,7 @@ const pluginScripts = existsSync(PLUGIN)
   : [];
 for (const file of pluginScripts) {
   for (const specifier of read(file).match(TYPESCRIPT_IMPORT) ?? []) {
-    errors.push(`${file.slice(ROOT.length + 1)} imports TypeScript (${specifier.trim()}). Hint: plugin code and tests run on Node 18 and 20, which cannot load .ts; import a .mjs file instead.`);
+    errors.push(`${file.slice(ROOT.length + 1)} imports TypeScript (${specifier.trim()}). Hint: shipped plugin code is plain JavaScript run with node file.mjs on Node 22 and later, with no build, and Node 22 before 22.18 cannot load .ts; import a .mjs file instead.`);
   }
 }
 
@@ -798,6 +797,17 @@ if (existsSync(auditWorkflowPath)) errors.push(...workflowParityProblems(read(au
 
 // --- 30. A test that launches a real claude -p session refuses to run without the explicit opt-in ---
 errors.push(...liveOptInProblems(ROOT));
+
+// --- 31. The Node floor is in security support, and README and docs state the floor package.json declares ---
+const PACKAGE_FILE = "package.json";
+const DOCS_DIRECTORY = "docs";
+const packagePath = join(ROOT, PACKAGE_FILE);
+if (existsSync(packagePath)) {
+  const docsPath = join(ROOT, DOCS_DIRECTORY);
+  const docFiles = existsSync(docsPath) ? readdirSync(docsPath).filter((name) => name.endsWith(MARKDOWN_EXTENSION)).map((name) => `${DOCS_DIRECTORY}/${name}`) : [];
+  const documents = [README_FILE, ...docFiles].filter((file) => existsSync(join(ROOT, file))).map((file) => ({ file, text: read(join(ROOT, file)) }));
+  errors.push(...nodeFloorProblems({ engines: JSON.parse(read(packagePath)).engines?.node, documents, today: new Date() }));
+}
 
 // --- report ---
 console.log(

@@ -224,9 +224,15 @@
     },
     {
       "id": "spec.notes-repo-exit-4-stops",
-      "anchor": "Exit 4: STOP and surface it",
+      "anchor": "Exit 4, or 5 (wrong repository): STOP and surface it",
       "kind": "stop",
-      "why": "prepare exit 4 means the checkout is not clean on main"
+      "why": "prepare exit 4 means the checkout is not clean on main; exit 5 means its origin is another repository"
+    },
+    {
+      "id": "spec.notes-repo-script-stops-wrong-repo",
+      "anchor": "STOP: the notes checkout ${path} has origin",
+      "kind": "stop",
+      "why": "notes-repo prepare refuses a checkout whose origin is another repository"
     },
     {
       "id": "spec.calls-notes-repo-publish",

@@ -5,6 +5,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSy
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { assertActionable } from "./run-cli.test.support.mjs";
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "notes-repo.mjs");
 const EXIT_OK = 0;
@@ -12,12 +13,17 @@ const EXIT_GIT_FAILED = 1;
 const EXIT_USAGE = 2;
 const EXIT_CONFLICT = 3;
 const EXIT_STOP = 4;
+const EXIT_WRONG_REPO = 5;
+const REPO_NAME = "owner/notes";
+const REPO_URL = "https://github.com/owner/notes.git";
 const NOTES_REPO_ENV = "GATED_DELIVERY_NOTES_REPO";
 const CLONE_LOG_ENV = "GH_STUB_CLONE_LOG";
 const ORIGIN_ENV = "GH_STUB_ORIGIN";
+const REMOTE_ENV = "GH_STUB_REMOTE";
 const GH_STUB = `#!/bin/sh
 echo "$@" >> "$${CLONE_LOG_ENV}"
 git clone --quiet "$${ORIGIN_ENV}" "$4"
+git -C "$4" remote set-url origin "$\{${REMOTE_ENV}:-https://github.com/$3.git}"
 `;
 const GIT_ENV = {
   GIT_CONFIG_GLOBAL: "/dev/null",
@@ -55,6 +61,7 @@ const world = () => {
   git(seed, ["push", "-q", "origin", "main:refs/heads/main"]);
   const notes = join(root, "notes");
   git(root, ["clone", "-q", origin, notes]);
+  git(notes, ["remote", "set-url", "origin", REPO_URL]);
   const bin = join(root, "bin");
   mkdirSync(bin);
   writeFileSync(join(bin, "gh"), GH_STUB);
@@ -65,18 +72,30 @@ const world = () => {
   return { root, origin, seed, notes, bin, cloneLog };
 };
 
+const rewriteRemote = (remote, target) => {
+  assert(typeof remote === "string" && remote !== "", `the remote must be text, got ${JSON.stringify(remote)}`);
+  assert(typeof target === "string" && target !== "", `the target must be text, got ${JSON.stringify(target)}`);
+  return { GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: `url.${target}.insteadOf`, GIT_CONFIG_VALUE_0: remote };
+};
+
 const script = (scene, args, extraEnv = {}) => {
   assert(Array.isArray(args), `script arguments must be a list, got ${typeof args}`);
-  const env = { ...process.env, ...GIT_ENV, PATH: `${scene.bin}${delimiter}${process.env.PATH}`, [CLONE_LOG_ENV]: scene.cloneLog, [ORIGIN_ENV]: scene.origin, [NOTES_REPO_ENV]: "", ...extraEnv };
+  const env = { ...process.env, ...GIT_ENV, ...rewriteRemote(REPO_URL, scene.origin), PATH: `${scene.bin}${delimiter}${process.env.PATH}`, [CLONE_LOG_ENV]: scene.cloneLog, [ORIGIN_ENV]: scene.origin, [NOTES_REPO_ENV]: "", ...extraEnv };
   const result = spawnSync("node", [SCRIPT, ...args], { encoding: "utf8", env });
   assert(result.status !== null, `the script must exit on its own, got ${result.signal}`);
   return { ...result, json: result.stdout.trim().startsWith("{") ? JSON.parse(result.stdout) : null };
 };
 
-const prepare = (scene, extra = []) => {
+const firstLine = (result) => {
+  assert(typeof result.stderr === "string", `the result must carry stderr text, got ${typeof result.stderr}`);
+  assert(result.stderr !== "", `the script must have written a message to stderr, got ${JSON.stringify(result.stderr)} with status ${result.status}`);
+  return result.stderr.split("\n")[0];
+};
+
+const prepare = (scene, extra = ["--repo-name", REPO_NAME], extraEnv = {}) => {
   assert(Array.isArray(extra), `extra arguments must be a list, got ${typeof extra}`);
   assert(existsSync(scene.notes), `${scene.notes} must exist`);
-  return script(scene, ["prepare", ...extra], { [NOTES_REPO_ENV]: scene.notes });
+  return script(scene, ["prepare", ...extra], { [NOTES_REPO_ENV]: scene.notes, ...extraEnv });
 };
 const publish = (scene, files, message = "publish notes") => {
   assert(Array.isArray(files), `files must be a list, got ${typeof files}`);
@@ -166,7 +185,7 @@ test("prepare on a conflicting divergence exits 3 and leaves no half-merge", () 
 
 test("prepare clones through gh into a temporary directory when no checkout is configured", () => {
   const scene = world();
-  const result = script(scene, ["prepare", "--repo-name", "owner/notes"]);
+  const result = script(scene, ["prepare", "--repo-name", REPO_NAME]);
   assert.equal(result.status, EXIT_OK, result.stderr);
   assert.match(result.json.path, new RegExp(`^${realpathSync(tmpdir())}/gated-delivery-notes-`));
   assert.equal(result.json.branch, "main");
@@ -176,7 +195,7 @@ test("prepare clones through gh into a temporary directory when no checkout is c
 
 test("prepare prefers the configured checkout over cloning", () => {
   const scene = world();
-  const result = script(scene, ["prepare", "--repo-name", "owner/notes"], { [NOTES_REPO_ENV]: scene.notes });
+  const result = script(scene, ["prepare", "--repo-name", REPO_NAME], { [NOTES_REPO_ENV]: scene.notes });
   assert.equal(result.status, EXIT_OK, result.stderr);
   assert.equal(result.json.path, scene.notes);
   assert.equal(existsSync(scene.cloneLog), false);
@@ -190,15 +209,98 @@ test("prepare with --in-repo says so and neither clones nor touches git", () => 
   assert.equal(existsSync(scene.cloneLog), false);
 });
 
-test("prepare without a checkout, a repository name or --in-repo is a usage error", () => {
-  const result = script(world(), ["prepare"]);
+test("prepare without --repo-name or --in-repo is a usage error even with a configured checkout", () => {
+  const scene = world();
+  const before = git(scene.notes, ["rev-parse", "HEAD"]);
+  const result = prepare(scene, []);
   assert.equal(result.status, EXIT_USAGE);
-  assert.match(result.stderr, /no notes checkout/);
+  assert.match(result.stderr, /`prepare` needs `--repo-name <owner\/name>`/);
+  assertActionable(firstLine(result));
+  assert.equal(result.json, null);
+  assert.equal(git(scene.notes, ["rev-parse", "HEAD"]), before);
+  assert.equal(script(scene, ["prepare"]).status, EXIT_USAGE);
+});
+
+test("prepare rejects a repository name that is not owner/name", () => {
+  const scene = world();
+  for (const name of ["notes", "owner/", "/notes", "a/b/c", "owner/no tes"]) {
+    const result = prepare(scene, ["--repo-name", name]);
+    assert.equal(result.status, EXIT_USAGE, `${name}: ${result.stderr}`);
+    assert.match(result.stderr, /is not owner\/name/);
+    assertActionable(firstLine(result));
+  }
+});
+
+test("prepare refuses a configured checkout whose origin is another repository", () => {
+  const scene = world();
+  git(scene.notes, ["remote", "set-url", "origin", "https://github.com/other/repo.git"]);
+  const before = git(scene.notes, ["rev-parse", "HEAD"]);
+  const result = prepare(scene);
+  assert.equal(result.status, EXIT_WRONG_REPO);
+  assert.match(result.stderr, new RegExp(`^STOP: the notes checkout ${scene.notes} has origin https://github.com/other/repo.git, not ${REPO_NAME}; point ${NOTES_REPO_ENV}`));
+  assert.deepEqual(result.json, { inRepo: false, path: scene.notes, origin: "https://github.com/other/repo.git", expected: REPO_NAME });
+  assertActionable(firstLine(result));
+  assert.equal(git(scene.notes, ["rev-parse", "HEAD"]), before);
+});
+
+test("prepare refuses origins that only resemble the requested repository", () => {
+  const scene = world();
+  const lookalikes = [
+    "https://github.com/owner/notes-old.git",
+    "https://github.com/owner/other-notes.git",
+    "https://github.com/other/notes.git",
+    "https://github.com/owner/notes/extra.git",
+    "git@github.com:other/notes.git",
+  ];
+  for (const remote of lookalikes) {
+    git(scene.notes, ["remote", "set-url", "origin", remote]);
+    const result = prepare(scene);
+    assert.equal(result.status, EXIT_WRONG_REPO, `${remote}: ${result.stderr}`);
+  }
+});
+
+test("prepare refuses a checkout with no origin remote and names the gap", () => {
+  const scene = world();
+  git(scene.notes, ["remote", "remove", "origin"]);
+  const result = prepare(scene);
+  assert.equal(result.status, EXIT_WRONG_REPO);
+  assert.match(result.stderr, /has origin \(none\), not owner\/notes/);
+});
+
+test("prepare accepts the matching repository in https, ssh, .git, slash and case forms", () => {
+  const scene = world();
+  const forms = [
+    "https://github.com/owner/notes.git",
+    "https://github.com/owner/notes",
+    "https://github.com/owner/notes/",
+    "https://github.com/Owner/Notes.GIT",
+    "git@github.com:owner/notes.git",
+    "git@github.com:owner/notes",
+    "ssh://git@github.com/owner/notes.git",
+    "https://ghe.example.com/owner/notes.git",
+  ];
+  for (const remote of forms) {
+    git(scene.notes, ["remote", "set-url", "origin", remote]);
+    const result = prepare(scene, undefined, rewriteRemote(remote, scene.origin));
+    assert.equal(result.status, EXIT_OK, `${remote}: ${result.stderr}`);
+  }
+});
+
+test("prepare matches a mixed-case --repo-name against the origin", () => {
+  const result = prepare(world(), ["--repo-name", "OWNER/Notes"]);
+  assert.equal(result.status, EXIT_OK, result.stderr);
+});
+
+test("prepare refuses a cloned checkout whose origin is another repository", () => {
+  const scene = world();
+  const result = script(scene, ["prepare", "--repo-name", REPO_NAME], { [REMOTE_ENV]: "https://github.com/other/repo.git" });
+  assert.equal(result.status, EXIT_WRONG_REPO);
+  assert.match(result.stderr, /has origin https:\/\/github.com\/other\/repo.git, not owner\/notes/);
 });
 
 test("prepare with a configured path that is not a checkout is a usage error", () => {
   const scene = world();
-  const result = script(scene, ["prepare"], { [NOTES_REPO_ENV]: scene.root });
+  const result = script(scene, ["prepare", "--repo-name", REPO_NAME], { [NOTES_REPO_ENV]: scene.root });
   assert.equal(result.status, EXIT_USAGE);
   assert.match(result.stderr, /is not a git checkout/);
 });
@@ -213,8 +315,9 @@ test("an unknown subcommand and an unknown option are usage errors", () => {
 
 test("prepare reports a git failure that is not a conflict with exit 1", () => {
   const scene = world();
-  git(scene.notes, ["remote", "set-url", "origin", join(scene.root, "missing.git")]);
-  assert.equal(prepare(scene).status, EXIT_GIT_FAILED);
+  const result = prepare(scene, undefined, rewriteRemote(REPO_URL, join(scene.root, "missing.git")));
+  assert.equal(result.status, EXIT_GIT_FAILED);
+  assert.match(result.stderr, /failed/);
 });
 
 test("publish stages only the named files and pushes to origin main", () => {

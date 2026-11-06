@@ -50,7 +50,7 @@ Skills call these scripts so that a rule becomes an exit code. Each script has a
 
 | Script | Called from | Job |
 |--------|-------------|-----|
-| `notes-repo.mjs` | `/slice`, `/spec`, `/primer`, `/deskcheck` | `prepare` resolves the notes checkout. `publish` pushes named files to `main` without force. |
+| `notes-repo.mjs` | `/slice`, `/spec`, `/primer`, `/deskcheck` | `prepare` needs `--repo-name`. It resolves the notes checkout and exits 5 when its origin is another repository. `publish` pushes named files to `main` without force. |
 | `slice-state.mjs` | `/slice` step 2 | Routes the ticket from the spec, Git, PRs and the handoff. |
 | `slice-cleanup.mjs` | `/slice` step 2 | Removes the trees and local branches of merged slices. |
 | `slice-claim.mjs` | `/slice` step 4 | Claims a slice with a create-only push. |

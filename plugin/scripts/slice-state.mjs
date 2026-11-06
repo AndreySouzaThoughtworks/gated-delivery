@@ -63,11 +63,11 @@ export const STALE_REASON = { MERGED: "git-shows-merged", CLOSED: "closed" };
  */
 const loadSpec = (repo, specPaths) => {
   const paths = specPaths.map((path) => resolve(repo, path)).filter((path) => existsSync(path)).map((path) => realpathSync(path));
-  assert(paths.every((path) => statSync(path).isFile()), `every --spec path must be a file, got ${JSON.stringify(paths)}`);
+  assert(paths.every((path) => statSync(path).isFile()), `every --spec path must be a file, got ${JSON.stringify(paths)}; pass spec files, not directories.`);
   if (paths.length === 0) return { paths, hasRollout: false, slices: 0, openDecisions: false, waves: [] };
   const spec = parseSpec(readFileSync(paths[0], ENCODING));
   const numbers = spec.slices.map((slice) => slice.number);
-  assert(numbers.every(Number.isInteger), `Rollout slice headings must read "### Slice <n> — <ACs> — exposure: <kind>", got ${JSON.stringify(spec.slices.map((slice) => slice.line))}`);
+  assert(numbers.every(Number.isInteger), `Rollout slice headings must read "### Slice <n> — <ACs> — exposure: <kind>", got ${JSON.stringify(spec.slices.map((slice) => slice.line))}; rewrite each heading in that form.`);
   const table = [...(spec.bodies.Rollout ?? "").matchAll(WAVE_ROW)].map(([, wave, cell]) => ({ wave: Number(wave), members: [...cell.matchAll(DIGITS)].map((digits) => Number(digits[0])).filter((number) => numbers.includes(number)) }));
   const listed = new Set(table.flatMap((row) => row.members));
   const tabled = table.sort((a, b) => a.wave - b.wave).map((row) => row.members).filter((members) => members.length > 0);
@@ -113,8 +113,8 @@ const loadEvidence = ({ repo, ticket, actor, handoff }, spec) => {
   const local = git(repo, ["for-each-ref", "--format=%(refname:short)", `refs/heads/${prefix}*`]).split(LINE_BREAK).filter((name) => name !== "");
   const remote = git(repo, ["ls-remote", "--heads", REMOTE, `${REMOTE_HEADS}${prefix}*`]).split(LINE_BREAK).filter((line) => line !== "").map((line) => line.split(REMOTE_HEADS)[1]);
   const listed = ghJson(repo, ["pr", "list", "--state", "all", "--limit", PR_LIST_LIMIT, "--json", PR_LIST_FIELDS]);
-  assert(Array.isArray(listed), `gh pr list must print a JSON array, got ${JSON.stringify(listed)}`);
-  assert(listed.every((pr) => typeof pr?.headRefName === "string" && typeof pr?.state === "string"), `every PR needs a head branch and a state, got ${JSON.stringify(listed.filter((pr) => typeof pr?.headRefName !== "string" || typeof pr?.state !== "string"))}`);
+  assert(Array.isArray(listed), `gh pr list must print a JSON array, got ${JSON.stringify(listed)}; rerun it by hand to see why.`);
+  assert(listed.every((pr) => typeof pr?.headRefName === "string" && typeof pr?.state === "string"), `every PR needs a head branch and a state, got ${JSON.stringify(listed.filter((pr) => typeof pr?.headRefName !== "string" || typeof pr?.state !== "string"))}; rerun gh pr list and check that it lists headRefName and state.`);
   const branches = [...new Set([...local, ...remote])].flatMap((name) => {
     const found = SLICE_BRANCH.exec(name);
     return found && name.startsWith(prefix) ? [{ name, n: Number(found[SLICE_GROUP]), batch: found[BATCH_GROUP] !== undefined, local: local.includes(name), remote: remote.includes(name) }] : [];
@@ -179,9 +179,9 @@ const describeSlice = (evidence, n) => { // zanity: ignore[assertion-density] --
  */
 export const chooseRoute = ({ actor, specPrOpen, spec, hasBranch, slices }) => {
   const bySlice = new Map(slices.map((slice) => [slice.n, slice]));
-  assert(spec.waves.flat().every((n) => bySlice.has(n)), `every wave member must be a known slice, got waves ${JSON.stringify(spec.waves)} for slices ${[...bySlice.keys()].join(", ")}`);
+  assert(spec.waves.flat().every((n) => bySlice.has(n)), `every member of \`spec.waves\` must be a known slice, got waves ${JSON.stringify(spec.waves)} for slices ${[...bySlice.keys()].join(", ")}; pass waves that list only known slices.`);
   const heldMerged = slices.filter((slice) => slice.merged && slice.heldBy !== null);
-  assert(heldMerged.length === 0, `a merged slice must have no holder, got ${JSON.stringify(heldMerged)}`);
+  assert(heldMerged.length === 0, `a merged slice must have no holder, got ${JSON.stringify(heldMerged)}; make heldByOf return null for a merged slice.`);
   const specExists = spec.paths.length > 0;
   const earliest = spec.waves.map((wave) => wave.map((n) => /** @type {SliceFacts} */ (bySlice.get(n)))).find((wave) => wave.some((slice) => !slice.merged));
   if (specPrOpen) return ROUTE.WAIT;
@@ -244,8 +244,8 @@ const parseOptions = (argv) => {
   requireIdentity(values.ticket ?? "", values.actor ?? "");
   const repo = resolve(values.repo ?? process.cwd());
   const notesRepo = values["notes-repo"] === undefined ? null : resolve(values["notes-repo"]);
-  assert(existsSync(repo) && statSync(repo).isDirectory(), `--repo must be an existing directory, got ${repo}`);
-  assert(notesRepo === null || (existsSync(notesRepo) && statSync(notesRepo).isDirectory()), `--notes-repo must be an existing directory, got ${notesRepo}`);
+  assert(existsSync(repo) && statSync(repo).isDirectory(), `--repo must be an existing directory, got ${repo}; pass the path of a checkout.`);
+  assert(notesRepo === null || (existsSync(notesRepo) && statSync(notesRepo).isDirectory()), `--notes-repo must be an existing directory, got ${notesRepo}; pass the path of the notes checkout.`);
   return { ticket: values.ticket ?? "", actor: values.actor ?? "", specPaths: values.spec ?? [], handoff: values.handoff ?? null, notesRepo, repo };
 };
 

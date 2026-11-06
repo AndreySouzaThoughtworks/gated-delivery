@@ -61,8 +61,8 @@ const PAGE_CHECKS = [
  * @returns {string[]}
  */
 export const lintDeskcheck = (html, { dir, templateHtml = readFileSync(TEMPLATE_PATH, "utf8") } = {}) => {
-  assert(typeof html === "string", `the page must be text, got ${typeof html}`);
-  assert(typeof templateHtml === "string", `the template must be text, got ${typeof templateHtml}`);
+  assert(typeof html === "string", `the \`html\` page must be text, got ${typeof html}; pass the page as a string.`);
+  assert(typeof templateHtml === "string", `the \`templateHtml\` must be text, got ${typeof templateHtml}; pass the template as a string.`);
   const tags = html.match(TAG) ?? [];
   const attributes = [...html.matchAll(ATTRIBUTE)].map((m) => ({ name: m[1].toLowerCase(), value: (m[2] ?? m[3]).trim() }));
   const ids = new Set([...html.matchAll(ID_ATTRIBUTE)].map((m) => m[1] ?? m[2]));
@@ -74,11 +74,11 @@ export const lintDeskcheck = (html, { dir, templateHtml = readFileSync(TEMPLATE_
   for (const placeholder of ["{{", "}}"].filter((p) => html.includes(p))) problems.push(`the file still holds the placeholder marker ${placeholder}; fill every template placeholder`);
   const headings = (html.match(/<h1[\s>]/gi) ?? []).length;
   if (headings !== 1) problems.push(`the page must hold exactly one h1, got ${headings}; keep the template's title heading and use h2 for sections`);
-  if (/<script\b/i.test(html)) problems.push("the page holds a <script> element; remove it, the page is static");
+  if (/<script\b/i.test(html)) problems.push("the page holds a `<script>` element; remove it, the page is static");
   const handlers = tags.map((tag) => ({ tag, handler: tag.replace(QUOTED, '""').match(/\s(on[a-z]+)\s*=/i)?.[1] })).filter((found) => found.handler);
   problems.push(...handlers.map(({ tag, handler }) => `the tag ${JSON.stringify(tag.slice(0, 60))} has the ${handler} event attribute; remove it`));
   if (REMOTE_ASSET.test(html)) {
-    problems.push("the page loads a remote stylesheet, font or file (a link rel, @import or url(//...)); embed the CSS and assets in the file");
+    problems.push("the page must not load a remote stylesheet, font or file through `<link rel>`, `@import` or `url(//...)`; embed the CSS and assets in the file");
   }
   problems.push(
     ...attributes
@@ -89,14 +89,14 @@ export const lintDeskcheck = (html, { dir, templateHtml = readFileSync(TEMPLATE_
   problems.push(...PAGE_CHECKS.flatMap((check) => check(html)));
   if (csp.length !== 1 || csp[0] !== expectedCsp[0]) problems.push(`the page must carry the template's Content-Security-Policy meta tag exactly once and unchanged, got ${csp.length} tags; copy it from ${TEMPLATE_PATH}`);
 
-  assert(expectedCsp.length === 1, `the template must hold exactly one Content-Security-Policy meta tag to compare against, got ${expectedCsp.length} in ${TEMPLATE_PATH}`);
+  assert(expectedCsp.length === 1, `the template must hold exactly one Content-Security-Policy meta tag to compare against, got ${expectedCsp.length} in ${TEMPLATE_PATH}; keep exactly one in the template.`);
   return problems;
 };
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const files = process.argv.slice(2);
   if (files.length === 0) {
-    process.stderr.write("usage: node <skill base directory>/scripts/deskcheck-lint.mjs <deskcheck.html>...\n");
+    process.stderr.write("deskcheck-lint: no page was given; pass one or more deskcheck.html files, as in: node <skill base directory>/scripts/deskcheck-lint.mjs <deskcheck.html>...\n");
     process.exit(EXIT_PROBLEMS);
   }
   let failed = false;

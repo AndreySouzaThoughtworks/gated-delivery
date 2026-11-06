@@ -95,7 +95,7 @@ const splitByHeading = (text, level) => { // zanity: ignore[assertion-density] -
     line: mark[0],
     body: text.slice(mark.index + mark[0].length, marks[i + 1]?.index ?? text.length).trim(),
   }));
-  assert(parts.every((p) => !new RegExp(`^${hashes} `, "m").test(p.body)), `a ${hashes} part must not contain another ${hashes} heading, got one inside ${JSON.stringify(parts.find((p) => new RegExp(`^${hashes} `, "m").test(p.body))?.title)}`);
+  assert(parts.every((p) => !new RegExp(`^${hashes} `, "m").test(p.body)), `a ${hashes} part must not contain another ${hashes} heading, got one inside ${JSON.stringify(parts.find((p) => new RegExp(`^${hashes} `, "m").test(p.body))?.title)}; remove or rename the nested heading.`);
   return parts;
 };
 
@@ -105,9 +105,9 @@ const splitByHeading = (text, level) => { // zanity: ignore[assertion-density] -
  * @returns {{ frontmatter: Record<string, string>, body: string }}
  */
 export const splitFrontmatter = (raw, blockPattern = FRONTMATTER_BLOCK) => {
-  assert(typeof raw === "string", `a spec must be text, got ${typeof raw}`);
+  assert(typeof raw === "string", `the \`raw\` spec must be text, got ${typeof raw}; pass the file text.`);
   const block = raw.match(blockPattern);
-  assert(block === null || block.index === 0, `the frontmatter block must start at the first character, got offset ${block?.index}`);
+  assert(block === null || block.index === 0, `the frontmatter \`---\` block must start at the first character, got offset ${block?.index}; move it to the first line.`);
   /** @type {Record<string, string>} */
   const frontmatter = {};
   for (const line of (block?.[1] ?? "").split("\n")) {
@@ -123,7 +123,7 @@ export const splitFrontmatter = (raw, blockPattern = FRONTMATTER_BLOCK) => {
  * @returns {Spec}
  */
 export const parseSpec = (raw) => { // zanity: ignore[assertion-density] -- exported-and-tested: the text-type check is its only input precondition, and everything else it builds from the text comes out of split and match calls
-  assert(typeof raw === "string", `a spec must be text, got ${typeof raw}`);
+  assert(typeof raw === "string", `the \`raw\` spec must be text, got ${typeof raw}; pass the file text.`);
   const { frontmatter, body } = splitFrontmatter(raw);
   const prose = body.replace(FENCE, "");
   const sections = splitByHeading(prose, 2);
@@ -173,7 +173,7 @@ const RULES = [
   (spec) => {
     const problems = PLACEHOLDERS.filter((p) => spec.body.includes(p)).map((p) => `placeholder text ${JSON.stringify(p)} is still in the spec; replace it with the real content`);
     const angle = spec.prose.replace(INLINE_CODE, "").match(ANGLE_PLACEHOLDER)?.[0];
-    if (angle) problems.push(`template placeholder ${angle} is still in the spec; replace it or put literal code in backticks`);
+    if (angle) problems.push(`template placeholder ${angle} must not stay in the spec; replace it or put literal code in backticks`);
     return problems;
   },
   (spec) => {
@@ -199,7 +199,7 @@ const RULES = [
     const problems = [];
     if (spec.slices.length === 0) problems.push('Rollout has no slice; add "### Slice 1 — AC1, AC2 — exposure: complete"');
     for (const bad of spec.slices.filter((s) => !s.matched || !EXPOSURES.includes(s.exposure))) {
-      problems.push(`Rollout heading ${JSON.stringify(bad.line)} must read "### Slice <n> — <AC list> — exposure: ${EXPOSURES.join(" | ")}"`);
+      problems.push(`Rollout heading ${JSON.stringify(bad.line)} must read "### Slice <n> — <AC list> — exposure: ${EXPOSURES.join(" | ")}"; rewrite the heading in that form.`);
     }
     const numbers = spec.slices.filter((s) => s.matched).map((s) => s.number);
     if (numbers.join(",") !== numbers.map((_, i) => i + 1).join(",")) problems.push(`Rollout slices must be numbered 1, 2, 3 in order, got ${numbers.join(", ")}; renumber them`);
@@ -233,7 +233,7 @@ const RULES = [
       const waves = waveOf.get(slice.number) ?? [];
       if (waves.length !== 1) problems.push(`Slice ${slice.number} must appear in exactly one wave-table row, found in ${waves.length}; fix the Wave table`);
       const earliest = Math.max(0, ...slice.dependsOn.map((d) => waveOf.get(d)?.[0] ?? 0)) + 1;
-      if (waves.length === 1 && waves[0] !== earliest) problems.push(`Slice ${slice.number} is in wave ${waves[0]} but its dependencies put it in wave ${earliest}; a slice joins the earliest wave after everything it depends on`);
+      if (waves.length === 1 && waves[0] !== earliest) problems.push(`Slice ${slice.number} must sit in wave ${earliest}, not wave ${waves[0]}, because a slice joins the earliest wave after everything it depends on; move it to wave ${earliest}`);
     }
     return problems;
   },
@@ -248,7 +248,7 @@ const RULES = [
     for (const ac of spec.criteria.filter((c) => c.tag === CROSS_REPO_TAG)) {
       const line = done.match(new RegExp(`AC\\[?${ac.id}\\]?\\s*—\\s*evidence:\\s*(.+?)\\s*—\\s*owner:\\s*(.+)$`, "m"));
       if (!line) problems.push(`cross-repo AC[${ac.id}] has no Done-when line "AC${ac.id} — evidence: <what, where> — owner: <person, team or role>"; add it`);
-      else if (UNOWNED.test(line[2].trim())) problems.push(`cross-repo AC[${ac.id}] owner is ${JSON.stringify(line[2].trim())}; name the most likely owning person, team or role`);
+      else if (UNOWNED.test(line[2].trim())) problems.push(`cross-repo AC[${ac.id}] owner ${JSON.stringify(line[2].trim())} is not a person, team or role; name the most likely owner`);
     }
     return problems;
   },
@@ -264,7 +264,7 @@ const RULES = [
     if (ledger === undefined) return ['Red flags lacks "### Contradictions"; add the ledger or the line "No contradictions detected between the inspected surfaces."'];
     const rows = ledger.split("\n").filter((l) => l.startsWith("|")).slice(2).map((l) => l.split("|").slice(1, -1).map((c) => c.trim()));
     const problems = rows.filter((r) => r.length !== 6 || !r[5]).map((r) => `Contradictions row ${JSON.stringify(r[0])} needs six cells with a Disposition; fill the last column`);
-    if (rows.length === 0 && !ledger.includes(NO_CONTRADICTIONS_LINE)) problems.push(`Contradictions holds neither a row nor the line ${JSON.stringify(NO_CONTRADICTIONS_LINE)}; an empty ledger reads as skipped`);
+    if (rows.length === 0 && !ledger.includes(NO_CONTRADICTIONS_LINE)) problems.push(`Contradictions holds neither a row nor the line ${JSON.stringify(NO_CONTRADICTIONS_LINE)}; add a row or that line, since an empty ledger reads as skipped`);
     return problems;
   },
   (spec) => (spec.bodies["Relevant files"] ?? "")
@@ -294,7 +294,7 @@ export const lintSpec = (raw) => { // zanity: ignore[assertion-density] -- thin-
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const files = process.argv.slice(2);
   if (files.length === 0) {
-    process.stderr.write("usage: node <skill base directory>/scripts/spec-lint.mjs <spec.md>...\n");
+    process.stderr.write("spec-lint: no spec was given; pass one or more spec.md files, as in: node <skill base directory>/scripts/spec-lint.mjs <spec.md>...\n");
     process.exit(EXIT_PROBLEMS);
   }
   let failed = false;

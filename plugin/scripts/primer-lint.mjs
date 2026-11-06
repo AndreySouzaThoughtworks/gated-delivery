@@ -64,9 +64,9 @@ const NEUTRAL_RULES = [
  * @returns {string[]}
  */
 export const lintPrimer = (html, templateHtml, neutral = true) => {
-  assert(typeof html === "string", `the page must be text, got ${typeof html}`);
+  assert(typeof html === "string", `the \`html\` page must be text, got ${typeof html}; pass the page as a string.`);
   const templateStyle = String(templateHtml).match(STYLE_BLOCK)?.[0];
-  assert(templateStyle !== undefined, `the template must hold a <style> block to compare against, got ${JSON.stringify(String(templateHtml).slice(0, SHOWN_LENGTH))}`);
+  assert(templateStyle !== undefined, `the template must hold a <style> block to compare against, got ${JSON.stringify(String(templateHtml).slice(0, SHOWN_LENGTH))}; point --template at a page that has one.`);
   const page = { html, uncommented: html.replace(COMMENT, ""), templateStyle };
   return [...RULES, ...(neutral ? NEUTRAL_RULES : []), ...ADVISORY_RULES].filter(([isBroken]) => isBroken(page)).map(([, describe]) => describe);
 };
@@ -78,8 +78,8 @@ export const lintPrimer = (html, templateHtml, neutral = true) => {
 const main = (argv) => {
   try {
     const { values, positionals } = parseArgs({ args: argv, options: { template: { type: "string" } }, allowPositionals: true });
-    assert(positionals.length === 1, `expected one page to lint, got ${positionals.length}`);
-    assert(values.template !== "", `--template needs a path, got ${JSON.stringify(values.template)}`);
+    assert(positionals.length === 1, `primer-lint needs one page to lint, got ${positionals.length}; pass exactly one path.`);
+    assert(values.template !== "", `--template needs a path, got ${JSON.stringify(values.template)}; pass a path.`);
     const templatePath = values.template ?? DEFAULT_TEMPLATE_PATH;
     const problems = lintPrimer(readFileSync(positionals[0], ENCODING), readFileSync(templatePath, ENCODING), values.template === undefined);
     for (const problem of problems) console.log(problem.startsWith(WARNING_PREFIX) ? problem : `${positionals[0]}: ${problem}`);

@@ -1,1 +1,1 @@
-export { actionabilityProblems, assertActionable, assertEveryLineActionable, assertErrorIsActionable } from "../../plugin/scripts/run-cli.test.support.mjs";
+export { actionabilityProblems, assertActionable, assertEveryLineActionable, assertErrorIsActionable, assertErrorMatchesActionable } from "../../plugin/scripts/run-cli.test.support.mjs";

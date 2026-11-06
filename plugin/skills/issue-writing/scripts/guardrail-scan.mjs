@@ -51,8 +51,8 @@ const compileTerm = (term) => {
  * @param {string[]} [extraTerms]
  */
 export const scanText = (text, extraTerms = []) => {
-  assert(typeof text === "string", `the text to scan must be a string, got ${typeof text}`);
-  assert(Array.isArray(extraTerms), `extra terms must be a list, got ${typeof extraTerms}`);
+  assert(typeof text === "string", `the \`text\` to scan must be a string, got ${typeof text}; pass the file text.`);
+  assert(Array.isArray(extraTerms), `the \`extraTerms\` must be a list, got ${typeof extraTerms}; pass an array of regex sources.`);
   const arms = [
     ...ARMS.map(([name, pattern]) => ({ name, pattern: new RegExp(pattern, "i") })),
     ...extraTerms.map((term) => ({ name: `extra guardrail term ${term}`, pattern: compileTerm(term) })),
@@ -64,7 +64,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const [file, ...rest] = process.argv.slice(2);
   const extraTerms = rest.filter((_, i) => rest[i - 1] === TERM_FLAG);
   if (!file || file === TERM_FLAG || rest.length !== extraTerms.length * 2) {
-    process.stderr.write(`usage: node <skill base directory>/scripts/guardrail-scan.mjs <file> [${TERM_FLAG} <regex>]...\n`);
+    process.stderr.write(`guardrail-scan needs one <file> and ${TERM_FLAG} before each extra regex; run: node <skill base directory>/scripts/guardrail-scan.mjs <file> [${TERM_FLAG} <regex>]...\n`);
     process.exit(EXIT_USAGE);
   }
   const hits = scanText(readFileSync(file, "utf8"), extraTerms);

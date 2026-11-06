@@ -102,6 +102,12 @@
       "anchor": "STOP: the notes checkout ${path} must be clean and on ${MAIN_BRANCH}",
       "kind": "stop",
       "why": "notes-repo prepare refuses a checkout that is not clean on main"
+    },
+    {
+      "id": "deskcheck.no-remote-assets",
+      "anchor": "the page must not load a remote stylesheet, font or file",
+      "kind": "never",
+      "why": "the page is static and offline"
     }
   ],
   "exempt": [

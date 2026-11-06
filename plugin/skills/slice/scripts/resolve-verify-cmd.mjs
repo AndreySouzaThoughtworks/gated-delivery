@@ -64,7 +64,7 @@ export const pickScript = (scripts, order = SCRIPT_ORDER) => { // zanity: ignore
 
 /** @param {{ cwd: string }} location */
 export const commandFromPackage = ({ cwd }) => { // zanity: ignore[assertion-density] -- single-invariant: cwd is the only input it can distrust, and an unreadable package.json falls back to no command by design
-  assert(typeof cwd === "string" && cwd.length > 0, `cwd must be a non-empty path, got ${JSON.stringify(cwd)}`);
+  assert(typeof cwd === "string" && cwd.length > 0, `\`cwd\` must be a non-empty path, got ${JSON.stringify(cwd)}; pass the checkout path.`);
   let scripts;
   try {
     scripts = JSON.parse(readFileSync(resolve(cwd, "package.json"), "utf8")).scripts;
@@ -77,15 +77,15 @@ export const commandFromPackage = ({ cwd }) => { // zanity: ignore[assertion-den
 
 /** @param {Record<string, string | undefined>} env */
 export const commandFromEnv = (env) => {
-  assert(typeof env === "object" && env !== null, `env must be an object of variables, got ${JSON.stringify(env)}`);
+  assert(typeof env === "object" && env !== null, `\`env\` must be an object of variables, got ${JSON.stringify(env)}; pass process.env or a plain object.`);
   const value = env[VERIFY_ENV];
-  assert(value == null || typeof value === "string", `${VERIFY_ENV} must be text when set, got ${typeof value}: ${JSON.stringify(value)}`);
+  assert(value == null || typeof value === "string", `\`${VERIFY_ENV}\` must be text when set, got ${typeof value}: ${JSON.stringify(value)}; set it to a command string or unset it.`);
   return value?.trim() || undefined;
 };
 
 /** @param {{ env?: Record<string, string | undefined>, cwd?: string, home?: string }} [options] */
 export const resolveVerifyCmd = ({ env = process.env, cwd = process.cwd(), home = env.HOME || homedir() } = {}) => { // zanity: ignore[assertion-density] -- single-invariant: cwd is its only own precondition, and each command source asserts what it reads before this function picks the first one
-  assert(typeof cwd === "string" && cwd.length > 0, `cwd must be a non-empty path, got ${JSON.stringify(cwd)}`);
+  assert(typeof cwd === "string" && cwd.length > 0, `\`cwd\` must be a non-empty path, got ${JSON.stringify(cwd)}; pass the checkout path.`);
   return commandFromEnv(env) ?? commandFromInstructions({ cwd, home }) ?? commandFromPackage({ cwd });
 };
 

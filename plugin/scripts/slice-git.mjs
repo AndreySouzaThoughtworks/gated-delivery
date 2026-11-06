@@ -33,8 +33,8 @@ export const REASON_UNCOMMITTED = "uncommitted-changes";
  * @returns {string}
  */
 export const git = (repo, args, fallback) => {
-  assert(isAbsolute(repo), `git needs an absolute repository path, got ${JSON.stringify(repo)}`);
-  assert(args.length > 0, `git needs a subcommand, got ${JSON.stringify(args)}`);
+  assert(isAbsolute(repo), `git needs an absolute repository path, got ${JSON.stringify(repo)}; pass an absolute path.`);
+  assert(args.length > 0, `\`git\` needs a subcommand, got ${JSON.stringify(args)}; pass one such as "status".`);
   try {
     return execFileSync("git", ["-C", repo, ...args], { encoding: ENCODING, stdio: PIPES });
   } catch (error) {
@@ -50,8 +50,8 @@ export const git = (repo, args, fallback) => {
  * @returns {unknown}
  */
 export const ghJson = (repo, args, fallback) => {
-  assert(isAbsolute(repo), `gh needs an absolute repository path, got ${JSON.stringify(repo)}`);
-  assert(args.includes("--json"), `gh output is only parsed as JSON when asked for it, got ${JSON.stringify(args)}`);
+  assert(isAbsolute(repo), `gh needs an absolute repository path, got ${JSON.stringify(repo)}; pass an absolute path.`);
+  assert(args.includes("--json"), `gh output is only parsed as JSON when \`--json\` is given, got ${JSON.stringify(args)}; add --json with the fields to list.`);
   try {
     return JSON.parse(execFileSync("gh", args, { cwd: repo, encoding: ENCODING, stdio: PIPES }));
   } catch (error) {
@@ -66,8 +66,8 @@ export const ghJson = (repo, args, fallback) => {
  * @returns {void}
  */
 export const requireIdentity = (ticket, actor) => {
-  assert(TICKET_ID.test(ticket), `--ticket must be a tracker key such as PROJ-123, got ${JSON.stringify(ticket)}`);
-  assert(ACTOR.test(actor), `--actor must be a handle such as alice or alice@laptop, got ${JSON.stringify(actor)}`);
+  assert(TICKET_ID.test(ticket), `\`--ticket\` must be a tracker key such as PROJ-123, got ${JSON.stringify(ticket)}; pass a key.`);
+  assert(ACTOR.test(actor), `\`--actor\` must be a handle such as alice or alice@laptop, got ${JSON.stringify(actor)}; pass a handle.`);
 };
 
 /**
@@ -75,8 +75,8 @@ export const requireIdentity = (ticket, actor) => {
  * @returns {CleanupPlan}
  */
 export const planCleanup = ({ repo, ticket, actor }) => {
-  assert(TICKET_ID.test(ticket), `the ticket must be a tracker key before it joins a branch pattern, got ${JSON.stringify(ticket)}`);
-  assert(isAbsolute(repo), `the repository must be an absolute path, got ${repo}`);
+  assert(TICKET_ID.test(ticket), `the ticket must be a tracker key before it joins a branch pattern, got ${JSON.stringify(ticket)}; pass a key such as PROJ-123.`);
+  assert(isAbsolute(repo), `the repository must be an absolute path, got ${JSON.stringify(repo)}; pass an absolute path.`);
   const ownTree = new RegExp(`^${ticket}-s\\d+(-b\\d+)?-(.+)$`);
   const worktrees = git(repo, ["worktree", "list", "--porcelain"])
     .split(BLOCK_SEPARATOR)

@@ -1393,7 +1393,7 @@
     },
     {
       "id": "slice.handoff-script-unmergeable-stops",
-      "anchor": "STOP and ask the user:",
+      "anchor": "STOP, not merged:",
       "kind": "stop",
       "why": "handoff.mjs exits 3 and tells the model to stop for a merge outside the three cases"
     },

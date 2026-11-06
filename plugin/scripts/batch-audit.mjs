@@ -48,7 +48,7 @@ const RULE_FEWER_COMMITS_THAN_ACS = "fewer-commits-than-acs";
  * @returns {AddedLine[]}
  */
 export const addedLines = (diff) => { // zanity: ignore[assertion-density] -- single-invariant: the text-type check is the only input precondition, and the parse below only matches and slices
-  assert(typeof diff === "string", `a diff must be text, got ${typeof diff}`);
+  assert(typeof diff === "string", `the \`diff\` must be text, got ${typeof diff}; pass the diff as a string.`);
   /** @type {AddedLine[]} */
   const added = [];
   let file = "";

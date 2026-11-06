@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { formatTimestamp, laterResume, mergeCarryForward, mergeSections, placeResume, renderSections, resumeHeading, splitSections } from "./handoff.mjs";
+import { assertErrorMatchesActionable } from "./run-cli.test.support.mjs";
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "handoff.mjs");
 const EXIT_OK = 0;
@@ -80,8 +81,8 @@ test("formatTimestamp renders the shape date -u +%Y-%m-%dT%H:%MZ prints", () => 
 });
 
 test("formatTimestamp rejects a non-date and an invalid date", () => {
-  assert.throws(() => formatTimestamp("2026-01-01"), /must be a Date/);
-  assert.throws(() => formatTimestamp(new Date(Number.NaN)), /valid date/);
+  assertErrorMatchesActionable(() => formatTimestamp("2026-01-01"), /.date. must be a Date/);
+  assertErrorMatchesActionable(() => formatTimestamp(new Date(Number.NaN)), /valid date/);
 });
 
 test("splitSections and renderSections round-trip a document and respect code fences", () => {
@@ -93,28 +94,28 @@ test("splitSections and renderSections round-trip a document and respect code fe
 });
 
 test("splitSections and renderSections reject bad input", () => {
-  assert.throws(() => splitSections(42, "## "), /must be a string/);
-  assert.throws(() => splitSections("x", "# "), /heading prefix/);
-  assert.throws(() => renderSections({ head: 1, parts: [] }), /head must be a string/);
-  assert.throws(() => renderSections({ head: "", parts: [{ heading: "plain", body: "" }] }), /markdown heading/);
+  assertErrorMatchesActionable(() => splitSections(42, "## "), /must be a string/);
+  assertErrorMatchesActionable(() => splitSections("x", "# "), /heading prefix/);
+  assertErrorMatchesActionable(() => renderSections({ head: 1, parts: [] }), /.head. must be a string/);
+  assertErrorMatchesActionable(() => renderSections({ head: "", parts: [{ heading: "plain", body: "" }] }), /heading that starts with/);
 });
 
 test("resumeHeading names the actor and the slice and rejects malformed ones", () => {
   assert.equal(resumeHeading("claude-a", undefined), "## Resume — claude-a");
   assert.equal(resumeHeading("claude-a", "2"), "## Resume — claude-a — s2");
-  assert.throws(() => resumeHeading("  ", undefined), /one non-empty line/);
-  assert.throws(() => resumeHeading("a\nb", undefined), /one non-empty line/);
-  assert.throws(() => resumeHeading("claude-a", "two"), /slice must be a number/);
+  assertErrorMatchesActionable(() => resumeHeading("  ", undefined), /one non-empty line/);
+  assertErrorMatchesActionable(() => resumeHeading("a\nb", undefined), /one non-empty line/);
+  assertErrorMatchesActionable(() => resumeHeading("claude-a", "two"), /.slice. must be a number/);
 });
 
 test("placeResume rejects a non-Resume heading and a non-list", () => {
-  assert.throws(() => placeResume([], { heading: "## Outcome", body: "" }), /not a Resume heading/);
-  assert.throws(() => placeResume("x", { heading: "## Resume — a", body: "" }), /must be a list/);
+  assertErrorMatchesActionable(() => placeResume([], { heading: "## Outcome", body: "" }), /not a Resume heading/);
+  assertErrorMatchesActionable(() => placeResume("x", { heading: "## Resume — a", body: "" }), /must be a list/);
 });
 
 test("mergeSections rejects non-text inputs", () => {
-  assert.throws(() => mergeSections(1, ""), /ours must be a string/);
-  assert.throws(() => mergeSections("", 1), /theirs must be a string/);
+  assertErrorMatchesActionable(() => mergeSections(1, ""), /.ours. must be a string/);
+  assertErrorMatchesActionable(() => mergeSections("", 1), /.theirs. must be a string/);
 });
 
 test("write-resume writes the block the SKILL.md template shows with a UTC timestamp from the clock", () => {
@@ -220,7 +221,7 @@ test("merge appends a Carry forward section only one side has", () => {
 test("merge exits 3 for two different blocks that claim the same Updated", () => {
   const { result, out } = merged(handoff([resumeBlock("claude-a", EARLY, "one")]), handoff([resumeBlock("claude-a", EARLY, "two")]));
   assert.equal(result.status, EXIT_UNMERGEABLE);
-  assert.match(result.stderr, /STOP and ask the user: .*both say Updated: 2026-01-01T09:00Z/);
+  assert.match(result.stderr, /STOP, not merged: .*both say Updated: 2026-01-01T09:00Z/);
   assert.equal(existsSync(out), false);
 });
 
@@ -254,7 +255,7 @@ test("merge accepts an identical section outside the three cases", () => {
 test("merge exits 3 when the text before the first section differs", () => {
   const { result } = merged(`# One\n\n${resumeBlock("claude-a", EARLY)}\n`, `# Two\n\n${resumeBlock("claude-a", EARLY)}\n`);
   assert.equal(result.status, EXIT_UNMERGEABLE);
-  assert.match(result.stderr, /before the first section differs/);
+  assert.match(result.stderr, /before the first "##" section differs/);
 });
 
 test("merge exits 3 when the text above the first Carry forward entry differs", () => {
@@ -366,12 +367,12 @@ test("close needs a handoff, a non-empty outcome, and a spec with a status line"
 
 test("laterResume rejects a non-Resume heading and two different headings", () => {
   const block = { heading: "## Resume — claude-a", body: `- Updated: ${EARLY}` };
-  assert.throws(() => laterResume({ heading: "## Outcome", body: "" }, block), /not a Resume heading/);
-  assert.throws(() => laterResume(block, { heading: "## Resume — claude-b", body: `- Updated: ${LATE}` }), /only one actor's own block/);
+  assertErrorMatchesActionable(() => laterResume({ heading: "## Outcome", body: "" }, block), /not a Resume heading/);
+  assertErrorMatchesActionable(() => laterResume(block, { heading: "## Resume — claude-b", body: `- Updated: ${LATE}` }), /only one actor's own block/);
   assert.equal(laterResume(block, { ...block, body: `- Updated: ${LATE}` }).body, `- Updated: ${LATE}`);
 });
 
 test("mergeCarryForward rejects non-text input", () => {
-  assert.throws(() => mergeCarryForward(1, ""), /ours must be a string/);
-  assert.throws(() => mergeCarryForward("", 1), /theirs must be a string/);
+  assertErrorMatchesActionable(() => mergeCarryForward(1, ""), /.ours. must be a string/);
+  assertErrorMatchesActionable(() => mergeCarryForward("", 1), /.theirs. must be a string/);
 });

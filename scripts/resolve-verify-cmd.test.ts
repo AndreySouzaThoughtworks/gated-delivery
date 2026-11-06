@@ -7,6 +7,7 @@ import { dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as resolver from "../plugin/skills/slice/scripts/resolve-verify-cmd.mjs";
 import { NO_COMMAND_MESSAGE, VERIFY_ENV, resolveVerifyCmd } from "../plugin/skills/slice/scripts/resolve-verify-cmd.mjs";
+import { assertErrorMatchesActionable } from "./test-support/actionable.test.support.ts";
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "..", "plugin", "skills", "slice", "scripts", "resolve-verify-cmd.mjs");
 const FROM_INSTRUCTIONS = "make verify-from-instructions";
@@ -134,8 +135,8 @@ test("pickScript rejects an order that is empty, repeats a name, or holds a non-
 });
 
 test("commandFromEnv rejects non-text values and a non-object env, and trims text", () => {
-  assert.throws(() => resolver.commandFromEnv({ [VERIFY_ENV]: 7 } as never), /must be text when set, got number/);
-  assert.throws(() => resolver.commandFromEnv(null as never), /env must be an object/);
+  assertErrorMatchesActionable(() => resolver.commandFromEnv({ [VERIFY_ENV]: 7 } as never), /must be text when set, got number/);
+  assertErrorMatchesActionable(() => resolver.commandFromEnv(null as never), /.env. must be an object/);
   assert.equal(resolver.commandFromEnv({ [VERIFY_ENV]: "  make x \n" }), "make x");
   assert.equal(resolver.commandFromEnv({ [VERIFY_ENV]: "  " }), undefined);
   assert.equal(resolver.commandFromEnv({ [VERIFY_ENV]: undefined }), undefined);
@@ -143,17 +144,17 @@ test("commandFromEnv rejects non-text values and a non-object env, and trims tex
 
 test("a relative home folder is refused when the CLAUDE.md search needs it", () => {
   const w = world();
-  assert.throws(() => resolveVerifyCmd({ env: {}, cwd: w.repo, home: "relative/home" }), /the home folder must be an absolute path/);
+  assertErrorMatchesActionable(() => resolveVerifyCmd({ env: {}, cwd: w.repo, home: "relative/home" }), /the home folder must be an absolute path/);
   assert.equal(resolveVerifyCmd({ env: { [VERIFY_ENV]: FROM_ENV }, cwd: w.repo, home: "relative/home" }), FROM_ENV, "a set variable never reaches the home folder search");
 });
 
 test("a Verify command that is only spaces is refused instead of used", () => {
   const w = world();
   write(join(w.folder, "CLAUDE.md"), "# Rules\n\n## Verification\n\n**Verify command:** `   `\n");
-  assert.throws(() => resolveVerifyCmd(w.options), /a Verify command read from CLAUDE.md must not be blank/);
+  assertErrorMatchesActionable(() => resolveVerifyCmd(w.options), /a Verify command read from CLAUDE.md must not be blank/);
 });
 
 test("commandFromPackage and resolveVerifyCmd reject a non-string cwd", () => {
-  assert.throws(() => resolver.commandFromPackage({ cwd: 5 as never }), /cwd must be a non-empty path/);
-  assert.throws(() => resolveVerifyCmd({ cwd: "" }), /cwd must be a non-empty path/);
+  assertErrorMatchesActionable(() => resolver.commandFromPackage({ cwd: 5 as never }), /.cwd. must be a non-empty path/);
+  assertErrorMatchesActionable(() => resolveVerifyCmd({ cwd: "" }), /.cwd. must be a non-empty path/);
 });

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ACTIONABLE_WORD_LIMIT, actionabilityProblems, assertActionable, assertEveryLineActionable, assertErrorIsActionable } from "./run-cli.test.support.mjs";
+import { ACTIONABLE_WORD_LIMIT, actionabilityProblems, assertActionable, assertEveryLineActionable, assertErrorIsActionable, assertErrorMatchesActionable } from "./run-cli.test.support.mjs";
 
 const GOOD = "spec.md:3: email address is banned in tickets; replace it with a placeholder.";
 const NO_VALUE = "an address is banned in tickets; replace it with a placeholder.";
@@ -66,4 +66,20 @@ test("refuses a message that is not text or is blank", () => {
   assert.throws(() => actionabilityProblems(undefined), /must be text/);
   assert.throws(() => actionabilityProblems("  "), /must not be blank/);
   assert.throws(() => assertActionable(undefined), /must be text/);
+});
+
+test("asserts both the expected pattern and the actionability of a thrown message", () => {
+  assertErrorMatchesActionable(() => {
+    throw new Error(GOOD);
+  }, /email address/);
+  assert.throws(() => assertErrorMatchesActionable(() => {
+    throw new Error(GOOD);
+  }, /phone number/), /phone number/);
+  assert.throws(() => assertErrorMatchesActionable(() => {
+    throw new Error(NAMES_NOTHING);
+  }, /invalid input/), /is not actionable/);
+  assert.throws(() => assertErrorMatchesActionable(() => {
+    throw new Error(GOOD);
+  }, "email address"), /must be a pattern/);
+  assert.throws(() => assertErrorMatchesActionable("not a function", /x/), /must be a function/);
 });

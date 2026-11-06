@@ -53,8 +53,8 @@ export class Unmergeable extends Error {}
  * @returns {string}
  */
 export const formatTimestamp = (date) => {
-  assert(date instanceof Date, `the timestamp source must be a Date, got ${typeof date}`);
-  assert(Number.isFinite(date.getTime()), "the timestamp source must be a valid date");
+  assert(date instanceof Date, `the \`date\` must be a Date, got ${typeof date}; pass a Date.`);
+  assert(Number.isFinite(date.getTime()), `the \`date\` must be a valid date, got ${date}; pass a Date built from a real time.`);
   return `${date.toISOString().slice(0, TIMESTAMP_LENGTH)}Z`;
 };
 
@@ -64,8 +64,8 @@ export const formatTimestamp = (date) => {
  * @returns {Sections}
  */
 export const splitSections = (text, prefix) => {
-  assert(typeof text === "string", `the text to split must be a string, got ${typeof text}`);
-  assert(prefix === SECTION_PREFIX || prefix === ENTRY_PREFIX, `the heading prefix must be ${JSON.stringify(SECTION_PREFIX)} or ${JSON.stringify(ENTRY_PREFIX)}, got ${JSON.stringify(prefix)}`);
+  assert(typeof text === "string", `the \`text\` to split must be a string, got ${typeof text}; pass the file text.`);
+  assert(prefix === SECTION_PREFIX || prefix === ENTRY_PREFIX, `the heading prefix must be ${JSON.stringify(SECTION_PREFIX)} or ${JSON.stringify(ENTRY_PREFIX)}, got ${JSON.stringify(prefix)}; pass one of them.`);
   /** @type {string[]} */
   const headLines = [];
   /** @type {{ heading: string, lines: string[] }[]} */
@@ -87,8 +87,8 @@ export const splitSections = (text, prefix) => {
  * @returns {string}
  */
 export const renderSections = ({ head, parts }) => {
-  assert(typeof head === "string", `the head must be a string, got ${typeof head}`);
-  assert(parts.every((part) => part.heading.startsWith("##")), "every part needs a markdown heading");
+  assert(typeof head === "string", `the \`head\` must be a string, got ${typeof head}; pass the text before the first heading.`);
+  assert(parts.every((part) => part.heading.startsWith("##")), "every part needs a heading that starts with \"##\"; add \"##\" before each heading.");
   const blocks = parts.map(({ heading, body }) => (body === "" ? heading : `${heading}${PARAGRAPH_BREAK}${body}`));
   return [head, ...blocks].filter((block) => block !== "").join(PARAGRAPH_BREAK);
 };
@@ -99,8 +99,8 @@ export const renderSections = ({ head, parts }) => {
  * @returns {Part[]}
  */
 export const placeResume = (parts, incoming) => {
-  assert(RESUME_HEADING.test(incoming.heading), `${JSON.stringify(incoming.heading)} is not a Resume heading`);
-  assert(Array.isArray(parts), `the parts must be a list, got ${typeof parts}`);
+  assert(RESUME_HEADING.test(incoming.heading), `${JSON.stringify(incoming.heading)} is not a Resume heading; start it with "## Resume — ".`);
+  assert(Array.isArray(parts), `the \`parts\` must be a list, got ${typeof parts}; pass an array.`);
   const existing = parts.findIndex((part) => part.heading === incoming.heading);
   if (existing !== NOT_FOUND) return parts.map((part, index) => (index === existing ? incoming : part));
   const lastResume = parts.map((part) => RESUME_HEADING.test(part.heading)).lastIndexOf(true);
@@ -117,11 +117,11 @@ export const placeResume = (parts, incoming) => {
  * @returns {Part}
  */
 export const laterResume = (own, other) => {
-  assert(RESUME_HEADING.test(own.heading), `${JSON.stringify(own.heading)} is not a Resume heading`);
-  assert(own.heading === other.heading, `only one actor's own block resolves by Updated, got ${own.heading} and ${other.heading}`);
+  assert(RESUME_HEADING.test(own.heading), `${JSON.stringify(own.heading)} is not a Resume heading; start it with "## Resume — ".`);
+  assert(own.heading === other.heading, `only one actor's own block resolves by Updated, got ${JSON.stringify(own.heading)} and ${JSON.stringify(other.heading)}; pass two blocks with the same heading.`);
   const [ownStamp, otherStamp] = [own, other].map((part) => part.body.match(UPDATED_LINE)?.[1] ?? "");
-  if (!TIMESTAMP.test(ownStamp) || !TIMESTAMP.test(otherStamp)) throw new Unmergeable(`${own.heading} needs a valid "Updated:" line in both files to pick the later one`);
-  if (ownStamp === otherStamp) throw new Unmergeable(`${own.heading} differs between the files but both say Updated: ${ownStamp}`);
+  if (!TIMESTAMP.test(ownStamp) || !TIMESTAMP.test(otherStamp)) throw new Unmergeable(`${own.heading} needs a valid "Updated:" line in both files to pick the later one; add the missing line to the block that lacks it.`);
+  if (ownStamp === otherStamp) throw new Unmergeable(`${own.heading} differs between the files but both say Updated: ${ownStamp}; set a later "Updated:" line in the block to keep.`);
   return ownStamp > otherStamp ? own : other;
 };
 
@@ -131,11 +131,11 @@ export const laterResume = (own, other) => {
  * @returns {string}
  */
 export const mergeCarryForward = (ours, theirs) => {
-  assert(typeof ours === "string", `ours must be a string, got ${typeof ours}`);
-  assert(typeof theirs === "string", `theirs must be a string, got ${typeof theirs}`);
+  assert(typeof ours === "string", `\`ours\` must be a string, got ${typeof ours}; pass the file text.`);
+  assert(typeof theirs === "string", `\`theirs\` must be a string, got ${typeof theirs}; pass the file text.`);
   const own = splitSections(ours, ENTRY_PREFIX);
   const other = splitSections(theirs, ENTRY_PREFIX);
-  if (own.head !== other.head) throw new Unmergeable(`the text under ${CARRY_FORWARD_HEADING} before its first entry differs`);
+  if (own.head !== other.head) throw new Unmergeable(`the text under ${CARRY_FORWARD_HEADING} before its first entry differs; make it equal in both files.`);
   const unseen = other.parts.filter((entry) => !own.parts.some((seen) => seen.heading === entry.heading && seen.body === entry.body));
   return renderSections({ head: own.head, parts: [...own.parts, ...unseen] });
 };
@@ -146,11 +146,11 @@ export const mergeCarryForward = (ours, theirs) => {
  * @returns {string}
  */
 export const mergeSections = (ours, theirs) => {
-  assert(typeof ours === "string", `ours must be a string, got ${typeof ours}`);
-  assert(typeof theirs === "string", `theirs must be a string, got ${typeof theirs}`);
+  assert(typeof ours === "string", `\`ours\` must be a string, got ${typeof ours}; pass the file text.`);
+  assert(typeof theirs === "string", `\`theirs\` must be a string, got ${typeof theirs}; pass the file text.`);
   const base = splitSections(ours, SECTION_PREFIX);
   const incoming = splitSections(theirs, SECTION_PREFIX);
-  if (base.head !== incoming.head) throw new Unmergeable("the text before the first section differs");
+  if (base.head !== incoming.head) throw new Unmergeable("the text before the first \"##\" section differs between the files; make it equal in both.");
   let parts = base.parts;
   for (const part of incoming.parts) {
     const own = parts.find((candidate) => candidate.heading === part.heading);
@@ -160,7 +160,7 @@ export const mergeSections = (ours, theirs) => {
     } else if (own && own.body === part.body) {
       continue;
     } else if (!isResume) {
-      throw new Unmergeable(`${part.heading} ${own ? "differs between the files" : "exists in only one file"}; only Resume blocks and Carry forward entries merge`);
+      throw new Unmergeable(`${part.heading} ${own ? "differs between the files" : "exists in only one file"}; only Resume blocks and Carry forward entries merge. Resolve it by hand.`);
     } else {
       parts = placeResume(parts, own ? laterResume(own, part) : part);
     }
@@ -174,8 +174,8 @@ export const mergeSections = (ours, theirs) => {
  * @returns {string}
  */
 export const resumeHeading = (actor, slice) => {
-  assert(actor.trim() !== "" && !LINE_BREAK_ANYWHERE.test(actor), `the actor must be one non-empty line, got ${JSON.stringify(actor)}`);
-  assert(slice === undefined || SLICE_NUMBER.test(slice), `the slice must be a number, got ${JSON.stringify(slice)}`);
+  assert(actor.trim() !== "" && !LINE_BREAK_ANYWHERE.test(actor), `the \`actor\` must be one non-empty line, got ${JSON.stringify(actor)}; pass a name on one line.`);
+  assert(slice === undefined || SLICE_NUMBER.test(slice), `the \`slice\` must be a number, got ${JSON.stringify(slice)}; pass digits only.`);
   return `${SECTION_PREFIX}Resume — ${actor}${slice === undefined ? "" : ` — s${slice}`}`;
 };
 
@@ -189,8 +189,8 @@ const writeResume = (argv) => {
     options: Object.fromEntries([...REQUIRED_RESUME_OPTIONS, "slice", "pr"].map((name) => [name, { type: "string" }])),
   });
   const given = Object.fromEntries(Object.entries(values).map(([name, value]) => [name, String(value)]));
-  for (const name of REQUIRED_RESUME_OPTIONS) assert(given[name]?.trim(), `--${name} is required`);
-  for (const [name, value] of Object.entries(given)) assert(!LINE_BREAK_ANYWHERE.test(value), `--${name} must be one line`);
+  for (const name of REQUIRED_RESUME_OPTIONS) assert(given[name]?.trim(), `--${name} is required but missing; pass --${name} <value>.`);
+  for (const [name, value] of Object.entries(given)) assert(!LINE_BREAK_ANYWHERE.test(value), `--${name} must be one line; remove the line breaks from its value.`);
   const updated = formatTimestamp(new Date());
   const heading = resumeHeading(given.actor, given.slice);
   const body = [
@@ -215,8 +215,8 @@ const writeResume = (argv) => {
 const merge = (argv) => {
   const { values } = parseArgs({ args: argv, options: { ours: { type: "string" }, theirs: { type: "string" }, out: { type: "string" } } });
   const { ours, theirs, out } = values;
-  assert(ours && theirs && out, "--ours, --theirs and --out are all required");
-  assert(existsSync(ours) && existsSync(theirs), `both input files must exist, got ${ours} and ${theirs}`);
+  assert(ours && theirs && out, `--ours, --theirs and --out must all be given, got ${JSON.stringify(values)}; pass all three.`);
+  assert(existsSync(ours) && existsSync(theirs), `both input files must exist, got ${ours} and ${theirs}; pass the paths of existing files.`);
   writeFileSync(out, `${mergeSections(readFileSync(ours, ENCODING), readFileSync(theirs, ENCODING))}${NEWLINE}`);
   return { out };
 };
@@ -228,14 +228,14 @@ const merge = (argv) => {
 const close = (argv) => {
   const { values } = parseArgs({ args: argv, options: { dir: { type: "string" }, "outcome-file": { type: "string" }, spec: { type: "string" } } });
   const { dir, "outcome-file": outcomeFile, spec } = values;
-  assert(dir && outcomeFile && spec, "--dir, --outcome-file and --spec are all required");
+  assert(dir && outcomeFile && spec, `--dir, --outcome-file and --spec must all be given, got ${JSON.stringify(values)}; pass all three.`);
   const handoffPath = join(dir, HANDOFF_FILE);
-  assert(existsSync(handoffPath), `${handoffPath} does not exist; there is no handoff to close`);
+  assert(existsSync(handoffPath), `${handoffPath} does not exist; there is no handoff to close. Pass the --dir that holds it.`);
   const outcome = readFileSync(outcomeFile, ENCODING).trim();
-  assert(outcome !== "", `${outcomeFile} is empty; the outcome is written by the model before closing`);
+  assert(outcome !== "", `${outcomeFile} is empty; write the outcome into it, then close.`);
   const specText = readFileSync(spec, ENCODING);
   const frontmatter = specText.match(FRONTMATTER);
-  assert(frontmatter && STATUS_LINE.test(frontmatter[1]), `${spec} needs frontmatter with a status: line`);
+  assert(frontmatter && STATUS_LINE.test(frontmatter[1]), `${spec} needs frontmatter with a status: line; add one.`);
   const closedAt = formatTimestamp(new Date());
   const pending = readdirSync(dir).filter((name) => PER_SLICE_FILE.test(name)).sort()
     .map((name) => ({ path: join(dir, name), text: readFileSync(join(dir, name), ENCODING) }))
@@ -266,12 +266,12 @@ const main = (argv) => { // zanity: ignore[assertion-density] -- entry-point: CL
   try {
     const [name, ...rest] = argv;
     const command = COMMANDS.get(String(name));
-    assert(command, `unknown subcommand ${JSON.stringify(name)}`);
+    assert(command, `${JSON.stringify(name)} is not a subcommand; use one of ${[...COMMANDS.keys()].join(", ")}.`);
     console.log(JSON.stringify(command(rest)));
     return EXIT_OK;
   } catch (error) {
     if (error instanceof Unmergeable) {
-      console.error(`handoff: STOP and ask the user: ${error.message}`);
+      console.error(`handoff: STOP, not merged: ${error.message} Hint: ask the user which side to keep.`);
       return EXIT_UNMERGEABLE;
     }
     const isUsage = error instanceof assert.AssertionError || String(/** @type {NodeJS.ErrnoException} */ (error).code).startsWith(PARSE_ARGS_CODE_PREFIX);

@@ -7,6 +7,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as specLint from "../../plugin/skills/spec/scripts/spec-lint.mjs";
 import { lintSpec } from "../../plugin/skills/spec/scripts/spec-lint.mjs";
+import { assertActionable, assertEveryLineActionable, assertErrorMatchesActionable } from "../test-support/actionable.test.support.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const LINT = join(HERE, "..", "..", "plugin", "skills", "spec", "scripts", "spec-lint.mjs");
@@ -47,11 +48,11 @@ const REJECTED: [string, (text: string) => string, string][] = [
   ["a vague removal condition", swap("14 days at 100% show an EMPTY_LINE rate under 0.1%", "once stable"), "not checkable"],
   ["a dependency on a later slice", swap("- Depends on: Slice 1", "- Depends on: Slice 3"), "depends on Slice 3, which does not merge before it"],
   ["a slice missing from the wave table", swap("| 3 | S3 | depends on S2 |\n", ""), "Slice 3 must appear in exactly one wave-table row"],
-  ["a slice in a later wave than its dependencies need", swap("| 2 | S2 |", "| 3 | S2 |"), "dependencies put it in wave"],
+  ["a slice in a later wave than its dependencies need", swap("| 2 | S2 |", "| 3 | S2 |"), "a slice joins the earliest wave"],
   ["a missing Done-when slice block", swap("### Slice 3\n\n- [ ] Every AC assigned to this slice is implemented and verified by at least one test\n\n", ""), "Done-when must hold one"],
   ["a missing Per ticket block", swap("### Per ticket", "### Afterwards"), "lacks the \"### Per ticket\" block"],
   ["a cross-repo AC without evidence and owner", swap("- [ ] AC3 — evidence: screenshot of the checkout error in the ticket — owner: checkout team", "- [ ] done"), "cross-repo AC[3] has no Done-when line"],
-  ["a cross-repo AC that is unassigned", swap("owner: checkout team", "owner: Unassigned"), "owner is \"Unassigned\""],
+  ["a cross-repo AC that is unassigned", swap("owner: checkout team", "owner: Unassigned"), "owner \"Unassigned\" is not a person"],
   ["a Domain model with neither entities nor N/A", swap("N/A — no domain entities added, changed, or renamed, the order already carries lines.", "Orders matter."), "Domain model must classify"],
   ["Red flags without a Contradictions ledger", swap("### Contradictions", "### Notes"), 'lacks "### Contradictions"'],
   ["an empty Contradictions ledger", swap("No contradictions detected between the inspected surfaces.", "Looks fine."), "an empty ledger reads as skipped"],
@@ -75,6 +76,14 @@ for (const [name, mutate, expected] of REJECTED) {
   });
 }
 
+const REWRITTEN = ["an angle-bracket placeholder", "a slice heading without exposure", "a slice in a later wave than its dependencies need", "a cross-repo AC that is unassigned", "an empty Contradictions ledger"];
+
+test("the rewritten problems are actionable behind their file prefix", () => {
+  const rewritten = REJECTED.filter(([name]) => REWRITTEN.includes(name));
+  assert.equal(rewritten.length, REWRITTEN.length, `every rewritten case must exist in REJECTED, got ${rewritten.length} of ${REWRITTEN.length}`);
+  for (const [, mutate, expected] of rewritten) assertActionable(`spec.md: ${lintSpec(mutate(VALID)).find((problem) => problem.includes(expected))}`);
+});
+
 test("the unfilled template is rejected", () => {
   const problems = lintSpec(TEMPLATE);
   assert(problems.some((p) => p.includes("PROJ-XXX")), `the template's placeholders must be flagged, got ${JSON.stringify(problems)}`);
@@ -89,6 +98,9 @@ test("the command line exits 1 on a bad spec and 0 on a good one", () => {
   assert(failed.status === 1 && failed.stdout.includes(`${bad}: frontmatter type`), `a bad spec must exit 1 naming the file, got ${failed.status} ${failed.stdout}`);
   const passed = spawnSync("node", [LINT, join(HERE, "fixtures", "valid-spec.md")], { encoding: "utf8" });
   assert(passed.status === 0 && passed.stdout === "", `a good spec must exit 0 silently, got ${passed.status} ${passed.stdout}`);
+  const usage = spawnSync("node", [LINT], { encoding: "utf8" });
+  assert.equal(usage.status, 1, `no file must exit 1, got ${usage.status}`);
+  assertEveryLineActionable(usage.stderr);
 });
 
 const TOLERATED_FRONTMATTER = "ticket: PROJ-123\nlinks:\n  - one\n  - two\n# note\n# keyed: comment\n  : orphan value\ntype: change\n";
@@ -109,21 +121,21 @@ test("regression: text without a frontmatter block parses to an empty frontmatte
 
 test("splitFrontmatter rejects a block pattern that matches past the first character", () => {
   const unanchored = /---\n([\s\S]*?)\n---\n/;
-  assert.throws(() => specLint.splitFrontmatter("intro\n---\na: b\n---\nbody", unanchored), /must start at the first character, got offset 6/);
+  assertErrorMatchesActionable(() => specLint.splitFrontmatter("intro\n---\na: b\n---\nbody", unanchored), /block must start at the first character, got offset 6/);
   assert.deepEqual(specLint.splitFrontmatter("---\na: b\n---\nbody"), { frontmatter: { a: "b" }, body: "body" });
 });
 
 test("an AC range that expands past the limit is refused", () => {
-  assert.throws(() => lintSpec(swap("### Slice 1 — AC1 —", "### Slice 1 — AC1-5000 —")(VALID)), /an AC range must not expand to more than 1000 numbers/);
+  assertErrorMatchesActionable(() => lintSpec(swap("### Slice 1 — AC1 —", "### Slice 1 — AC1-5000 —")(VALID)), /an AC range must not expand to more than 1000 numbers/);
 });
 
 test("a heading with no title inside a section is refused", () => {
-  assert.throws(() => lintSpec(`${VALID}\n## \nmore text\n`), /a ## part must not contain another ## heading/);
+  assertErrorMatchesActionable(() => lintSpec(`${VALID}\n## \nmore text\n`), /a ## part must not contain another ## heading/);
 });
 
 test("splitFrontmatter and parseSpec reject non-text input", () => {
-  assert.throws(() => specLint.splitFrontmatter(42 as never), /a spec must be text, got number/);
-  assert.throws(() => specLint.parseSpec(undefined as never), /a spec must be text, got undefined/);
+  assertErrorMatchesActionable(() => specLint.splitFrontmatter(42 as never), /the .raw. spec must be text, got number/);
+  assertErrorMatchesActionable(() => specLint.parseSpec(undefined as never), /the .raw. spec must be text, got undefined/);
 });
 
 test("a Security table with every disposition filled passes", () => {

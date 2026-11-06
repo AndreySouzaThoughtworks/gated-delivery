@@ -9,6 +9,19 @@ type GuideInput = { guide: string | null; readme: string; inventory: Inventory }
 
 const QUOTED_OUTPUT = /<pre\b[\s\S]*?<\/pre>/gi;
 
+export const statedCountProblems = (file: string, text: string, counted: [string, number][]) => {
+  assert(typeof text === "string", `${file} must be text to check its counts, got ${typeof text}; pass its body.`);
+  assert(Array.isArray(counted), `${file} needs a list of [label, count] pairs, got ${typeof counted}; pass the real counts.`);
+  const problems: string[] = [];
+  const prose = text.replace(QUOTED_OUTPUT, "");
+  for (const [label, actual] of counted) {
+    for (const [, stated] of prose.matchAll(new RegExp(`(\\d+)\\s+${label}\\b`, "g"))) {
+      if (Number(stated) !== actual) problems.push(`${file} says "${stated} ${label}", which is not the real count of ${actual}. Hint: change it to "${actual} ${label}".`);
+    }
+  }
+  return problems;
+};
+
 export const guideProblems = ({ guide, readme, inventory }: GuideInput) => {
   assert(typeof readme === "string", `the README must be text, got ${typeof readme}; pass its body.`);
   assert(Array.isArray(inventory.skills), `the inventory must list skills, got ${typeof inventory.skills}; pass the skill names.`);
@@ -26,12 +39,7 @@ export const guideProblems = ({ guide, readme, inventory }: GuideInput) => {
       if (!guide.includes(name)) problems.push(`${GUIDE_FILE} does not name the ${kind} "${name}". Hint: add it to the guide.`);
     }
   }
-  const prose = guide.replace(QUOTED_OUTPUT, "");
   const counted: [string, number][] = [["skills", inventory.skills.length], ["agents", inventory.agents.length], ["commands", inventory.commands.length], ["hooks", inventory.hooks]];
-  for (const [label, actual] of counted) {
-    for (const [, stated] of prose.matchAll(new RegExp(`(\\d+)\\s+${label}\\b`, "g"))) {
-      if (Number(stated) !== actual) problems.push(`${GUIDE_FILE} says "${stated} ${label}", which is not the real count of ${actual}. Hint: change it to "${actual} ${label}".`);
-    }
-  }
+  problems.push(...statedCountProblems(GUIDE_FILE, guide, counted));
   return problems;
 };

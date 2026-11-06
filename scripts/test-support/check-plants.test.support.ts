@@ -160,6 +160,7 @@ const COMMENTS_FILES = { "plugin/hooks/h.mjs": "// Until now nothing ran those f
 const SUPPRESSIONS_FILES = { "src/a.mjs": `// ${ESLINT_DISABLE} no-console\nconsole.log(1);\n`, "scripts/audit/suppressions.count": "1\n" };
 const JSDOC_FILES = { "plugin/a.mjs": "/**\n * Does a thing.\n */\nexport const f = 1;\n" };
 const ASSERTION_FILES = { "scripts/subject.mjs": SUBJECT, "scripts/subject.test.mjs": STRINGS_ONLY_TEST };
+const SITE_FILES = { "docs-site-src/home.html": "<h1>Home</h1>\n" };
 const ASSERTION_TEST_COMMAND = ["--test-command", "node --test scripts/subject.test.mjs"];
 
 type Run = { output: string; match: RegExp };
@@ -170,6 +171,7 @@ const SPECIAL_PLANTS: Record<number, () => Run> = {
   36: () => ({ output: standalone("comments.ts", gitRepo(COMMENTS_FILES, "plant-comments-")), match: /temporal-contrast/ }),
   37: () => ({ output: standalone("suppressions.ts", gitRepo(SUPPRESSIONS_FILES, "plant-suppressions-")), match: /has no reason/ }),
   38: () => ({ output: standalone("jsdoc-types-only.ts", gitRepo(JSDOC_FILES, "plant-jsdoc-")), match: /plugin\/a\.mjs:\d+/ }),
+  40: () => ({ output: standalone("site-wiring.ts", gitRepo(SITE_FILES, "plant-site-")), match: /scripts\/site\/build\.ts is missing/ }),
   39: () => ({ output: standalone("assertion-effectiveness.ts", gitRepo(ASSERTION_FILES, "plant-assertions-"), ASSERTION_TEST_COMMAND), match: /never false shout:3/ }),
 };
 

@@ -1,0 +1,45 @@
+<h1>Concepts</h1>
+<p class="lead">Five ideas explain the design. They also explain why the repository checks itself.</p>
+
+<h2 id="harden-the-codebase">Harden the codebase, not the agent</h2>
+<p>An agent forgets, drifts and guesses. A repository does not. So the repository holds the guardrails.</p>
+<p>Hooks, CI jobs and lint scripts run every time. They need no memory of earlier sessions.</p>
+<p>The plugin registers {{hooks}} hooks. The hooks run with no model call. They block only a narrow set of commands, as the hook page explains.</p>
+
+<h2 id="guidance-is-not-a-guardrail">Guidance is not a guardrail</h2>
+<p>A line in a prompt is a request. A model can ignore it. A script that exits with a non-zero code is a guardrail.</p>
+<x-callout>
+  <p>Test for any rule: can a script fail a pull request that breaks it? If not, treat the rule as a wish.</p>
+</x-callout>
+<p>So the project prefers a check over a sentence of advice. Prose stays where judgment is needed.</p>
+
+<h2 id="mistakes-become-rules">Every mistake becomes a deterministic rule</h2>
+<p>When a mistake happens, the fix is not a reminder. The fix is a check that rules out the whole category.</p>
+<p>A test then proves that the check can fail. A check that cannot fail proves nothing.</p>
+<p>The file <code>docs/mistakes-to-rules.md</code> records each mistake next to its rule and its test. Here is one real row.</p>
+<x-mistake match="assertion-density was switched off"/>
+<p>The consistency guard has {{checks}} numbered checks. The <a href="ci-checks.html">CI checks</a> page lists them all.</p>
+
+<h2 id="static-and-live-evals">Static evals and live evals</h2>
+<p>A live eval runs a real model session. It shows what a model does with a skill. It costs money, so it runs only on request.</p>
+<p>A static eval runs no model. It checks that the scripts pass and that every rule line is still present.</p>
+<p>Today the plugin holds {{tiers.live}} live stamps and {{tiers.static}} static stamps. It holds {{tiers.waived}} waivers.</p>
+<p>The <a href="eval-tiers.html">Eval tiers</a> page shows the tier of each skill.</p>
+
+<h2 id="scripts-replace-prose">Why scripts replace prose</h2>
+<p>A prompt that says "count the rows" invites a wrong count. A script counts the rows the same way every time.</p>
+<p>So a skill hands exact work to a script. The skill keeps the judgment and the script keeps the arithmetic.</p>
+<p>The plugin ships {{pluginScripts}} such scripts. The <a href="plugin-scripts.html">Plugin scripts</a> page shows the usage line of each one.</p>
+
+<h2 id="not-verified">What is not verified</h2>
+<p>This project checks a lot. It does not check everything. These limits are real.</p>
+<ul>
+  <li>A static stamp says the tooling is intact. It does not say that a model follows a skill.</li>
+  <li>A rule inventory proves that the rule text is present. It does not prove that the rule keeps its meaning.</li>
+  <li>The sentence check measures length only. It does not prove that prose is clear or true.</li>
+  <li>The message check is a pattern proxy. It cannot judge whether a fix is correct.</li>
+  <li>Some mistakes still depend on human review. The second table in <code>docs/mistakes-to-rules.md</code> names them.</li>
+</ul>
+<x-callout>
+  <p>A static stamp never says that the model behaves. Read it as a statement about the tooling.</p>
+</x-callout>

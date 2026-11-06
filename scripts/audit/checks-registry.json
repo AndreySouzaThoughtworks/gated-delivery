@@ -388,5 +388,15 @@
     "example": "(b) never false shout:3  typeof text === \"string\"  [1 evaluations]",
     "mistake": "An assertion that cannot fail",
     "source": "scripts/audit/assertion-effectiveness.ts"
+  },
+  {
+    "number": 40,
+    "id": "site-wiring",
+    "title": "Site has a build script and CI step",
+    "rule": "A repository with site sources has a build script and a CI step that runs it.",
+    "fix": "Restore the build script, or add the step that runs it to the audit workflow.",
+    "example": "scripts/site/build.ts is missing, but docs-site-src/ holds the site sources. Rule: the sources always have a generator. Fix: restore the script, or remove docs-site-src/.",
+    "mistake": null,
+    "source": "scripts/audit/site-wiring.ts"
   }
 ]

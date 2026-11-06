@@ -1,0 +1,392 @@
+[
+  {
+    "number": 1,
+    "id": "skill-files",
+    "title": "Skills carry their files and name",
+    "rule": "Every skill folder holds SKILL.md and evals.md, and the frontmatter name equals the folder name.",
+    "fix": "Add the missing file, or rename the folder or the frontmatter name so they match.",
+    "example": "skill \"alpha\" is missing evals.md. Hint: add it.",
+    "mistake": null,
+    "source": "scripts/audit/consistency.ts"
+  },
+  {
+    "number": 2,
+    "id": "agent-and-command-metadata",
+    "title": "Agents and commands declare their metadata",
+    "rule": "Every agent file declares a frontmatter name equal to its filename, and every command file declares a description.",
+    "fix": "Rename the file or the frontmatter name so they match, or add the description line.",
+    "example": "agent \"bot\": frontmatter name \"other\" must equal the filename. Hint: rename one to match the other.",
+    "mistake": null,
+    "source": "scripts/audit/consistency.ts"
+  },
+  {
+    "number": 3,
+    "id": "hook-references",
+    "title": "Hook references resolve to files",
+    "rule": "hooks.json holds valid JSON, and each hook file it names exists.",
+    "fix": "Fix the JSON, add the missing hook file, or remove the reference.",
+    "example": "hooks.json references missing hook file \"gone.mjs\". Hint: add the file or drop the reference.",
+    "mistake": null,
+    "source": "scripts/audit/consistency.ts"
+  },
+  {
+    "number": 4,
+    "id": "marketplace-source",
+    "title": "Marketplace source points at a plugin",
+    "rule": "Each marketplace plugin source holds a .claude-plugin/plugin.json manifest.",
+    "fix": "Add the manifest, or correct the source path.",
+    "example": "marketplace plugin \"p\": source \"nowhere\" has no .claude-plugin/plugin.json. Hint: add the manifest or fix the source.",
+    "mistake": null,
+    "source": "scripts/audit/consistency.ts"
+  },
+  {
+    "number": 5,
+    "id": "inventory-counts",
+    "title": "Doc counts match the real inventory",
+    "rule": "README.md and docs/development.md state the true number of skills, agents, hooks and commands.",
+    "fix": "Write the real count as digits, for example 3 skills.",
+    "example": "README.md says \"3 skills\", which is not the actual count of 1. Hint: change it to \"1 skills\".",
+    "mistake": "Documentation that drifts from the repo",
+    "source": "scripts/audit/consistency.ts"
+  },
+  {
+    "number": 6,
+    "id": "inventory-and-citations",
+    "title": "Indexes and citations match the files",
+    "rule": "Documents, indexes and skill prose agree with the files, and prose avoids the phrases the writing rules ban.",
+    "fix": "Add the missing row, correct the cited name or path, or reword the banned phrase.",
+    "example": "skill \"alpha\" is not documented in docs/skill-graph.md. Hint: add a row for it.",
+    "mistake": null,
+    "source": "scripts/audit/consistency.ts"
+  },
+  {
+    "number": 7,
+    "id": "eval-measure-traps",
+    "title": "Eval measure keyed on a skill heading",
+    "rule": "Eval measures should not key on a word that also heads the skill, or they match failing runs.",
+    "fix": "Rename the heading or the measure term so the two differ.",
+    "example": "alpha/evals.md:7: measure \"heading one\" must not also appear in SKILL.md heading \"heading one\", or it may match a failing run. Hint: rename one of them.",
+    "mistake": "A check that cannot fail",
+    "source": "scripts/audit/consistency.ts"
+  },
+  {
+    "number": 8,
+    "id": "zanity-config-strict",
+    "title": "zanity config stays at its strictest",
+    "rule": "zanity.toml selects every rule, disables only two test-file rules and excludes only fixture folders.",
+    "fix": "Restore the strict setting and fix the findings in code.",
+    "example": "zanity.toml must keep select = [\"all\"] under [rules]. Hint: restore it and fix the findings in code.",
+    "mistake": "Loosening the rule, not fixing the code",
+    "source": "scripts/audit/consistency.ts"
+  },
+  {
+    "number": 9,
+    "id": "asset-descriptions",
+    "title": "Skills and agents state their purpose",
+    "rule": "Every skill and agent has a non-empty frontmatter description.",
+    "fix": "Add a description line that says what it does and when to use it.",
+    "example": "skill \"alpha\" has no frontmatter description. Hint: add a \"description:\" line saying what it does and when to use it.",
+    "mistake": null,
+    "source": "scripts/audit/consistency.ts"
+  },
+  {
+    "number": 10,
+    "id": "eval-scenarios",
+    "title": "Eval scenarios exist with unique ids",
+    "rule": "Every evals.md has at least one scenario row, and no scenario id repeats.",
+    "fix": "Add a scenario row, or give the repeated id the next unused number.",
+    "example": "alpha/evals.md repeats scenario id 1. Hint: give the newer row the next unused number, since ids stay stable.",
+    "mistake": "A gate that passes on nothing",
+    "source": "scripts/audit/consistency.ts"
+  },
+  {
+    "number": 11,
+    "id": "script-paths",
+    "title": "Documented script paths resolve",
+    "rule": "Each scripts/ path that a document names exists, and a skill script it names is executable.",
+    "fix": "Fix the path, restore the script, or run chmod +x and commit the mode.",
+    "example": "docs/notes.md names scripts/gone.sh, which exists under no skill and not in scripts/ or plugin/scripts/. Hint: fix the path or restore the script.",
+    "mistake": null,
+    "source": "scripts/audit/consistency.ts"
+  },
+  {
+    "number": 12,
+    "id": "references-have-readers",
+    "title": "Every reference has a reader",
+    "rule": "Each reference file is read by at least one skill, agent or command.",
+    "fix": "Link the reference from the skill that needs it, or delete it.",
+    "example": "reference \"lonely.md\" is read by no skill, agent or command. Hint: link it from the skill that needs it, or delete it.",
+    "mistake": null,
+    "source": "scripts/audit/consistency.ts"
+  },
+  {
+    "number": 13,
+    "id": "hook-tests",
+    "title": "Every hook has its own test",
+    "rule": "Each hook file has a colocated .test.mjs file.",
+    "fix": "Add a test that runs the hook and asserts its decision.",
+    "example": "hook \"h.mjs\" has no colocated h.test.mjs. Hint: add a test that runs the hook and asserts its decision.",
+    "mistake": null,
+    "source": "scripts/audit/consistency.ts"
+  },
+  {
+    "number": 14,
+    "id": "hook-docs",
+    "title": "Every hook is documented",
+    "rule": "docs/skill-graph.md names every hook file.",
+    "fix": "Add a row that names the hook and says what it does.",
+    "example": "hook \"h.mjs\" is not documented in docs/skill-graph.md. Hint: add a row naming it and what it does.",
+    "mistake": null,
+    "source": "scripts/audit/consistency.ts"
+  },
+  {
+    "number": 15,
+    "id": "marketplace-no-version",
+    "title": "Marketplace manifest pins no version",
+    "rule": "The marketplace manifest carries no version field, so every commit is a new version.",
+    "fix": "Delete the version field.",
+    "example": ".claude-plugin/marketplace.json carries a version. A pinned version freezes installed copies until someone changes it. Hint: delete the \"version\" field; users then get every commit.",
+    "mistake": "A change that never reaches installs",
+    "source": "scripts/audit/consistency.ts"
+  },
+  {
+    "number": 16,
+    "id": "env-vars-documented",
+    "title": "Every environment variable is documented",
+    "rule": "Each environment variable that code reads, with the repo prefix, appears in some markdown file.",
+    "fix": "Add the variable to the knobs table in docs/onboarding.md.",
+    "example": "scripts/x.ts reads GATED_DELIVERY_UNDOCUMENTED, which no markdown names. Hint: add it to the knobs table in docs/onboarding.md.",
+    "mistake": null,
+    "source": "scripts/audit/consistency.ts"
+  },
+  {
+    "number": 17,
+    "id": "constant-conditions",
+    "title": "No condition that never varies",
+    "rule": "No assertion or branch tests a value that cannot change.",
+    "fix": "Delete the condition, or test a value that can change.",
+    "example": "scripts/x.ts:1 if(1 === 1) has a condition that never varies. Hint: delete it, or test a value that can change.",
+    "mistake": "A check that cannot fail",
+    "source": "scripts/audit/consistency.ts"
+  },
+  {
+    "number": 18,
+    "id": "skill-eval-stamp",
+    "title": "Changed skills carry a matching eval stamp",
+    "rule": "A skill that changed against the base ref has an eval stamp for its current content.",
+    "fix": "Run node scripts/eval/changed-skills.ts --static for the skill, and commit its stamp file.",
+    "example": "skill alpha has no stamp. Hint: skill alpha changed since its evals last passed; run node scripts/eval/changed-skills.ts --static alpha (no model run) or the live run, and commit evals/results/alpha.json",
+    "mistake": "Behavior change without evidence",
+    "source": "scripts/audit/consistency.ts"
+  },
+  {
+    "number": 19,
+    "id": "plugin-no-version",
+    "title": "Plugin manifest pins no version",
+    "rule": "The plugin manifest carries no version field, so every commit is a new version.",
+    "fix": "Delete the version field.",
+    "example": "plugin/.claude-plugin/plugin.json carries a version. A pinned version freezes installed copies until someone changes it. Hint: delete the \"version\" field; users then get every commit.",
+    "mistake": "A change that never reaches installs",
+    "source": "scripts/audit/consistency.ts"
+  },
+  {
+    "number": 20,
+    "id": "plugin-no-typescript",
+    "title": "Shipped plugin code imports no TypeScript",
+    "rule": "No file under plugin/ imports a .ts, .mts or .cts file.",
+    "fix": "Import a .mjs file instead, because shipped code runs without a build.",
+    "example": "plugin/hooks/h.mjs must not import TypeScript (import \"./a.ts\"). Hint: import a .mjs file instead, since shipped plugin code is plain JavaScript that runs without a build.",
+    "mistake": "A dev-only file reached shipped code",
+    "source": "scripts/audit/consistency.ts"
+  },
+  {
+    "number": 21,
+    "id": "cursor-config",
+    "title": "Cursor config points at real files",
+    "rule": "Cursor hooks name existing scripts, the shell guard fails closed, and rule files are .mdc files that point at AGENTS.md.",
+    "fix": "Point the hook at a real script, set failClosed to true, or rename the rule file.",
+    "example": ".cursor/hooks.json: beforeShellExecution runs gone.mjs, which does not exist. Hint: point the hook at a real script or remove it.",
+    "mistake": "Config drift from the files it names",
+    "source": "scripts/audit/consistency.ts"
+  },
+  {
+    "number": 22,
+    "id": "check-numbers",
+    "title": "Check numbers are unique and contiguous",
+    "rule": "The numbered sections of consistency.ts run from 1 with no gap and no repeat.",
+    "fix": "Renumber the later section so the numbers run from 1 with no gap.",
+    "example": "scripts/audit/consistency.ts must not repeat check number 1, but numbers 2 checks 1. Hint: renumber the later one, since two branches added a check at once.",
+    "mistake": "Two branches claiming the same number",
+    "source": "scripts/audit/consistency.ts"
+  },
+  {
+    "number": 23,
+    "id": "tsc-flags",
+    "title": "tsc keeps its strict flags",
+    "rule": "tsconfig.json sets strict, checkJs, noUnusedLocals and noUnusedParameters to true.",
+    "fix": "Turn the flag back on and fix the code that it reports.",
+    "example": "tsconfig.json must set compilerOptions.noUnusedLocals to true, got false. Hint: fix the code the flag reports instead of turning the flag off.",
+    "mistake": "Dead code nobody was told about",
+    "source": "scripts/audit/consistency.ts"
+  },
+  {
+    "number": 24,
+    "id": "license",
+    "title": "Repository carries a linked license",
+    "rule": "LICENSE exists and is not empty, and the README links it.",
+    "fix": "Add the license text and link it from the README.",
+    "example": "LICENSE is missing or empty. Hint: add the license text; without one nobody may reuse the code.",
+    "mistake": "Code that looks open but is not",
+    "source": "scripts/audit/consistency.ts"
+  },
+  {
+    "number": 25,
+    "id": "stamp-statement",
+    "title": "README states true stamp counts",
+    "rule": "The README states how many skill stamps are live, static and waived, and the numbers match evals/results.",
+    "fix": "Update the README line whenever a stamp changes.",
+    "example": "README.md has no \"**L live, S static, W waived** of N skill stamps\" line, and evals/results holds 1 live, 0 static, 0 waived of 1 skill stamps. Hint: write the numbers so a reader sees the eval status.",
+    "mistake": "A status a reader cannot trust",
+    "source": "scripts/audit/consistency.ts"
+  },
+  {
+    "number": 26,
+    "id": "model-pinning",
+    "title": "Only allow-listed agents pin a model",
+    "rule": "Only allow-listed agents pin a model, and each pins the value that the list names.",
+    "fix": "Delete the model line from the agent.",
+    "example": "agent \"bot\" pins model \"opus\", but is not allowed to pin one. Hint: pin a model only on the scout, since every other agent inherits the session model.",
+    "mistake": "An agent pinning a model against policy",
+    "source": "scripts/audit/consistency.ts"
+  },
+  {
+    "number": 27,
+    "id": "rule-inventory",
+    "title": "Inventoried rules stay in their files",
+    "rule": "Every rule anchor in evals/rules still appears in its file, and every marker line is covered.",
+    "fix": "Restore the deleted rule line, or update the anchor in the inventory.",
+    "example": "evals/rules/skill-alpha.json: anchor \"Auto-merge PRs\" is in none of plugin/skills/alpha/SKILL.md. Hint: the rule line was deleted or reworded; restore it or update the anchor.",
+    "mistake": "A load-bearing rule deleted by a trim",
+    "source": "scripts/audit/rule-inventory.ts#checkRuleInventories"
+  },
+  {
+    "number": 28,
+    "id": "token-budget",
+    "title": "Instruction files stay within token budget",
+    "rule": "Each instruction file has an entry in evals/token-budget.json and stays within it.",
+    "fix": "Trim the text, or raise the budget in a pull request that says why.",
+    "example": "plugin/skills/alpha/SKILL.md grew to 1014 estimated tokens, over its budget of 1013. Hint: trim the text, or raise the budget in evals/token-budget.json in a PR that says why.",
+    "mistake": "Cost that grows unseen",
+    "source": "scripts/audit/token-budget/budget.ts#budgetProblems"
+  },
+  {
+    "number": 29,
+    "id": "audit-matrix-parity",
+    "title": "Audit workflow keeps one matrix job",
+    "rule": "One matrix job runs the consistency guard under the check names that branch protection requires.",
+    "fix": "Keep one job and give each Node version a matrix entry.",
+    "example": ".github/workflows/audit.yml: 2 jobs run node scripts/audit/consistency.ts (\"consistency\", \"node-26\"). Rule: one job runs it on every Node version through a matrix, so the copies cannot drift. Fix: keep one job and give each Node version a matrix entry.",
+    "mistake": "A copy that drifts from its original",
+    "source": "scripts/audit/ci-parity.ts#workflowParityProblems"
+  },
+  {
+    "number": 30,
+    "id": "live-test-opt-in",
+    "title": "Live tests need an explicit opt-in",
+    "rule": "A test that starts claude -p or runs a mutating gh command sources its opt-in guard first.",
+    "fix": "Source the opt-in guard file above the first live call.",
+    "example": "tests/live.test.sh: line 2 launches claude -p without the opt-in guard before it. Rule: a test that starts a real session on the subscription refuses to run unless GATED_DELIVERY_ALLOW_LIVE_CLAUDE=1, so the guard must come first; fix: add `source \"$(dirname \"$0\")/require-live-opt-in.sh\"` above the first call.",
+    "mistake": "A costly action with no opt-in",
+    "source": "scripts/audit/ci-parity.ts#liveOptInProblems"
+  },
+  {
+    "number": 31,
+    "id": "node-floor",
+    "title": "Node floor stays in security support",
+    "rule": "The Node floor in package.json is not at end of life, and every document names the same floor.",
+    "fix": "Raise engines.node to a supported release, and update the documents.",
+    "example": "README.md says \"Node 18 or later\" but package.json sets the floor to Node 22. Hint: make the document and engines.node name the same release.",
+    "mistake": null,
+    "source": "scripts/audit/node-floor.ts#nodeFloorProblems"
+  },
+  {
+    "number": 32,
+    "id": "message-actionability",
+    "title": "Failure messages stay actionable",
+    "rule": "A failure message names a value, states the rule and gives a fix, and the baseline never grows.",
+    "fix": "Rewrite the message, then run message-actionability.ts with --update-baseline.",
+    "example": "plugin/scripts/a.mjs must not hold the non-actionable message \"something went wrong here\"; rewrite it to name the value, state the rule and give a fix after \";\".",
+    "mistake": null,
+    "source": "scripts/audit/message-actionability/check.ts#baselineProblems"
+  },
+  {
+    "number": 33,
+    "id": "asd-style",
+    "title": "Docs keep sentences short",
+    "rule": "Each document keeps at least 80 percent of its sentences within 20 words.",
+    "fix": "Split the longest sentences that the message lists.",
+    "example": "docs/long.md has 0% of its 1 sentences within 20 words, below the 80% ASD-STE100 rule. Hint: split each long sentence, longest first: line 1 (30 words) \"This sentence is deliberately made much...\".",
+    "mistake": "Prose that nobody can read quickly",
+    "source": "scripts/audit/asd-style.ts#asdStyleProblems"
+  },
+  {
+    "number": 34,
+    "id": "guide-freshness",
+    "title": "Guide names every asset and true counts",
+    "rule": "docs/guide.html names every skill, agent and command, states true counts, and the README links it.",
+    "fix": "Add the missing names, correct the counts, or link the guide from the README.",
+    "example": "docs/guide.html is missing. Hint: restore the guide, since the README links it.",
+    "mistake": "Documentation that drifts from the repo",
+    "source": "scripts/audit/guide-freshness.ts#guideProblems"
+  },
+  {
+    "number": 35,
+    "id": "tic-list-single-source",
+    "title": "Writing tic list lives in one script",
+    "rule": "Only prose-scan.mjs holds the tic list, and no file under plugin/ or evals/ repeats it as an alternation.",
+    "fix": "Delete the copy and call prose-scan.mjs instead.",
+    "example": "plugin/skills/alpha/SKILL.md:8 lists the tic phrases \"worth noting\" and \"honestly\" as a regex alternation, but the tic list must live only in plugin/skills/prose-writing/scripts/prose-scan.mjs. Hint: delete the copy and call the script.",
+    "mistake": null,
+    "source": "scripts/audit/prose-tic-drift.ts#ticDriftProblems"
+  },
+  {
+    "number": 36,
+    "id": "history-comments",
+    "title": "Comments tell no history",
+    "rule": "A comment in plugin/, scripts/ or tests/ states a constraint and never retells a change.",
+    "fix": "Rewrite the comment in the present tense, or delete it.",
+    "example": "plugin/hooks/h.mjs:1: rule temporal-contrast: \"Until now nothing ran those fences.\". Hint: delete the before-and-after contrast, or restate what the code does now; a comment states a constraint the code cannot show, in the present tense",
+    "mistake": "History written into a comment",
+    "source": "scripts/audit/comments.ts"
+  },
+  {
+    "number": 37,
+    "id": "suppression-reasons",
+    "title": "Suppressions carry a coded reason",
+    "rule": "Every lint, type or coverage suppression has a reason, and the total equals suppressions.count.",
+    "fix": "Add a reason of four or more meaningful words, or remove the suppression.",
+    "example": "src/a.mjs:1: eslint suppression has no reason; write <marker> -- <reason of at least 4 distinct meaningful words>",
+    "mistake": "A silent suppression",
+    "source": "scripts/audit/suppressions.ts"
+  },
+  {
+    "number": 38,
+    "id": "jsdoc-types-only",
+    "title": "JSDoc holds type tags only",
+    "rule": "A JSDoc block in a shipped .mjs file holds only type tags.",
+    "fix": "Delete the prose, or move its meaning into a name.",
+    "example": "plugin/a.mjs:2: prose in a JSDoc block, only type tags are allowed: \"Does a thing.\"",
+    "mistake": "Prose smuggled into a type comment",
+    "source": "scripts/audit/jsdoc-types-only.ts"
+  },
+  {
+    "number": 39,
+    "id": "assertion-effectiveness",
+    "title": "Every assertion is made to fail",
+    "rule": "Some test makes each assert in non-test code false, or the baseline lists it.",
+    "fix": "Add a test that makes the assertion fail, or delete the assertion.",
+    "example": "(b) never false shout:3  typeof text === \"string\"  [1 evaluations]",
+    "mistake": "An assertion that cannot fail",
+    "source": "scripts/audit/assertion-effectiveness.ts"
+  }
+]

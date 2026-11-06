@@ -53,22 +53,9 @@ Check 31 (`scripts/audit/node-floor.ts`) enforces the policy. It fails when the 
 
 ## The rules guard themselves
 
-The consistency guard is `node scripts/audit/consistency.ts`. It prints one `ERROR` line per problem, and each line names the file and ends with a `Hint:`. The numbered sections in that file are the true list of checks. This table groups them.
+The consistency guard is `node scripts/audit/consistency.ts`. It prints one `ERROR` line per problem, and each line names the file and ends with a `Hint:`.
 
-| Topic | Checks | What fails |
-|-------|--------|------------|
-| Inventory | 1 to 6, 9, 12 to 14 | A skill, agent, command or hook that lacks its files, its name match, its description, its test or its row in `docs/skill-graph.md`. A count in the docs that differs from the files. |
-| References | 6a to 6c, 11, 12 | A doc that names a skill, agent or script that does not exist. A broken path from a skill. |
-| Prose rules | 6e | A banned phrase from `plugin/skills/prose-writing/writing.md` in a skill or agent. |
-| Eval files | 6d, 7, 10, 10a | An `evals.md` with no runnable fence, no scenario row or a repeated scenario id. An eval check that cannot fail. |
-| Manifests | 4, 15, 19, 24 | A pinned `version` in either manifest. A missing license. |
-| Rules about rules | 8, 17, 22, 23, 26 | A loosened `zanity.toml`. A condition that cannot vary. A gap or repeat in the check numbers. A missing `tsc` flag. A model pinned on an agent that is not the scout. |
-| Eval status | 18, 25, 27 | A changed skill with no matching stamp. A README stamp line that is not true. A rule deleted from an inventoried instruction file. |
-| Cost | 28 | An instruction file over its token budget. |
-| CI and config | 16, 20, 21, 29, 30 | An undocumented `GATED_DELIVERY_` variable. Plugin code that imports TypeScript. A Cursor config that points at a missing script. A second job that repeats the guard. A live test with no opt-in guard. |
-| Node | 31 | A floor at end of life, or a document that names another floor. |
-| Messages | 32 | A new failure message that is not actionable. |
-| Docs | 33, 34 | A document with too many long sentences. A guide that drifted from the plugin. |
+`scripts/audit/checks-registry.json` is the one list of checks. Each row holds a number, a title, the rule, the fix, a real failure message and the source file. The typed module `scripts/audit/checks-registry.ts` exports it as `CHECKS`. The planned documentation site renders the list from that file, so this page holds no copy. `scripts/audit/checks-registry.test.ts` fails when the registry and the code disagree.
 
 Skill-eval checks need a base ref. Set `GATED_DELIVERY_BASE_REF=origin/main` to run check 18 locally.
 

@@ -61,10 +61,13 @@ jobs:
       - name: Zanity baseline only shrinks
         if: github.event_name == 'pull_request'
         run: node plugin/bootstrap/guards/ratchet.mjs --baseline zanity-baseline.json --base-ref "$GATED_DELIVERY_BASE_REF"
+      - name: Message actionability baseline only shrinks
+        if: github.event_name == 'pull_request'
+        run: node plugin/bootstrap/guards/ratchet.mjs --baseline message-actionability-baseline.json --base-ref "$GATED_DELIVERY_BASE_REF"
       - name: Hook behaviour tests
         run: node --test plugin/hooks/*.test.mjs
       - name: Script tests (the guard and the eval runner)
-        run: node --test scripts/audit/*.test.ts scripts/eval/*.test.ts scripts/cursor/*.test.ts
+        run: node --test scripts/audit/*.test.ts scripts/audit/message-actionability/*.test.ts scripts/eval/*.test.ts scripts/cursor/*.test.ts
       - name: Bootstrap and client guard tests
         run: node --test plugin/bootstrap/*.test.mjs plugin/bootstrap/guards/*.test.mjs
       - name: Plugin script tests (the citation verifier)

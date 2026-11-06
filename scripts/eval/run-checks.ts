@@ -171,8 +171,8 @@ export function parseExpect(text: string): Expect { // zanity: ignore[assertion-
   const ids = shape?.[3].split(",") ?? [];
   let expect: Expect;
   if (EXPECT_MANUAL.test(text)) expect = { raw: text, manual: true };
-  else if (!shape) expect = { raw: text, error: `malformed expect "${text}"` };
-  else if (new Set(ids).size !== ids.length) expect = { raw: text, error: `malformed expect "${text}": repeated id` };
+  else if (!shape) expect = { raw: text, error: `malformed expect "${text}", which must read "expect: >=1 on 1,2" or "expect: manual"; rewrite it.` };
+  else if (new Set(ids).size !== ids.length) expect = { raw: text, error: `malformed expect "${text}" repeats an id, but each id must appear once; drop the repeat.` };
   else expect = { raw: text, op: shape[1], n: Number(shape[2]), ids };
   return expect;
 }
@@ -312,8 +312,8 @@ function expectProblems({ expects }: Check, ids: Set<string>) { // zanity: ignor
   for (const expect of expects) {
     if (expect.error) problems.push(expect.error);
     for (const id of expect.ids ?? []) {
-      if (!ids.has(id)) problems.push(`unknown scenario "${id}" in "${expect.raw}"`);
-      if (seen.has(id)) problems.push(`scenario "${id}" named by two expect lines`);
+      if (!ids.has(id)) problems.push(`unknown scenario "${id}" in "${expect.raw}" is not in the scenario table; use an existing id.`);
+      if (seen.has(id)) problems.push(`scenario "${id}" is named by two expect lines, but must be named by one; drop one.`);
       seen.add(id);
     }
   }
@@ -324,13 +324,14 @@ const RESPONSE_FILE = "output.md";
 const PAGE_LABEL = /^Page:/i;
 const INTEGER = /^-?\d+$/;
 const LABEL_WIDTH = 100;
+const BROKEN_RESULT_PREVIEW_LIMIT = 60;
 
 const gradeCheck = (check: Check, expect: Expect, file: string, prelude: string[]) => { // zanity: ignore[assertion-density] -- single-invariant: the integer check guards a count that parseExpect can overflow and a second assertion would restate it
   assert(Number.isInteger(expect.n), `a comparison expect carries an integer, got ${JSON.stringify(expect)}`);
   const { ok, result } = runCheck(check, file, prelude);
   const count = ok ? (INTEGER.test(result) ? Number(result) : result.split("\n").filter((l: string) => l.trim()).length) : "broken";
   const pass = ok && typeof count === "number" && COMPARE[expect.op!](count, expect.n!);
-  if (!ok) console.error(`  ${check.command}\n  ${result}`);
+  if (!ok) console.error(`check "${check.label}" must run cleanly, but printed ${JSON.stringify(result.slice(0, BROKEN_RESULT_PREVIEW_LIMIT))}; fix its command in evals.md.`);
   const label = check.label.length > LABEL_WIDTH ? `${check.label.slice(0, LABEL_WIDTH - 3)}...` : check.label;
   console.log(`${pass ? "PASS" : "FAIL"} ${count} ${expect.op}${expect.n} ${label}`);
   return pass;

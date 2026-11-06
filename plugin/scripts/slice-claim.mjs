@@ -13,6 +13,8 @@ const EXIT_USAGE = 2;
 const EXIT_HELD = 4;
 const ENCODING = "utf8";
 const DEFAULT_BASE = "main";
+const PORCELAIN_STATUS_PREFIX = /^\s*\S+\s+/;
+const DIRTY_PATHS_SHOWN = 3;
 const REMOTE = "origin";
 const LS_REMOTE_FOUND = 0;
 const JSON_INDENT = 2;
@@ -45,9 +47,9 @@ const parseRequest = (argv) => {
     options: { ticket: { type: "string" }, slice: { type: "string" }, slug: { type: "string" }, base: { type: "string" }, repo: { type: "string" }, tree: { type: "string" } },
   });
   const { ticket = "", slice = "", slug = "" } = values;
-  assert(TICKET_ID.test(ticket), `--ticket needs a ticket id, got ${JSON.stringify(values.ticket)}`);
-  assert(POSITIVE_INTEGER.test(slice), `--slice needs a positive integer, got ${JSON.stringify(values.slice)}`);
-  assert(SLUG.test(slug), `--slug needs lowercase words joined by hyphens, got ${JSON.stringify(values.slug)}`);
+  assert(TICKET_ID.test(ticket), `\`--ticket\` must be a ticket id, got ${JSON.stringify(values.ticket)}; pass the tracker id, such as PROJ-12.`);
+  assert(POSITIVE_INTEGER.test(slice), `\`--slice\` must be a positive integer, got ${JSON.stringify(values.slice)}; pass the slice number from the Rollout.`);
+  assert(SLUG.test(slug), `\`--slug\` must be lowercase words joined by hyphens, got ${JSON.stringify(values.slug)}; pass the spec slug.`);
   return {
     ticket,
     slice,
@@ -65,9 +67,11 @@ const parseRequest = (argv) => {
  */
 const assertReady = ({ repo, ticket }) => {
   const dirty = git(repo, ["status", "--porcelain"]);
-  assert(dirty === "", `the working tree must be clean, found:\n${dirty}`);
+  const paths = dirty.split("\n").map((line) => line.replace(PORCELAIN_STATUS_PREFIX, ""));
+  const hidden = paths.length - DIRTY_PATHS_SHOWN;
+  assert(dirty === "", `the working tree must be clean, but ${paths.slice(0, DIRTY_PATHS_SHOWN).map((path) => JSON.stringify(path)).join(", ")}${hidden > 0 ? ` and ${hidden} more` : ""} changed; commit or stash them.`);
   const head = git(repo, ["branch", "--show-current"]);
-  assert(head === DEFAULT_BASE || head.startsWith(`feat/${ticket}-`), `HEAD must be ${DEFAULT_BASE} or a branch of ${ticket}, got ${JSON.stringify(head)}`);
+  assert(head === DEFAULT_BASE || head.startsWith(`feat/${ticket}-`), `HEAD must be ${DEFAULT_BASE} or a branch of ${ticket}, got ${JSON.stringify(head)}; run \`git checkout ${DEFAULT_BASE}\`.`);
 };
 
 /**

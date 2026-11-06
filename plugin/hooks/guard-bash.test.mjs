@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { evaluate } from "./lib/guard-core.mjs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { assertActionable, assertEveryLineActionable } from "../scripts/run-cli.test.support.mjs";
 
 const HOOK = join(dirname(fileURLToPath(import.meta.url)), "guard-bash.mjs");
 
@@ -101,6 +102,14 @@ test("denies catastrophic commands", () => {
   }
 });
 
+test("every denial quotes the matched command and states a fix", () => {
+  for (const command of DENIED) {
+    const reason = JSON.parse(spawnHook(JSON.stringify({ tool_input: { command } }))).hookSpecificOutput.permissionDecisionReason;
+    assert(reason.includes(`\`${command}\``), `the reason must quote ${command}, got ${reason}`);
+    assertActionable(reason);
+  }
+});
+
 test("allows everything else", () => {
   for (const command of ALLOWED) {
     assert.equal(decisionFor(command), "allow", `expected allow: ${command}`);
@@ -116,6 +125,7 @@ test("closes the gate on unusable input", () => {
     assert.equal(status, EXIT_BLOCK, `expected exit ${EXIT_BLOCK} for: ${label}`);
     assert.equal(stdout, "", `expected empty stdout for: ${label}`);
     assert.ok(stderr.includes(ESCAPE_VARIABLE), `expected stderr to name ${ESCAPE_VARIABLE} for: ${label}, got ${stderr}`);
+    assertEveryLineActionable(stderr);
   }
 });
 
@@ -126,6 +136,7 @@ test("closes the gate when deciding throws", () => {
   assert.equal(status, EXIT_BLOCK);
   assert.equal(stdout, "");
   assert.ok(stderr.includes("decider exploded") && stderr.includes(ESCAPE_VARIABLE), `got ${stderr}`);
+  assertEveryLineActionable(stderr);
 });
 
 test("closes the gate when the input reader or the decider returns the wrong kind of value", () => {

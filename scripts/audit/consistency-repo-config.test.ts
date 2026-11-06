@@ -16,7 +16,7 @@ test("a plugin file, tests included, that imports TypeScript is reported", () =>
     write(dir, file, body);
     const { code, out } = runGuard(dir);
     assert.equal(code, 1, `${file} imports TypeScript, expected the guard to fail, got ${code}: ${out}`);
-    assert.match(out, new RegExp(`${file.replace(/\./g, "\\.")} imports TypeScript`));
+    assert.match(out, new RegExp(`${file.replace(/\./g, "\\.")} must not import TypeScript`));
   }
 });
 
@@ -25,7 +25,7 @@ test("a plugin file that imports .mjs or only mentions .ts text stays silent", (
   write(dir, "plugin/hooks/h.test.mjs", 'import { tempDir } from "../../scripts/test-support/temp-dir.mjs";\nconst name = "a.ts";\n');
   const { code, out } = runGuard(dir);
   assert.equal(code, 0, out);
-  assert.doesNotMatch(out, /imports TypeScript/);
+  assert.doesNotMatch(out, /must not import TypeScript/);
 });
 
 test("check numbers that repeat or skip one are reported, a contiguous run and lettered sub-checks pass", () => {

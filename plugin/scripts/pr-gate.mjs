@@ -42,11 +42,11 @@ const USAGE = `usage: pr-gate.mjs --body-file <path> --title <text> --final-slic
  * @returns {UnresolvedThread[]}
  */
 export const listUnresolvedThreads = (pr) => {
-  assert(Number.isInteger(pr) && pr > 0, `the pull request number must be a positive integer, got ${pr}`);
+  assert(Number.isInteger(pr) && pr > 0, `the pull request number "${pr}" must be a positive integer; pass the number from the pull request URL.`);
   const reply = execFileSync("gh", ["api", "graphql", "-F", "owner={owner}", "-F", "repo={repo}", "-F", `number=${pr}`, "-f", `query=${THREADS_QUERY}`], { encoding: ENCODING });
   const threads = JSON.parse(reply)?.data?.repository?.pullRequest?.reviewThreads;
-  assert(Array.isArray(threads?.nodes), `the GraphQL reply for pull request ${pr} holds no reviewThreads.nodes`);
-  assert(threads.pageInfo?.hasNextPage !== true, `pull request ${pr} has more than ${THREAD_PAGE_SIZE} review threads; the gate reads one page`);
+  assert(Array.isArray(threads?.nodes), `the GraphQL reply for pull request "${pr}" has no \`reviewThreads.nodes\`; run \`gh auth status\`, then rerun.`);
+  assert(threads.pageInfo?.hasNextPage !== true, `pull request "${pr}" has more than ${THREAD_PAGE_SIZE} review threads, and the gate reads one page; resolve threads below ${THREAD_PAGE_SIZE}, then rerun.`);
   return threads.nodes
     .filter((/** @type {{ isResolved: boolean }} */ thread) => !thread.isResolved)
     .map((/** @type {{ comments: { nodes: UnresolvedThread[] } }} */ thread) => ({ url: thread.comments.nodes[0]?.url, path: thread.comments.nodes[0]?.path }));
@@ -57,15 +57,15 @@ export const listUnresolvedThreads = (pr) => {
  * @returns {GateResult}
  */
 export const gate = ({ body, bodyPath, title, finalSlice, titleConvention, threads }) => {
-  assert([FINAL_SLICE, NOT_FINAL_SLICE].includes(finalSlice), `--final-slice must be ${FINAL_SLICE} or ${NOT_FINAL_SLICE}, got ${JSON.stringify(finalSlice)}`);
-  assert(titleConvention !== "" && !new RegExp(titleConvention).test(""), `the title convention must be a regex that does not match an empty title, got ${JSON.stringify(titleConvention)}`);
+  assert([FINAL_SLICE, NOT_FINAL_SLICE].includes(finalSlice), `\`--final-slice\` must be ${FINAL_SLICE} or ${NOT_FINAL_SLICE}, got ${JSON.stringify(finalSlice)}; pass ${FINAL_SLICE} for the final slice and ${NOT_FINAL_SLICE} otherwise.`);
+  assert(titleConvention !== "" && !new RegExp(titleConvention).test(""), `the title convention must be a regex that does not match an empty title, got ${JSON.stringify(titleConvention)}; pass a stricter \`--title-convention\`.`);
   const swallowedDirectory = basename(dirname(bodyPath)).startsWith(BODY_FILE_PREFIX);
   const named = basename(bodyPath).startsWith(BODY_FILE_PREFIX) && basename(bodyPath).endsWith(BODY_FILE_SUFFIX);
   return {
-    title: new RegExp(titleConvention).test(title) ? null : `title ${JSON.stringify(title)} does not match ${titleConvention}`,
+    title: new RegExp(titleConvention).test(title) ? null : `title ${JSON.stringify(title)} does not match ${titleConvention}; reword it to match.`,
     closingKeywords: finalSlice === FINAL_SLICE ? [] : [...body.matchAll(CLOSING_KEYWORD)].map(([hit]) => hit),
     unresolvedThreads: threads,
-    bodyPath: named && !swallowedDirectory ? null : `${bodyPath} must be ${BODY_FILE_PREFIX}<branch-with-slashes-as-dashes>${BODY_FILE_SUFFIX} directly in the notes directory, with every / in the branch name replaced by -`,
+    bodyPath: named && !swallowedDirectory ? null : `${bodyPath} must be ${BODY_FILE_PREFIX}<branch>${BODY_FILE_SUFFIX} directly in the notes directory; rename it, with every / in the branch name replaced by -.`,
   };
 };
 
@@ -79,8 +79,8 @@ const main = (argv) => {
       args: argv,
       options: { "body-file": { type: "string" }, title: { type: "string" }, "final-slice": { type: "string" }, pr: { type: "string" }, "title-convention": { type: "string" } },
     });
-    assert(values["body-file"] && values.title !== undefined && values["final-slice"], `--body-file, --title and --final-slice are required, got ${JSON.stringify(values)}`);
-    assert(values.pr === undefined || POSITIVE_INTEGER.test(values.pr), `--pr must be a positive integer, got ${JSON.stringify(values.pr)}`);
+    assert(values["body-file"] && values.title !== undefined && values["final-slice"], `\`--body-file\`, \`--title\` and \`--final-slice\` must be given, got ${JSON.stringify(values)}; pass all three.`);
+    assert(values.pr === undefined || POSITIVE_INTEGER.test(values.pr), `\`--pr\` must be a positive integer, got ${JSON.stringify(values.pr)}; pass the number from the pull request URL.`);
     const result = gate({
       body: readFileSync(values["body-file"], ENCODING),
       bodyPath: values["body-file"],

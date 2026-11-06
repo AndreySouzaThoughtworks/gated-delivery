@@ -28,6 +28,8 @@ const PYTHON_COMMENT = /^\s*#/;
 const SCRIPT_TEST_TITLE = /\b(?:it|test|describe)(?:\.\w+)*\(\s*(['"`])((?:\\.|(?!\1).)*)\1/;
 const PYTHON_TEST_NAME = /^\s*(?:async\s+)?def\s+(test\w*)/;
 const REGEX_SPECIALS = /[.*+?^${}()|[\]\\]/g;
+const SUBJECT_EXAMPLE = 'a type, as in "feat(scope): summary"';
+const RANGE_EXAMPLE = "base..HEAD";
 const USAGE = "usage: batch-audit.mjs <batch-base>..HEAD --ticket <id> --acs <n> [--complete] [--slug <spec-slug>] [--repo <dir>]";
 
 const RULE_SUBJECT_NOT_CONVENTIONAL = "subject-not-conventional";
@@ -66,22 +68,22 @@ export const addedLines = (diff) => { // zanity: ignore[assertion-density] -- si
  * @returns {string[]}
  */
 export const commitViolations = ({ subject, body, added }, { ticket, slug }) => {
-  assert(typeof subject === "string" && typeof body === "string", `a commit needs a text subject and body, got ${typeof subject} and ${typeof body}`);
-  assert(Array.isArray(added), `a commit needs its added lines as a list, got ${typeof added}`);
+  assert(typeof subject === "string" && typeof body === "string", `a commit's \`subject\` and \`body\` must be text, got ${typeof subject} and ${typeof body}; pass strings.`);
+  assert(Array.isArray(added), `a commit's \`added\` lines must be a list, got ${typeof added}; pass an array.`);
   const [ticketLiteral, slugLiteral] = [ticket, slug ?? ""].map((literal) => literal.replace(REGEX_SPECIALS, "\\$&"));
   const cited = new RegExp([AC_TOKEN.source, `\\b${ticketLiteral}\\b`, ...(slug ? [slugLiteral] : [])].join("|"));
   const found = [];
-  if (!CONVENTIONAL_SUBJECT.test(subject)) found.push(`${RULE_SUBJECT_NOT_CONVENTIONAL}: ${JSON.stringify(subject)}`);
+  if (!CONVENTIONAL_SUBJECT.test(subject)) found.push(`${RULE_SUBJECT_NOT_CONVENTIONAL}: ${JSON.stringify(subject)} is not a conventional subject; start it with ${SUBJECT_EXAMPLE}.`);
   const text = `${subject}\n${body}`;
   const acToken = text.match(AC_TOKEN)?.[0];
-  if (acToken) found.push(`${RULE_AC_IN_COMMIT_TEXT}: ${acToken}`);
-  if (slug && text.includes(slug)) found.push(`${RULE_SLUG_IN_COMMIT_TEXT}: ${slug}`);
+  if (acToken) found.push(`${RULE_AC_IN_COMMIT_TEXT}: ${acToken} is banned in commit text; remove the AC number.`);
+  if (slug && text.includes(slug)) found.push(`${RULE_SLUG_IN_COMMIT_TEXT}: "${slug}" is banned in commit text; remove the spec slug.`);
   for (const { file, text: line } of added.filter(({ file: path }) => CODE_FILE.test(path))) {
     const isPython = PYTHON_FILE.test(file);
     const title = isPython ? line.match(PYTHON_TEST_NAME)?.[1].replaceAll("_", " ") : line.match(SCRIPT_TEST_TITLE)?.[2];
     const isComment = (isPython ? PYTHON_COMMENT : SCRIPT_COMMENT).test(line);
-    if (title !== undefined && cited.test(title)) found.push(`${RULE_REFERENCE_IN_TEST_TITLE}: ${file}: ${title}`);
-    if (isComment && cited.test(line)) found.push(`${RULE_REFERENCE_IN_COMMENT}: ${file}: ${line.trim()}`);
+    if (title !== undefined && cited.test(title)) found.push(`${RULE_REFERENCE_IN_TEST_TITLE}: ${file} test title ${JSON.stringify(title)} must not cite an AC, ticket or slug; rename it to say what the code does.`);
+    if (isComment && cited.test(line)) found.push(`${RULE_REFERENCE_IN_COMMENT}: ${file} comment ${JSON.stringify(line.trim())} must not cite an AC, ticket or slug; delete the reference.`);
   }
   return found;
 };
@@ -92,8 +94,8 @@ export const commitViolations = ({ subject, body, added }, { ticket, slug }) => 
  * @returns {{ commits: number, violations: { commit: string, rule: string }[] }}
  */
 export const auditRange = (range, { ticket, acs, complete, slug, repo }) => {
-  assert(range.includes(RANGE_MARKER), `the range must look like <batch-base>..HEAD, got ${JSON.stringify(range)}`);
-  assert(Number.isInteger(acs) && acs > 0, `--acs must be a positive integer, got ${acs}`);
+  assert(range.includes(RANGE_MARKER), `the range must look like <batch-base>..HEAD, got ${JSON.stringify(range)}; pass a range such as ${RANGE_EXAMPLE}.`);
+  assert(Number.isInteger(acs) && acs > 0, `\`--acs\` must be a positive integer, got ${acs}; pass the number of ACs in the batch.`);
   const commits = execFileSync("git", ["-C", repo, "log", "--no-merges", "--reverse", `--format=${LOG_FORMAT}`, range], GIT_OPTIONS)
     .split(RECORD_SEPARATOR)
     .map((record) => record.trim())
@@ -103,7 +105,7 @@ export const auditRange = (range, { ticket, acs, complete, slug, repo }) => {
     const added = addedLines(execFileSync("git", ["-C", repo, "show", "--no-color", "--no-ext-diff", "--format=", "--unified=0", sha], GIT_OPTIONS));
     return commitViolations({ sha, subject, body: body.trim(), added }, { ticket, slug }).map((rule) => ({ commit: sha, rule }));
   });
-  if (complete && commits.length < acs) violations.push({ commit: range, rule: `${RULE_FEWER_COMMITS_THAN_ACS}: ${commits.length} commits for ${acs} ACs` });
+  if (complete && commits.length < acs) violations.push({ commit: range, rule: `${RULE_FEWER_COMMITS_THAN_ACS}: range "${range}" holds ${commits.length} commits for ${acs} ACs; add one commit per AC.` });
   return { commits: commits.length, violations };
 };
 
@@ -118,8 +120,8 @@ const main = (argv) => {
       options: { ticket: { type: "string" }, acs: { type: "string" }, complete: { type: "boolean" }, slug: { type: "string" }, repo: { type: "string" } },
       allowPositionals: true,
     });
-    assert(positionals.length === 1, `expected one <batch-base>..HEAD range, got ${positionals.length} arguments`);
-    assert(values.ticket && POSITIVE_INTEGER.test(values.acs ?? ""), `--ticket and a positive --acs are required, got ${JSON.stringify(values.ticket)} and ${JSON.stringify(values.acs)}`);
+    assert(positionals.length === 1, `the command must get one "<batch-base>..HEAD" range, got ${positionals.length} arguments; pass exactly one.`);
+    assert(values.ticket && POSITIVE_INTEGER.test(values.acs ?? ""), `\`--ticket\` and a positive \`--acs\` must be given, got ${JSON.stringify(values.ticket)} and ${JSON.stringify(values.acs)}; pass both.`);
     const result = auditRange(positionals[0], { ticket: values.ticket, acs: Number(values.acs), complete: values.complete === true, slug: values.slug, repo: values.repo ?? process.cwd() });
     console.log(JSON.stringify(result));
     return result.violations.length === 0 ? EXIT_CLEAN : EXIT_VIOLATIONS;

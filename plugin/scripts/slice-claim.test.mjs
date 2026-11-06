@@ -5,6 +5,7 @@ import { chmodSync, existsSync, mkdtempSync, realpathSync, writeFileSync } from 
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { assertActionable } from "./run-cli.test.support.mjs";
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "slice-claim.mjs");
 const EXIT_CLAIMED = 0;
@@ -310,7 +311,8 @@ test("a dirty tree is refused before anything is created", () => {
   writeFileSync(join(repo, "file.txt"), "edited\n");
   const result = claim(repo);
   assert.equal(result.status, EXIT_PRECONDITION);
-  assert.match(result.stderr, /working tree must be clean/);
+  assert.match(result.stderr, /working tree must be clean, but "file\.txt" changed/);
+  assertActionable(result.stderr.trim().replace(/^slice-claim: /, ""));
   assert.deepEqual(localBranches(repo), ["main"]);
   assert.equal(refOnOrigin(origin, BRANCH), "");
 });
@@ -322,6 +324,7 @@ test("HEAD on an unrelated branch is refused before anything is created", () => 
   const result = claim(repo);
   assert.equal(result.status, EXIT_PRECONDITION);
   assert.match(result.stderr, /HEAD must be main or a branch of T-1/);
+  assertActionable(result.stderr.trim().replace(/^slice-claim: /, ""));
   assert.equal(git(repo, ["branch", "--show-current"]), "feat/OTHER-9-thing-s1");
   assert.equal(refOnOrigin(origin, BRANCH), "");
 });
@@ -342,6 +345,7 @@ test("bad or missing options are usage errors", () => {
     const result = spawnSync(process.execPath, [SCRIPT, "--repo", repo, ...args], { encoding: ENCODING });
     assert.equal(result.status, EXIT_USAGE, `${args.join(" ")}: ${result.stderr}`);
     assert.match(result.stderr, /usage: slice-claim\.mjs/);
+    if (!args.includes("--unknown")) assertActionable(result.stderr.split("\n")[0].replace(/^slice-claim: /, ""));
   }
   assert.deepEqual(localBranches(repo), ["main"]);
 });

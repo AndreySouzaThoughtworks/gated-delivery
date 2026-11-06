@@ -60,10 +60,11 @@ const ALLOWED_RESULT = { status: EXIT_OK, stdout: "", stderr: "" };
  * @returns {string | null}
  */
 const decide = (payload) => {
-  assert(payload !== null && typeof payload === "object", `the payload must be a JSON object, got ${JSON.stringify(payload)}`);
+  assert(payload !== null && typeof payload === "object", `the payload must be a JSON object, got ${JSON.stringify(payload)}; send the tool call as an object.`);
   const command = payload.tool_input?.command;
-  assert(typeof command === "string", `tool_input.command must be a string, got ${JSON.stringify(command)}`);
-  return CATASTROPHIC.find(({ pattern }) => pattern.test(command))?.why ?? null;
+  assert(typeof command === "string", `tool_input.command must be a string, got ${JSON.stringify(command)}; send the command as text.`);
+  const blocked = CATASTROPHIC.find(({ pattern }) => pattern.test(command));
+  return blocked === undefined ? null : `${blocked.why} is not allowed in \`${command}\``;
 };
 
 /**
@@ -76,15 +77,15 @@ const evaluate = (readInput, env, decider = decide) => {
   if (env[ESCAPE_VARIABLE] === ESCAPE_VALUE) return ALLOWED_RESULT;
   try {
     const rawInput = readInput();
-    assert(typeof rawInput === "string", `readInput must return the payload text, got ${typeof rawInput}`);
+    assert(typeof rawInput === "string", `readInput must return the payload text, got ${typeof rawInput}; return a string.`);
     const reason = decider(JSON.parse(rawInput));
-    assert(reason === null || typeof reason === "string", `the decider must return a reason or null, got ${JSON.stringify(reason)}`);
+    assert(reason === null || typeof reason === "string", `the decider must return a reason or null, got ${JSON.stringify(reason)}; return one of them.`);
     if (reason === null) return ALLOWED_RESULT;
-    const permissionDecisionReason = `Blocked by gated-delivery guard: ${reason}. If this is genuinely intended, run it outside the agent or adjust the command.`;
+    const permissionDecisionReason = `Blocked by gated-delivery guard: ${reason}; run it outside the agent or reword the command.`;
     const output = { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason } };
     return { status: EXIT_OK, stdout: JSON.stringify(output), stderr: "" };
   } catch (error) {
-    const stderr = `gated-delivery guard blocked this command because it could not check it: ${error instanceof Error ? error.message : String(error)}. Send the command again as a valid Bash tool call. If the guard itself is broken, start Claude Code with ${ESCAPE_VARIABLE}=${ESCAPE_VALUE} to turn it off.\n`;
+    const stderr = `guard could not check the command (${JSON.stringify(error instanceof Error ? error.message : String(error))}); send it again as a valid Bash tool call, or start Claude Code with ${ESCAPE_VARIABLE}=${ESCAPE_VALUE}.\n`;
     return { status: EXIT_BLOCK, stdout: "", stderr };
   }
 };

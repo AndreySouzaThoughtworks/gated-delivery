@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { addedLines, auditRange, commitViolations } from "./batch-audit.mjs";
+import { assertActionable, assertErrorIsActionable } from "./run-cli.test.support.mjs";
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "batch-audit.mjs");
 const EXIT_CLEAN = 0;
@@ -54,6 +55,7 @@ const audit = (repo, options = {}) => {
 
 const rulesOf = (result) => {
   assert(Array.isArray(result.violations), `a result needs a violations list, got ${JSON.stringify(result)}`);
+  for (const { rule } of result.violations) assertActionable(rule);
   const rules = result.violations.map(({ rule }) => rule.split(":")[0]);
   assert(rules.every((rule) => rule !== ""), `every violation must name a rule, got ${JSON.stringify(rules)}`);
   return rules;
@@ -184,8 +186,10 @@ test("addedLines keeps added lines of the new file only and rejects non-text", (
 
 test("commitViolations rejects a malformed commit", () => {
   const forbidden = { ticket: TICKET };
-  assert.throws(() => commitViolations({ subject: 1, body: "", added: [] }, forbidden), /text subject and body/);
-  assert.throws(() => commitViolations({ subject: CLEAN_SUBJECT, body: "", added: "" }, forbidden), /added lines as a list/);
+  assert.throws(() => commitViolations({ subject: 1, body: "", added: [] }, forbidden), /subject` and `body` must be text/);
+  assert.throws(() => commitViolations({ subject: CLEAN_SUBJECT, body: "", added: "" }, forbidden), /added` lines must be a list/);
+  assertErrorIsActionable(() => commitViolations({ subject: 1, body: "", added: [] }, forbidden));
+  assertErrorIsActionable(() => commitViolations({ subject: CLEAN_SUBJECT, body: "", added: "" }, forbidden));
 });
 
 test("auditRange rejects a range without dots and a non-positive AC count", () => {
@@ -193,6 +197,8 @@ test("auditRange rejects a range without dots and a non-positive AC count", () =
   assert.throws(() => auditRange("base", { ticket: TICKET, acs: 1, complete: false, repo }), /<batch-base>\.\.HEAD/);
   assert.throws(() => audit(repo, { acs: 0 }), /positive integer/);
   assert.throws(() => audit(repo, { acs: 1.5 }), /positive integer/);
+  assertErrorIsActionable(() => auditRange("base", { ticket: TICKET, acs: 1, complete: false, repo }));
+  assertErrorIsActionable(() => audit(repo, { acs: 0 }));
 });
 
 const run = (repo, args) => {
@@ -227,4 +233,8 @@ test("exits 2 on missing arguments, a bad AC count and a bad range", () => {
   assert.equal(run(repo, [RANGE, "--ticket", TICKET, "--acs", "0"]).status, EXIT_USAGE);
   assert.equal(run(repo, ["--ticket", TICKET, "--acs", "1"]).status, EXIT_USAGE);
   assert.equal(run(repo, ["nope..HEAD", "--ticket", TICKET, "--acs", "1"]).status, EXIT_USAGE);
+  for (const args of [[RANGE, "--ticket", TICKET], [RANGE, "--acs", "1"], [RANGE, "--ticket", TICKET, "--acs", "0"], ["--ticket", TICKET, "--acs", "1"], [RANGE, RANGE, "--ticket", TICKET, "--acs", "1"]]) {
+    const [failure] = run(repo, args).stderr.split("\n");
+    assertActionable(failure.replace(/^batch-audit: /, ""));
+  }
 });

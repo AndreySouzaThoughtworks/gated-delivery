@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ARMS, scanText } from "../../plugin/skills/issue-writing/scripts/guardrail-scan.mjs";
+import { assertEveryLineActionable, assertErrorIsActionable } from "../test-support/actionable.test.support.ts";
 
 const SCAN = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "plugin", "skills", "issue-writing", "scripts", "guardrail-scan.mjs");
 
@@ -42,6 +43,17 @@ test("every built-in arm flags its sample", () => {
   }
 });
 
+test("the command line explains every built-in arm as an actionable message", () => {
+  const dir = mkdtempSync(join(tmpdir(), "guardrail-scan-arms-"));
+  for (const [arm, sample] of FLAGGED) {
+    const file = join(dir, "sample.md");
+    writeFileSync(file, `${sample}\n`);
+    const result = spawnSync("node", [SCAN, file], { encoding: "utf8" });
+    assert(result.stdout.includes(`: ${arm} is banned`), `${JSON.stringify(sample)} must report the "${arm}" arm, got ${result.stdout}`);
+    assertEveryLineActionable(result.stdout);
+  }
+});
+
 test("clean prose raises no hit", () => {
   for (const sample of CLEAN) {
     const hits = scanText(sample);
@@ -65,6 +77,7 @@ test("an extra term that is not a regex is refused", () => {
   assert.throws(() => scanText("hello", ["("]), /must be a valid regex/);
   assert.throws(() => scanText("hello", [""]), /non-empty regex/);
   assert.throws(() => scanText("hello", [".*"]), /must not match an empty line/);
+  for (const term of ["(", "", ".*"]) assertErrorIsActionable(() => scanText("hello", [term]));
   assert.equal(scanText("orchid", ["orchid"]).length, 1, "a term that needs text still matches it");
   const scan = scanText as (text: string, extraTerms: unknown) => unknown;
   assert.throws(() => scan("hello", "orchid"), /extra terms must be a list/);
@@ -77,11 +90,13 @@ test("the command line exits 1 with file:line and never prints the match, 0 when
   writeFileSync(dirty, "ok\npassword: hunter2\n");
   writeFileSync(clean, "nothing sensitive here\n");
   const hit = spawnSync("node", [SCAN, dirty], { encoding: "utf8" });
-  assert.deepEqual([hit.status, hit.stdout], [1, `${dirty}:2: credential given a value\n`], "a hit prints file, line and arm only");
+  assert.deepEqual([hit.status, hit.stdout], [1, `${dirty}:2: credential given a value is banned in tickets; redact it.\n`], "a hit prints file, line, arm and fix only");
+  assertEveryLineActionable(hit.stdout);
   const none = spawnSync("node", [SCAN, clean], { encoding: "utf8" });
   assert.deepEqual([none.status, none.stdout], [0, ""], "a clean file exits 0 silently");
   const termHit = spawnSync("node", [SCAN, clean, "--term", "sensitive"], { encoding: "utf8" });
   assert.equal(termHit.status, 1, `an extra term must hit, got ${termHit.status} ${termHit.stdout}`);
+  assertEveryLineActionable(termHit.stdout);
   const usage = spawnSync("node", [SCAN], { encoding: "utf8", input: "password: hunter2\n" });
   assert.equal(usage.status, 2, `no file must be a usage error and never read stdin, got ${usage.status}`);
 });

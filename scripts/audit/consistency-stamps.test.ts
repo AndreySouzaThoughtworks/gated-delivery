@@ -82,7 +82,7 @@ test("a changed skill on a waiver for its current hash passes with a warning; a 
   write(dir, "evals/results/alpha.json", JSON.stringify({ hash: skillHash(dir, "alpha"), waived: "no credentials" }));
   const waived = runGuard(dir, env);
   assert.equal(waived.code, 0, waived.out);
-  assert.match(waived.out, /WARN\s+skill alpha ships on a waiver: no credentials/);
+  assert.match(waived.out, /WARN\s+skill alpha ships on a waiver, which must give way to a stamp: no credentials/);
   write(dir, "evals/results/alpha.json", JSON.stringify({ hash: skillHash(dir, "alpha"), waived: " " }));
   const blank = runGuard(dir, env);
   assert.equal(blank.code, 1);

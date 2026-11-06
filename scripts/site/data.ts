@@ -17,6 +17,7 @@ const FRONTMATTER = /^---\n([\s\S]*?)\n---/;
 const FRONTMATTER_LINE = /^([\w-]+):\s*(.*)$/;
 const SCRIPT_REFERENCE = /[\w./-]+\.(?:mjs|sh)\b/g;
 const MUTATION_LINE = /mutation score: (\d+)\/(\d+)/;
+const UNPROTECTED_LINE = /unprotected share: [\d.]+% \((\d+) of (\d+) non-blank lines/;
 const USAGE_LINE = /^usage:/;
 const USAGE_PREFIX = /^usage:/i;
 const USAGE_CONTINUATION = /^\s+\S/;
@@ -35,10 +36,11 @@ const TEST_MARKER = ".test.";
 const SUPPORT_MARKER = ".support.";
 
 export type Tier = (typeof TIERS)[number] | typeof TIER_NONE;
-export type Mutation = { killed: number; total: number };
+export type Unprotected = { lines: number; nonBlank: number };
+export type Mutation = { killed: number; total: number; unprotected?: Unprotected };
 export type Instruction = { name: string; path: string; description: string; rules: number | null; mutation: Mutation | null; budget: number | null };
 export type Skill = Instruction & { inputs: string[]; sections: string[]; steps: string[]; scripts: string[]; tier: Tier; stampedAt: string | null };
-export type Agent = Instruction & { model: string | null; tools: string | null };
+export type Agent = Instruction & { model: string | null; tools: string | null; calledFrom?: string[] };
 export type Command = Instruction & { allowedTools: string | null };
 export type Hook = { file: string; path: string; event: string; matcher: string; tested: boolean };
 export type ExitCode = { code: number; name: string };
@@ -126,7 +128,9 @@ export const scoreMutations = async (root: string, ruleNames: string[]): Promise
           child.stdout.on("data", (chunk) => (output += chunk));
           child.on("close", () => {
             const match = MUTATION_LINE.exec(output);
-            resolve([ruleName, match ? { killed: Number(match[1]), total: Number(match[2]) } : null]);
+            const share = UNPROTECTED_LINE.exec(output);
+            const unprotected = share ? { lines: Number(share[1]), nonBlank: Number(share[2]) } : undefined;
+            resolve([ruleName, match ? { killed: Number(match[1]), total: Number(match[2]), unprotected } : null]);
           });
         }),
     ),
@@ -245,6 +249,13 @@ export const hooksOf = (root: string): Hook[] => {
   );
 };
 
+export const callersOf = (agent: string, texts: Map<string, string>) => {
+  assert(agent !== "", `callers are found for a named agent, got an empty name; pass the agent name.`);
+  assert(texts instanceof Map, `the caller texts are a Map of label to text, got ${typeof texts}; pass the map.`);
+  const mention = new RegExp(`(?<![\\w-])${agent.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`);
+  return [...texts].filter(([label, text]) => label !== `agent ${agent}` && mention.test(text)).map(([label]) => label).toSorted();
+};
+
 export const collectSiteData = async (root: string): Promise<SiteData> => {
   assert(existsSync(join(root, PLUGIN_DIRECTORY)), `the repository root ${root} must hold ${PLUGIN_DIRECTORY}/, got none; pass the repository root.`);
   assert(existsSync(join(root, TOKEN_BUDGET_FILE)), `the repository root ${root} must hold ${TOKEN_BUDGET_FILE}, got none; restore the budget file.`);
@@ -268,10 +279,15 @@ export const collectSiteData = async (root: string): Promise<SiteData> => {
       ...inventoryOf(context, `skill-${name}`, path),
     };
   });
+  const callerTexts = new Map<string, string>([
+    ...skills.map(({ name, path }): [string, string] => [`skill ${name}`, readText(root, path)]),
+    ...markdownNames(root, "commands").map((name): [string, string] => [`command ${name}`, readText(root, `${PLUGIN_DIRECTORY}/commands/${name}.md`)]),
+    ...markdownNames(root, "agents").map((name): [string, string] => [`agent ${name}`, readText(root, `${PLUGIN_DIRECTORY}/agents/${name}.md`)]),
+  ]);
   const agents = markdownNames(root, "agents").map((name): Agent => {
     const path = `${PLUGIN_DIRECTORY}/agents/${name}.md`;
     const fields = fieldsOf(root, path);
-    return { name, path, description: fields.description, model: fields.model ?? null, tools: fields.tools ?? null, ...inventoryOf(context, `agent-${name}`, path) };
+    return { name, path, description: fields.description, model: fields.model ?? null, tools: fields.tools ?? null, calledFrom: callersOf(name, callerTexts), ...inventoryOf(context, `agent-${name}`, path) };
   });
   const commands = markdownNames(root, "commands").map((name): Command => {
     const path = `${PLUGIN_DIRECTORY}/commands/${name}.md`;

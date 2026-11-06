@@ -1,0 +1,116 @@
+<h1>Delivery flow</h1>
+<p class="lead">One ticket becomes small slices. Each slice merges on its own. This page walks the flow and shows real script output at each stage.</p>
+
+<h2 id="overview">The flow in one view</h2>
+<p>You run <code>/spec</code> first. It turns a ticket into a signed-off spec. The spec holds an ordered Rollout of slices.</p>
+<p>Then you run <code>/slice</code>. It reads the state of the ticket and picks a route. Then it does one bounded job and reports.</p>
+<ul>
+  <li><strong>Ticket.</strong> A script lints the draft before the skill shows it.</li>
+  <li><strong>Spec.</strong> A script lints the spec before you see the final draft.</li>
+  <li><strong>Route.</strong> A script reads Git and the tracker. It names the route.</li>
+  <li><strong>Claim.</strong> A script creates the slice branch and tree. It claims them on <code>origin</code>.</li>
+  <li><strong>Batches.</strong> The <a href="agents.html#agent-slice-executor">slice-executor</a> agent writes tests and code. Scripts audit each batch.</li>
+  <li><strong>Review.</strong> Validators, a structural lens and a fresh-context reviewer check the slice.</li>
+  <li><strong>Pull request.</strong> A script plans the commit and checks the PR body and title.</li>
+</ul>
+<p>The model keeps the judgment. A script does each exact check. The sections below show the real output of those scripts.</p>
+<p>The build ran every script on a fixture repository. No model ran, and no real tracker was used. The <code>gh</code> program was a stub for the route example.</p>
+
+<h2 id="ticket">Stage 1: lint the ticket</h2>
+<p>The issue-writing skill lints a draft before it shows the draft. This draft lacks required sections.</p>
+<x-demo name="ticket-lint"/>
+<p>Exit code 1 means the draft has errors to fix. The skill fixes the errors before it shows the draft.</p>
+
+<h2 id="spec">Stage 2: write the spec</h2>
+<p><code>/spec</code> walks the template with hard checkpoints. It writes the file only after you sign off.</p>
+<x-rule id="spec.hold-drafts"/>
+<p>A ticket gets one spec. A second run stops.</p>
+<x-rule id="spec.stop-already-specced"/>
+<p>Before you see the final draft, the skill runs <code>spec-lint.mjs</code>. The next block lints the raw template. The template still holds placeholders, so the lint fails on each one.</p>
+<x-demo name="spec-lint"/>
+<p>Every line names the file, the problem and the fix.</p>
+
+<h2 id="route">Stage 3: route by state</h2>
+<p>At step 2, <code>/slice</code> runs <code>slice-state.mjs</code>. The script reads Git, the pull requests and the spec. It prints a route letter and does not guess.</p>
+<p>The fixture below holds a spec with three slices in two waves. No branch and no pull request exists yet.</p>
+<x-demo name="slice-state"/>
+<p>The route is <code>C</code>: start the first slice. The <code>resumeReason</code> of each slice is <code>no-pr</code>, because no pull request exists.</p>
+
+<h3 id="outcomes">Three outcomes of the route step</h3>
+<p>The route table in <code>/slice</code> step 3 has several rows. This page groups them by what the skill does next. The grouping is ours. The table itself is in the skill file.</p>
+<ol>
+  <li><strong>Stop and hand back.</strong> Routes A, B, R and E do one bounded job. Then they stop.</li>
+  <li><strong>Do the slice work.</strong> Routes C, W and D run a slice, a wave or a resume.</li>
+  <li><strong>Close the ticket.</strong> Route F runs the ticket-end steps.</li>
+</ol>
+<p>Route B′ is a pause. It returns to the route step once the spec is updated.</p>
+
+<h4 id="outcome-stop">Outcome 1: stop and hand back</h4>
+<p>Routes A, B and R fix a gap in the spec and stop: no spec, open decisions or no Rollout. Route E waits for a merge. The skill does not invent merge boundaries while it executes.</p>
+<x-rule id="slice.route-a-stop"/>
+<x-rule id="slice.route-b-stop"/>
+<x-rule id="slice.route-r-stop"/>
+<x-rule id="slice.route-e-held-stop"/>
+
+<h4 id="outcome-work">Outcome 2: do the slice work</h4>
+<p>The spec is ready and a slice is free. A wave runs each slice in its own tree. A resume merges <code>main</code> in first when a sibling slice merged.</p>
+<x-rule id="slice.route-w-own-tree"/>
+<x-rule id="slice.route-d-sibling-merged"/>
+<x-rule id="slice.route-c-spec-first-commit"/>
+
+<h4 id="outcome-close">Outcome 3: close the ticket</h4>
+<p>The last slice has merged. The skill harvests the handoff and completes the Done-when list.</p>
+<x-rule id="slice.route-f-close"/>
+<p>Route B′ is the pause. A new finding changes the architecture, the scope or the slice boundaries.</p>
+<x-rule id="slice.route-b-prime-pause"/>
+
+<h3 id="stops">STOP rules</h3>
+<p>A STOP rule ends the run and surfaces the state. The rule inventories mark each one with the kind <code>stop</code>.</p>
+<x-rule id="slice.stop-on-dirty-state"/>
+<x-rule id="slice.stop-on-lock-75"/>
+<p>The <a href="trust.html#inventories">Trust</a> page counts these rules and shows how well they are protected.</p>
+
+<h2 id="claim">Stage 4: claim the slice</h2>
+<p><code>slice-claim.mjs</code> creates the slice branch and its tree. It commits an empty claim and pushes it as a create-only push.</p>
+<p>The fixture has a bare <code>origin</code> and one clone.</p>
+<x-demo name="slice-claim"/>
+<p>Now a second person tries the same slice. The branch already exists on <code>origin</code>, so the claim is refused.</p>
+<x-demo name="slice-claim-held"/>
+<p>Exit code 4 means the slice is held. The skill must not retry.</p>
+<x-rule id="slice.claim-held-no-retry"/>
+<x-rule id="slice.claim-no-adopt"/>
+
+<h2 id="batches">Stage 5: executor batches</h2>
+<p>A batch is one dispatch of the <code>slice-executor</code> agent. It holds ACs that share one test subject. The agent writes one failing test, the code and one commit for each AC.</p>
+<p>Before each dispatch the skill runs <code>executor-preflight.mjs</code>. The spec in the fixture has no acceptance criteria, so the script refuses the batch.</p>
+<x-demo name="executor-preflight"/>
+<x-rule id="slice.preflight-no-dispatch"/>
+<p>After a batch commits, the skill runs <code>batch-audit.mjs</code> on the range of that batch. The fixture holds one commit that breaks two rules.</p>
+<x-demo name="batch-audit"/>
+<p>The skill fixes each violation in a follow-up commit.</p>
+<x-rule id="slice.batch-audit-fix-before-lens"/>
+
+<h2 id="review">Stage 6: review</h2>
+<p>Review happens at two points. After each batch the skill runs a structural lens. At the end of the slice it runs more gates.</p>
+<ul>
+  <li>Stack validators that the client lists for its stack.</li>
+  <li>The full verify command, through the verify lock.</li>
+  <li>The <code>senior-review-lens</code> skill over the whole slice.</li>
+  <li>The <a href="agents.html#agent-code-reviewer">code-reviewer</a> agent, with a fresh context. It sees only the diff and the acceptance criteria.</li>
+</ul>
+<p>The reviewer must run the checks itself. It may not report a pass on checks it did not run.</p>
+<x-rule id="code-reviewer.never-pass-unrun"/>
+
+<h2 id="pull-request">Stage 7: commit and pull request</h2>
+<p><code>commit-plan.mjs</code> reads the commit convention of the client. It prints the subject form and the path of the PR body file. The fixture holds a client convention with a ticket key.</p>
+<x-demo name="commit-plan"/>
+<p>Before the PR is ready, <code>pr-gate.mjs</code> checks the body and the title. This fixture has a bad title. Its body also holds a closing keyword, but the slice is not the final one.</p>
+<x-demo name="pr-gate"/>
+<p>Each non-empty field is a defect. The skill fixes it and runs the gate again.</p>
+<x-rule id="slice.closes-only-final-slice"/>
+<x-rule id="slice.pr-gate-exit-1-fix"/>
+
+<h2 id="merge">Merge is yours</h2>
+<p>The skill reports the ready pull request and stops. You decide when to merge.</p>
+<x-rule id="slice.no-automerge"/>
+<p>The next <code>/slice</code> run cleans up merged slice trees. It then picks the next route.</p>

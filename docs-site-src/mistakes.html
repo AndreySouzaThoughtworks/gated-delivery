@@ -1,0 +1,16 @@
+<h1>Mistakes to rules</h1>
+<p class="lead">Each mistake below happened in this repository. The fix is a check that rules out the whole category.</p>
+<p>The source is <code>docs/mistakes-to-rules.md</code>. The build reads its tables each time it runs. Nothing on this page is copied by hand.</p>
+<p>A test fails when a row names a file, a guard check, a zanity rule or a test title that does not exist. The test is <code>scripts/audit/mistakes-table.test.ts</code>.</p>
+
+<h2 id="caught">Mistakes caught by a rule</h2>
+<p>The file holds {{mistakesCaught}} rows. Each row has a mistake, a category, the rule that catches it and the test that proves the rule can fail.</p>
+<p>A check number in the Rule column links to the <a href="ci-checks.html">CI checks</a> page. A sub-check such as 10a links to its parent check.</p>
+<x-data name="mistakes"/>
+
+<h2 id="open">Mistakes with no deterministic rule yet</h2>
+<p>These mistakes still depend on review. The file holds {{mistakesOpen}} of them. Each row says why no check catches it.</p>
+<x-data name="open-mistakes"/>
+<x-callout>
+  <p>A row in the second table is a known gap. It is not a hidden one.</p>
+</x-callout>

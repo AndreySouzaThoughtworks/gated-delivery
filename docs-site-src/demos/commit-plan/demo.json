@@ -1,0 +1,5 @@
+{
+  "script": "plugin/scripts/commit-plan.mjs",
+  "args": ["--claude-md", "CLAUDE.md", "--origin", "https://github.com/acme/app.git", "--branch", "feat/PROJ-12-login-form", "--type", "feat", "--description", "add login form", "--local-notes", "$FIXTURE/notes"],
+  "setup": []
+}

@@ -1,4 +1,5 @@
 import assert from "node:assert";
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join, posix } from "node:path";
 import { MAX_SENTENCE_WORDS, MIN_SHORT_SENTENCE_PERCENT, asdStyleProblems, shareOf } from "../audit/asd-style.ts";
@@ -12,7 +13,9 @@ import { balanceProblems, tagsOf } from "./markup.ts";
 
 const QUOTATION = /<blockquote class="quote" data-source="([^"]+)">\s*<p>([\s\S]*?)<\/p>[\s\S]*?<\/blockquote>/g;
 const HAND_TYPED_COUNT = /(\d+)\s+(?:numbered\s+)?(skills|agents|commands|hooks|checks|scripts)\b/g;
+const HAND_TYPED_NODE = /\bNode (\d+(?:\.\d+)*)/g;
 const CHECK_CARD = /<article class="check-card"[\s\S]*?<\/article>/g;
+const COPIED_ROWS = /<table class="stacked"[\s\S]*?<\/table>/g;
 const TERMINAL_OUTPUT = /<x-(?:terminal|demo)\b[\s\S]*?(?:<\/x-terminal>|\/>)/g;
 const HEADING = /^h([1-6])$/;
 const FIRST_HEADING_LEVEL = 1;
@@ -22,6 +25,9 @@ const ABSOLUTE_PATHS = /\/Users\/|\/home\/[a-z]|\/private\/var\/|\/var\/folders\
 const EMAIL = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g;
 const NOREPLY = /noreply/i;
 const TOKEN_LIKE = /\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9-]{10,}|eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,})|-----BEGIN [A-Z ]*PRIVATE KEY-----/;
+const NODE_VARIABLES = "{{nodeFloor}} or {{nodeDevFloor}}";
+const NUL = String.fromCharCode(0);
+const STRAY_FILE = /\.(?:bak|orig|rej)$/;
 const RESOURCE_URL = /^(?:https?:)?\/\//i;
 const RESOURCE_ATTRIBUTES = ["src", "href"];
 const CSS_EXTERNAL = /@import|url\(\s*["']?(?:https?:)?\/\//i;
@@ -57,15 +63,19 @@ export const handTypedCountProblems = (file: string, text: string) => {
   assert(file !== "", `a fragment needs a file name, got an empty one; pass its path.`);
   assert(typeof text === "string", `a fragment is text, got ${typeof text}; pass the file body.`);
   const prose = text.replace(TERMINAL_OUTPUT, "");
-  return [...prose.matchAll(HAND_TYPED_COUNT)].map(
+  const counts = [...prose.matchAll(HAND_TYPED_COUNT)].map(
     ([phrase, , label]) => `${file} types the count "${phrase}" by hand. Rule: no count is typed; it comes from a variable. Fix: write {{${label}}} instead of the number.`,
   );
+  const releases = [...prose.matchAll(HAND_TYPED_NODE)].map(
+    ([phrase]) => `${file} types the Node release "${phrase}" by hand. Rule: no release is typed; it comes from package.json. Fix: write ${NODE_VARIABLES} instead of the number.`,
+  );
+  return [...counts, ...releases];
 };
 
 export const renderedCountProblems = (files: SiteFiles, counts: [string, number][]) => {
   assert(files instanceof Map, `the site files are a Map of path to html, got ${typeof files}; pass the map.`);
   assert(Array.isArray(counts), `the counts are a list of [label, number] pairs, got ${typeof counts}; pass the real counts.`);
-  return [...files].flatMap(([page, html]) => statedCountProblems(page, html.replace(QUOTATION, "").replace(CHECK_CARD, ""), counts));
+  return [...files].flatMap(([page, html]) => statedCountProblems(page, html.replace(QUOTATION, "").replace(CHECK_CARD, "").replace(COPIED_ROWS, ""), counts));
 };
 
 export const structureProblems = (file: string, html: string) => {
@@ -152,9 +162,22 @@ export const styleProblems = (file: string, html: string, source: string) => {
   );
 };
 
-export type SiteInput = { root: string; files: SiteFiles; sources: Sources; data: SiteData; counts: [string, number][]; fragments: { file: string; text: string }[] };
+export const strayFileProblems = (tracked: string[]) => {
+  assert(Array.isArray(tracked), `tracked files are a list of paths, got ${typeof tracked}; pass the output of the file listing.`);
+  assert(tracked.every((path) => typeof path === "string"), `every tracked path is text, got ${JSON.stringify(tracked.map((path) => typeof path))}; pass strings.`);
+  return tracked.filter((path) => STRAY_FILE.test(path)).map((path) => `${path} is a stray backup or patch leftover that the repository tracks. Rule: no tracked .bak, .orig or .rej file. Fix: remove it with git rm ${path}.`);
+};
 
-export const siteProblems = ({ root, files, sources, data, counts, fragments }: SiteInput) => {
+export const trackedFiles = (root: string) => {
+  assert(root !== "", `tracked files are listed under the repository root, got an empty path; pass the root.`);
+  assert(existsSync(root), `the repository root ${root} must exist to list tracked files, got none; pass the root.`);
+  if (!existsSync(join(root, ".git"))) return [];
+  return execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" }).split(NUL).filter((path) => path !== "");
+};
+
+export type SiteInput = { tracked?: string[]; root: string; files: SiteFiles; sources: Sources; data: SiteData; counts: [string, number][]; fragments: { file: string; text: string }[] };
+
+export const siteProblems = ({ root, files, sources, data, counts, fragments, tracked = [] }: SiteInput) => {
   assert(files instanceof Map, `the site files are a Map of path to html, got ${typeof files}; pass the map.`);
   assert(Array.isArray(fragments), `the fragments are a list of files, got ${typeof fragments}; pass the fragment files.`);
   return [
@@ -169,6 +192,7 @@ export const siteProblems = ({ root, files, sources, data, counts, fragments }: 
     ...styleProblems(page, html, sources[page] ?? page),
   ]),
   ...linkProblems(files),
+  ...strayFileProblems(tracked),
   ];
 };
 

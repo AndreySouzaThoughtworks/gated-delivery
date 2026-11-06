@@ -116,6 +116,14 @@ th { background-color: var(--surface); }
   .toc ol { columns: 1; }
   table { min-width: 24rem; }
 }
+@media (max-width: 40rem) {
+  table.stacked { min-width: 0; }
+  table.stacked thead { position: absolute; left: -999px; }
+  table.stacked tr { display: block; border: 1px solid var(--border); border-radius: 0.5rem; margin-bottom: 0.75rem; }
+  table.stacked td { display: block; border: 0; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+  table.stacked td:last-child { border-bottom: 0; }
+  table.stacked td::before { content: attr(data-label); display: block; font-weight: 700; color: var(--muted); font-size: 0.85rem; }
+}
 @media print {
   .skip-link, #theme-toggle { display: none; }
 }

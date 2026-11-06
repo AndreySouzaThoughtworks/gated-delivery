@@ -16,16 +16,17 @@ import { balanceProblems, tagsOf } from "./markup.ts";
 import { loadChecks, validateChecks } from "./registry.ts";
 
 const REPOSITORY = process.cwd();
-const FIXTURE_CHECKS: CheckEntry[] = [
+const TWO_CHECKS: CheckEntry[] = [
   { number: 1, id: "fixture-one", title: "Fixture check one", rule: "A rule with `code`.", fix: "A fix.", example: "ERROR fixture one. Hint: fix it.", mistake: "A fixture mistake.", source: "scripts/audit/consistency.ts" },
   { number: 7, id: "fixture-two", title: "Fixture check two", rule: "Another rule.", fix: "Another fix.", example: "ERROR fixture two. Hint: fix it.", mistake: "Another mistake.", source: "scripts/audit/consistency.ts" },
 ];
+const FIXTURE_CHECKS: CheckEntry[] = [...TWO_CHECKS, ...CHECKS.filter(({ number }) => !TWO_CHECKS.some((fixture) => fixture.number === number))];
 const LONG_SENTENCE = "This sentence keeps going with many more words than the plain style allows because it never stops to take a breath and just keeps on adding clause after clause until the reader gets lost.";
 
 const fixtureRoot = () => {
   const root = mkdtempSync(join(tmpdir(), "site-test-"));
   assert(root.startsWith(tmpdir()), `${root} must be a throwaway under ${tmpdir()}`);
-  for (const name of ["plugin", "evals", "scripts", "docs"]) symlinkSync(join(REPOSITORY, name), join(root, name));
+  for (const name of ["plugin", "evals", "scripts", "docs", ".github", ".claude-plugin", "tests", "LICENSE", "package.json", "zanity-baseline.json", "message-actionability-baseline.json", "assertion-effectiveness-baseline.json"]) symlinkSync(join(REPOSITORY, name), join(root, name));
   cpSync(join(REPOSITORY, "docs-site-src"), join(root, "docs-site-src"), { recursive: true });
   assert(existsSync(join(root, "docs-site-src", "home.html")), `${root} must hold a copy of the site fragments`);
   return root;
@@ -40,8 +41,8 @@ const buildWith = async (root: string, fragment: string, appended: string) => {
 };
 
 const fixtureLoader = async () => {
-  assert(FIXTURE_CHECKS.length === 2, `the fixture registry must hold two rows, got ${FIXTURE_CHECKS.length}`);
-  assert(FIXTURE_CHECKS.every(({ source }) => existsSync(join(REPOSITORY, source))), `every fixture source must be a real file under ${REPOSITORY}`);
+  assert(TWO_CHECKS.length === 2, `the fixture registry must hold two rows, got ${TWO_CHECKS.length}`);
+  assert(TWO_CHECKS.every(({ source }) => existsSync(join(REPOSITORY, source))), `every fixture source must be a real file under ${REPOSITORY}`);
   return FIXTURE_CHECKS;
 };
 
@@ -73,8 +74,10 @@ test("the real registry renders every row, names the checks that only warn, and 
 });
 
 test("planted bad fragments each fail the build with the page, the rule and the fix", async () => {
-  const cases: [string, string, RegExp][] = [
+  const cases: [string, string, RegExp | null][] = [
     ["a hand-typed check count", `<p>CI runs 40 numbered checks.</p>`, /docs-site-src\/home\.html types the count "40 numbered checks" by hand\. Rule: .* Fix: write \{\{checks\}\}/],
+    ["a hand-typed Node release", `<p>Use Node 22 today.</p>`, /docs-site-src\/home\.html types the Node release "Node 22" by hand\. Rule: .* Fix: write \{\{nodeFloor\}\}/],
+    ["a rule that does not exist", `<x-rule id="no.such-rule"/>`, null],
     ["a hand-typed count", `<p>We ship 5 skills.</p>`, /docs-site-src\/home\.html types the count "5 skills" by hand\. Rule: .* Fix: write \{\{skills\}\}/],
     ["a long sentence", `<p>${LONG_SENTENCE}</p>`.repeat(30), /index\.html has \d+% of its \d+ sentences .* Fix: edit docs-site-src\/home\.html/],
     ["a dead link", `<p><a href="nowhere.html">gone</a></p>`, /index\.html:\d+ links to nowhere\.html, but nowhere\.html is not a page of the site\. Rule: .* Fix:/],
@@ -90,6 +93,10 @@ test("planted bad fragments each fail the build with the page, the rule and the 
     ["an external script", `<script src="https://cdn.example/x.js"></script>`, /index\.html:\d+ loads an external resource through <script>\. Rule: .* Fix:/],
   ];
   for (const [name, snippet, expected] of cases) {
+    if (expected === null) {
+      await assert.rejects(buildWith(fixtureRoot(), "home.html", snippet), /holds the rule "no\.such-rule"\. Fix: copy an id/, `${name} must stop the build with its fix`);
+      continue;
+    }
     const problems = await buildWith(fixtureRoot(), "home.html", snippet);
     assert(problems.some((problem) => expected.test(problem)), `${name} must fail the build with ${expected}, got ${JSON.stringify(problems)}`);
   }
@@ -140,8 +147,8 @@ test("the registry loader fails when the module is missing and validates the row
   const empty = mkdtempSync(join(tmpdir(), "site-registry-"));
   await assert.rejects(loadChecks(empty), /scripts\/audit\/checks-registry\.ts is missing, so the CI checks page has no source\. Rule: .* Fix:/);
   assert.throws(() => validateChecks([]), /must export a non-empty list of checks/);
-  assert.throws(() => validateChecks([{ ...FIXTURE_CHECKS[0], fix: "" }]), /check 1 .* lacks the field "fix"/);
-  assert.equal(validateChecks(FIXTURE_CHECKS).length, 2, "valid rows must pass");
+  assert.throws(() => validateChecks([{ ...TWO_CHECKS[0], fix: "" }]), /check 1 .* lacks the field "fix"/);
+  assert.equal(validateChecks(TWO_CHECKS).length, 2, "valid rows must pass");
 });
 
 test("coverage names every skill, agent, command, hook and script that has no place on the site", () => {
@@ -175,6 +182,8 @@ test("a rendered page of the hand-written kind with a wrong count is rejected, a
   assert.match(renderedCountProblems(wrong, [["skills", 3]])[0], /a\.html says "7 skills", which is not the real count of 3/);
   const card = new Map([["a.html", `<article class="check-card"><p>for example 7 skills</p></article>`]]);
   assert.deepEqual(renderedCountProblems(card, [["skills", 3]]), [], "registry text inside a check card is not a hand-typed count");
+  const copied = new Map([["a.html", `<table class="stacked"><tr><td>one page said 23 checks</td></tr></table><p>1 skills</p>`]]);
+  assert.equal(renderedCountProblems(copied, [["skills", 3], ["checks", 40]]).length, 1, "rows copied from a repository document are left out, but a sentence is not");
 });
 
 test("the shared count logic rejects a wrong count and a non-text body", () => {
@@ -238,7 +247,7 @@ test("helpers render relative links, cards and the report", () => {
   assert.equal(relativeLink("skills/a.html", "index.html"), "../index.html");
   assert.equal(relativeLink("index.html", "skills/a.html"), "skills/a.html");
   assert.throws(() => relativeLink("/a.html", "b.html"), /page paths must be relative to the site root/);
-  assert.match(checkCard(FIXTURE_CHECKS[0]), /<code>code<\/code>/, "a card must render inline code");
+  assert.match(checkCard(TWO_CHECKS[0]), /<code>code<\/code>/, "a card must render inline code");
   assert.match(siteReport(new Map([["a.html", "<p>Short.</p>"]]))[0], /site: 1 pages, \d+ bytes in total, largest a\.html/);
 });
 

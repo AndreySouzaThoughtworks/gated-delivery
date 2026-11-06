@@ -1,0 +1,82 @@
+<h1>Develop</h1>
+<p class="lead">Add a rule with a test that proves it can fail. Run the audit on your machine. Learn how the ratchets keep the numbers from drifting.</p>
+
+<h2 id="add-a-rule">Add a rule: one real check, end to end</h2>
+<p>A rule is a check plus a test that shows the check can fail. This section walks check 28, the token budget. It touches four files.</p>
+<p>The four parts are the guard section, the reject-case test, the registry row and the mistakes row. The blocks below are read from the real files.</p>
+
+<h3 id="rule-guard">1. The guard section</h3>
+<p>The consistency guard is <code>scripts/audit/consistency.ts</code>. Each check is a numbered section that starts with <code>// --- N.</code>. A section pushes a message to the error list for each problem.</p>
+<x-excerpt file="scripts/audit/consistency.ts" start="// --- 28." lines="7"/>
+
+<h3 id="rule-test">2. The reject-case test</h3>
+<p>The test plants a bad input and expects the guard to fail. A guard that no test can fail is a wish.</p>
+<x-excerpt file="scripts/audit/consistency-token-budget.test.ts" start="test(&quot;check 28 rejects an instruction file that grew" lines="6"/>
+<p>The title of the test starts with the check number. The mistakes row names this title. A test checks that the title exists.</p>
+
+<h3 id="rule-registry">3. The registry row</h3>
+<p><code>scripts/audit/checks-registry.json</code> is the one list of checks. A row holds the rule, the fix, a real message and the source file. The CI checks page renders it.</p>
+<x-check number="28"/>
+<p><code>scripts/audit/checks-registry.test.ts</code> fails when the registry and the guard disagree. Check numbers must not repeat or skip one.</p>
+
+<h3 id="rule-mistake">4. The mistakes row</h3>
+<p>A row in <code>docs/mistakes-to-rules.md</code> ties the mistake to the rule and the test.</p>
+<x-mistake match="Skill prose grew with no limit"/>
+<p>See all rows on the <a href="mistakes.html">Mistakes</a> page.</p>
+
+<h3 id="rule-checklist">The same steps as a list</h3>
+<ol>
+  <li>Write the reject-case test. Watch it fail.</li>
+  <li>Add the numbered section to the guard. The test passes.</li>
+  <li>Add the registry row with a real message.</li>
+  <li>Add the row to the mistakes file.</li>
+  <li>Run the audit commands below.</li>
+</ol>
+
+<h2 id="audit">Run the audit locally</h2>
+<p>These commands need no login. The build checked that every file they name exists. The source is the section "Tests" of <code>docs/development.md</code>.</p>
+<x-data name="audit-commands"/>
+<p>Skill-eval checks need a base ref. Set <code>GATED_DELIVERY_BASE_REF=origin/main</code> to run check 18 on your machine.</p>
+<p>Never run a live eval unasked. A live eval spends a real subscription.</p>
+
+<h2 id="ratchets">How the ratchets work</h2>
+<p>A ratchet is a number or a list that may only improve. CI compares it with the base branch. A pull request that makes it worse fails.</p>
+<x-data name="ratchets"/>
+<ul>
+  <li>The baseline files hold known findings. A baseline may shrink. It never grows.</li>
+  <li>The script <code>plugin/bootstrap/guards/ratchet.mjs</code> compares a baseline with its base ref. It also fails on more findings of one kind.</li>
+  <li>A kind is the rule, the message and the file name without directory or extension.</li>
+  <li>The token budgets move in both directions. A file over its budget fails. A file well under its budget fails too, until you lower the budget.</li>
+  <li>The suppression count may not rise. A reviewer must accept a rise.</li>
+</ul>
+<p>CI runs the ratchet script once for each baseline. This is the line for the zanity baseline.</p>
+<x-excerpt file=".github/workflows/audit.yml" start="        run: node plugin/bootstrap/guards/ratchet.mjs --baseline zanity-baseline.json" lines="1"/>
+<p>To lock in a gain after a trim, run <code>node scripts/audit/token-budget.ts --update-baseline</code> and commit the new file. Never run an update command to add findings.</p>
+<p>The source of this section is <code>docs/development.md</code>. The sections are "zanity and its baseline", "Message actionability" and "Token budget".</p>
+
+<h2 id="second-example">A second example: the licence</h2>
+<p>The repository was public with no licence. Nobody was allowed to reuse it. The fix is check 24, a test and a licence file.</p>
+<x-mistake match="The repo was public with no license"/>
+<x-check number="24"/>
+<x-data name="license"/>
+
+<h2 id="required-checks">Checks on main</h2>
+<p>This list comes from the section "Checks every change passes" in <code>docs/development.md</code>. It holds {{requiredChecks}} rows.</p>
+<p>The build uses no network, so it cannot ask GitHub for the live settings. The live settings may differ from this text.</p>
+<x-data name="required-checks"/>
+
+<h2 id="leak-guard">Keep client data out</h2>
+<p>The core must never name a client. The hook <code>.githooks/pre-commit</code> runs <code>scripts/leak-guard.sh</code>. The hook <code>.githooks/pre-push</code> runs gitleaks on the commits you push.</p>
+<p>The guard reads a denylist of client terms from your machine. The list is never committed, because the list itself is client data.</p>
+<p>Enable the hooks once for each clone. This line is read from <code>docs/development.md</code>.</p>
+<x-excerpt file="docs/development.md" start="- Enable the hooks once per clone" lines="1"/>
+<p>CI cannot run the leak guard, because the denylist exists only on your machine. CI runs the self-test of the guard and gitleaks.</p>
+
+<h2 id="cursor">Cursor</h2>
+<p>Cursor follows the same rules and guards as Claude Code in this repository.</p>
+<ul>
+  <li><code>AGENTS.md</code> holds the rules. Cursor reads it natively.</li>
+  <li><code>.cursor/rules/repo-rules.mdc</code> is an always-on rule that only points to <code>AGENTS.md</code>.</li>
+  <li><code>.cursor/hooks.json</code> runs two adapters from <code>scripts/cursor/</code> over the two plugin hooks.</li>
+</ul>
+<p>The shell adapter fails closed. A malformed payload gives a deny. The source is the section "Cursor" of <code>docs/development.md</code>.</p>

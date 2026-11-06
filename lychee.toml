@@ -1,5 +1,6 @@
-# Link checking for README.md, docs and plugin markdown. See the links job in .github/workflows/docs.yml.
+# Link checking for README.md, docs, plugin markdown and the site fragments. See the links job in .github/workflows/docs.yml.
 
 max_retries = 3
 timeout = 20
 include_fragments = "full"
+exclude = ["^https://andrey1souza\\.github\\.io/gated-delivery/"]

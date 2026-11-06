@@ -4,7 +4,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, 
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { CHECKS } from "../audit/checks-registry.ts";
-import { statedCountProblems } from "../audit/guide-freshness.ts";
+import { statedCountProblems } from "../audit/site-freshness.ts";
 import { buildSite, main } from "./build.ts";
 import { collectSiteData, exitCodesOf, guardSectionNumbers, shippedScriptFiles, sourceUsageOf, frontmatter, scriptsCalled, usageOf } from "./data.ts";
 import type { SiteData } from "./data.ts";

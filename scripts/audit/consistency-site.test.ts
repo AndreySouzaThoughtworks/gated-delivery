@@ -5,13 +5,15 @@ import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { SITE_BUILD_COMMAND, SITE_BUILD_SCRIPT, SITE_SOURCES_DIRECTORY, siteWiringProblems } from "./site-wiring.ts";
+import { SITE_BUILD_COMMAND, SITE_BUILD_SCRIPT, SITE_SOURCES_DIRECTORY, SITE_WORKFLOW, siteWiringProblems } from "./site-wiring.ts";
 import { validRepo, write } from "../test-support/consistency-fixtures.test.support.ts";
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "site-wiring.ts");
 const WORKFLOW_WITHOUT_STEP = "jobs:\n  consistency:\n    steps:\n      - run: node scripts/audit/consistency.ts\n";
 const WORKFLOW_WITH_STEP = `${WORKFLOW_WITHOUT_STEP}      - run: ${SITE_BUILD_COMMAND}\n`;
 const STEP_IN_OTHER_JOB = `${WORKFLOW_WITHOUT_STEP}  other:\n    steps:\n      - run: ${SITE_BUILD_COMMAND}\n`;
+
+const SITE_WORKFLOW_COMPLETE = "jobs:\n  build:\n    steps:\n      - run: node scripts/site/build.ts\n  deploy:\n    needs: build\n    steps:\n      - run: echo deploy\n";
 
 const repoWithSources = () => {
   const dir = validRepo();
@@ -42,6 +44,30 @@ test("a build script with no CI step, a step in another job, or no workflow is r
   }
 });
 
+test("a complete site wiring reports nothing", () => {
+  const dir = repoWithSources();
+  write(dir, SITE_BUILD_SCRIPT, "export {};\n");
+  write(dir, ".github/workflows/audit.yml", WORKFLOW_WITH_STEP);
+  write(dir, SITE_WORKFLOW, SITE_WORKFLOW_COMPLETE);
+  assert.deepEqual(siteWiringProblems(dir), []);
+});
+
+test("a missing site workflow, or one without its build or deploy job, is rejected with the rule and the fix", () => {
+  for (const [name, workflow, expected] of [
+    ["no workflow", null, /^\.github\/workflows\/site\.yml is missing, so nothing deploys the site\. Rule: .* Fix: restore the workflow with the jobs build and deploy\./],
+    ["no build job", "jobs:\n  rebuild:\n    steps: []\n  deploy:\n    steps: []\n", /^\.github\/workflows\/site\.yml has no "build" job\. Rule: .* Fix: restore the "build" job\./],
+    ["no deploy job", "jobs:\n  build:\n    steps: []\n", /^\.github\/workflows\/site\.yml has no "deploy" job\. Rule: .* Fix: restore the "deploy" job\./],
+  ] as const) {
+    const dir = repoWithSources();
+    write(dir, SITE_BUILD_SCRIPT, "export {};\n");
+    write(dir, ".github/workflows/audit.yml", WORKFLOW_WITH_STEP);
+    if (workflow !== null) write(dir, SITE_WORKFLOW, workflow);
+    const problems = siteWiringProblems(dir);
+    assert.equal(problems.length, 1, `${name} must give exactly one problem, got ${JSON.stringify(problems)}`);
+    assert.match(problems[0], expected, `${name} must be rejected with its message`);
+  }
+});
+
 test("the standalone check exits 1 with the problem on a bad repository and 0 on the full wiring", () => {
   const dir = repoWithSources();
   const bad = spawnSync("node", [SCRIPT, "--repo", dir], { encoding: "utf8" });
@@ -49,6 +75,7 @@ test("the standalone check exits 1 with the problem on a bad repository and 0 on
   assert.match(bad.stderr, /scripts\/site\/build\.ts is missing, but docs-site-src\/ holds the site sources/, `the check must name the missing script, got ${bad.stderr}`);
   write(dir, SITE_BUILD_SCRIPT, "export {};\n");
   write(dir, ".github/workflows/audit.yml", WORKFLOW_WITH_STEP);
+  write(dir, SITE_WORKFLOW, SITE_WORKFLOW_COMPLETE);
   const good = spawnSync("node", [SCRIPT, "--repo", dir], { encoding: "utf8" });
   assert.equal(good.status, 0, `the full wiring must pass, got ${good.status}: ${good.stdout}${good.stderr}`);
   assert.match(good.stdout, /^OK: the site has its build script/, `the check must print OK, got ${good.stdout}`);

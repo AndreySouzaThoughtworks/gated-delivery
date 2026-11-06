@@ -1,6 +1,6 @@
 # gated-delivery — install and onboarding
 
-gated-delivery is an issue-driven, test-first delivery flow for Claude Code. It has no client baked in. Client facts come from the `CLAUDE.md` of the client. See [client-context.md](../plugin/references/client-context.md). For a tour with examples, open the [guide](guide.html).
+gated-delivery is an issue-driven, test-first delivery flow for Claude Code. It has no client baked in. Client facts come from the `CLAUDE.md` of the client. See [client-context.md](../plugin/references/client-context.md). For a tour with examples, read the [documentation site](https://andrey1souza.github.io/gated-delivery/).
 
 ## Install
 
@@ -93,4 +93,4 @@ It turns overwatch off for the project, and that includes the zanity watcher. Tr
 
 ## Daily use
 
-[skill-graph.md](./skill-graph.md) shows which skill to run when and how the skills call each other. The [guide](guide.html) walks through worked examples.
+[skill-graph.md](./skill-graph.md) shows which skill to run when and how the skills call each other. The [documentation site](https://andrey1souza.github.io/gated-delivery/) walks through worked examples.

@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join, posix } from "node:path";
 import { MAX_SENTENCE_WORDS, MIN_SHORT_SENTENCE_PERCENT, asdStyleProblems, shareOf } from "../audit/asd-style.ts";
-import { statedCountProblems } from "../audit/guide-freshness.ts";
+import { statedCountProblems } from "../audit/site-freshness.ts";
 import { shippedScriptFiles } from "./data.ts";
 import type { SiteData } from "./data.ts";
 import { FRAGMENTS_DIRECTORY } from "./fragments.ts";

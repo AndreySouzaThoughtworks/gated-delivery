@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { statedCountProblems } from "../audit/guide-freshness.ts";
+import { statedCountProblems } from "../audit/site-freshness.ts";
 import { siteWiringProblems } from "../audit/site-wiring.ts";
 import { buildSite, main, readTree } from "./build.ts";
 import { collectSiteData, directoryNames, exitCodesOf, fieldsOf, headingsOf, guardSectionNumbers, hooksOf, inventoryOf, listScripts, shippedScriptFiles, sourceUsageOf, markdownNames, pluginScripts, readText, scoreMutations, scriptIndex, scriptsCalled, tierOf, usageOf, warnOnlyChecks } from "./data.ts";

@@ -148,7 +148,7 @@ export const styleDocuments = (root: string): Document[] => {
   assert(statSync(root).isDirectory(), `the repository root ${root} must be a directory, got a file; pass the repository root.`);
   const docsPath = join(root, DOCS_DIRECTORY);
   const docsFiles = existsSync(docsPath)
-    ? readdirSync(docsPath).filter((name) => name.endsWith(MARKDOWN_EXTENSION) || name.endsWith(HTML_EXTENSION)).sort().map((name) => `${DOCS_DIRECTORY}/${name}`)
+    ? readdirSync(docsPath).filter((name) => name.endsWith(MARKDOWN_EXTENSION)).sort().map((name) => `${DOCS_DIRECTORY}/${name}`)
     : [];
   return [...ROOT_DOCUMENTS, ...docsFiles]
     .filter((file) => existsSync(join(root, file)))

@@ -1,0 +1,23 @@
+<svg viewBox="0 0 360 336" role="img" aria-labelledby="trust-ladder-title trust-ladder-desc" focusable="false">
+<title id="trust-ladder-title">The trust ladder</title>
+<desc id="trust-ladder-desc">Four steps from weak to strong. A rule in prose is a request that a model can ignore. The rule in a script runs the same way every time. The script in a CI check fails the pull request when the rule breaks. A mutation test proves the check: delete an anchored rule line and the check must catch it.</desc>
+<rect class="dg-box" x="20" y="14" width="320" height="70" rx="8"/>
+<text class="dg-text" x="32" y="36">1. A rule in prose</text>
+<text class="dg-note" x="32" y="54">A request.</text>
+<text class="dg-note" x="32" y="69">A model can ignore it.</text>
+<path class="dg-arrow" d="M174 86 L186 86 L180 93 Z"/>
+<rect class="dg-box" x="20" y="98" width="320" height="70" rx="8"/>
+<text class="dg-text" x="32" y="120">2. The rule in a script</text>
+<text class="dg-note" x="32" y="138">It runs the same way</text>
+<text class="dg-note" x="32" y="153">every time.</text>
+<path class="dg-arrow" d="M174 170 L186 170 L180 177 Z"/>
+<rect class="dg-gate" x="20" y="182" width="320" height="70" rx="8"/>
+<text class="dg-text" x="32" y="204">3. The script in a CI check</text>
+<text class="dg-note" x="32" y="222">A broken rule fails</text>
+<text class="dg-note" x="32" y="237">the pull request.</text>
+<path class="dg-arrow" d="M174 254 L186 254 L180 261 Z"/>
+<rect class="dg-human" x="20" y="266" width="320" height="70" rx="8"/>
+<text class="dg-text" x="32" y="288">4. A mutation test proves it</text>
+<text class="dg-note" x="32" y="306">Delete an anchored rule line.</text>
+<text class="dg-note" x="32" y="321">The check must catch it.</text>
+</svg>

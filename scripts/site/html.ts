@@ -10,7 +10,6 @@ export const MINIMUM_HEADINGS_FOR_TOC = 3;
 const MENU_GROUP_NAME = "site-menu";
 const BACKTICK =/`([^`]+)`/g;
 const H1_END = "</h1>";
-const HERO_END = "</section>";
 const HERO_MARKER = 'class="hero"';
 const SECTION_INDEX = "/index.html";
 const ROOT_INDEX = "index.html";
@@ -186,7 +185,8 @@ export const layout = (page: Page, navigation: NavEntry[]) => {
   const home = relativeLink(page.path, "index.html");
   const assetPrefix = rootPrefix(page.path);
   const links = menuMarkup(page.path, navigation);
-  const tocAnchor = page.body.includes(HERO_MARKER) ? HERO_END : H1_END;
+  const tocAnchor = H1_END;
+  const contents = page.body.includes(HERO_MARKER) ? "" : tableOfContents(page.body);
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -203,7 +203,7 @@ ${headTags(page, assetPrefix)}
 <div class="bar"><a class="brand" href="${home}">${INLINE_MARK}${SITE_NAME}</a><nav aria-label="Main"><ul class="menu">${links}</ul></nav><button type="button" id="theme-toggle" aria-label="Switch colour theme">Theme</button></div>
 </header>
 <main id="main">
-${page.body.replace(tocAnchor, () => `${tocAnchor}${tableOfContents(page.body)}`)}
+${page.body.replace(tocAnchor, () => `${tocAnchor}${contents}`)}
 </main>
 ${footerMarkup(page.path, navigation)}
 <script>${THEME_SCRIPT}</script>

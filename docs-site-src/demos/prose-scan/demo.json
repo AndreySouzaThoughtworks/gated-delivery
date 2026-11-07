@@ -1,0 +1,5 @@
+{
+  "script": "plugin/skills/prose-writing/scripts/prose-scan.mjs",
+  "args": ["notes.md"],
+  "setup": ["printf 'This change is not just a fix, it is a cleanup.\\n' > notes.md"]
+}

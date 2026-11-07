@@ -1,0 +1,291 @@
+<h1>Features</h1>
+<p class="lead">Each card shows one capability. It names the problem, the idea, how it works and why it beats a prompt.</p>
+<p>Every card names the repository files that it comes from. The build fails when a card names a file that does not exist. The cards follow the order in which a ticket moves through the plugin.</p>
+
+<x-feature id="shared-plugin" title="One shared plugin" sources="plugin/.claude-plugin/plugin.json .claude-plugin/marketplace.json docs/onboarding.md" links="install.html|Install and update;skills/index.html|All skills">
+<dl class="parts">
+<dt>Problem</dt><dd>Everyone prompts the AI in a different way. The same ticket gives a different result for each person.</dd>
+<dt>Idea</dt><dd>Write the method down once, version it and share it like code.</dd>
+<dt>How it works</dt><dd><ul>
+<li>The plugin ships {{skills}} skills, {{agents}} agents, {{commands}} commands and {{hooks}} hooks.</li>
+<li>A person installs it from the marketplace: <code>claude plugin marketplace add andrey1souza/gated-delivery</code>.</li>
+<li>The plugin has no version field. Each commit on <code>main</code> is an update.</li>
+</ul></dd>
+<dt>Why it beats a prompt</dt><dd>A good prompt lives in one head. A skill lives in the repository, where the team reviews it. One fix reaches everyone on the next update.</dd>
+</dl>
+</x-feature>
+
+<x-feature id="issue-writing" title="issue-writing: tickets worth building" sources="plugin/skills/issue-writing/SKILL.md plugin/skills/issue-writing/scripts/guardrail-scan.mjs plugin/scripts/ticket-lint.mjs" links="skills/issue-writing.html|The issue-writing skill;plugin-scripts.html|Plugin scripts">
+<dl class="parts">
+<dt>Problem</dt><dd>The AI builds exactly what the ticket says. A vague ticket gives confident, wrong code.</dd>
+<dt>Idea</dt><dd>The ticket is the first spec. Write it well before anyone codes.</dd>
+<dt>How it works</dt><dd><ul>
+<li>It picks the kind first: Story, Task, Bug or Spike. Each kind has its own template.</li>
+<li>A script lints the draft before the skill shows it.</li>
+<li>A guardrail scan checks for secrets and personal data before any write to the tracker.</li>
+<li>Every tracker write waits for your approval of the full text.</li>
+</ul></dd>
+<dt>Why it beats a prompt</dt><dd>A prompt fills the gaps of a ticket with guesses. The skill picks the kind, lints the draft and scans it before it writes.</dd>
+</dl>
+<x-demo name="ticket-lint"/>
+</x-feature>
+
+<x-feature id="story-drift" title="story-drift: is the ticket still true?" sources="plugin/skills/story-drift/SKILL.md plugin/scripts/verify-citations.mjs" links="skills/story-drift.html|The story-drift skill">
+<dl class="parts">
+<dt>Problem</dt><dd>Between planning and kickoff, the context changes. The ticket does not.</dd>
+<dt>Idea</dt><dd>Check that the ticket is still true before you build it.</dd>
+<dt>How it works</dt><dd><ul>
+<li>It takes the date of the last edit of each acceptance criterion from the ticket history.</li>
+<li>It reads what came after: linked tickets, epic siblings, decision records, contracts, specs and merged pull requests.</li>
+<li>It reports only what makes the ticket text wrong now, with replacement text.</li>
+<li>It writes nothing until you approve the final text.</li>
+</ul></dd>
+<dt>Why it beats a prompt</dt><dd>A prompt invents improvements for any ticket. When nothing drifted, the skill opens its report with <code>No drift found</code>.</dd>
+</dl>
+</x-feature>
+
+<x-feature id="spec" title="/spec: an agreed plan before code" sources="plugin/skills/spec/SKILL.md plugin/skills/spec/templates/change.md plugin/skills/spec/scripts/spec-lint.mjs" links="skills/spec.html|The spec skill;delivery-flow.html|Delivery flow">
+<dl class="parts">
+<dt>Problem</dt><dd>Coding straight from a ticket traps the context in one chat. The AI guesses the missing requirements.</dd>
+<dt>Idea</dt><dd>Plan first, then code. Agree the plan with a person.</dd>
+<dt>How it works</dt><dd><ul>
+<li>It inspects the repository first. Each claim is verified, or it becomes an open decision.</li>
+<li>It drafts the data contracts, the threats with a disposition each, the acceptance criteria and the open decisions.</li>
+<li>It never invents a schema. A missing contract becomes an open decision.</li>
+<li>For each criterion it names the laziest wrong code that would pass. Then it tightens the criterion.</li>
+<li>It splits the work into an ordered Rollout of PR-sized slices.</li>
+<li>It writes one file, and only after you sign off every section.</li>
+</ul></dd>
+<dt>Why it beats a prompt</dt><dd>A prompt starts to code at once and finds the gaps on the way. The spec lists the gaps first.</dd>
+</dl>
+<x-demo name="spec-lint"/>
+</x-feature>
+
+<x-feature id="slice" title="/slice: one command that knows where the ticket stands" sources="plugin/skills/slice/SKILL.md plugin/scripts/slice-state.mjs plugin/scripts/slice-claim.mjs plugin/scripts/pr-gate.mjs" links="skills/slice.html|The slice skill;delivery-flow.html|Delivery flow">
+<dl class="parts">
+<dt>Problem</dt><dd>One-shot prompts give huge pull requests full of unchecked assumptions.</dd>
+<dt>Idea</dt><dd>Run the agreed plan in small steps. Check each step before it merges.</dd>
+<dt>How it works</dt><dd><ul>
+<li>It reads the tracker, the spec, Git, the pull requests and the handoff to find where the ticket stands.</li>
+<li>For each slice it claims a branch, sends batches to the executor and opens a draft pull request early.</li>
+<li>At the end of the slice it runs the gates, marks the pull request ready and stops.</li>
+</ul></dd>
+<dt>Why it beats a prompt</dt><dd>Stop at any time. Run <code>/slice</code> tomorrow, on another laptop or as another person. It resumes from the tracker, Git, the pull requests, the spec and the handoff.</dd>
+</dl>
+<x-diagram names="slice-batch slice-end" caption="One slice from the plan to the merge. An accent edge marks a check, a green edge marks a person and a violet edge marks the fresh reviewer." sources="plugin/skills/slice/SKILL.md"/>
+</x-feature>
+
+<x-feature id="parallel" title="Parallel waves and rounds" sources="plugin/skills/slice/references/parallel.md plugin/skills/slice/scripts/slice-tree.sh plugin/skills/slice/scripts/batch-pick.sh" links="skills/slice.html|The slice skill">
+<dl class="parts">
+<dt>Problem</dt><dd>One agent runs the work blocks one after the other. Independent work waits in line.</dd>
+<dt>Idea</dt><dd>Independent work does not wait.</dd>
+<dt>How it works</dt><dd><ul>
+<li>A wave holds the slices that the spec marks as independent. Each has its own branch, worktree and pull request.</li>
+<li>A round holds the batches of one slice that do not build on each other. Each runs in its own batch tree.</li>
+<li>The orchestrator picks the batch commits onto the slice in plan order.</li>
+<li>At most three writers run at once.</li>
+</ul></dd>
+<dt>Why it beats a prompt</dt><dd>A prompt has one working directory. Separate git worktrees mean that parallel writers never overwrite each other.</dd>
+</dl>
+<x-diagram names="waves rounds" caption="Waves run slices side by side. Rounds run the batches of one slice side by side." sources="plugin/skills/slice/references/parallel.md"/>
+</x-feature>
+
+<x-feature id="pairing" title="Pairing without collisions" sources="plugin/scripts/slice-claim.mjs plugin/skills/slice/scripts/verify-lock.sh plugin/skills/slice/references/parallel.md" links="delivery-flow.html|Delivery flow;plugin-scripts.html|Plugin scripts">
+<dl class="parts">
+<dt>Problem</dt><dd>Two people, or two agents, take the same ticket. They work on the same slice, or one works while the other waits.</dd>
+<dt>Idea</dt><dd>Give each shareable thing an owner: a slice, a test run, a note.</dd>
+<dt>How it works</dt><dd><ul>
+<li><strong>Claim.</strong> <code>slice-claim.mjs</code> pushes an empty claim commit with a create-only push. A second claim exits with code 4 and names the holder.</li>
+<li><strong>Verify lock.</strong> A machine-wide lock makes the test runs of parallel trees take turns.</li>
+<li><strong>Resume block.</strong> An actor writes only its own Resume block, however old another one looks.</li>
+<li><strong>Per-slice handoff.</strong> Each slice of a wave keeps its own handoff file. The close-out folds them in.</li>
+</ul></dd>
+<dt>Why it beats a prompt</dt><dd>A plain push is no claim. The second push can succeed. A create-only push cannot.</dd>
+</dl>
+<x-demo name="slice-claim-held"/>
+</x-feature>
+
+<x-feature id="handoff" title="The handoff file" sources="plugin/scripts/handoff.mjs plugin/skills/slice/SKILL.md" links="plugin-scripts.html|Plugin scripts;skills/slice.html|The slice skill">
+<dl class="parts">
+<dt>Problem</dt><dd>AI context dies when a session ends, the chat is compacted or another person takes over.</dd>
+<dt>Idea</dt><dd>Keep the working memory of a ticket in a file, not in a chat.</dd>
+<dt>How it works</dt><dd><ul>
+<li>Each actor keeps one Resume block: branch, base, last verified step and next step. <code>handoff.mjs write-resume</code> stamps it.</li>
+<li>Carry forward holds decisions, deferrals, assumptions and dead ends. It holds an entry only when losing the chat would lose information.</li>
+<li>When the ticket ships, <code>handoff.mjs close</code> folds the per-slice files and leads with the outcome.</li>
+</ul></dd>
+<dt>Why it beats a prompt</dt><dd>A chat forgets after it compacts. A file stays in the repository or in the notes repository. The next session or person reads it.</dd>
+</dl>
+<x-excerpt file="plugin/skills/slice/SKILL.md" start="### <short item>" lines="6"/>
+<x-diagram names="handoff-lifecycle" caption="The life of a handoff file, from the claim to the close-out." sources="plugin/scripts/handoff.mjs plugin/skills/slice/SKILL.md plugin/skills/slice/references/parallel.md"/>
+</x-feature>
+
+<x-feature id="slice-executor" title="slice-executor: the plan decides, the executor executes" sources="plugin/agents/slice-executor.md plugin/scripts/executor-preflight.mjs plugin/scripts/batch-audit.mjs" links="agents.html#agent-slice-executor|The slice-executor agent;plugin-scripts.html|Plugin scripts">
+<dl class="parts">
+<dt>Problem</dt><dd>Each AI session codes in its own way. It can also jump into a side quest.</dd>
+<dt>Idea</dt><dd>Separate planning from doing. The plan decides. The executor executes.</dd>
+<dt>How it works</dt><dd><ul>
+<li>For each criterion it writes one failing test, then the smallest code that passes, then one commit.</li>
+<li>It follows the documented conventions of the changed repository before the stack recipes.</li>
+<li>A design question stops it. It returns BLOCKED with evidence in the notes file.</li>
+<li>A script checks the spec and the tree before the dispatch. Another script audits the commits after it.</li>
+</ul></dd>
+<dt>Why it beats a prompt</dt><dd>A prompt lets the model decide when to stop. Here a script audits the commit history of every batch.</dd>
+</dl>
+<x-demo name="executor-preflight"/>
+</x-feature>
+
+<x-feature id="reviews" title="Two review layers" sources="plugin/skills/senior-review-lens/SKILL.md plugin/agents/code-reviewer.md" links="skills/senior-review-lens.html|The senior-review-lens skill;agents.html#agent-code-reviewer|The code-reviewer agent">
+<dl class="parts">
+<dt>Problem</dt><dd>One review cannot judge both the structure of the code and the acceptance of the work. An author also misses its own gaps.</dd>
+<dt>Idea</dt><dd>Review the structure in the session. Review the acceptance in a fresh context.</dd>
+<dt>How it works</dt><dd><ul>
+<li><strong>In session.</strong> <code>senior-review-lens</code> applies lenses A to G to the diff: cohesion, table or inline, test pyramid, test realism, test descriptions, dead variants and type-system shift. It fixes clear problems.</li>
+<li><strong>When it runs.</strong> The lens runs after each batch when a slice has more than one batch. It also runs over the whole slice.</li>
+<li><strong>Fresh context.</strong> The <code>code-reviewer</code> agent sees only the diff range and the acceptance criteria. It runs the verify command itself and tries to break each criterion.</li>
+<li><strong>Verdict.</strong> It reports PASS, BLOCK or UNVERIFIED. It never edits project files.</li>
+</ul></dd>
+<dt>Why it beats a prompt</dt><dd>"The tests pass" is a claim. The reviewer's own run is the evidence.</dd>
+</dl>
+</x-feature>
+
+<x-feature id="hooks" title="Hooks, and what overwatch adds" sources="plugin/hooks/hooks.json plugin/hooks/guard-bash.mjs plugin/hooks/format-on-edit.mjs docs/onboarding.md" links="hooks.html|Hooks;install.html|Install and update">
+<dl class="parts">
+<dt>Problem</dt><dd>An instruction in a prompt is a request. The AI can forget it.</dd>
+<dt>Idea</dt><dd>Move the critical rules out of the prompt and into scripts that Claude Code runs.</dd>
+<dt>How it works</dt><dd><ul>
+<li>The plugin registers {{hooks}} hooks.</li>
+<li>Before each Bash command, <code>guard-bash.mjs</code> denies a small set of catastrophic ones: a forced recursive delete of the root or home folder, a forced push to main or master, and a fork bomb.</li>
+<li>After each Edit or Write, <code>format-on-edit.mjs</code> runs the prettier of the repository.</li>
+<li>The Bash guard is an accident guard, not a security boundary. A command hidden behind a script passes it.</li>
+</ul></dd>
+<dt>Why it beats a prompt</dt><dd>Claude Code runs the hook before the tool. For a command that the guard matches, the model cannot talk its way past it.</dd>
+</dl>
+<h3 id="overwatch">Turn-end checks come from overwatch</h3>
+<p>The plugin has no Stop hook. The <a href="https://github.com/benomahony/overwatch">overwatch</a> plugin covers the end of a turn. We recommend it as a companion.</p>
+<ul>
+<li>Its README says that it runs your project tests beside Claude Code and hands failures back at once.</li>
+<li>It runs zanity beside the tests when zanity is on the PATH.</li>
+<li>It keeps completion guarded while a check is red.</li>
+</ul>
+<p>Install it with <code>/plugin install overwatch --marketplace benomahony/overwatch</code>. The <a href="https://github.com/{{repository}}/blob/main/docs/onboarding.md#install-overwatch-for-turn-end-verification">onboarding guide</a> shows the setup.</p>
+</x-feature>
+
+<x-feature id="deskcheck" title="deskcheck: done is shown, not claimed" sources="plugin/skills/deskcheck/SKILL.md plugin/skills/deskcheck/scripts/deskcheck-lint.mjs" links="skills/deskcheck.html|The deskcheck skill">
+<dl class="parts">
+<dt>Problem</dt><dd>A team needs proof that a ticket is finished. An agent that says the tests pass is a claim.</dd>
+<dt>Idea</dt><dd>Each criterion carries its own evidence.</dd>
+<dt>How it works</dt><dd><ul>
+<li>It writes one self-contained HTML page that starts with the business value.</li>
+<li>It pastes the evidence into the page: test output, an API response or a screenshot. A link alone is not evidence.</li>
+<li>A criterion with nothing collected says "No evidence collected" in its row.</li>
+<li>A lint script checks the page.</li>
+</ul></dd>
+<dt>Why it beats a prompt</dt><dd>A reviewer reads the evidence on the page. A reviewer who doubts it can repeat the run.</dd>
+</dl>
+</x-feature>
+
+<x-feature id="repo-forensics" title="repo-forensics: ground truth before a change" sources="plugin/skills/repo-forensics/SKILL.md plugin/scripts/verify-citations.mjs" links="skills/repo-forensics.html|The repo-forensics skill">
+<dl class="parts">
+<dt>Problem</dt><dd>The AI can code from what it assumes. Docs may be stale. A change may break a caller that nobody named.</dd>
+<dt>Idea</dt><dd>Treat each claim as unverified until the repository proves it.</dd>
+<dt>How it works</dt><dd><ul>
+<li>It names its depth first: a quick posture, or a full pass.</li>
+<li>It marks each claim as verified or inferred.</li>
+<li>It lists where code, docs and tests disagree.</li>
+<li>It finds the callers of what you are about to change. A script checks that each cited line is real.</li>
+</ul></dd>
+<dt>Why it beats a prompt</dt><dd>A prompt fixes the one place it was told about. The pass looks for the other callers that would break.</dd>
+</dl>
+</x-feature>
+
+<x-feature id="primer" title="/primer: explain a topic once" sources="plugin/skills/primer/SKILL.md plugin/scripts/primer-lint.mjs" links="skills/primer.html|The primer skill">
+<dl class="parts">
+<dt>Problem</dt><dd>One person learns how a system works. Everyone else asks that person again and again.</dd>
+<dt>Idea</dt><dd>Write the explanation once, with its sources, and share it.</dd>
+<dt>How it works</dt><dd><ul>
+<li>It writes nothing until you sign off the outline.</li>
+<li>It labels every factual claim as Verified or Inferred.</li>
+<li>It produces one HTML file. A lint script checks the file.</li>
+</ul></dd>
+<dt>Why it beats a prompt</dt><dd>A chat answer helps one person once. A primer is checked once and read by the whole team.</dd>
+</dl>
+</x-feature>
+
+<x-feature id="learn-flow" title="/learn-flow: turn mistakes into checks" sources="plugin/skills/learn-flow/SKILL.md docs/mistakes-to-rules.md" links="skills/learn-flow.html|The learn-flow skill;mistakes.html|Mistakes to rules">
+<dl class="parts">
+<dt>Problem</dt><dd>The lessons of a session vanish when the session ends.</dd>
+<dt>Idea</dt><dd>Turn each real mistake into a check that rules out its whole category.</dd>
+<dt>How it works</dt><dd><ul>
+<li>It drops each lesson by default. A lesson stays only with evidence and a mechanism.</li>
+<li>It extends an existing check first. Else it adds a new check to CI and the watcher.</li>
+<li>Prose is the last rung. It is for a rule that no machine can decide.</li>
+<li>A check needs a failing example that proves it rejects the bad case.</li>
+<li>It proposes. It never writes in silence.</li>
+</ul></dd>
+<dt>Why it beats a prompt</dt><dd>A prompt gets one more warning after each slip. A check rejects the mistake every time.</dd>
+</dl>
+</x-feature>
+
+<x-feature id="prod-support" title="prod-support: directed diagnosis" sources="plugin/skills/prod-support/SKILL.md" links="skills/prod-support.html|The prod-support skill">
+<dl class="parts">
+<dt>Problem</dt><dd>A production issue pulls people toward a guess at the cause. The guess then steers the work.</dd>
+<dt>Idea</dt><dd>Follow the evidence: reproduce, hypothesise, fix and add a regression test.</dd>
+<dt>How it works</dt><dd><ul>
+<li>It reads the ticket, all comments and every attachment. It searches for similar tickets first.</li>
+<li>It writes two to four hypotheses, each with a prediction that can fail.</li>
+<li>It runs the single most informative probe, then narrows.</li>
+<li>It records the findings in a local handover corpus.</li>
+</ul></dd>
+<dt>Why it beats a prompt</dt><dd>A prompt names a cause early. The skill ranks the hypotheses and tests the top one.</dd>
+</dl>
+</x-feature>
+
+<x-feature id="prose-writing" title="prose-writing: a pass before durable text" sources="plugin/skills/prose-writing/SKILL.md plugin/skills/prose-writing/scripts/prose-scan.mjs" links="skills/prose-writing.html|The prose-writing skill">
+<dl class="parts">
+<dt>Problem</dt><dd>Commit messages, pull request text and docs fill with padding and claims that nobody checked.</dd>
+<dt>Idea</dt><dd>Run a pass over durable text before it lands.</dd>
+<dt>How it works</dt><dd><ul>
+<li>A script finds the named phrases and exits with code 1. Each hit comes with a fix.</li>
+<li>A read pass then checks construction, relevance and placement.</li>
+<li>The skill says that a pass which stops at the script has not happened.</li>
+</ul></dd>
+<dt>Why it beats a prompt</dt><dd>The script finds a named phrase every time. A prompt must remember the list.</dd>
+</dl>
+<x-demo name="prose-scan"/>
+</x-feature>
+
+<x-feature id="evals" title="Evals, with honest tiers" sources="docs/evals.md scripts/eval/run-scenarios.ts scripts/eval/changed-skills.ts evals/rules" links="eval-tiers.html|Eval tiers;trust.html|Trust">
+<dl class="parts">
+<dt>Problem</dt><dd>A skill is text. Change one sentence and the AI may behave in a different way, with no signal.</dd>
+<dt>Idea</dt><dd>Every skill ships its own tests.</dd>
+<dt>How it works</dt><dd><ul>
+<li>Each skill has an <code>evals.md</code> file with scenarios and a block of deterministic checks.</li>
+<li>The runner starts real <code>claude -p</code> sessions. It repeats each scenario twice by default. A baseline arm loads no plugin.</li>
+<li>A static stamp runs no model. It proves that the scripts, the checks and the rule anchors of the skill are intact.</li>
+<li>Today the plugin holds {{tiers.live}} live stamps, {{tiers.static}} static stamps and {{tiers.waived}} waived stamps.</li>
+</ul></dd>
+<dt>Why it beats a prompt</dt><dd>A prompt has no test. A skill has a rule inventory, and deleting an anchored rule line fails a check. Live evals are off, so no stamp proves that a model follows a skill.</dd>
+</dl>
+</x-feature>
+
+<x-feature id="many-clients" title="Many clients, no cross-contamination" sources="docs/onboarding.md plugin/references/client-context.md scripts/leak-guard.sh tests/leak-guard.test.sh docs/development.md" links="install.html|Install and update;trust.html|Trust">
+<dl class="parts">
+<dt>Problem</dt><dd>Tooling that one client paid for should not leak its names, links and secrets to another client.</dd>
+<dt>Idea</dt><dd>Keep the method generic. Keep the details of each client with that client.</dd>
+<dt>How it works</dt><dd><ul>
+<li>The plugin names no client. A skill reads each client fact from a section of the nearest <code>CLAUDE.md</code>.</li>
+<li>In this repository, the pre-commit hook runs a leak guard. It fails a commit that holds a term from a local denylist. It fails closed when the denylist is missing.</li>
+<li>CI cannot run that guard, because the denylist exists only on the maintainer machine. CI runs the self-test of the guard and a secret scan.</li>
+<li>Each client gets its own Claude profile, with its own login, plugins, memory and history.</li>
+</ul></dd>
+<dt>Why it beats a prompt</dt><dd>A prompt has no guard. The same skills run at every client, and only the settings change.</dd>
+</dl>
+</x-feature>
+
+<h2 id="more">More in the plugin</h2>
+<p>These parts have no card. The <code>audit-flow</code> skill audits the flow itself for overlap, gaps and bloat. The <code>scout</code> agent finds cited facts for the other skills. Three commands cover commits and guardrails.</p>
+<ul>
+  <li><a href="skills/audit-flow.html">audit-flow</a> and the <a href="agents.html#agent-scout">scout agent</a>.</li>
+  <li>The <a href="commands.html#command-commit">commit</a>, <a href="commands.html#command-commit-push-pr">commit-push-pr</a> and <a href="commands.html#command-bootstrap">bootstrap</a> commands.</li>
+</ul>

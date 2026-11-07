@@ -150,7 +150,7 @@ test("the real site builds with the hero and the three cards", async () => {
   assert.match(home, /<a class="btn btn-ghost" href="delivery-flow\.html">See how it works<\/a>/, "the hero has the second button");
   assert.match(home, new RegExp(`<p class="tagline">${TAGLINE}</p>`), "the hero shows the tagline");
   for (const card of ["Deterministic rules.", "Rules that can fail.", "Honest evidence."]) assert(home.includes(`<strong>${card}</strong>`), `the card "${card}" must stay on the home page`);
-  assert(home.indexOf('class="toc"') > home.indexOf("</section>"), "the table of contents follows the hero");
+  assert(!home.includes('class="toc"'), "the landing page has no table of contents");
   assert.match(files.get("concepts.html") as string, /Harden the codebase, not the agent[\s\S]*What is not verified/, "the concepts page keeps its first and last section");
 });
 

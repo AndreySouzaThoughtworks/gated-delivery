@@ -1,16 +1,35 @@
 <section class="hero" aria-labelledby="hero-title">
 <div class="hero-copy">
-<p class="hero-lockup"><img src="assets/brand/mark.svg" alt="" width="48" height="48"><span>gated-delivery</span></p>
 <h1 id="hero-title">Ship every change as small verified slices.</h1>
 <p class="tagline">Gate it. Slice it. Prove it.</p>
 <p class="lead">A Claude Code plugin that ships one ticket as small slices. Scripts and CI checks guard every slice.</p>
 <ul class="actions">
   <li><a class="btn" href="#install">Install</a></li>
+  <li><a class="btn btn-ghost" href="why.html">Why it exists</a></li>
   <li><a class="btn btn-ghost" href="delivery-flow.html">See how it works</a></li>
 </ul>
 </div>
 <div class="hero-art"><img src="assets/brand/hero-illustration.svg" alt="Three slices of growing length pass a gate. The longest slice ends in a check mark." width="520" height="300"></div>
 </section>
+
+<h2 id="problem">The problem</h2>
+<p class="lead">A model writes code faster than a person can review it. Teams pick one of three answers.</p>
+<ul class="problem">
+  <li><strong>Review every line.</strong> A person reads each line that the AI writes. This is slow. Review becomes the bottleneck of the whole team.</li>
+  <li><strong>Read a bit and hope.</strong> A person skims the change and hopes that the rest is fine. Hope does not change the outcome.</li>
+  <li><strong>Deterministic rules.</strong> Automated checks prove what code can prove. People review only the results and the important choices.</li>
+</ul>
+<p>gated-delivery is the third column. Scripts and CI checks carry the rules, so people spend their time on decisions.</p>
+
+<h2 id="steps">How it works in four steps</h2>
+<ol class="steps">
+  <li><strong>Spec.</strong> <code>/gated-delivery:spec</code> turns a ticket into a spec. The spec lists PR-sized slices in order. It writes nothing until you sign off each section.</li>
+  <li><strong>Slice.</strong> <code>/gated-delivery:slice</code> builds one slice at a time. Each slice gets its own branch and pull request. Independent slices run in parallel worktrees.</li>
+  <li><strong>Prove.</strong> Scripts, a design review and a fresh-context reviewer check each slice. The reviewer sees only the diff and the criteria. It runs the checks itself.</li>
+  <li><strong>Merge.</strong> A person merges each pull request. <code>/slice</code> never merges. Run it again for the next slice.</li>
+</ol>
+<x-diagram names="slice-batch slice-end" caption="The path of one slice, from the plan to the merge. An accent edge marks a check, a green edge marks a person and a violet edge marks the fresh reviewer." sources="plugin/skills/slice/SKILL.md docs-site-src/delivery-flow.html"/>
+<p>The skill sets each step. Scripts do the exact parts, such as the commit audit and the pull request gate. Models do the reviews. A failing step sends the work back to be fixed.</p>
 
 <h2 id="what">What it is</h2>
 <p>gated-delivery turns one tracker ticket into slices of work. Each slice merges on its own.</p>
@@ -29,6 +48,39 @@
   <p>A rule that no script can fail is a wish. This project turns wishes into checks.</p>
 </x-callout>
 
+<h2 id="evidence">Evidence</h2>
+<p>The build reads each number below from the repository. No person types one of them.</p>
+<ul class="stats">
+  <li><strong>{{checks}}</strong><span>numbered CI checks</span></li>
+  <li><strong>{{inventories}}</strong><span>rule inventories</span></li>
+  <li><strong>{{rules}}</strong><span>rules in those inventories</span></li>
+  <li><strong>{{mutationPerfect}} of {{mutationScored}}</strong><span>inventories with a 100% mutation score</span></li>
+  <li><strong>{{skills}}</strong><span>skills</span></li>
+  <li><strong>{{shippedScripts}}</strong><span>shipped script files</span></li>
+  <li><strong>{{tiers.static}}</strong><span>static stamps</span></li>
+  <li><strong>{{tiers.live}}</strong><span>live stamps</span></li>
+</ul>
+<p>The live stamp count is the honest limit. Live evals are off today, so no run shows that a model follows each skill. The <a href="trust.html">Trust</a> page lists what the project does and does not verify.</p>
+
+<h2 id="compare">Prompt versus skill</h2>
+<p>A prompt is a request in a chat. A skill is a file in the plugin, with scripts and checks around it.</p>
+<div class="table-scroll"><table class="stacked"><thead><tr><th scope="col">Question</th><th scope="col">A prompt</th><th scope="col">A skill in this plugin</th></tr></thead><tbody>
+<tr><td data-label="Question">Where it lives</td><td data-label="A prompt">In a chat history.</td><td data-label="A skill in this plugin">In a versioned repository, under <code>plugin/skills</code>.</td></tr>
+<tr><td data-label="Question">When it stops</td><td data-label="A prompt">When the model decides it is done.</td><td data-label="A skill in this plugin">At checkpoints where a person approves. <code>/spec</code> writes after sign-off. <code>/slice</code> never merges.</td></tr>
+<tr><td data-label="Question">What enforces it</td><td data-label="A prompt">The attention of the model.</td><td data-label="A skill in this plugin">Scripts that the skill calls, hooks that Claude Code runs, and CI checks on the repository.</td></tr>
+<tr><td data-label="Question">How we know it works</td><td data-label="A prompt">You read the output.</td><td data-label="A skill in this plugin">{{tiers.static}} static stamps and {{mutationScored}} mutation-tested rule inventories. Live evals are not run.</td></tr>
+<tr><td data-label="Question">Who benefits from a fix</td><td data-label="A prompt">One person.</td><td data-label="A skill in this plugin">Everyone who updates the plugin.</td></tr>
+</tbody></table></div>
+
+<h2 id="try">Try it in four steps</h2>
+<ol class="steps">
+  <li><strong>Install.</strong> Add the marketplace and install the plugin with the <a href="#install">two commands below</a>. Then run <code>/reload-plugins</code>.</li>
+  <li><strong>Add client facts.</strong> Put the tracker, the commit convention and the verify command in the <code>CLAUDE.md</code> of your repository. The <a href="https://github.com/{{repository}}/blob/main/plugin/references/client-context.md">client context</a> lists each section.</li>
+  <li><strong>Spec a ticket.</strong> Run <code>/gated-delivery:spec PROJ-123</code> with a real ticket key. Sign off each section.</li>
+  <li><strong>Slice it.</strong> Run <code>/gated-delivery:slice PROJ-123</code>. Merge each pull request when it is ready. Run the command again for the next slice.</li>
+</ol>
+<p>Start small: one ticket, end to end.</p>
+
 <h2 id="install">Install in two commands</h2>
 <p>Run the first command in a shell. Run the second command inside Claude Code.</p>
 <x-terminal title="Install">
@@ -45,6 +97,7 @@ claude plugin marketplace add andrey1souza/gated-delivery
 
 <h2 id="who">Who should read what</h2>
 <ul>
+  <li><strong>You want to know why it exists.</strong> Read <a href="why.html">Why gated-delivery</a>, then <a href="features.html">Features</a>.</li>
   <li><strong>You want to use the plugin.</strong> Read <a href="install.html">Install and update</a>, then <a href="delivery-flow.html">Delivery flow</a>.</li>
   <li><strong>You doubt the claims.</strong> Read <a href="trust.html">Trust</a>. It also lists what the project does not verify.</li>
   <li><strong>You want to change the rules.</strong> Read <a href="develop.html">Develop</a>, then <a href="mistakes.html">Mistakes to rules</a>.</li>
@@ -56,6 +109,8 @@ claude plugin marketplace add andrey1souza/gated-delivery
 
 <h2 id="next">Where to go next</h2>
 <ul>
+  <li><a href="why.html">Why gated-delivery</a> explains the problem and the limits of the answer.</li>
+  <li><a href="features.html">Features</a> shows each capability as a card with its source files.</li>
   <li><a href="concepts.html">Concepts</a> explains the ideas behind the design.</li>
   <li><a href="delivery-flow.html">Delivery flow</a> walks one ticket from spec to pull request with real script output.</li>
   <li><a href="install.html">Install and update</a> covers the version, the Node policy and the environment variables.</li>

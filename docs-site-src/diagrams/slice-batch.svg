@@ -1,0 +1,33 @@
+<svg viewBox="0 0 360 436" role="img" aria-labelledby="slice-batch-title slice-batch-desc" focusable="false">
+<title id="slice-batch-title">One batch inside a slice</title>
+<desc id="slice-batch-desc">Seven steps in order. Plan the batch. The executor writes a failing test, then code. A script audits the commits. A design review runs when the slice has more than one batch. A security review runs when inputs, authorization or secrets change. The test suite runs when the tip moved. The draft pull request is opened or updated.</desc>
+<text class="dg-label" x="20" y="20">FOR EACH BATCH</text>
+<rect class="dg-box" x="20" y="34" width="320" height="44" rx="8"/>
+<text class="dg-text" x="32" y="56">Plan the batch</text>
+<text class="dg-note" x="32" y="74">One subject, one seam</text>
+<path class="dg-arrow" d="M174 80 L186 80 L180 87 Z"/>
+<rect class="dg-box" x="20" y="88" width="320" height="44" rx="8"/>
+<text class="dg-text" x="32" y="110">Executor: failing test, then code</text>
+<text class="dg-note" x="32" y="128">One commit per criterion</text>
+<path class="dg-arrow" d="M174 134 L186 134 L180 141 Z"/>
+<rect class="dg-gate" x="20" y="142" width="320" height="44" rx="8"/>
+<text class="dg-text" x="32" y="164">Commit audit</text>
+<text class="dg-note" x="32" y="182">batch-audit.mjs checks the commits</text>
+<path class="dg-arrow" d="M174 188 L186 188 L180 195 Z"/>
+<rect class="dg-gate" x="20" y="196" width="320" height="44" rx="8"/>
+<text class="dg-text" x="32" y="218">Design review</text>
+<text class="dg-note" x="32" y="236">Only if the slice has 2 or more batches</text>
+<path class="dg-arrow" d="M174 242 L186 242 L180 249 Z"/>
+<rect class="dg-gate" x="20" y="250" width="320" height="44" rx="8"/>
+<text class="dg-text" x="32" y="272">Security review</text>
+<text class="dg-note" x="32" y="290">Only when inputs, auth or secrets change</text>
+<path class="dg-arrow" d="M174 296 L186 296 L180 303 Z"/>
+<rect class="dg-gate" x="20" y="304" width="320" height="44" rx="8"/>
+<text class="dg-text" x="32" y="326">Run the test suite</text>
+<text class="dg-note" x="32" y="344">Only if the tip moved since the last verify</text>
+<path class="dg-arrow" d="M174 350 L186 350 L180 357 Z"/>
+<rect class="dg-box" x="20" y="358" width="320" height="44" rx="8"/>
+<text class="dg-text" x="32" y="380">Draft pull request</text>
+<text class="dg-note" x="32" y="398">pr-gate.mjs checks the body and title</text>
+<text class="dg-note" x="20" y="424">Next batch: repeat. Last batch: go to the slice end.</text>
+</svg>

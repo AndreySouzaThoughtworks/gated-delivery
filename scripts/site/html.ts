@@ -11,6 +11,8 @@ const MENU_GROUP_NAME = "site-menu";
 const BACKTICK =/`([^`]+)`/g;
 const H1_END = "</h1>";
 const HERO_MARKER = 'class="hero"';
+const PAGE_HEAD = 'class="page-head"';
+const PAGE_OPENING = /^(<h1\b[^>]*>[\s\S]*?<\/h1>)(\s*<nav class="toc"[\s\S]*?<\/nav>)?(\s*<p class="lead">[\s\S]*?<\/p>)?/;
 const SECTION_INDEX = "/index.html";
 const ROOT_INDEX = "index.html";
 const SECOND_LEVEL_HEADING = /<h2 id="([^"]+)">([\s\S]*?)<\/h2>/g;
@@ -105,6 +107,16 @@ export const checkCard = ({ number, id, title, rule, fix, example, mistake, sour
   );
 };
 
+export const withPageHead = (body: string) => {
+  assert(typeof body === "string", `a page head wraps html text, got ${typeof body}; pass the page body.`);
+  assert(body.startsWith("<h1"), `a page head starts at the title, got "${body.slice(0, SNIPPET_LENGTH)}"; put the h1 first.`);
+  assert(!body.includes(PAGE_HEAD), `a page head is wrapped once, and "${body.slice(0, SNIPPET_LENGTH)}" already has one; pass the fragment before the wrap.`);
+  const match = PAGE_OPENING.exec(body);
+  assert(match !== null, `a page head needs a closed title, got "${body.slice(0, SNIPPET_LENGTH)}"; close the h1.`);
+  const [whole, heading, contents = "", lead = ""] = match;
+  return `<header ${PAGE_HEAD}>${heading}${contents}${lead}</header>${body.slice(whole.length)}`;
+};
+
 export const tableOfContents = (body: string) => {
   assert(typeof body === "string", `a table of contents is built from html text, got ${typeof body}; pass the page body.`);
   assert(!body.includes("<html"), `a page body is a fragment, got a whole document; pass the content inside main.`);
@@ -187,6 +199,8 @@ export const layout = (page: Page, navigation: NavEntry[]) => {
   const links = menuMarkup(page.path, navigation);
   const tocAnchor = H1_END;
   const contents = page.body.includes(HERO_MARKER) ? "" : tableOfContents(page.body);
+  const withContents = page.body.replace(tocAnchor, () => `${tocAnchor}${contents}`);
+  const body = page.body.includes(HERO_MARKER) || !withContents.startsWith("<h1") ? withContents : withPageHead(withContents);
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -203,7 +217,7 @@ ${headTags(page, assetPrefix)}
 <div class="bar"><a class="brand" href="${home}">${INLINE_MARK}${SITE_NAME}</a><nav aria-label="Main"><ul class="menu">${links}</ul></nav><button type="button" id="theme-toggle" aria-label="Switch colour theme">Theme</button></div>
 </header>
 <main id="main">
-${page.body.replace(tocAnchor, () => `${tocAnchor}${contents}`)}
+${body}
 </main>
 ${footerMarkup(page.path, navigation)}
 <script>${THEME_SCRIPT}</script>

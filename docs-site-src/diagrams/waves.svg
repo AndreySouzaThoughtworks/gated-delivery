@@ -1,30 +1,30 @@
-<svg viewBox="0 0 360 256" role="img" aria-labelledby="waves-title waves-desc" focusable="false">
+<svg viewBox="0 0 360 312" role="img" aria-labelledby="waves-title waves-desc" focusable="false">
 <title id="waves-title">A wave of slices</title>
 <desc id="waves-desc">The spec Rollout names slices with no dependency between them. Each slice runs in its own worktree with its own branch and pull request, up to three writers at once. The slices merge into main in any order. After a merge, the other slices merge main in and rerun their gates.</desc>
-<text class="dg-label" x="20" y="20">WAVE: SLICES IN PARALLEL</text>
-<rect class="dg-box" x="20" y="34" width="320" height="44" rx="8"/>
-<text class="dg-text" x="32" y="56">Rollout: slices with no dependency</text>
-<text class="dg-note" x="32" y="74">No shared write surface; interfaces fixed</text>
-<path class="dg-arrow" d="M64 80 L76 80 L70 87 Z"/>
-<rect class="dg-gate" x="20" y="90" width="100" height="70" rx="8"/>
-<text class="dg-text" x="32" y="112">Slice 1</text>
-<text class="dg-note" x="32" y="130">own worktree</text>
-<text class="dg-note" x="32" y="145">branch and PR</text>
-<path class="dg-arrow" d="M64 162 L76 162 L70 169 Z"/>
-<path class="dg-arrow" d="M174 80 L186 80 L180 87 Z"/>
-<rect class="dg-gate" x="130" y="90" width="100" height="70" rx="8"/>
-<text class="dg-text" x="142" y="112">Slice 2</text>
-<text class="dg-note" x="142" y="130">own worktree</text>
-<text class="dg-note" x="142" y="145">branch and PR</text>
-<path class="dg-arrow" d="M174 162 L186 162 L180 169 Z"/>
-<path class="dg-arrow" d="M284 80 L296 80 L290 87 Z"/>
-<rect class="dg-gate" x="240" y="90" width="100" height="70" rx="8"/>
-<text class="dg-text" x="252" y="112">Slice 3</text>
-<text class="dg-note" x="252" y="130">own worktree</text>
-<text class="dg-note" x="252" y="145">branch and PR</text>
-<path class="dg-arrow" d="M284 162 L296 162 L290 169 Z"/>
-<rect class="dg-human" x="20" y="172" width="320" height="44" rx="8"/>
-<text class="dg-text" x="32" y="194">Merged into main, in any order</text>
-<text class="dg-note" x="32" y="212">The others merge main in and rerun gates</text>
-<text class="dg-note" x="20" y="242">At most three writers at once.</text>
+<text class="dg-label" x="20" y="32">WAVE: SLICES IN PARALLEL</text>
+<rect class="dg-box" x="20" y="48" width="320" height="60" rx="8"/>
+<text class="dg-text" x="40" y="72">Rollout: slices with no dependency</text>
+<text class="dg-note" x="40" y="92">No shared write surface; interfaces fixed</text>
+<path class="dg-arrow" d="M64 112 L76 112 L70 119 Z"/>
+<rect class="dg-gate" x="20" y="122" width="100" height="70" rx="8"/>
+<text class="dg-text" x="32" y="144">Slice 1</text>
+<text class="dg-note" x="32" y="162">own worktree</text>
+<text class="dg-note" x="32" y="177">branch and PR</text>
+<path class="dg-arrow" d="M64 196 L76 196 L70 203 Z"/>
+<path class="dg-arrow" d="M174 112 L186 112 L180 119 Z"/>
+<rect class="dg-gate" x="130" y="122" width="100" height="70" rx="8"/>
+<text class="dg-text" x="142" y="144">Slice 2</text>
+<text class="dg-note" x="142" y="162">own worktree</text>
+<text class="dg-note" x="142" y="177">branch and PR</text>
+<path class="dg-arrow" d="M174 196 L186 196 L180 203 Z"/>
+<path class="dg-arrow" d="M284 112 L296 112 L290 119 Z"/>
+<rect class="dg-gate" x="240" y="122" width="100" height="70" rx="8"/>
+<text class="dg-text" x="252" y="144">Slice 3</text>
+<text class="dg-note" x="252" y="162">own worktree</text>
+<text class="dg-note" x="252" y="177">branch and PR</text>
+<path class="dg-arrow" d="M284 196 L296 196 L290 203 Z"/>
+<rect class="dg-human" x="20" y="206" width="320" height="60" rx="8"/>
+<text class="dg-text" x="40" y="230">Merged into main, in any order</text>
+<text class="dg-note" x="40" y="250">The others merge main in and rerun gates</text>
+<text class="dg-note" x="20" y="294">At most three writers at once.</text>
 </svg>

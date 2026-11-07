@@ -39,6 +39,13 @@
 <p>Skill-eval checks need a base ref. Set <code>GATED_DELIVERY_BASE_REF=origin/main</code> to run check 18 on your machine.</p>
 <p>Never run a live eval unasked. A live eval spends a real subscription.</p>
 
+<h3 id="asd-style">Check the prose style</h3>
+<p>Check 33 grades the repository docs in ASD-STE100 style. A document must keep 80% or more of its sentences within 20 words. The script <code>scripts/audit/asd-style-report.ts</code> prints the share for each file. This line comes from <code>docs/development.md</code>.</p>
+<x-excerpt file="docs/development.md" start="When a file fails, the message lists" lines="1"/>
+<p>The fixture below holds two documents. One is short. The other holds long sentences, so the report fails it and names the longest sentences.</p>
+<x-demo name="asd-style-report"/>
+<p>The script reads the folder where you run it. Pass <code>--repo</code> with another folder to grade that folder.</p>
+
 <h2 id="ratchets">How the ratchets work</h2>
 <p>A ratchet is a number or a list that may only improve. CI compares it with the base branch. A pull request that makes it worse fails.</p>
 <x-data name="ratchets"/>

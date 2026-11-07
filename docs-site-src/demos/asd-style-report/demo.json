@@ -1,0 +1,4 @@
+{
+  "script": "scripts/audit/asd-style-report.ts",
+  "args": []
+}

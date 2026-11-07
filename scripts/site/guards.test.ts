@@ -10,11 +10,11 @@ import { collectSiteData, directoryNames, exitCodesOf, fieldsOf, headingsOf, gua
 import type { Agent, Command, Hook, PluginScript, SiteData, Skill } from "./data.ts";
 import { demoOutput, expandVariable, mistakeRows, renderFragment } from "./fragments.ts";
 import { coverageProblems, handTypedCountProblems, leakProblems, linkProblems, quotationProblems, renderedCountProblems, siteProblems, siteReport, structureProblems, styleProblems } from "./gates.ts";
-import { bulletList, callout, checkCard, escapeHtml, inlineCode, layout, quotation, relativeLink, table, tableOfContents, terminal, unescapeHtml } from "./html.ts";
+import { bulletList, callout, checkCard, escapeHtml, inlineCode, layout, menuMarkup, quotation, relativeLink, table, tableOfContents, terminal, unescapeHtml } from "./html.ts";
 import { attributesOf, balanceProblems, stripNonMarkup, tagsOf } from "./markup.ts";
 import { agentsPage, buildPages, checksPage, commandsPage, evalTiersPage, evidenceRows, evidenceTable, fragmentFiles, hooksPage, instructionSection, pluginScriptsPage, siteVariables, skillPage, skillsIndex } from "./pages.ts";
 import { loadChecks } from "./registry.ts";
-import { declarations } from "./style.ts";
+import { STYLE, declarations } from "./style.ts";
 
 const REPOSITORY = process.cwd();
 const ABSENT = join(tmpdir(), "site-guards-absent-root");
@@ -56,6 +56,12 @@ const GUARDS: Guard[] = [
   ["tableOfContents rejects a whole document", () => tableOfContents("<html>"), /fragment, got a whole document/],
   ["layout rejects a non-html path", () => layout({ ...PAGE, path: "a.txt" }, [{ path: "a.html", label: "A" }]), /must end in \.html/],
   ["layout rejects an empty menu", () => layout(PAGE, []), /needs navigation links/],
+  ["menuMarkup rejects an empty menu", () => menuMarkup("a.html", []), /the menu needs navigation links/],
+  ["menuMarkup rejects an empty page path", () => menuMarkup("", [{ path: "a.html", label: "A" }]), /the current page needs a path/],
+  ["menuMarkup rejects an absolute link path", () => menuMarkup("a.html", [{ path: "/b.html", label: "B" }]), /a menu link path is relative to the site root/],
+  ["menuMarkup rejects a link with no label", () => menuMarkup("a.html", [{ path: "b.html", label: "" }]), /a menu link needs a label/],
+  ["menuMarkup rejects a link to a non page", () => menuMarkup("a.html", [{ path: "b.txt", label: "B" }]), /a menu link points at a page/],
+  ["menuMarkup rejects an empty group", () => menuMarkup("a.html", [{ label: "Guide", items: [] }]), /a menu group needs at least one link/],
   ["stripNonMarkup rejects a non-string", () => stripNonMarkup(WRONG), /markup must be text/],
   ["stripNonMarkup rejects a NUL character", () => stripNonMarkup("a\u0000b"), /holds a NUL character at offset 1/],
   ["attributesOf rejects a non-string", () => attributesOf(WRONG), /attributes come from tag text/],
@@ -184,4 +190,37 @@ test("async entry points reject a bad root, bad rows and a bad demo with the fix
   mkdirSync(join(empty, "docs-site-src", "demos", "bad"), { recursive: true });
   writeFileSync(join(empty, "docs-site-src", "demos", "bad", "demo.json"), "{}");
   assert.throws(() => demoOutput(empty, "bad"), /must hold a script and an args list/);
+});
+
+test("a skill page shows backticked headings and steps as code and the skills index stacks on narrow screens", () => {
+  const skill = { ...SKILL, sections: ["What `/slice` does NOT do"], steps: ["1. Run `plan` first"] } as Skill;
+  const body = skillPage(skill, new Map()).body;
+  assert.match(body, /<li>What <code>\/slice<\/code> does NOT do<\/li>/, "a section heading must show its code span as code");
+  assert.match(body, /<li>Run <code>plan<\/code> first<\/li>/, "a step must show its code span as code");
+  assert.throws(() => skillPage({ ...skill, sections: ["Open `span"] } as Skill, new Map()), /odd number of backticks/);
+  assert.match(skillsIndex(DATA).body, /<table class="stacked">/, "the skills index must use the stacked table");
+});
+
+test("a stamp time sits in a time element and an unstamped skill shows none", () => {
+  const stamped = { ...SKILL, tier: "static", stampedAt: "2026-01-02T03:04:05.000Z" } as Skill;
+  assert.match(evalTiersPage({ ...DATA, skills: [stamped] }).body, /<time datetime="2026-01-02T03:04:05\.000Z">2026-01-02T03:04:05\.000Z<\/time>/, "the stamp time must be one unbreakable time element");
+  assert.doesNotMatch(evalTiersPage({ ...DATA, skills: [SKILL] }).body, /<time/, "a skill with no stamp must show no time element");
+});
+
+test("the style wraps terminal text, keeps stamps whole and opens menu groups in the page flow on narrow screens", () => {
+  assert.match(STYLE, /\.terminal pre \{[^}]*white-space: pre-wrap; overflow-wrap: anywhere;/, "terminal text must wrap instead of clipping");
+  assert.match(STYLE, /time \{ white-space: nowrap; \}/, "a stamp time must not break");
+  assert.match(STYLE, /@media \(max-width: 40rem\) \{\s*\.menu-group ul \{ position: static;/, "a narrow screen must open the group in the page flow");
+  assert.doesNotMatch(STYLE, /\.menu-group ul \{[^}]*display: none/, "a closed group is hidden by details, never by a style that a keyboard cannot undo");
+});
+
+test("a menu group is a native details element that marks the current page and its own group", () => {
+  const menu = [{ path: "index.html", label: "Home" }, { label: "Guide", items: [{ path: "a.html", label: "A" }, { path: "b.html", label: "B" }] }, { label: "Reference", items: [{ path: "c.html", label: "C" }] }];
+  const html = menuMarkup("b.html", menu);
+  assert.equal(html.match(/<details name="site-menu">/g)?.length, 2, `each group must be one details element of the same exclusive name, got ${html}`);
+  assert.equal(html.match(/aria-current="page"/g)?.length, 1, `only the current page link carries aria-current, got ${html}`);
+  assert.match(html, /<a href="b\.html" aria-current="page">B<\/a>/, "the link to the current page carries aria-current");
+  assert.match(html, /<summary class="has-current">Guide<\/summary>/, "the group of the current page is marked");
+  assert.match(html, /<summary>Reference<\/summary>/, "a group without the current page is not marked");
+  assert.doesNotMatch(menuMarkup("other.html", menu), /aria-current|has-current/, "a page outside the menu marks nothing");
 });

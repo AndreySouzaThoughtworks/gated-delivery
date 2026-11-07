@@ -296,3 +296,34 @@ test("a demo runs its setup first, hides the scratch path and quotes an argument
   const output = demoOutput(scratch(files), "ok");
   assert.match(output, /^\$ node echo\.mjs "a b"\nhi <fixture>\n\(exit 0\)$/, `the setup runs first and the scratch path is hidden, got ${output}`);
 });
+
+test("a demo script reached through a symlinked folder still runs as the main module", () => {
+  const real = scratch({ "tool.mjs": 'import { fileURLToPath } from "node:url"; import { resolve } from "node:path"; console.log(resolve(process.argv[1]) === fileURLToPath(import.meta.url) ? "main" : "imported");' });
+  const root = scratch({ "docs-site-src/demos/linked/demo.json": JSON.stringify({ script: "linked/tool.mjs", args: [] }) });
+  symlinkSync(real, join(root, "linked"));
+  assert.match(demoOutput(root, "linked"), /\nmain\n/, "a script behind a symlink must see itself as the main module");
+});
+
+const keepFiles = (keep: string) => {
+  assert(typeof keep === "string", `a keep pattern is text, got ${typeof keep}; pass a string.`);
+  assert(!keep.includes("\n"), `a keep pattern matches one line, got a newline in ${JSON.stringify(keep)}; drop the newline.`);
+  return {
+    "docs-site-src/demos/kept/demo.json": JSON.stringify({ script: "lines.mjs", args: [], keep }),
+    "lines.mjs": 'console.log("alpha"); console.log("beta"); console.log("alpha two");',
+  };
+};
+
+test("a keep fixture rejects a pattern that is not one line of text", () => {
+  assert.throws(() => keepFiles(5 as never), /a keep pattern is text, got number/);
+  assert.throws(() => keepFiles("a\nb"), /a keep pattern matches one line/);
+});
+
+test("a demo keep pattern shows only the matching lines and counts the hidden ones", () => {
+  const output = demoOutput(scratch(keepFiles("^alpha")), "kept");
+  assert.equal(output, "$ node lines.mjs\nalpha\nalpha two\n(2 of 3 output lines shown)\n(exit 0)", `only the alpha lines may stay, got ${output}`);
+});
+
+test("a demo keep pattern that matches nothing or is empty stops the build with the fix", () => {
+  assert.throws(() => demoOutput(scratch(keepFiles("^gamma")), "kept"), /keep \^gamma matches none of the 3 output lines; fix the pattern/);
+  assert.throws(() => demoOutput(scratch(keepFiles("")), "kept"), /keep is an empty pattern, so it would hide every line/);
+});

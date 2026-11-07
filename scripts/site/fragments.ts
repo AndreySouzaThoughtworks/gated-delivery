@@ -38,8 +38,18 @@ const FIXTURE_ENVIRONMENT = {
 const PROMPT = "$ ";
 const FIRST_COLUMNS = 3;
 
-export type Demo = { script: string; args: string[]; setup?: string[]; cwd?: string; env?: Record<string, string> };
+export type Demo = { script: string; args: string[]; setup?: string[]; cwd?: string; env?: Record<string, string>; keep?: string };
 export type FragmentContext = FactContext & { file: string };
+
+const keptLines = (output: string, keep: string | undefined, name: string) => {
+  if (keep === undefined) return output;
+  assert(keep !== "", `${DEMOS_DIRECTORY}/${name}/demo.json keep is an empty pattern, so it would hide every line; write a pattern or drop keep.`);
+  const lines = output.split("\n");
+  const pattern = new RegExp(keep);
+  const kept = lines.filter((line) => pattern.test(line));
+  assert(kept.length > 0, `${DEMOS_DIRECTORY}/${name}/demo.json keep ${keep} matches none of the ${lines.length} output lines; fix the pattern.`);
+  return `${kept.join("\n")}\n(${kept.length} of ${lines.length} output lines shown)`;
+};
 
 export const demoOutput = (root: string, name: string) => {
   const folder = join(root, DEMOS_DIRECTORY, name);
@@ -57,11 +67,11 @@ export const demoOutput = (root: string, name: string) => {
       const prepared = spawnSync("sh", ["-c", command], { cwd: scratch, env: environment, encoding: "utf8", timeout: DEMO_TIMEOUT_MS });
       assert(prepared.status === 0, `${DEMOS_DIRECTORY}/${name}/demo.json setup command "${command}" exited with ${prepared.status}: ${prepared.stderr.trim()}. Fix: correct the command in demo.json.`);
     }
-    const run = spawnSync(process.execPath, [join(root, demo.script), ...demo.args.map((argument) => argument.replaceAll("$FIXTURE", scratch))], { cwd: join(scratch, demo.cwd ?? ""), env: environment, encoding: "utf8", timeout: DEMO_TIMEOUT_MS });
+    const run = spawnSync(process.execPath, [realpathSync(join(root, demo.script)), ...demo.args.map((argument) => argument.replaceAll("$FIXTURE", scratch))], { cwd: join(scratch, demo.cwd ?? ""), env: environment, encoding: "utf8", timeout: DEMO_TIMEOUT_MS });
     const scriptName = demo.script.split("/").at(-1);
     const command = `${PROMPT}node ${scriptName} ${demo.args.map((argument) => (argument.includes(" ") ? JSON.stringify(argument) : argument)).join(" ")}`.trimEnd();
-    const output = `${run.stdout}${run.stderr}`.trimEnd().replaceAll(scratch, FIXTURE_LABEL).replaceAll(made, FIXTURE_LABEL).replaceAll(root, REPOSITORY_LABEL);
-    return `${command}\n${output}\n(exit ${run.status})`;
+    const output = `${run.stdout}${run.stderr}`.trimEnd().replaceAll(scratch, FIXTURE_LABEL).replaceAll(made, FIXTURE_LABEL).replaceAll(root, REPOSITORY_LABEL).replaceAll(realpathSync(root), REPOSITORY_LABEL);
+    return `${command}\n${keptLines(output, demo.keep, name)}\n(exit ${run.status})`;
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }

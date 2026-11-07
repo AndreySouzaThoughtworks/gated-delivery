@@ -24,6 +24,20 @@ claude plugin marketplace add {{repository}}
 <p>The bootstrap command adds missing guardrails to a client repository. It shows a plan and writes nothing until you confirm each group.</p>
 <p>The spec skill writes the spec. The slice skill runs the slices. The <a href="delivery-flow.html">Delivery flow</a> page shows both. The <a href="commands.html">Commands</a> page lists every command.</p>
 
+<p>The <a href="delivery-flow.html#spec">spec</a>, <a href="delivery-flow.html#route">slice</a> and <a href="delivery-flow.html#pull-request">commit</a> steps each show real script output on the Delivery flow page. The next section does the same for bootstrap.</p>
+
+<h2 id="bootstrap">Worked example: bootstrap a repository</h2>
+<p>You run <code>/gated-delivery:bootstrap</code> in a client repository that has no guardrails. The command only sequences scripts. The scripts decide and write.</p>
+<p>Step 1 runs <code>plan.mjs</code>. This is the text of that step from <code>plugin/commands/bootstrap.md</code>.</p>
+<x-excerpt file="plugin/commands/bootstrap.md" start="**1. Plan.**" lines="1"/>
+<p>The fixture below is a small repository with a <code>package.json</code> and no CI. The build ran the planner on it. The diff holds the whole text of each planned file, so the block keeps only the file headers and the notes.</p>
+<x-demo name="bootstrap-plan"/>
+<p>Step 4 applies the plan. This is the text of that step.</p>
+<x-excerpt file="plugin/commands/bootstrap.md" start="**4. Apply.**" lines="1"/>
+<p>The next block runs <code>--apply</code> with no <code>--group</code>. No group is confirmed, so the script refuses. It writes nothing.</p>
+<x-demo name="bootstrap-apply-refused"/>
+<p>The command asks one yes or no for each group. It reruns the script with one <code>--group</code> flag for each yes. Step 5 delivers the change with <code>/gated-delivery:commit</code> and <code>/gated-delivery:commit-push-pr</code>.</p>
+
 <h2 id="update">Update</h2>
 <x-terminal title="Update">
 claude plugin update {{pluginId}}

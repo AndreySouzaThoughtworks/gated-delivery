@@ -76,7 +76,15 @@ a:focus-visible, button:focus-visible, summary:focus-visible { outline: 3px soli
 .brand { font-size: 1.25rem; font-weight: 700; color: var(--text); text-decoration: none; }
 button { font: inherit; color: var(--text); background-color: var(--surface); border: 1px solid var(--border); border-radius: 0.4rem; padding: 0.3rem 0.8rem; cursor: pointer; }
 .menu { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; }
+.menu { align-items: flex-start; }
 .menu a[aria-current="page"] { font-weight: 700; color: var(--text); }
+.menu > li > a, .menu summary { display: inline-block; padding: 0.3rem 0; }
+.menu summary { cursor: pointer; color: var(--link); }
+.menu summary::after { content: " \\25BE"; }
+.menu summary.has-current { font-weight: 700; color: var(--text); }
+.menu-group { position: relative; }
+.menu-group ul { list-style: none; margin: 0; padding: 0.25rem 0.75rem; background-color: var(--surface); border: 1px solid var(--border); border-radius: 0.5rem; position: absolute; left: 0; top: 100%; z-index: 5; min-width: 12rem; }
+.menu-group li a { display: block; padding: 0.3rem 0; }
 h1 { font-size: 2rem; line-height: 1.2; margin: 1rem 0 0.5rem; }
 h2 { font-size: 1.5rem; margin: 2.5rem 0 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border); }
 h3 { font-size: 1.15rem; margin: 1.5rem 0 0.25rem; }
@@ -90,10 +98,10 @@ pre { background-color: var(--surface); border: 1px solid var(--border); border-
 pre code { background: none; padding: 0; overflow-wrap: normal; }
 .terminal { margin: 1.5rem 0; }
 .terminal figcaption { color: var(--muted); font-size: 0.9rem; margin-bottom: 0.25rem; }
-.terminal pre { background-color: var(--terminal-bg); color: var(--terminal-text); border-color: var(--border); margin: 0; }
+.terminal pre { background-color: var(--terminal-bg); color: var(--terminal-text); border-color: var(--border); margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .terminal pre code { color: var(--terminal-text); }
 .table-scroll { overflow-x: auto; margin: 1rem 0; }
-table { border-collapse: collapse; width: 100%; min-width: 30rem; }
+table { border-collapse: collapse; width: 100%; min-width: 28rem; }
 th, td { border: 1px solid var(--border); padding: 0.4rem 0.6rem; text-align: left; vertical-align: top; }
 th { background-color: var(--surface); }
 .callout { border-left: 4px solid var(--accent); background-color: var(--surface); padding: 0.5rem 1rem; margin: 1rem 0; border-radius: 0 0.5rem 0.5rem 0; }
@@ -101,8 +109,8 @@ th { background-color: var(--surface); }
 .quote { margin: 1rem 0; padding: 0.25rem 1rem; border-left: 4px solid var(--border); color: var(--muted); }
 .quote footer { font-size: 0.85rem; }
 .check-card { border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.25rem 1rem 0.75rem; margin: 1rem 0; background-color: var(--surface); }
-.check-card .terminal pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 .source { color: var(--muted); font-size: 0.9rem; }
+time { white-space: nowrap; }
 .tier { display: inline-block; border: 1px solid var(--border); border-radius: 1rem; padding: 0 0.6rem; font-size: 0.85rem; }
 .tier-live { color: var(--good); }
 .tier-waived { color: var(--bad); }
@@ -117,6 +125,7 @@ th { background-color: var(--surface); }
   table { min-width: 24rem; }
 }
 @media (max-width: 40rem) {
+  .menu-group ul { position: static; min-width: 0; margin-bottom: 0.5rem; }
   table.stacked { min-width: 0; }
   table.stacked thead { position: absolute; left: -999px; }
   table.stacked tr { display: block; border: 1px solid var(--border); border-radius: 0.5rem; margin-bottom: 0.75rem; }

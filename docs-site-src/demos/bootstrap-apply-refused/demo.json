@@ -1,0 +1,9 @@
+{
+  "script": "plugin/bootstrap/plan.mjs",
+  "args": ["--repo", "work", "--apply"],
+  "keep": "^(plan\\.mjs:|nothing written|wrote)",
+  "setup": [
+    "git init -q -b main work",
+    "cd work && printf '{\"name\":\"acme\",\"scripts\":{\"test\":\"jest\"},\"devDependencies\":{\"jest\":\"1\"}}\\n' > package.json && echo '{}' > package-lock.json && git add -A && git commit -q -m init"
+  ]
+}

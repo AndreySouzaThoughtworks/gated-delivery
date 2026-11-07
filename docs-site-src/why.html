@@ -1,0 +1,75 @@
+<h1>Why gated-delivery</h1>
+<p class="lead">This page explains why the project exists, what it bets on, and where the bet is not proven.</p>
+
+<h2 id="human-bottleneck">The human bottleneck</h2>
+<p>This project starts from one premise. A model writes code faster than a person reads it.</p>
+<p>The queue then moves to review. One large pull request that a model wrote in one shot is slow to read and easy to skim. A person who skims is reading a bit and hoping.</p>
+<p>gated-delivery shrinks the queue in two ways.</p>
+<ul>
+  <li><strong>Smaller changes.</strong> <code>/spec</code> splits a ticket into PR-sized slices. Each slice merges on its own.</li>
+  <li><strong>Fewer questions for people.</strong> A script answers each question that a script can answer. A person reviews the results and the decisions.</li>
+</ul>
+<p>The skill that runs a slice stops at checkpoints. A person approves the spec, reviews the slice and merges the pull request. The <a href="features.html#feature-slice">Features</a> page shows each stop.</p>
+
+<h2 id="skill-not-prompt">A skill, not a prompt</h2>
+<p>A good prompt lives in the head of one person. The same ticket gets a different result from each person who prompts it.</p>
+<p>A skill is a file in a versioned plugin. The team reviews it like code. The plugin has no <code>version</code> field. Each commit on <code>main</code> is an update, and <code>claude plugin update {{pluginId}}</code> fetches it. When someone improves a skill, everyone gets the change on the next update.</p>
+<p>The <a href="index.html#compare">comparison on the home page</a> sets a prompt next to a skill on five questions.</p>
+
+<h2 id="rules-in-the-repo">Rules live in the repository, not in the memory of an agent</h2>
+<p>An agent forgets, drifts and guesses. A repository does not. So the repository holds the rules, and a machine enforces them.</p>
+<x-diagram names="trust-ladder" caption="A rule climbs four steps. Each step is harder to ignore than the one before." sources="docs-site-src/concepts.html scripts/audit/rule-inventory-mutation.ts docs/mistakes-to-rules.md"/>
+<p>The project applies the ladder to itself.</p>
+<ul>
+  <li><strong>Scripts replace prose.</strong> The plugin ships {{shippedScripts}} script files. A script counts rows and checks files the same way every time.</li>
+  <li><strong>CI checks.</strong> CI runs {{checks}} numbered checks. A fixed mistake becomes a check that rules out its whole category. The <a href="mistakes.html">Mistakes</a> page also lists the mistakes that still have no rule.</li>
+  <li><strong>Ratchets that only shrink.</strong> Baseline files for lint findings, weak messages and unproven assertions may shrink. They may not grow.</li>
+  <li><strong>Actionable messages.</strong> A check fails with the rule, the cause and the fix. A pattern check holds that line.</li>
+  <li><strong>A token budget.</strong> Each instruction file has a budget. A file that grows past it fails CI.</li>
+  <li><strong>Plain documents.</strong> A script grades the docs. At least 80% of the sentences must have 20 words or fewer. The style is ASD-STE100.</li>
+</ul>
+<p>The <a href="trust.html">Trust</a> page shows each mechanism with its live numbers. The <a href="ci-checks.html">CI checks</a> page lists every check with a real message.</p>
+
+<h2 id="honest-evidence">Honest evidence: what is proven and what is not</h2>
+<p>A project that sells discipline must not overstate its own proof. This is the state today.</p>
+<h3 id="proven">What the repository proves</h3>
+<ul>
+  <li>{{inventories}} rule inventories pin {{rules}} load-bearing rules to literal anchors in the skill, agent and command files.</li>
+  <li>A mutation script deletes each anchored line. {{mutationPerfect}} of {{mutationScored}} inventories catch every deletion.</li>
+  <li>Each skill carries a stamp. The plugin holds {{tiers.static}} static stamps: the scripts and checks of each skill pass.</li>
+</ul>
+<h3 id="not-proven">What it does not prove</h3>
+<ul>
+  <li>The plugin holds {{tiers.live}} live stamps. Live evals are off, because they spend the maintainer's subscription. So no run shows that a model follows each skill.</li>
+  <li>A rule inventory proves that the rule text is present. It does not prove that the rule keeps its meaning.</li>
+  <li>The plugin scripts run in tests against a stub of <code>gh</code>. One opt-in test uses the real <code>gh</code>.</li>
+  <li>The sentence check measures length only. It does not prove that a text is clear or true.</li>
+</ul>
+<x-callout>
+  <p>A static stamp says that the tooling is intact. It never says that the model behaves.</p>
+</x-callout>
+<p>The <a href="trust.html">Trust</a> page and the <a href="eval-tiers.html">Eval tiers</a> page hold the full list.</p>
+
+<h2 id="who-for">Who it is for</h2>
+<ul>
+  <li><strong>Teams that ship tickets with Claude Code.</strong> The work starts from a ticket in a tracker. The skill for tickets has adapters for GitHub and Jira.</li>
+  <li><strong>Teams that want small pull requests.</strong> A reviewer sees one slice at a time, with the checks already run.</li>
+  <li><strong>People who work for many clients.</strong> The plugin names no client. Each client keeps its facts in its own <code>CLAUDE.md</code> and its own Claude profile.</li>
+  <li><strong>Maintainers who want guardrails.</strong> The <code>/gated-delivery:bootstrap</code> command plans the missing guardrails of a Python or TypeScript repository. It writes only after you confirm each group.</li>
+</ul>
+
+<h2 id="what-it-is-not">What it is not</h2>
+<ul>
+  <li><strong>Not an agent framework.</strong> It runs no agent runtime of its own. It is a set of skills, agents, commands and hooks for Claude Code.</li>
+  <li><strong>Not a replacement for review.</strong> <code>/slice</code> stops for a person. A person signs off the spec, reviews the slice and merges the pull request.</li>
+  <li><strong>Not a test runner.</strong> It runs the verify command that your repository names. A repository with no tests gives the gates nothing to run.</li>
+  <li><strong>Not a security boundary.</strong> The Bash guard denies a small set of direct, literal commands. Indirection such as <code>bash script.sh</code> passes it by design.</li>
+  <li><strong>Not proof that a model obeys.</strong> It moves each rule that a script can check out of the prompt. It cannot make a model follow a rule that only prose holds.</li>
+</ul>
+
+<h2 id="next">Where to go next</h2>
+<ul>
+  <li><a href="features.html">Features</a> shows each capability with its sources.</li>
+  <li><a href="concepts.html">Concepts</a> explains the ideas behind the design.</li>
+  <li><a href="install.html">Install and update</a> gets you started.</li>
+</ul>

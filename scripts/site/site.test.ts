@@ -79,7 +79,7 @@ test("planted bad fragments each fail the build with the page, the rule and the 
     ["a hand-typed Node release", `<p>Use Node 22 today.</p>`, /docs-site-src\/home\.html types the Node release "Node 22" by hand\. Rule: .* Fix: write \{\{nodeFloor\}\}/],
     ["a rule that does not exist", `<x-rule id="no.such-rule"/>`, null],
     ["a hand-typed count", `<p>We ship 5 skills.</p>`, /docs-site-src\/home\.html types the count "5 skills" by hand\. Rule: .* Fix: write \{\{skills\}\}/],
-    ["a long sentence", `<p>${LONG_SENTENCE}</p>`.repeat(30), /index\.html has \d+% of its \d+ sentences .* Fix: edit docs-site-src\/home\.html/],
+    ["a long sentence", `<p>${LONG_SENTENCE}</p>`.repeat(120), /index\.html has \d+% of its \d+ sentences .* Fix: edit docs-site-src\/home\.html/],
     ["a dead link", `<p><a href="nowhere.html">gone</a></p>`, /index\.html:\d+ links to nowhere\.html, but nowhere\.html is not a page of the site\. Rule: .* Fix:/],
     ["a dead anchor", `<p><a href="concepts.html#nope">gone</a></p>`, /index\.html:\d+ links to concepts\.html#nope, but concepts\.html has no id "nope"\. Rule: .* Fix:/],
     ["a repeated id", `<p id="what">again</p>`, /index\.html:\d+ repeats the id "what"\. Rule: .* Fix:/],

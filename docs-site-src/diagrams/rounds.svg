@@ -1,0 +1,29 @@
+<svg viewBox="0 0 360 362" role="img" aria-labelledby="rounds-title rounds-desc" focusable="false">
+<title id="rounds-title">A round of batches</title>
+<desc id="rounds-desc">Batches of one slice that do not build on each other run side by side, each in its own batch tree. The orchestrator picks their commits onto the slice in plan order. A later batch that builds on them runs in the next round. A strict chain stays sequential.</desc>
+<text class="dg-label" x="20" y="20">ROUND: BATCHES OF ONE SLICE</text>
+<text class="dg-note" x="20" y="48">Round 1: batches that do not build on each other</text>
+<rect class="dg-gate" x="20" y="58" width="150" height="70" rx="8"/>
+<text class="dg-text" x="32" y="80">Batch 1</text>
+<text class="dg-note" x="32" y="98">own batch tree</text>
+<text class="dg-note" x="32" y="113">no shared files</text>
+<rect class="dg-gate" x="190" y="58" width="150" height="70" rx="8"/>
+<text class="dg-text" x="202" y="80">Batch 2</text>
+<text class="dg-note" x="202" y="98">own batch tree</text>
+<text class="dg-note" x="202" y="113">no shared files</text>
+<path class="dg-arrow" d="M89 130 L101 130 L95 137 Z"/>
+<path class="dg-arrow" d="M259 130 L271 130 L265 137 Z"/>
+<rect class="dg-box" x="20" y="140" width="320" height="44" rx="8"/>
+<text class="dg-text" x="32" y="162">Picked onto the slice</text>
+<text class="dg-note" x="32" y="180">batch-pick.sh, in plan order</text>
+<path class="dg-arrow" d="M174 186 L186 186 L180 193 Z"/>
+<text class="dg-note" x="20" y="212">Round 2: batches that build on round 1</text>
+<rect class="dg-gate" x="20" y="222" width="320" height="44" rx="8"/>
+<text class="dg-text" x="32" y="244">Batch 3 builds on batches 1 and 2</text>
+<text class="dg-note" x="32" y="262">A round of one runs in the slice's own tree</text>
+<path class="dg-arrow" d="M174 268 L186 268 L180 275 Z"/>
+<rect class="dg-human" x="20" y="278" width="320" height="44" rx="8"/>
+<text class="dg-text" x="32" y="300">Picked onto the slice</text>
+<text class="dg-note" x="32" y="318">Then the reviews and the suite run</text>
+<text class="dg-note" x="20" y="348">A strict chain stays sequential.</text>
+</svg>

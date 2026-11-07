@@ -6,6 +6,7 @@ import { delimiter, join } from "node:path";
 import { MISTAKES_FILE, dataBlock, excerptBlock, mistakeRows, ruleQuotation } from "./facts.ts";
 import type { FactContext } from "./facts.ts";
 import { callout, checkCard, inlineCode, stackedTable, terminal } from "./html.ts";
+import { diagramFigure, featureCard } from "./sell.ts";
 
 export const FRAGMENTS_DIRECTORY = "docs-site-src";
 export const DEMOS_DIRECTORY = `${FRAGMENTS_DIRECTORY}/demos`;
@@ -20,6 +21,8 @@ const RULE = /<x-rule id="([\w.-]+)"\s*\/>/g;
 const EXCERPT = /<x-excerpt file="([^"]+)" start="([^"]+)" lines="(\d+)"\s*\/>/g;
 const DATA = /<x-data name="([\w-]+)"\s*\/>/g;
 const CHECK = /<x-check number="(\d+)"\s*\/>/g;
+const FEATURE = /<x-feature id="([^"]+)" title="([^"]+)" sources="([^"]+)" links="([^"]+)">([\s\S]*?)<\/x-feature>/g;
+const DIAGRAM = /<x-diagram names="([^"]+)" caption="([^"]+)" sources="([^"]+)"\s*\/>/g;
 const MISTAKE_COLUMNS = ["Mistake", "Category", "Rule"];
 const DEMO_TIMEOUT_MS = 10000;
 const FIXTURE_DATE = "2026-01-01T00:00:00Z";
@@ -103,6 +106,8 @@ export const renderFragment = (text: string, context: FragmentContext) => {
   assert(typeof text === "string", `a fragment is text, got ${typeof text}; pass the file body.`);
   assert(context.file !== "", `a fragment needs a file name for its messages, got an empty one; pass its path.`);
   return text
+    .replace(FEATURE, (_match, id: string, title: string, sources: string, links: string, inner: string) => featureCard({ id, title, sources, links }, inner))
+    .replace(DIAGRAM, (_match, names: string, caption: string, sources: string) => diagramFigure(context.root, names, caption, sources))
     .replace(TERMINAL, (_match, title: string, body: string) => terminal(title, body.replace(/^\n/, "")))
     .replace(DEMO, (_match, name: string) => terminal(`Real output of ${name}`, demoOutput(context.root, name)))
     .replace(MISTAKE, expandMistake(context))

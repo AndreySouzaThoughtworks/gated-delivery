@@ -1,0 +1,31 @@
+<svg viewBox="0 0 360 440" role="img" aria-labelledby="handoff-lifecycle-title handoff-lifecycle-desc" focusable="false">
+<title id="handoff-lifecycle-title">The life of a handoff file</title>
+<desc id="handoff-lifecycle-desc">Five stages. A slice is claimed and its actor writes a Resume block. Work goes on and Carry forward keeps what has no other home. When the session or the person changes, the next slice command reads the handoff, the tracker and Git and returns to the work. When two actors publish at once, a merge keeps both Resume blocks. When the ticket ships, close folds the per-slice files, leads with the outcome and marks the spec Shipped.</desc>
+<rect class="dg-box" x="20" y="14" width="300" height="70" rx="8"/>
+<text class="dg-text" x="32" y="36">Slice claimed</text>
+<text class="dg-note" x="32" y="54">write-resume stamps a Resume block:</text>
+<text class="dg-note" x="32" y="69">branch, base, last verified, next step.</text>
+<path class="dg-arrow" d="M164 86 L176 86 L170 93 Z"/>
+<rect class="dg-box" x="20" y="98" width="300" height="70" rx="8"/>
+<text class="dg-text" x="32" y="120">Work goes on</text>
+<text class="dg-note" x="32" y="138">Carry forward keeps decisions, deferrals,</text>
+<text class="dg-note" x="32" y="153">assumptions and dead ends.</text>
+<path class="dg-arrow" d="M164 170 L176 170 L170 177 Z"/>
+<rect class="dg-gate" x="20" y="182" width="300" height="70" rx="8"/>
+<text class="dg-text" x="32" y="204">The session or the person changes</text>
+<text class="dg-note" x="32" y="222">Compaction, a new laptop or a teammate.</text>
+<text class="dg-note" x="32" y="237">/slice reads the handoff, tracker and Git.</text>
+<path class="dg-arrow" d="M164 254 L176 254 L170 261 Z"/>
+<rect class="dg-gate" x="20" y="266" width="300" height="70" rx="8"/>
+<text class="dg-text" x="32" y="288">Two actors publish at once</text>
+<text class="dg-note" x="32" y="306">merge keeps both Resume blocks.</text>
+<text class="dg-note" x="32" y="321">Anything else stops and asks you.</text>
+<path class="dg-arrow" d="M164 338 L176 338 L170 345 Z"/>
+<rect class="dg-human" x="20" y="350" width="300" height="70" rx="8"/>
+<text class="dg-text" x="32" y="372">The ticket ships</text>
+<text class="dg-note" x="32" y="390">close folds the per-slice files and leads</text>
+<text class="dg-note" x="32" y="405">with the outcome. The spec becomes Shipped.</text>
+<path class="dg-line" d="M320 217 H346 V133 H328"/>
+<path class="dg-arrow" d="M328 127 L328 139 L320 133 Z"/>
+<text class="dg-note" transform="rotate(-90 340 182)" x="340" y="182" text-anchor="middle">resume</text>
+</svg>

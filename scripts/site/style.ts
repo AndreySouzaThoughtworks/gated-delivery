@@ -177,8 +177,6 @@ time { white-space: nowrap; }
 `;
 
 const HERO_CSS = `.hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); align-items: center; gap: var(--space-6); padding: var(--space-5) 0 var(--space-6); }
-.hero-lockup { display: inline-flex; align-items: center; gap: var(--space-3); font-family: var(--font-title); font-size: 1.2rem; font-weight: 700; color: var(--muted); }
-.hero-lockup img { width: 3rem; height: 3rem; }
 .hero h1 { margin-top: var(--space-4); }
 .hero .tagline { font-family: var(--font-title); font-size: var(--title-3); font-weight: 700; color: var(--accent); margin: 0 0 var(--space-3); }
 .hero-art img { display: block; width: 100%; height: auto; border-radius: var(--radius-l); box-shadow: var(--shadow-m); }
@@ -187,6 +185,41 @@ const HERO_CSS = `.hero { display: grid; grid-template-columns: minmax(0, 1.1fr)
 .btn:hover { text-decoration: none; filter: brightness(1.1); }
 .btn-ghost { background-color: transparent; border-color: var(--border-strong); color: var(--text); }
 .btn-ghost:hover { background-color: var(--surface); }
+`;
+
+const SELL_CSS = `.problem, .steps, .stats { display: grid; gap: var(--space-4); margin: var(--space-5) 0; padding: 0; list-style: none; }
+.problem { grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
+.steps { grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); counter-reset: step; }
+.stats { grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); }
+.problem li, .steps li, .stats li { max-width: none; border: 1px solid var(--border); border-radius: var(--radius-m); padding: var(--space-4); background-color: var(--surface); }
+.problem li { border-radius: var(--radius-l); padding: var(--space-5); }
+.problem li:last-child { border-color: var(--good); }
+.problem strong, .steps strong { display: block; font-family: var(--font-title); font-size: var(--title-3); line-height: 1.2; margin-bottom: var(--space-2); }
+.steps li { counter-increment: step; }
+.steps li::before { content: counter(step); display: inline-grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%; background-color: var(--primary); color: var(--on-primary); font-family: var(--font-title); font-weight: 700; margin-bottom: var(--space-2); }
+.stats strong { display: block; font-family: var(--font-title); font-size: var(--title-2); line-height: 1.1; color: var(--accent); }
+.stats span { color: var(--muted); font-size: var(--text-s); }
+.feature { border: 1px solid var(--border); border-radius: var(--radius-l); padding: var(--space-1) var(--space-5) var(--space-3); margin: var(--space-5) 0; background-color: var(--surface); box-shadow: var(--shadow-s); }
+.feature h2 { margin-top: var(--space-4); padding-top: 0; border-top: 0; }
+.parts { display: grid; grid-template-columns: minmax(7rem, 9rem) minmax(0, 1fr); gap: var(--space-2) var(--space-4); margin: var(--space-3) 0; }
+.parts dt { font-family: var(--font-title); font-weight: 700; color: var(--accent); }
+.parts dd { margin: 0; }
+.parts dd ul { margin: 0; padding-left: 1.2rem; }
+.diagram { margin: var(--space-5) 0; }
+.diagram-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: var(--space-4); }
+.diagram svg { display: block; width: 100%; height: auto; max-width: 30rem; margin: 0 auto; background-color: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-m); }
+.diagram figcaption { color: var(--muted); font-size: var(--text-s); margin-top: var(--space-3); }
+.diagram .source { margin: var(--space-1) 0 0; }
+.dg-box, .dg-gate, .dg-human, .dg-fresh { fill: var(--surface); stroke-width: 1.5; }
+.dg-box { stroke: var(--border-strong); }
+.dg-gate { stroke: var(--accent); }
+.dg-human { stroke: var(--good); }
+.dg-fresh { stroke: var(--violet); }
+.dg-text { fill: var(--text); font-family: var(--font-body); font-size: 14px; font-weight: 600; }
+.dg-note { fill: var(--muted); font-family: var(--font-body); font-size: 12px; }
+.dg-label { fill: var(--violet); font-family: var(--font-title); font-size: 13px; font-weight: 700; letter-spacing: 0.08em; }
+.dg-arrow { fill: var(--muted); }
+.dg-line { fill: none; stroke: var(--muted); stroke-width: 2; }
 `;
 
 const FOOTER_CSS = `.site-footer { border-top: 1px solid var(--border); margin-top: var(--space-7); background-color: var(--surface); color: var(--muted); }
@@ -203,6 +236,11 @@ const FOOTER_CSS = `.site-footer { border-top: 1px solid var(--border); margin-t
 const RESPONSIVE_CSS = `@media (prefers-reduced-motion: no-preference) {
   a, button, .btn, .cards li, tbody tr { transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease; }
   .cards li:hover { box-shadow: var(--shadow-m); border-color: var(--border-strong); }
+}
+@media (max-width: 40rem) {
+  .parts { grid-template-columns: minmax(0, 1fr); }
+  .parts dd { margin-bottom: var(--space-2); }
+  .feature { padding-left: var(--space-4); padding-right: var(--space-4); }
 }
 @media (max-width: 52rem) {
   .hero { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
@@ -226,7 +264,7 @@ const RESPONSIVE_CSS = `@media (prefers-reduced-motion: no-preference) {
   .skip-link, #theme-toggle, .site-header nav, .hero-art, .actions, .footer-grid nav { display: none; }
   html, body { background: #fff; color: #000; background-image: none; }
   .site-header { position: static; backdrop-filter: none; }
-  pre, .terminal, .terminal pre, .terminal figcaption, .callout, .cards li, .check-card { background: #fff; color: #000; box-shadow: none; }
+  pre, .terminal, .terminal pre, .terminal figcaption, .callout, .cards li, .check-card, .feature, .problem li, .steps li, .stats li { background: #fff; color: #000; box-shadow: none; }
   .terminal figcaption::before { display: none; }
   .terminal pre code { color: #000; }
   a { color: #000; }
@@ -236,7 +274,7 @@ const RESPONSIVE_CSS = `@media (prefers-reduced-motion: no-preference) {
 export const styleSheet = (fontHref: string) => {
   assert(fontHref !== "", `the stylesheet needs the font file address, got an empty one; pass the path of the woff2 file.`);
   assert(!EXTERNAL_ADDRESS.test(fontHref), `the font loads from the site, got ${fontHref}; pass a relative path.`);
-  return `\n${themeCss(fontHref)}${BASE_CSS}${HEADER_CSS}${CONTENT_CSS}${HERO_CSS}${FOOTER_CSS}${RESPONSIVE_CSS}`;
+  return `\n${themeCss(fontHref)}${BASE_CSS}${HEADER_CSS}${CONTENT_CSS}${HERO_CSS}${SELL_CSS}${FOOTER_CSS}${RESPONSIVE_CSS}`;
 };
 
 export const STYLE = styleSheet(FONT_FILE);

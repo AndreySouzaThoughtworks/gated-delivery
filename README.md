@@ -9,10 +9,10 @@
 
 **Gate it. Slice it. Prove it.**
 
-Ship every change in small, verified slices. Read the [documentation site](https://andrey1souza.github.io/gated-delivery/).
+A model writes code faster than a person can review it. gated-delivery is a Claude Code plugin that ships one ticket as small slices.<br>
+Scripts and CI checks guard each slice, so people review the results and the decisions.
 
-Issue-driven, test-first delivery for Claude Code.<br>
-Specs split the work into PR-sized slices. Guards and gates check each one.
+The [documentation site](https://andrey1souza.github.io/gated-delivery/) has a Why page and a Features page. They explain the idea and each capability with its source files.
 
 [![CI](https://github.com/andrey1souza/gated-delivery/actions/workflows/audit.yml/badge.svg?branch=main)](https://github.com/andrey1souza/gated-delivery/actions/workflows/audit.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)

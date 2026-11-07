@@ -12,6 +12,8 @@ import type { CheckEntry, NavEntry, Page } from "./html.ts";
 export const GENERATOR_SOURCE = "scripts/site/pages.ts";
 export const HAND_WRITTEN_PAGES = [
   { fragment: "home.html", path: "index.html", title: "Home", summary: `${TAGLINE} Ship every change as small verified slices, with guardrails in the repository.` },
+  { fragment: "why.html", path: "why.html", title: "Why gated-delivery", summary: "Why the project exists: the human review bottleneck, skills instead of prompts, rules in the repository, and honest evidence." },
+  { fragment: "features.html", path: "features.html", title: "Features", summary: "Every capability of the plugin as a card: the problem, the idea, how it works and why it beats a prompt, with its source files." },
   { fragment: "concepts.html", path: "concepts.html", title: "Concepts", summary: "The ideas behind gated-delivery: harden the codebase, turn mistakes into rules, and separate guidance from guardrails." },
   { fragment: "delivery-flow.html", path: "delivery-flow.html", title: "Delivery flow", summary: "How one ticket becomes slices: spec, route, claim, batches, review and pull request, with real script output." },
   { fragment: "trust.html", path: "trust.html", title: "Trust", summary: "What the project proves, how it measures that, and what it does not verify." },
@@ -25,6 +27,8 @@ export const NAVIGATION: NavEntry[] = [
   {
     label: "Guide",
     items: [
+      { path: "why.html", label: "Why" },
+      { path: "features.html", label: "Features" },
       { path: "concepts.html", label: "Concepts" },
       { path: "delivery-flow.html", label: "Delivery flow" },
       { path: "install.html", label: "Install" },
@@ -63,6 +67,7 @@ export const evidenceRows = ({ mutation, rules, budget }: Instruction) => {
 export const siteVariables = (data: SiteData, checks: CheckEntry[], guardNumbers: number[]) => {
   assert(Array.isArray(data.skills), `the site data must list skills, got ${typeof data.skills}; pass the collected data.`);
   assert(Array.isArray(checks), `the checks must be a list, got ${typeof checks}; pass the registry rows.`);
+  const scored = [...data.skills, ...data.agents, ...data.commands].filter(({ mutation }) => mutation !== null);
   const tiers = Object.fromEntries([...TIERS, TIER_NONE].map((tier) => [`tiers.${tier}`, data.skills.filter((skill) => skill.tier === tier).length]));
   return {
     skills: data.skills.length,
@@ -77,6 +82,8 @@ export const siteVariables = (data: SiteData, checks: CheckEntry[], guardNumbers
     guardChecks: checks.filter(({ number }) => guardNumbers.includes(number)).length,
     standaloneChecks: checks.filter(({ number }) => !guardNumbers.includes(number)).length,
     rules: [...data.skills, ...data.agents, ...data.commands].reduce((sum, { rules }) => sum + (rules ?? 0), 0),
+    mutationScored: scored.length,
+    mutationPerfect: scored.filter(({ mutation }) => mutation !== null && mutation.killed === mutation.total).length,
     ...tiers,
   };
 };

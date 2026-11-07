@@ -20,7 +20,7 @@ export const BRAND_ASSETS = {
   faviconPng: `${BRAND_DIRECTORY}/favicon-32.png`,
   appleTouchIcon: `${BRAND_DIRECTORY}/apple-touch-icon.png`,
   socialCard: `${BRAND_DIRECTORY}/og-card.png`,
-  hero: `${BRAND_DIRECTORY}/hero-illustration.svg`,
+  hero: `${BRAND_DIRECTORY}/hero-scene.svg`,
 };
 
 export type PngSize = { width: number; height: number };

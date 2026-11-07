@@ -1,15 +1,17 @@
 {
-  "family": "Space Grotesk",
-  "version": "2.0.0",
+  "family": "Karma",
+  "weight": 700,
+  "version": "google/fonts commit 08ec04d13304b3653ca821c3e7f2495f000a2f4c",
   "license": "SIL Open Font License 1.1",
   "licenseFile": "OFL.txt",
+  "licenseUrl": "https://raw.githubusercontent.com/google/fonts/08ec04d13304b3653ca821c3e7f2495f000a2f4c/ofl/karma/OFL.txt",
   "files": [
     {
-      "file": "SpaceGrotesk-Variable.woff2",
-      "url": "https://github.com/floriankarsten/space-grotesk/releases/download/2.0.0/SpaceGrotesk-2.0.0.zip",
-      "member": "SpaceGrotesk-2.0.0/woff2/SpaceGrotesk[wght].woff2",
-      "sha256": "8e085aa438094f11487a836652edd5c054fa6a96f63fc7c282105ee3a4b08c07",
-      "archiveSha256": "53b415577d4139248555300710bea0d268c7a5be67b93de53b716a9736cabffd"
+      "file": "Karma-Bold.woff2",
+      "url": "https://raw.githubusercontent.com/google/fonts/08ec04d13304b3653ca821c3e7f2495f000a2f4c/ofl/karma/Karma-Bold.ttf",
+      "sourceSha256": "3819cedaa8ef7247aaae77113cbb9b22b207f5fe6c045ae0e1442a7b6b69328e",
+      "sha256": "61bda8997696685904459bb92436fd43dea05e1900d9c966998b01ab3476fe6d",
+      "derivation": "pyftsubset to Basic Latin, Latin-1 and common punctuation with kern and liga, then woff2; tools fonttools 4.55.3 and brotli 1.1.0"
     }
   ]
 }

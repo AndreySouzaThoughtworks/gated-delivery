@@ -1,7 +1,9 @@
 <section class="hero" aria-labelledby="hero-title">
+<div class="hero-art"><img src="assets/brand/hero-scene.svg" alt="A temple gate carved into a desert mesa at dusk. Worn stone steps climb to the gate. Emerald light shines through its bars, and a gem glows between them." width="1600" height="700">
+<div class="plate"><p class="plate-title">gated-delivery</p><p class="tagline">Gate it. Slice it. Prove it.</p></div></div>
 <div class="hero-copy">
 <h1 id="hero-title">Ship every change as small verified slices.</h1>
-<p class="tagline">Gate it. Slice it. Prove it.</p>
+<p class="subline">Open the gate. Keep only what proves itself.</p>
 <p class="lead">A Claude Code plugin that ships one ticket as small slices. Scripts and CI checks guard every slice.</p>
 <ul class="actions">
   <li><a class="btn" href="#install">Install</a></li>
@@ -9,7 +11,6 @@
   <li><a class="btn btn-ghost" href="delivery-flow.html">See how it works</a></li>
 </ul>
 </div>
-<div class="hero-art"><img src="assets/brand/hero-illustration.svg" alt="Three slices of growing length pass a gate. The longest slice ends in a check mark." width="520" height="300"></div>
 </section>
 
 <h2 id="problem">The problem</h2>
@@ -28,7 +29,7 @@
   <li><strong>Prove.</strong> Scripts, a design review and a fresh-context reviewer check each slice. The reviewer sees only the diff and the criteria. It runs the checks itself.</li>
   <li><strong>Merge.</strong> A person merges each pull request. <code>/slice</code> never merges. Run it again for the next slice.</li>
 </ol>
-<x-diagram names="slice-batch slice-end" caption="The path of one slice, from the plan to the merge. An accent edge marks a check, a green edge marks a person and a violet edge marks the fresh reviewer." sources="plugin/skills/slice/SKILL.md docs-site-src/delivery-flow.html"/>
+<x-diagram names="slice-batch slice-end" caption="The path of one slice, from the plan to the merge. An emerald edge marks a check, a gold edge marks a person and a dashed cream edge marks the fresh reviewer." sources="plugin/skills/slice/SKILL.md docs-site-src/delivery-flow.html"/>
 <p>The skill sets each step. Scripts do the exact parts, such as the commit audit and the pull request gate. Models do the reviews. A failing step sends the work back to be fixed.</p>
 
 <h2 id="what">What it is</h2>

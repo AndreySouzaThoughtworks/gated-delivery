@@ -1,7 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="mark-title">
-<title id="mark-title">gated-delivery mark: the letter G with a check mark inside</title>
-<defs><linearGradient id="mark-gradient" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#4ade80"/></linearGradient></defs>
-<rect width="64" height="64" rx="14" fill="#1b1030"/>
-<path d="M46.5 19.5A19 19 0 1 0 51 33H44" fill="none" stroke="url(#mark-gradient)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M21 33l6 6 10-12" fill="none" stroke="#f1ebff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<title id="mark-title">gated-delivery mark: a stone gate with an emerald gem glowing inside</title>
+<rect width="64" height="64" rx="14" fill="#2a2227"/>
+<path d="M17 51L20.5 12H43.5L47 51Z" fill="#8a6a60" stroke="#f3dc7f" stroke-width="3.5" stroke-linejoin="round"/>
+<path d="M24.5 51V25Q24.5 19 32 19Q39.5 19 39.5 25V51Z" fill="#34d399"/>
+<path d="M32 27L38 35L32 46L26 35Z" fill="#ecfff7"/>
+<path d="M32 27L38 35H26Z" fill="#9af0c9"/>
+<rect x="10" y="51" width="44" height="6" rx="1.5" fill="#f3dc7f"/>
 </svg>

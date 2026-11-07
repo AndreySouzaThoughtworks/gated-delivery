@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 700" preserveAspectRatio="xMidYMid slice" role="img" aria-labelledby="scene-title scene-desc">
+<title id="scene-title">An emerald gem glows behind a temple gate</title>
+<desc id="scene-desc">A desert at dusk. The sky runs from deep plum at the top to amber at the horizon, with a few stars. Layered dunes and mesas stand in the distance. Worn stone steps climb to a large portcullis gate carved into a mesa. Emerald light shines through the bars, and a faceted gem is visible between them.</desc>
+<defs>
+<linearGradient id="scene-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a1120"/><stop offset=".38" stop-color="#3b1f38"/><stop offset=".62" stop-color="#8a3d4f"/><stop offset=".8" stop-color="#e08a4a"/><stop offset="1" stop-color="#f6b45c"/></linearGradient>
+<radialGradient id="scene-horizon" cx=".5" cy=".68" r=".55"><stop offset="0" stop-color="#ffd27a" stop-opacity=".55"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></radialGradient>
+<linearGradient id="scene-mesa" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a2a38"/><stop offset="1" stop-color="#241520"/></linearGradient>
+<linearGradient id="scene-stone" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9a7470"/><stop offset="1" stop-color="#5a3c42"/></linearGradient>
+<radialGradient id="scene-glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#d4ffec"/><stop offset=".35" stop-color="#34d399"/><stop offset="1" stop-color="#0a5a42"/></radialGradient>
+<radialGradient id="scene-halo" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#34d399" stop-opacity=".55"/><stop offset="1" stop-color="#34d399" stop-opacity="0"/></radialGradient>
+<linearGradient id="scene-ray" gradientUnits="userSpaceOnUse" x1="0" y1="470" x2="0" y2="0"><stop offset="0" stop-color="#6ee7b7" stop-opacity=".3"/><stop offset="1" stop-color="#6ee7b7" stop-opacity="0"/></linearGradient>
+<linearGradient id="scene-spill" gradientUnits="userSpaceOnUse" x1="0" y1="560" x2="0" y2="700"><stop offset="0" stop-color="#34d399" stop-opacity=".6"/><stop offset="1" stop-color="#34d399" stop-opacity="0"/></linearGradient>
+<style>
+.mote { fill: #fae8d0; opacity: .55; }
+@media (prefers-reduced-motion: no-preference) {
+.mote { animation: scene-drift 9s ease-in-out infinite alternate; }
+.mote:nth-of-type(2n) { animation-duration: 12s; animation-delay: -4s; }
+.mote:nth-of-type(3n) { animation-duration: 15s; animation-delay: -8s; }
+}
+@keyframes scene-drift { from { transform: translate(0, 0); } to { transform: translate(26px, -22px); } }
+</style>
+</defs>
+<rect width="1600" height="700" fill="url(#scene-sky)"/>
+<rect width="1600" height="700" fill="url(#scene-horizon)"/>
+<g fill="#fae8d0">
+<circle cx="120" cy="60" r="2"/><circle cx="260" cy="150" r="1.5"/><circle cx="380" cy="40" r="2.5"/><circle cx="520" cy="110" r="1.5"/><circle cx="640" cy="52" r="2"/><circle cx="1010" cy="70" r="2"/><circle cx="1150" cy="140" r="1.5"/><circle cx="1280" cy="36" r="2.5"/><circle cx="1400" cy="120" r="2"/><circle cx="1510" cy="58" r="1.5"/><circle cx="180" cy="220" r="1.5"/><circle cx="1460" cy="230" r="1.5"/><circle cx="880" cy="30" r="1.5"/>
+</g>
+<path d="M0 480L110 446L230 468L390 436L540 466L700 446L900 446L1060 466L1210 436L1370 468L1490 444L1600 470V700H0Z" fill="#74354a"/>
+<path d="M0 540V410L96 402L128 338H336L368 408L468 420L520 540Z" fill="#552a40"/>
+<path d="M1600 540V410L1504 402L1472 338H1264L1232 408L1132 420L1080 540Z" fill="#552a40"/>
+<path d="M0 560Q260 500 520 556T1040 552T1600 546V700H0Z" fill="#3d1f33"/>
+<g transform="translate(800 700) scale(1.15) translate(-800 -700)">
+<path d="M410 700L452 540L548 484L592 340L690 276H910L1008 340L1052 484L1148 540L1190 700Z" fill="url(#scene-mesa)"/>
+<path d="M452 540L548 484L592 340L690 276H910L1008 340L1052 484L1148 540" fill="none" stroke="#f0a04b" stroke-opacity=".55" stroke-width="3" stroke-linejoin="round"/>
+<ellipse cx="800" cy="470" rx="260" ry="230" fill="url(#scene-halo)"/>
+<g fill="#6ee7b7" fill-opacity=".1">
+<path d="M800 470L520 0H640Z"/><path d="M800 470L720 0H780Z"/><path d="M800 470L860 0H920Z"/><path d="M800 470L1000 0H1100Z"/>
+</g>
+<g fill="url(#scene-ray)">
+<path d="M800 470L520 0H640Z"/><path d="M800 470L720 0H780Z"/><path d="M800 470L860 0H920Z"/><path d="M800 470L1000 0H1100Z"/>
+</g>
+<g fill="#f3dc7f" fill-opacity=".85">
+<rect x="708" y="330" width="14" height="5"/><rect x="738" y="330" width="14" height="5"/><rect x="768" y="330" width="14" height="5"/><rect x="818" y="330" width="14" height="5"/><rect x="848" y="330" width="14" height="5"/><rect x="878" y="330" width="14" height="5"/>
+</g>
+<path d="M672 700L690 360L708 308H892L910 360L928 700Z" fill="url(#scene-stone)" stroke="#f3dc7f" stroke-width="4" stroke-linejoin="round"/>
+<rect x="682" y="340" width="236" height="8" fill="#f3dc7f"/>
+<path d="M738 580V412Q738 366 800 366Q862 366 862 412V580Z" fill="url(#scene-glow)"/>
+<path d="M800 424L836 466L800 524L764 466Z" fill="#effff8"/>
+<path d="M800 424L836 466H764Z" fill="#a7f3d0"/>
+<path d="M800 466V524L764 466Z" fill="#59d8a6"/>
+<g fill="#4a3036">
+<rect x="750" y="372" width="7" height="208"/><rect x="778" y="366" width="7" height="214"/><rect x="815" y="366" width="7" height="214"/><rect x="843" y="372" width="7" height="208"/><rect x="738" y="404" width="124" height="7"/><rect x="738" y="540" width="124" height="7"/>
+</g>
+<path d="M738 580V412Q738 366 800 366Q862 366 862 412V580Z" fill="none" stroke="#f3dc7f" stroke-width="4"/>
+<path d="M738 580H862L1000 700H600Z" fill="url(#scene-spill)"/>
+<g stroke="#f3dc7f" stroke-opacity=".7" stroke-width="3">
+<path d="M580 700L616 640H984L1020 700" fill="#6b4448"/>
+<path d="M616 640L640 600H960L984 640" fill="#7a5658"/>
+<path d="M640 600L664 580H936L960 600" fill="#6b4448"/>
+</g>
+</g>
+<path d="M0 650Q200 604 420 656T760 700H0Z" fill="#1f1118"/>
+<path d="M1600 650Q1400 604 1180 656T840 700H1600Z" fill="#1f1118"/>
+<path d="M60 700L90 660L140 650L190 668L210 700Z" fill="#2c1a22"/>
+<path d="M1400 700L1440 664L1500 654L1550 676L1570 700Z" fill="#2c1a22"/>
+<circle class="mote" cx="640" cy="520" r="2.5"/><circle class="mote" cx="700" cy="440" r="2"/><circle class="mote" cx="930" cy="500" r="3"/><circle class="mote" cx="990" cy="420" r="2"/><circle class="mote" cx="560" cy="380" r="2"/><circle class="mote" cx="1060" cy="560" r="2.5"/><circle class="mote" cx="860" cy="300" r="2"/><circle class="mote" cx="760" cy="620" r="2"/>
+</svg>

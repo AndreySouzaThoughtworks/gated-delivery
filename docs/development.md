@@ -144,15 +144,17 @@ The logo, the icons and the title font live in `docs-site-src/`. The build copie
 
 | Path | Content |
 | --- | --- |
-| `docs-site-src/brand/` | The mark, the favicon, the mono marks, the hero illustration, the icon images and the social card. |
-| `docs-site-src/fonts/` | Space Grotesk as one variable woff2 file, `OFL.txt`, and `SOURCE.json` with the source url and sha256. |
+| `docs-site-src/brand/` | The mark, the favicon, the mono marks, the hero scene, the icon images and the social card. |
+| `docs-site-src/fonts/` | Karma Bold as one subset woff2 file, `OFL.txt`, and `SOURCE.json` with the source url, the sha256 of the source and of the file, and the subset tools. |
 | `scripts/site/style.ts` | The colour tokens, the type scale and all the CSS. |
 
-The title font is Space Grotesk. It uses the SIL Open Font License 1.1. Body text uses the system sans font. Code uses the system mono font.
+The title font is Karma, a serif by Indian Type Foundry from Google Fonts. It uses the SIL Open Font License 1.1. The site ships only the Bold weight, cut to Latin letters. Body text uses the system sans font. Code uses the system mono font.
 
 Dark is the default theme. The tokens for dark sit on `:root`. A visitor whose system prefers light gets the light tokens. The theme button stores an explicit choice in `data-theme`, and that choice wins.
 
-The dark palette uses `bg #1b1030`, `surface #2a1b4a`, `text #f3eeff`, cyan `accent #22d3ee`, green `good #4ade80` and violet `#b9a5ff`. The light palette uses `bg #f8f5ff`, `text #231640`, `accent #0e7490` and `good #166534`.
+The look is a temple adventure at dusk. A stone gate stands at the centre of the design, and an emerald gem glows behind its bars. The mark is a stone gateway with a gem inside. `hero-scene.svg` is the wide scene on the Home page. It is original vector art, and the build copies it as an image file, so each page stays light.
+
+The dark palette uses `bg #2a2227`, `band #231a1c`, `surface #3a2f33`, `text #fae8d0`, gold `#f3dc7f`, emerald `accent #34d399` and red `bad #ff8a8c`. The light palette is parchment: `bg #f6ead2`, `text #3a2415`, dark emerald `accent #0b6b4a` and gold-brown `gold #7a5a10`. Red marks only a bad or blocked state.
 
 The social card source is `docs-site-src/brand/og-card.html`. Render it again after you change the mark or the tagline:
 
@@ -160,7 +162,7 @@ The social card source is `docs-site-src/brand/og-card.html`. Render it again af
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --disable-gpu --hide-scrollbars --window-size=1200,630 --screenshot=docs-site-src/brand/og-card.png file://$PWD/docs-site-src/brand/og-card.html
 ```
 
-Render the 32 and 180 pixel icons the same way, with a window of the same size as the icon.
+Render the 32 and 180 pixel icons the same way, with a window of the same size as the icon and `mark.svg` or `favicon.svg` as the only image.
 
 The site build runs these guards. Each guard has a reject-case test in `scripts/site/brand.test.ts`.
 

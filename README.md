@@ -12,7 +12,7 @@
 A model writes code faster than a person can review it. gated-delivery is a Claude Code plugin that ships one ticket as small slices.<br>
 Scripts and CI checks guard each slice, so people review the results and the decisions.
 
-The [documentation site](https://andrey1souza.github.io/gated-delivery/) has a Why page and a Features page. They explain the idea and each capability with its source files.
+The [documentation site](https://andrey1souza.github.io/gated-delivery/) has a [Why page](https://andrey1souza.github.io/gated-delivery/why.html) and a [Features page](https://andrey1souza.github.io/gated-delivery/features.html). They explain the idea and each capability with its source files.
 
 [![CI](https://github.com/andrey1souza/gated-delivery/actions/workflows/audit.yml/badge.svg?branch=main)](https://github.com/andrey1souza/gated-delivery/actions/workflows/audit.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)

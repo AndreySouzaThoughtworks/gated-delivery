@@ -3,4 +3,3 @@
 max_retries = 3
 timeout = 20
 include_fragments = "full"
-exclude = ["^https://andrey1souza\\.github\\.io/gated-delivery/"]

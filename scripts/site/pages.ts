@@ -54,17 +54,6 @@ export const NAVIGATION: NavEntry[] = [
 ];
 
 const NO_VALUE = "none";
-const PERCENT = 100;
-
-export const evidenceRows = ({ mutation, rules, budget }: Instruction) => {
-  assert(rules === null || Number.isInteger(rules), `a rule count is a whole number or null, got ${rules}; fix the inventory file.`);
-  assert(mutation === null || mutation.killed <= mutation.total, `killed mutants cannot exceed all mutants, got ${mutation?.killed} of ${mutation?.total}; rerun the mutation script.`);
-  return [
-    ["Rules in the inventory", rules === null ? NO_VALUE : String(rules)],
-    ["Mutation score (rules killed)", mutation ? `${mutation.killed} of ${mutation.total} (${mutation.total === 0 ? PERCENT : Math.round((PERCENT * mutation.killed) / mutation.total)}%)` : NO_VALUE],
-    ["Token budget", budget === null ? NO_VALUE : `${budget} estimated tokens`],
-  ];
-};
 
 export const siteVariables = (data: SiteData, checks: CheckEntry[], guardNumbers: number[]) => {
   assert(Array.isArray(data.skills), `the site data must list skills, got ${typeof data.skills}; pass the collected data.`);
@@ -90,22 +79,6 @@ export const siteVariables = (data: SiteData, checks: CheckEntry[], guardNumbers
   };
 };
 
-export const evidenceTable = (instruction: Instruction, tier?: string) => {
-  assert(instruction.path !== "", `evidence names its source file, got an empty path for ${instruction.name}; pass a file path.`);
-  assert(tier === undefined || tier !== "", `a tier is a word, got an empty string for ${instruction.name}; pass the tier name or omit it.`);
-  const [rules, mutation, budget] = evidenceRows(instruction);
-  return table(
-    ["Evidence", "Value"],
-    [
-      rules,
-      mutation,
-      ...(tier === undefined ? [] : [["Stamp tier", `<span class="tier tier-${tier}">${escapeHtml(tier)}</span>`]]),
-      budget,
-      ["Source file", `<code>${escapeHtml(instruction.path)}</code>`],
-    ],
-  );
-};
-
 export const skillPage = (skill: Skill, scriptPages: Map<string, string>): Page => {
   assert(skill.name !== "", `a skill page is named after its skill, got an empty name for ${skill.path}; fix the folder name.`);
   assert(scriptPages instanceof Map, `the script links are a Map of path to link, got ${typeof scriptPages}; pass the map.`);
@@ -119,16 +92,23 @@ export const skillPage = (skill: Skill, scriptPages: Map<string, string>): Page 
     `<h2 id="description">Description</h2>`,
     quotation(skill.path, skill.description),
     ...(skill.inputs.length ? [`<h2 id="inputs">Inputs</h2>`, bulletList(skill.inputs.map((input) => `<code>${escapeHtml(input)}</code>`))] : []),
-    `<h2 id="sections">Sections of the skill</h2>`,
-    bulletList(skill.sections.map((heading) => inlineCode(heading))),
     ...(skill.steps.length ? [`<h2 id="steps">Steps</h2>`, `<ol>${skill.steps.map((step) => `<li>${inlineCode(step.replace(/^\d+\.\s*/, ""))}</li>`).join("")}</ol>`] : []),
     ...(scripts.length ? [`<h2 id="scripts">Scripts it calls</h2>`, bulletList(scripts)] : []),
-    `<h2 id="evidence">Evidence</h2>`,
-    `<p>The numbers below come from <code>evals/rules</code>, <code>evals/results</code> and <code>evals/token-budget.json</code>.</p>`,
-    evidenceTable(skill, skill.tier),
+    `<h2 id="source">Source</h2>`,
+    `<p>The skill lives in <code>${escapeHtml(skill.path)}</code>. The <a href="${relativeLink(`skills/${skill.name}.html`, "trust.html")}">Trust</a> page shows how the project checks it.</p>`,
     `<p><a href="${relativeLink(`skills/${skill.name}.html`, SKILLS_INDEX)}">Back to all skills</a></p>`,
   ].join("\n");
-  return { path: `skills/${skill.name}.html`, title: skill.name, summary: `The ${skill.name} skill: inputs, steps, scripts and evidence.`, body, source: GENERATOR_SOURCE };
+  return { path: `skills/${skill.name}.html`, title: skill.name, summary: `The ${skill.name} skill: inputs, steps, scripts and source.`, body, source: GENERATOR_SOURCE };
+};
+
+const CLAUSE_END = /[;:.](?:\s|$)| — /;
+
+export const firstClause = (description: string) => {
+  assert(typeof description === "string", `a description is text, got ${typeof description}; pass the skill description.`);
+  assert(description.trim() !== "", `a skill needs a description to summarise, got an empty one; fix the skill frontmatter.`);
+  const [clause] = description.trim().split(CLAUSE_END);
+  assert(clause !== "", `a description cannot start with a full stop, got "${description}"; fix the skill frontmatter.`);
+  return clause;
 };
 
 export const skillsIndex = (data: SiteData): Page => {
@@ -137,18 +117,17 @@ export const skillsIndex = (data: SiteData): Page => {
   return {
     path: SKILLS_INDEX,
     title: "Skills",
-    summary: "Every skill of the plugin, with its eval tier and rule count.",
+    summary: "Every skill of the plugin, with what it does.",
     source: GENERATOR_SOURCE,
     body: [
       `<h1>Skills</h1>`,
       `<p class="lead">The plugin ships ${data.skills.length} skills. Each skill has its own page.</p>`,
       `<h2 id="all-skills">All skills</h2>`,
       stackedTable(
-        ["Skill", "Stamp tier", "Rules", "Mutation score", "Token budget"],
+        ["Skill", "What it does"],
         data.skills.map((skill) => [
           `<a href="${skill.name}.html"><code>${escapeHtml(skill.name)}</code></a>`,
-          `<span class="tier tier-${skill.tier}">${escapeHtml(skill.tier)}</span>`,
-          ...evidenceRows(skill).map(([, value]) => value),
+          escapeHtml(firstClause(skill.description)),
         ]),
       ),
     ].join("\n"),
@@ -161,7 +140,7 @@ export const instructionSection = (kind: string, item: Instruction, details: [st
   return [
     `<h2 id="${kind}-${item.name}">${escapeHtml(item.name)}</h2>`,
     quotation(item.path, item.description),
-    table(["Fact", "Value"], [...details, ...evidenceRows(item), ["Source file", `<code>${escapeHtml(item.path)}</code>`]]),
+    table(["Fact", "Value"], [...details, ["Source file", `<code>${escapeHtml(item.path)}</code>`]]),
   ].join("\n");
 };
 
@@ -298,7 +277,7 @@ export const evalTiersPage = (data: SiteData): Page => {
       ]),
       `<p>A stamp holds a hash of the skill files. The guard fails when a changed skill has no matching stamp.</p>`,
       `<h2 id="by-skill">Tier of each skill</h2>`,
-      table(["Skill", "Tier", "Stamped at"], data.skills.map((skill) => [`<a href="skills/${skill.name}.html"><code>${escapeHtml(skill.name)}</code></a>`, `<span class="tier tier-${skill.tier}">${escapeHtml(skill.tier)}</span>`, skill.stampedAt ? `<time datetime="${escapeHtml(skill.stampedAt)}">${escapeHtml(skill.stampedAt)}</time>` : NO_VALUE])),
+      table(["Skill", "Tier"], data.skills.map((skill) => [`<a href="skills/${skill.name}.html"><code>${escapeHtml(skill.name)}</code></a>`, `<span class="tier tier-${skill.tier}">${escapeHtml(skill.tier)}</span>`])),
     ].join("\n"),
   };
 };

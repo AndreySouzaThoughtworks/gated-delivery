@@ -5,8 +5,8 @@ import { TIERS, TIER_NONE, guardSectionNumbers, warnOnlyChecks } from "./data.ts
 import type { Agent, Command, Hook, Instruction, PluginScript, ScriptGroup, SiteData, Skill, UsageFrom } from "./data.ts";
 import { factVariables } from "./facts.ts";
 import { FRAGMENTS_DIRECTORY, renderFragment } from "./fragments.ts";
-import { bulletList, checkCard, escapeHtml, quotation, relativeLink, table } from "./html.ts";
-import type { CheckEntry, NavItem, Page } from "./html.ts";
+import { bulletList, checkCard, escapeHtml, inlineCode, quotation, relativeLink, stackedTable, table } from "./html.ts";
+import type { CheckEntry, NavEntry, Page } from "./html.ts";
 
 export const GENERATOR_SOURCE = "scripts/site/pages.ts";
 export const HAND_WRITTEN_PAGES = [
@@ -19,21 +19,31 @@ export const HAND_WRITTEN_PAGES = [
   { fragment: "develop.html", path: "develop.html", title: "Develop", summary: "Add a rule with its reject-case test, run the audit locally and understand the ratchets." },
 ];
 export const SKILLS_INDEX = "skills/index.html";
-export const NAVIGATION: NavItem[] = [
+export const NAVIGATION: NavEntry[] = [
   { path: "index.html", label: "Home" },
-  { path: "concepts.html", label: "Concepts" },
-  { path: "delivery-flow.html", label: "Delivery flow" },
-  { path: "install.html", label: "Install" },
-  { path: "develop.html", label: "Develop" },
-  { path: "trust.html", label: "Trust" },
-  { path: "mistakes.html", label: "Mistakes" },
-  { path: SKILLS_INDEX, label: "Skills" },
-  { path: "agents.html", label: "Agents" },
-  { path: "commands.html", label: "Commands" },
-  { path: "hooks.html", label: "Hooks" },
-  { path: "plugin-scripts.html", label: "Plugin scripts" },
-  { path: "ci-checks.html", label: "CI checks" },
-  { path: "eval-tiers.html", label: "Eval tiers" },
+  {
+    label: "Guide",
+    items: [
+      { path: "concepts.html", label: "Concepts" },
+      { path: "delivery-flow.html", label: "Delivery flow" },
+      { path: "install.html", label: "Install" },
+      { path: "develop.html", label: "Develop" },
+      { path: "trust.html", label: "Trust" },
+      { path: "mistakes.html", label: "Mistakes" },
+    ],
+  },
+  {
+    label: "Reference",
+    items: [
+      { path: SKILLS_INDEX, label: "Skills" },
+      { path: "agents.html", label: "Agents" },
+      { path: "commands.html", label: "Commands" },
+      { path: "hooks.html", label: "Hooks" },
+      { path: "plugin-scripts.html", label: "Plugin scripts" },
+      { path: "ci-checks.html", label: "CI checks" },
+      { path: "eval-tiers.html", label: "Eval tiers" },
+    ],
+  },
 ];
 
 const NO_VALUE = "none";
@@ -100,8 +110,8 @@ export const skillPage = (skill: Skill, scriptPages: Map<string, string>): Page 
     quotation(skill.path, skill.description),
     ...(skill.inputs.length ? [`<h2 id="inputs">Inputs</h2>`, bulletList(skill.inputs.map((input) => `<code>${escapeHtml(input)}</code>`))] : []),
     `<h2 id="sections">Sections of the skill</h2>`,
-    bulletList(skill.sections.map((heading) => escapeHtml(heading))),
-    ...(skill.steps.length ? [`<h2 id="steps">Steps</h2>`, `<ol>${skill.steps.map((step) => `<li>${escapeHtml(step.replace(/^\d+\.\s*/, ""))}</li>`).join("")}</ol>`] : []),
+    bulletList(skill.sections.map((heading) => inlineCode(heading))),
+    ...(skill.steps.length ? [`<h2 id="steps">Steps</h2>`, `<ol>${skill.steps.map((step) => `<li>${inlineCode(step.replace(/^\d+\.\s*/, ""))}</li>`).join("")}</ol>`] : []),
     ...(scripts.length ? [`<h2 id="scripts">Scripts it calls</h2>`, bulletList(scripts)] : []),
     `<h2 id="evidence">Evidence</h2>`,
     `<p>The numbers below come from <code>evals/rules</code>, <code>evals/results</code> and <code>evals/token-budget.json</code>.</p>`,
@@ -123,7 +133,7 @@ export const skillsIndex = (data: SiteData): Page => {
       `<h1>Skills</h1>`,
       `<p class="lead">The plugin ships ${data.skills.length} skills. Each skill has its own page.</p>`,
       `<h2 id="all-skills">All skills</h2>`,
-      table(
+      stackedTable(
         ["Skill", "Stamp tier", "Rules", "Mutation score", "Token budget"],
         data.skills.map((skill) => [
           `<a href="${skill.name}.html"><code>${escapeHtml(skill.name)}</code></a>`,
@@ -278,7 +288,7 @@ export const evalTiersPage = (data: SiteData): Page => {
       ]),
       `<p>A stamp holds a hash of the skill files. The guard fails when a changed skill has no matching stamp.</p>`,
       `<h2 id="by-skill">Tier of each skill</h2>`,
-      table(["Skill", "Tier", "Stamped at"], data.skills.map((skill) => [`<a href="skills/${skill.name}.html"><code>${escapeHtml(skill.name)}</code></a>`, `<span class="tier tier-${skill.tier}">${escapeHtml(skill.tier)}</span>`, skill.stampedAt ? escapeHtml(skill.stampedAt) : NO_VALUE])),
+      table(["Skill", "Tier", "Stamped at"], data.skills.map((skill) => [`<a href="skills/${skill.name}.html"><code>${escapeHtml(skill.name)}</code></a>`, `<span class="tier tier-${skill.tier}">${escapeHtml(skill.tier)}</span>`, skill.stampedAt ? `<time datetime="${escapeHtml(skill.stampedAt)}">${escapeHtml(skill.stampedAt)}</time>` : NO_VALUE])),
     ].join("\n"),
   };
 };

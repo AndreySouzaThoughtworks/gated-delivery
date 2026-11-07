@@ -6,7 +6,8 @@ export const SITE_NAME = "gated-delivery";
 export const REPOSITORY_URL = "https://github.com/andrey1souza/gated-delivery";
 export const MINIMUM_HEADINGS_FOR_TOC = 3;
 
-const BACKTICK = /`([^`]+)`/g;
+const MENU_GROUP_NAME = "site-menu";
+const BACKTICK =/`([^`]+)`/g;
 const H1_END = "</h1>";
 const SECTION_INDEX = "/index.html";
 const ROOT_INDEX = "index.html";
@@ -17,6 +18,8 @@ const ENTITIES: [string, string][] = [["&", "&amp;"], ["<", "&lt;"], [">", "&gt;
 
 export type Page = { path: string; title: string; summary: string; body: string; source: string };
 export type NavItem = { path: string; label: string };
+export type NavGroup = { label: string; items: NavItem[] };
+export type NavEntry = NavItem | NavGroup;
 export type CheckEntry = Check;
 
 export const escapeHtml = (text: string) => {
@@ -103,16 +106,36 @@ export const tableOfContents = (body: string) => {
   return `<nav class="toc" aria-label="On this page"><p class="toc-title">On this page</p><ol>${headings.map(([, id, text]) => `<li><a href="#${id}">${text}</a></li>`).join("")}</ol></nav>`;
 };
 
-export const layout = (page: Page, navigation: NavItem[]) => {
+const isCurrent = (pagePath: string, path: string) => {
+  assert(pagePath !== "", `the current page needs a path, got an empty one; pass the page path.`);
+  assert(!path.startsWith("/"), `a menu link path is relative to the site root, got ${path}; drop the leading slash.`);
+  return pagePath === path || (path.endsWith(SECTION_INDEX) && pagePath.startsWith(path.slice(0, path.length - ROOT_INDEX.length)));
+};
+
+const navLink = (pagePath: string, { path, label }: NavItem) => {
+  assert(label !== "", `a menu link needs a label, got an empty one for ${path}; name the link.`);
+  assert(path.endsWith(".html"), `a menu link points at a page, got ${path}; name an .html file.`);
+  const current = isCurrent(pagePath, path);
+  return `<a href="${relativeLink(pagePath, path)}"${current ? ' aria-current="page"' : ""}>${escapeHtml(label)}</a>`;
+};
+
+export const menuMarkup = (pagePath: string, navigation: NavEntry[]) => {
+  assert(navigation.length > 0, `the menu needs navigation links, got none for ${pagePath}; pass the menu items.`);
+  assert(navigation.every((entry) => !("items" in entry) || entry.items.length > 0), `a menu group needs at least one link, got an empty group in ${JSON.stringify(navigation.map(({ label }) => label))}; add links or drop the group.`);
+  return navigation
+    .map((entry) => {
+      if (!("items" in entry)) return `<li>${navLink(pagePath, entry)}</li>`;
+      const holdsCurrent = entry.items.some(({ path }) => isCurrent(pagePath, path));
+      return `<li class="menu-group"><details name="${MENU_GROUP_NAME}"><summary${holdsCurrent ? ' class="has-current"' : ""}>${escapeHtml(entry.label)}</summary><ul>${entry.items.map((item) => `<li>${navLink(pagePath, item)}</li>`).join("")}</ul></details></li>`;
+    })
+    .join("");
+};
+
+export const layout = (page: Page, navigation: NavEntry[]) => {
   assert(page.path.endsWith(".html"), `a page path must end in .html, got ${page.path}; name the page file.`);
   assert(navigation.length > 0, `the layout needs navigation links, got none for ${page.path}; pass the menu items.`);
   const home = relativeLink(page.path, "index.html");
-  const links = navigation
-    .map(({ path, label }) => {
-      const current = page.path === path || (path.endsWith(SECTION_INDEX) && page.path.startsWith(path.slice(0, path.length - ROOT_INDEX.length)));
-      return `<li><a href="${relativeLink(page.path, path)}"${current ? ' aria-current="page"' : ""}>${escapeHtml(label)}</a></li>`;
-    })
-    .join("");
+  const links = menuMarkup(page.path, navigation);
   return `<!DOCTYPE html>
 <html lang="en">
 <head>

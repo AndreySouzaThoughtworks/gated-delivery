@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>gated-delivery social card</title>
+<style>
+@font-face { font-family: "Space Grotesk"; src: url("../fonts/SpaceGrotesk-Variable.woff2") format("woff2"); font-weight: 300 700; font-display: swap; }
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; }
+body { background: radial-gradient(circle at 85% 15%, #3b2470 0, #231640 45%, #1b1030 100%); color: #f1ebff; font-family: "Space Grotesk", system-ui, sans-serif; display: grid; grid-template-columns: 1fr 520px; align-items: center; gap: 56px; padding: 0 72px; }
+.lockup { display: flex; align-items: center; gap: 20px; }
+.lockup img { width: 72px; height: 72px; }
+.wordmark { white-space: nowrap; font-size: 48px; font-weight: 700; letter-spacing: -0.02em; }
+h1 { font-size: 84px; line-height: 1.02; letter-spacing: -0.03em; margin: 44px 0 28px; }
+h1 span { background: linear-gradient(90deg, #22d3ee, #4ade80); -webkit-background-clip: text; background-clip: text; color: transparent; }
+p { font-size: 30px; line-height: 1.35; color: #c4b5e8; margin: 0; max-width: 520px; }
+.art { width: 520px; height: 300px; }
+</style>
+</head>
+<body>
+<main>
+<div class="lockup"><img src="mark.svg" alt=""><span class="wordmark">gated-delivery</span></div>
+<h1><span>Gate it.</span><br>Slice it.<br>Prove it.</h1>
+<p>Ship every change as small verified slices.</p>
+</main>
+<img class="art" src="hero-illustration.svg" alt="">
+</body>
+</html>

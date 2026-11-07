@@ -2,6 +2,7 @@ import assert from "node:assert";
 
 const TAG = /<(\/?)([a-zA-Z][\w-]*)((?:"[^"]*"|'[^']*'|[^>"'])*)>/g;
 const ATTRIBUTE = /([\w:-]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?/g;
+export const QUOTATION = /<blockquote class="quote" data-source="([^"]+)">\s*<p>([\s\S]*?)<\/p>[\s\S]*?<\/blockquote>/g;
 const COMMENT = /<!--[\s\S]*?-->/g;
 const DOCTYPE = /<!DOCTYPE[^>]*>/gi;
 const RAW_TEXT_ELEMENTS = /<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi;

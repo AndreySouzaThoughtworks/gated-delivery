@@ -9,9 +9,10 @@ import type { SiteData } from "./data.ts";
 import { FRAGMENTS_DIRECTORY } from "./fragments.ts";
 import { unescapeHtml } from "./html.ts";
 import { SKILLS_INDEX } from "./pages.ts";
-import { balanceProblems, tagsOf } from "./markup.ts";
+import { assetProblems, fontFaceProblems, fontSourceProblems, hypeProblems, metaProblems, themeProblems, weightProblems } from "./brand-gates.ts";
+import type { SiteAssets } from "./brand-gates.ts";
+import { QUOTATION, balanceProblems, tagsOf } from "./markup.ts";
 
-const QUOTATION = /<blockquote class="quote" data-source="([^"]+)">\s*<p>([\s\S]*?)<\/p>[\s\S]*?<\/blockquote>/g;
 const HAND_TYPED_COUNT = /(\d+)\s+(?:numbered\s+)?(skills|agents|commands|hooks|checks|scripts)\b/g;
 const HAND_TYPED_NODE = /\bNode (\d+(?:\.\d+)*)/g;
 const CHECK_CARD = /<article class="check-card"[\s\S]*?<\/article>/g;
@@ -28,6 +29,8 @@ const TOKEN_LIKE = /\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}
 const NODE_VARIABLES = "{{nodeFloor}} or {{nodeDevFloor}}";
 const NUL = String.fromCharCode(0);
 const STRAY_FILE = /\.(?:bak|orig|rej)$/;
+const CANONICAL_RELATION = "canonical";
+const README_FILE = "README.md";
 const RESOURCE_URL = /^(?:https?:)?\/\//i;
 const RESOURCE_ATTRIBUTES = ["src", "href"];
 const CSS_EXTERNAL = /@import|url\(\s*["']?(?:https?:)?\/\//i;
@@ -91,7 +94,7 @@ export const structureProblems = (file: string, html: string) => {
       seen.add(id);
     }
     if (tag.name === "img" && !("alt" in tag.attributes)) problems.push(`${file}:${tag.line} has an img with no alt attribute. Rule: every image has alt text. Fix: add alt="" for a decorative image or a description.`);
-    if (tag.name !== "a" && RESOURCE_ATTRIBUTES.some((name) => RESOURCE_URL.test(tag.attributes[name] ?? ""))) {
+    if (tag.name !== "a" && !(tag.name === "link" && tag.attributes.rel === CANONICAL_RELATION) && RESOURCE_ATTRIBUTES.some((name) => RESOURCE_URL.test(tag.attributes[name] ?? ""))) {
       problems.push(`${file}:${tag.line} loads an external resource through <${tag.name}>. Rule: the site loads nothing from outside. Fix: inline it or remove it.`);
     }
   }
@@ -175,9 +178,9 @@ export const trackedFiles = (root: string) => {
   return execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" }).split(NUL).filter((path) => path !== "");
 };
 
-export type SiteInput = { tracked?: string[]; root: string; files: SiteFiles; sources: Sources; data: SiteData; counts: [string, number][]; fragments: { file: string; text: string }[] };
+export type SiteInput = { tracked?: string[]; assets?: SiteAssets; root: string; files: SiteFiles; sources: Sources; data: SiteData; counts: [string, number][]; fragments: { file: string; text: string }[] };
 
-export const siteProblems = ({ root, files, sources, data, counts, fragments, tracked = [] }: SiteInput) => {
+export const siteProblems = ({ root, files, sources, data, counts, fragments, tracked = [], assets = new Map() }: SiteInput) => {
   assert(files instanceof Map, `the site files are a Map of path to html, got ${typeof files}; pass the map.`);
   assert(Array.isArray(fragments), `the fragments are a list of files, got ${typeof fragments}; pass the fragment files.`);
   return [
@@ -191,7 +194,14 @@ export const siteProblems = ({ root, files, sources, data, counts, fragments, tr
     ...quotationProblems(page, html, root),
     ...styleProblems(page, html, sources[page] ?? page),
   ]),
+  ...[...files].flatMap(([page, html]) => [...fontFaceProblems(page, html), ...hypeProblems(page, html)]),
+  ...(existsSync(join(root, README_FILE)) ? hypeProblems(README_FILE, readFileSync(join(root, README_FILE), "utf8")) : []),
   ...linkProblems(files),
+  ...assetProblems(files, assets),
+  ...metaProblems(files),
+  ...weightProblems(files, assets),
+  ...themeProblems(files),
+  ...fontSourceProblems(root),
   ...strayFileProblems(tracked),
   ];
 };

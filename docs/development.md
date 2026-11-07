@@ -138,6 +138,39 @@ Until then, the `deploy` job fails at the `actions/configure-pages` step. The me
 
 Run `node scripts/site/build.ts`. Then open `docs-site/index.html` in a browser. The build needs no server.
 
+## Brand and design
+
+The logo, the icons and the title font live in `docs-site-src/`. The build copies them into `docs-site/assets/`.
+
+| Path | Content |
+| --- | --- |
+| `docs-site-src/brand/` | The mark, the favicon, the mono marks, the hero illustration, the icon images and the social card. |
+| `docs-site-src/fonts/` | Space Grotesk as one variable woff2 file, `OFL.txt`, and `SOURCE.json` with the source url and sha256. |
+| `scripts/site/style.ts` | The colour tokens, the type scale and all the CSS. |
+
+The title font is Space Grotesk. It uses the SIL Open Font License 1.1. Body text uses the system sans font. Code uses the system mono font.
+
+Dark is the default theme. The tokens for dark sit on `:root`. A visitor whose system prefers light gets the light tokens. The theme button stores an explicit choice in `data-theme`, and that choice wins.
+
+The dark palette uses `bg #1b1030`, `surface #2a1b4a`, `text #f3eeff`, cyan `accent #22d3ee`, green `good #4ade80` and violet `#b9a5ff`. The light palette uses `bg #f8f5ff`, `text #231640`, `accent #0e7490` and `good #166534`.
+
+The social card source is `docs-site-src/brand/og-card.html`. Render it again after you change the mark or the tagline:
+
+```
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --disable-gpu --hide-scrollbars --window-size=1200,630 --screenshot=docs-site-src/brand/og-card.png file://$PWD/docs-site-src/brand/og-card.html
+```
+
+Render the 32 and 180 pixel icons the same way, with a window of the same size as the icon.
+
+The site build runs these guards. Each guard has a reject-case test in `scripts/site/brand.test.ts`.
+
+- Contrast: every text pair in `scripts/site/contrast.ts` reaches WCAG AA in both themes.
+- Fonts: the file, the licence text, the sha256 in `SOURCE.json`, the 200 KB budget and `font-display: swap`.
+- Page weight: each page stays under 80 KB of html and css. The whole site stays under 1.5 MB.
+- Assets: every referenced file exists. The PNG sizes are 32x32, 180x180 and 1200x630. Every SVG parses and has a name.
+- Meta: each page has a unique title and description, a canonical url, Open Graph tags, a card tag and two theme colours.
+- Hype: a short list of marketing words fails the build in the site copy and in `README.md`.
+
 ## Token budget
 
 Instruction text is the main runtime cost of the plugin. Every skill, agent and command body loads into a session when it runs. The `name: description` line of each one is in context every session.

@@ -1,36 +1,36 @@
-<svg viewBox="0 0 360 470" role="img" aria-labelledby="slice-end-title slice-end-desc" focusable="false">
+<svg viewBox="0 0 360 706" role="img" aria-labelledby="slice-end-title slice-end-desc" focusable="false">
 <title id="slice-end-title">The end of a slice</title>
 <desc id="slice-end-desc">Eight steps in order. Stack validators. Full verification. Design review of the whole slice. The Done-when block. The fresh reviewer proves each criterion. A checkpoint where you review the slice. The pull request is marked ready. A person merges.</desc>
-<text class="dg-label" x="20" y="20">AT THE END OF THE SLICE</text>
-<rect class="dg-gate" x="20" y="34" width="320" height="44" rx="8"/>
-<text class="dg-text" x="32" y="56">Stack validators</text>
-<text class="dg-note" x="32" y="74">Named in your CLAUDE.md; skipped if none</text>
-<path class="dg-arrow" d="M174 80 L186 80 L180 87 Z"/>
-<rect class="dg-gate" x="20" y="88" width="320" height="44" rx="8"/>
-<text class="dg-text" x="32" y="110">Full verification</text>
-<text class="dg-note" x="32" y="128">Your verify command, through the lock</text>
-<path class="dg-arrow" d="M174 134 L186 134 L180 141 Z"/>
-<rect class="dg-gate" x="20" y="142" width="320" height="44" rx="8"/>
-<text class="dg-text" x="32" y="164">Design review of the whole slice</text>
-<text class="dg-note" x="32" y="182">senior-review-lens on the full range</text>
-<path class="dg-arrow" d="M174 188 L186 188 L180 195 Z"/>
-<rect class="dg-human" x="20" y="196" width="320" height="44" rx="8"/>
-<text class="dg-text" x="32" y="218">Done-when block walked</text>
-<text class="dg-note" x="32" y="236">You confirm it; boxes ticked in the spec</text>
-<path class="dg-arrow" d="M174 242 L186 242 L180 249 Z"/>
-<rect class="dg-fresh" x="20" y="250" width="320" height="44" rx="8"/>
-<text class="dg-text" x="32" y="272">Fresh reviewer proves each criterion</text>
-<text class="dg-note" x="32" y="290">code-reviewer sees the diff and criteria only</text>
-<path class="dg-arrow" d="M174 296 L186 296 L180 303 Z"/>
-<rect class="dg-human" x="20" y="304" width="320" height="44" rx="8"/>
-<text class="dg-text" x="32" y="326">Checkpoint: you review the slice</text>
-<text class="dg-note" x="32" y="344">The handoff is updated here</text>
-<path class="dg-arrow" d="M174 350 L186 350 L180 357 Z"/>
-<rect class="dg-box" x="20" y="358" width="320" height="44" rx="8"/>
-<text class="dg-text" x="32" y="380">Pull request marked ready</text>
-<text class="dg-note" x="32" y="398">Closes the ticket on the last slice only</text>
-<path class="dg-arrow" d="M174 404 L186 404 L180 411 Z"/>
-<rect class="dg-human" x="20" y="412" width="320" height="44" rx="8"/>
-<text class="dg-text" x="32" y="434">A person merges</text>
-<text class="dg-note" x="32" y="452">/slice never merges</text>
+<text class="dg-label" x="20" y="32">AT THE END OF THE SLICE</text>
+<rect class="dg-gate" x="20" y="48" width="320" height="68" rx="8"/>
+<text class="dg-text" x="40" y="76">Stack validators</text>
+<text class="dg-note" x="40" y="98">Named in your CLAUDE.md; skipped if none</text>
+<path class="dg-arrow" d="M174 119 L186 119 L180 127 Z"/>
+<rect class="dg-gate" x="20" y="130" width="320" height="68" rx="8"/>
+<text class="dg-text" x="40" y="158">Full verification</text>
+<text class="dg-note" x="40" y="180">Your verify command, through the lock</text>
+<path class="dg-arrow" d="M174 201 L186 201 L180 209 Z"/>
+<rect class="dg-gate" x="20" y="212" width="320" height="68" rx="8"/>
+<text class="dg-text" x="40" y="240">Design review of the whole slice</text>
+<text class="dg-note" x="40" y="262">senior-review-lens on the full range</text>
+<path class="dg-arrow" d="M174 283 L186 283 L180 291 Z"/>
+<rect class="dg-human" x="20" y="294" width="320" height="68" rx="8"/>
+<text class="dg-text" x="40" y="322">Done-when block walked</text>
+<text class="dg-note" x="40" y="344">You confirm it; boxes ticked in the spec</text>
+<path class="dg-arrow" d="M174 365 L186 365 L180 373 Z"/>
+<rect class="dg-fresh" x="20" y="376" width="320" height="68" rx="8"/>
+<text class="dg-text" x="40" y="404">Fresh reviewer proves each criterion</text>
+<text class="dg-note" x="40" y="426">code-reviewer sees the diff and criteria only</text>
+<path class="dg-arrow" d="M174 447 L186 447 L180 455 Z"/>
+<rect class="dg-human" x="20" y="458" width="320" height="68" rx="8"/>
+<text class="dg-text" x="40" y="486">Checkpoint: you review the slice</text>
+<text class="dg-note" x="40" y="508">The handoff is updated here</text>
+<path class="dg-arrow" d="M174 529 L186 529 L180 537 Z"/>
+<rect class="dg-box" x="20" y="540" width="320" height="68" rx="8"/>
+<text class="dg-text" x="40" y="568">Pull request marked ready</text>
+<text class="dg-note" x="40" y="590">Closes the ticket on the last slice only</text>
+<path class="dg-arrow" d="M174 611 L186 611 L180 619 Z"/>
+<rect class="dg-human" x="20" y="622" width="320" height="68" rx="8"/>
+<text class="dg-text" x="40" y="650">A person merges</text>
+<text class="dg-note" x="40" y="672">/slice never merges</text>
 </svg>

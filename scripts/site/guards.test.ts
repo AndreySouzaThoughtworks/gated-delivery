@@ -10,7 +10,7 @@ import { collectSiteData, directoryNames, exitCodesOf, fieldsOf, headingsOf, gua
 import type { Agent, Command, Hook, PluginScript, SiteData, Skill } from "./data.ts";
 import { demoOutput, expandVariable, mistakeRows, renderFragment } from "./fragments.ts";
 import { coverageProblems, handTypedCountProblems, leakProblems, linkProblems, quotationProblems, renderedCountProblems, siteProblems, siteReport, structureProblems, styleProblems } from "./gates.ts";
-import { bulletList, callout, checkCard, escapeHtml, inlineCode, layout, menuMarkup, quotation, relativeLink, table, tableOfContents, terminal, unescapeHtml } from "./html.ts";
+import { bulletList, callout, checkCard, escapeHtml, inlineCode, layout, menuMarkup, quotation, relativeLink, table, tableOfContents, terminal, unescapeHtml, withPageHead } from "./html.ts";
 import { attributesOf, balanceProblems, stripNonMarkup, tagsOf } from "./markup.ts";
 import { agentsPage, buildPages, checksPage, commandsPage, evalTiersPage, evidenceRows, evidenceTable, fragmentFiles, hooksPage, instructionSection, pluginScriptsPage, siteVariables, skillPage, skillsIndex } from "./pages.ts";
 import { loadChecks } from "./registry.ts";
@@ -52,6 +52,10 @@ const GUARDS: Guard[] = [
   ["table rejects a short row", () => table(["a", "b"], [["x"]]), /every row needs 2 cells/],
   ["checkCard rejects a zero number", () => checkCard({ ...CHECK, number: 0 }), /positive integer/],
   ["checkCard rejects an empty title", () => checkCard({ ...CHECK, title: "" }), /needs an id and a title/],
+  ["withPageHead rejects a non-string", () => withPageHead(WRONG), /wraps html text/],
+  ["withPageHead rejects a body that does not start at the title", () => withPageHead("<p>x</p>"), /starts at the title/],
+  ["withPageHead rejects a second wrap", () => withPageHead('<h1>A</h1><header class="page-head"></header>'), /wrapped once/],
+  ["withPageHead rejects an unclosed title", () => withPageHead("<h1>A"), /needs a closed title/],
   ["tableOfContents rejects a non-string", () => tableOfContents(WRONG), /built from html text/],
   ["tableOfContents rejects a whole document", () => tableOfContents("<html>"), /fragment, got a whole document/],
   ["layout rejects a non-html path", () => layout({ ...PAGE, path: "a.txt" }, [{ path: "a.html", label: "A" }]), /must end in \.html/],

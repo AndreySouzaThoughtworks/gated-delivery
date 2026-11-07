@@ -164,8 +164,11 @@ test("the layout leaves the table of contents off a hero page", () => {
   const body = '<section class="hero"><h1>A</h1></section><h2 id="a">A</h2><h2 id="b">B</h2><h2 id="c">C</h2>';
   const hero = layout({ path: "a.html", title: "A", summary: "S", body, source: "x" }, NAVIGATION);
   assert(!hero.includes('class="toc"'), "a hero page has no table of contents");
+  assert(!hero.includes('class="page-head"'), "a hero page has no page head");
   const plain = layout({ path: "a.html", title: "A", summary: "S", body: body.replace("hero", "plain"), source: "x" }, NAVIGATION);
   assert(plain.includes('class="toc"'), "a plain page keeps it");
+  const titled = layout({ path: "a.html", title: "A", summary: "S", body: '<h1>A</h1><p class="lead">Lead.</p><h2 id="a">A</h2><h2 id="b">B</h2><h2 id="c">C</h2>', source: "x" }, NAVIGATION);
+  assert.match(titled, /<header class="page-head"><h1>A<\/h1><nav class="toc"[\s\S]*<\/nav><p class="lead">Lead\.<\/p><\/header><h2/, "the title, the contents and the lead share one head, and the first section stays outside it");
 });
 
 const GUARDS: [string, () => unknown, RegExp][] = [

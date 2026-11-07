@@ -1,14 +1,17 @@
 import assert from "node:assert";
 import type { Check } from "../audit/checks-registry.ts";
-import { THEME_SCRIPT, STYLE } from "./style.ts";
+import { AUTHOR_NAME, BRAND_ASSETS, INLINE_MARK, LICENCE_LINE, SITE_NAME, SITE_URL, SOCIAL_CARD_ALT, TAGLINE, canonicalUrl } from "./brand.ts";
+import { DARK_TOKENS, FONT_FILE, LIGHT_TOKENS, THEME_SCRIPT, styleSheet } from "./style.ts";
 
-export const SITE_NAME = "gated-delivery";
+export { SITE_NAME };
 export const REPOSITORY_URL = "https://github.com/andrey1souza/gated-delivery";
 export const MINIMUM_HEADINGS_FOR_TOC = 3;
 
 const MENU_GROUP_NAME = "site-menu";
 const BACKTICK =/`([^`]+)`/g;
 const H1_END = "</h1>";
+const HERO_END = "</section>";
+const HERO_MARKER = 'class="hero"';
 const SECTION_INDEX = "/index.html";
 const ROOT_INDEX = "index.html";
 const SECOND_LEVEL_HEADING = /<h2 id="([^"]+)">([\s\S]*?)<\/h2>/g;
@@ -46,11 +49,16 @@ export const bulletList = (items: string[]) => {
   return items.length === 0 ? "" : `<ul>${items.map((item) => `<li>${item}</li>`).join("")}</ul>`;
 };
 
+export const rootPrefix = (from: string) => {
+  assert(!from.startsWith("/"), `a page path must be relative to the site root, got ${from}; drop the leading slash.`);
+  assert(from !== "", `a page path names a page, got an empty one; pass the page path.`);
+  return "../".repeat(from.split("/").length - 1);
+};
+
 export const relativeLink = (from: string, to: string) => {
   assert(!from.startsWith("/") && !to.startsWith("/"), `page paths must be relative to the site root, got ${from} and ${to}; drop the leading slash.`);
   assert(from !== "" && to !== "", `a link joins two named pages, got "${from}" and "${to}"; pass both paths.`);
-  const depth = from.split("/").length - 1;
-  return `${"../".repeat(depth)}${to}`;
+  return `${rootPrefix(from)}${to}`;
 };
 
 export const callout = (html: string) => {
@@ -131,31 +139,73 @@ export const menuMarkup = (pagePath: string, navigation: NavEntry[]) => {
     .join("");
 };
 
+export const meta = (attribute: string, name: string, content: string) => {
+  assert(attribute === "name" || attribute === "property", `a meta tag is keyed by name or property, got ${attribute}; pass one of them.`);
+  assert(content !== "", `the meta tag ${name} needs content, got an empty string; pass the text.`);
+  return `<meta ${attribute}="${name}" content="${content}">`;
+};
+
+export const headTags = (page: Page, assetPrefix: string) => {
+  assert(page.title !== "" && page.summary !== "", `a page head needs a title and a description, got "${page.title}" and "${page.summary}" for ${page.path}; fill both.`);
+  assert(assetPrefix === "" || assetPrefix.endsWith("/"), `the asset prefix is empty or ends with a slash, got "${assetPrefix}"; pass the relative path to the site root.`);
+  const [title, description, url, image] = [escapeHtml(page.title), escapeHtml(page.summary), canonicalUrl(page.path), `${SITE_URL}${BRAND_ASSETS.socialCard}`];
+  return [
+    `<link rel="icon" href="${assetPrefix}${BRAND_ASSETS.favicon}" type="image/svg+xml">`,
+    `<link rel="icon" href="${assetPrefix}${BRAND_ASSETS.faviconPng}" type="image/png" sizes="32x32">`,
+    `<link rel="apple-touch-icon" href="${assetPrefix}${BRAND_ASSETS.appleTouchIcon}">`,
+    `<link rel="preload" href="${assetPrefix}${FONT_FILE}" as="font" type="font/woff2" crossorigin>`,
+    `<meta name="theme-color" content="${DARK_TOKENS.bg}" media="(prefers-color-scheme: dark)">`,
+    `<meta name="theme-color" content="${LIGHT_TOKENS.bg}" media="(prefers-color-scheme: light)">`,
+    meta("name", "description", description),
+    `<link rel="canonical" href="${url}">`,
+    meta("property", "og:type", "website"),
+    meta("property", "og:site_name", SITE_NAME),
+    meta("property", "og:title", title),
+    meta("property", "og:description", description),
+    meta("property", "og:url", url),
+    meta("property", "og:image", image),
+    meta("property", "og:image:alt", escapeHtml(SOCIAL_CARD_ALT)),
+    meta("name", "twitter:card", "summary_large_image"),
+    meta("name", "twitter:title", title),
+    meta("name", "twitter:description", description),
+    meta("name", "twitter:image", image),
+  ].join("\n");
+};
+
+export const footerMarkup = (pagePath: string, navigation: NavEntry[]) => {
+  assert(navigation.length > 0, `the footer needs navigation links, got none for ${pagePath}; pass the menu items.`);
+  assert(pagePath.endsWith(".html"), `a page path must end in .html, got ${pagePath}; name the page file.`);
+  const groups = navigation.flatMap((entry) => ("items" in entry ? [entry] : []));
+  const columns = groups.map(({ label, items }) => `<nav aria-label="${escapeHtml(label)} pages"><p class="footer-title">${escapeHtml(label)}</p><ul>${items.map(({ path, label: name }) => `<li><a href="${relativeLink(pagePath, path)}">${escapeHtml(name)}</a></li>`).join("")}</ul></nav>`);
+  return `<footer class="site-footer"><div class="footer-grid"><div><a class="footer-brand" href="${relativeLink(pagePath, "index.html")}"><img src="${relativeLink(pagePath, BRAND_ASSETS.mark)}" alt="" width="28" height="28">${SITE_NAME}</a><p>${TAGLINE}</p><p>Made by <a href="${REPOSITORY_URL}">${AUTHOR_NAME}</a>. ${LICENCE_LINE}</p></div>${columns.join("")}</div><div class="footer-note"><p>Generated from the repository files by <code>scripts/site/build.ts</code>. <a href="${REPOSITORY_URL}">Source on GitHub</a>.</p></div></footer>`;
+};
+
 export const layout = (page: Page, navigation: NavEntry[]) => {
   assert(page.path.endsWith(".html"), `a page path must end in .html, got ${page.path}; name the page file.`);
   assert(navigation.length > 0, `the layout needs navigation links, got none for ${page.path}; pass the menu items.`);
   const home = relativeLink(page.path, "index.html");
+  const assetPrefix = rootPrefix(page.path);
   const links = menuMarkup(page.path, navigation);
+  const tocAnchor = page.body.includes(HERO_MARKER) ? HERO_END : H1_END;
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light dark">
-<meta name="description" content="${escapeHtml(page.summary)}">
+<meta name="color-scheme" content="dark light">
 <title>${escapeHtml(page.title)} - ${SITE_NAME}</title>
-<style>${STYLE}</style>
+${headTags(page, assetPrefix)}
+<style>${styleSheet(`${assetPrefix}${FONT_FILE}`)}</style>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to the content</a>
 <header class="site-header">
-<div class="bar"><a class="brand" href="${home}">${SITE_NAME}</a><button type="button" id="theme-toggle" aria-label="Switch colour theme">Theme</button></div>
-<nav aria-label="Main"><ul class="menu">${links}</ul></nav>
+<div class="bar"><a class="brand" href="${home}">${INLINE_MARK}${SITE_NAME}</a><nav aria-label="Main"><ul class="menu">${links}</ul></nav><button type="button" id="theme-toggle" aria-label="Switch colour theme">Theme</button></div>
 </header>
 <main id="main">
-${page.body.replace(H1_END, () => `${H1_END}${tableOfContents(page.body)}`)}
+${page.body.replace(tocAnchor, () => `${tocAnchor}${tableOfContents(page.body)}`)}
 </main>
-<footer class="site-footer"><p>Generated from the repository files by <code>scripts/site/build.ts</code>. <a href="${REPOSITORY_URL}">Source on GitHub</a>.</p></footer>
+${footerMarkup(page.path, navigation)}
 <script>${THEME_SCRIPT}</script>
 </body>
 </html>

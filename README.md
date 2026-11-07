@@ -1,8 +1,15 @@
 <div align="center">
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs-site-src/brand/mark.svg">
+  <img src="docs-site-src/brand/mark-mono.svg" alt="gated-delivery logo: the letter G with a check mark inside" width="96" height="96">
+</picture>
+
 # gated-delivery
 
-**Ship every change in small, verified slices.**
+**Gate it. Slice it. Prove it.**
+
+Ship every change in small, verified slices. Read the [documentation site](https://andrey1souza.github.io/gated-delivery/).
 
 Issue-driven, test-first delivery for Claude Code.<br>
 Specs split the work into PR-sized slices. Guards and gates check each one.

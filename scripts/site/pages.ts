@@ -5,12 +5,13 @@ import { TIERS, TIER_NONE, guardSectionNumbers, warnOnlyChecks } from "./data.ts
 import type { Agent, Command, Hook, Instruction, PluginScript, ScriptGroup, SiteData, Skill, UsageFrom } from "./data.ts";
 import { factVariables } from "./facts.ts";
 import { FRAGMENTS_DIRECTORY, renderFragment } from "./fragments.ts";
+import { TAGLINE } from "./brand.ts";
 import { bulletList, checkCard, escapeHtml, inlineCode, quotation, relativeLink, stackedTable, table } from "./html.ts";
 import type { CheckEntry, NavEntry, Page } from "./html.ts";
 
 export const GENERATOR_SOURCE = "scripts/site/pages.ts";
 export const HAND_WRITTEN_PAGES = [
-  { fragment: "home.html", path: "index.html", title: "Home", summary: "Ship every change as small verified slices, with guardrails in the repository." },
+  { fragment: "home.html", path: "index.html", title: "Home", summary: `${TAGLINE} Ship every change as small verified slices, with guardrails in the repository.` },
   { fragment: "concepts.html", path: "concepts.html", title: "Concepts", summary: "The ideas behind gated-delivery: harden the codebase, turn mistakes into rules, and separate guidance from guardrails." },
   { fragment: "delivery-flow.html", path: "delivery-flow.html", title: "Delivery flow", summary: "How one ticket becomes slices: spec, route, claim, batches, review and pull request, with real script output." },
   { fragment: "trust.html", path: "trust.html", title: "Trust", summary: "What the project proves, how it measures that, and what it does not verify." },

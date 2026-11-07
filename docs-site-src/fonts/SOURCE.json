@@ -1,0 +1,15 @@
+{
+  "family": "Space Grotesk",
+  "version": "2.0.0",
+  "license": "SIL Open Font License 1.1",
+  "licenseFile": "OFL.txt",
+  "files": [
+    {
+      "file": "SpaceGrotesk-Variable.woff2",
+      "url": "https://github.com/floriankarsten/space-grotesk/releases/download/2.0.0/SpaceGrotesk-2.0.0.zip",
+      "member": "SpaceGrotesk-2.0.0/woff2/SpaceGrotesk[wght].woff2",
+      "sha256": "8e085aa438094f11487a836652edd5c054fa6a96f63fc7c282105ee3a4b08c07",
+      "archiveSha256": "53b415577d4139248555300710bea0d268c7a5be67b93de53b716a9736cabffd"
+    }
+  ]
+}

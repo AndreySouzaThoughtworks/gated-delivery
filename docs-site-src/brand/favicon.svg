@@ -1,7 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="favicon-title">
 <title id="favicon-title">gated-delivery favicon</title>
-<defs><linearGradient id="favicon-gradient" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#4ade80"/></linearGradient></defs>
-<rect width="64" height="64" rx="14" fill="#1b1030"/>
-<path d="M46.5 19.5A19 19 0 1 0 51 33H44" fill="none" stroke="url(#favicon-gradient)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M21 33l6 6 10-12" fill="none" stroke="#f1ebff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+<rect width="64" height="64" rx="14" fill="#2a2227"/>
+<path d="M16 52L20 11H44L48 52Z" fill="#8a6a60" stroke="#f3dc7f" stroke-width="4.5" stroke-linejoin="round"/>
+<path d="M24 52V25Q24 18 32 18Q40 18 40 25V52Z" fill="#34d399"/>
+<path d="M32 26L39 35L32 47L25 35Z" fill="#ecfff7"/>
+<rect x="9" y="52" width="46" height="6" rx="1.5" fill="#f3dc7f"/>
 </svg>

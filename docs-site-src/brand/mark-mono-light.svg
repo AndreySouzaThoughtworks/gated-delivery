@@ -1,5 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="mark-mono-light-title">
-<title id="mark-mono-light-title">gated-delivery mark: the letter G with a check mark inside</title>
-<path d="M46.5 19.5A19 19 0 1 0 51 33H44" fill="none" stroke="#f1ebff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M21 33l6 6 10-12" fill="none" stroke="#f1ebff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<title id="mark-mono-light-title">gated-delivery mark: a stone gate with a gem inside</title>
+<path d="M17 51L20.5 12H43.5L47 51Z" fill="none" stroke="#fae8d0" stroke-width="3.5" stroke-linejoin="round"/>
+<path d="M24.5 51V25Q24.5 19 32 19Q39.5 19 39.5 25V51" fill="none" stroke="#fae8d0" stroke-width="3"/>
+<path d="M32 27L38 35L32 46L26 35Z" fill="#fae8d0"/>
+<rect x="10" y="51" width="44" height="6" rx="1.5" fill="#fae8d0"/>
 </svg>

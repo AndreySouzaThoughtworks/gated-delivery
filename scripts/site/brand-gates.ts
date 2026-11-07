@@ -5,7 +5,7 @@ import { join, posix } from "node:path";
 import { BRAND_ASSETS, FONTS_SOURCE, PNG_SIZES, SITE_URL, canonicalUrl } from "./brand.ts";
 import { contrastProblems } from "./contrast.ts";
 import { balanceProblems, tagsOf } from "./markup.ts";
-import { FONT_FILE } from "./style.ts";
+import { FONT_FAMILY, FONT_FILE } from "./style.ts";
 
 const BYTES_PER_KIB = 1024;
 export const FONT_BUDGET_BYTES = 200 * BYTES_PER_KIB;
@@ -50,6 +50,23 @@ export const pngSize = (bytes: Buffer) => {
   return { width: bytes.readUInt32BE(PNG_WIDTH_OFFSET), height: bytes.readUInt32BE(PNG_HEIGHT_OFFSET) };
 };
 
+type FontManifest = { family?: string; files?: { file: string; url: string; sha256: string }[] };
+
+export const fontEntryProblems = (folder: string, font: string, manifest: FontManifest) => {
+  assert(existsSync(folder), `the font check reads under ${folder}, got none; pass the font folder.`);
+  assert(font !== "", `a font entry names a file, got an empty name; pass the font file name.`);
+  const entry = manifest.files?.find(({ file }) => file === font);
+  if (entry === undefined || !entry.url?.startsWith("https://") || !SHA256.test(entry.sha256 ?? "")) return [`${FONTS_SOURCE}/${MANIFEST_FILE} has no https url and sha256 for ${font}. Rule: every font file records its source. Fix: add the url and the sha256 of ${font}.`];
+  if (createHash("sha256").update(readFileSync(join(folder, font))).digest("hex") !== entry.sha256) return [`${FONTS_SOURCE}/${font} does not match the sha256 in ${MANIFEST_FILE}. Rule: the file is the one the source published. Fix: download the file again from ${entry.url} or update the manifest after you verify the new file.`];
+  return [];
+};
+
+export const familyProblems = (family: string | undefined) => {
+  assert(family === undefined || typeof family === "string", `the family is text, got ${typeof family}; write the family name as a string in ${MANIFEST_FILE}.`);
+  assert(family === undefined || family.trim() !== "", `the family names a font, got a blank one; write the family name in ${MANIFEST_FILE}.`);
+  return family === FONT_FAMILY ? [] : [`${FONTS_SOURCE}/${MANIFEST_FILE} names the family "${family ?? "none"}", not "${FONT_FAMILY}". Rule: the manifest describes the font that the stylesheet loads. Fix: set "family" to ${FONT_FAMILY} in ${MANIFEST_FILE} or change FONT_FAMILY in scripts/site/style.ts.`];
+};
+
 export const fontSourceProblems = (root: string) => {
   assert(existsSync(root), `the font check reads under the repository root ${root}, got none; pass the root.`);
   assert(statSync(root).isDirectory(), `the font check reads under a folder, got the file ${root}; pass the repository root.`);
@@ -61,16 +78,11 @@ export const fontSourceProblems = (root: string) => {
   const licence = join(folder, LICENCE_FILE);
   if (!existsSync(licence) || !OFL_HEADING.test(readFileSync(licence, "utf8"))) problems.push(`${FONTS_SOURCE}/${LICENCE_FILE} is missing or is not the SIL Open Font License 1.1. Rule: a shipped font carries its licence text. Fix: copy the full licence from the font source.`);
   const manifestPath = join(folder, MANIFEST_FILE);
-  const manifest: { files?: { file: string; url: string; sha256: string }[] } = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, "utf8")) : {};
-  if (!existsSync(manifestPath)) problems.push(`${FONTS_SOURCE}/${MANIFEST_FILE} is missing. Rule: every font file records its source url and sha256. Fix: add the manifest.`);
-  for (const font of fonts) {
-    const entry = manifest.files?.find(({ file }) => file === font);
-    if (entry === undefined || !entry.url?.startsWith("https://") || !SHA256.test(entry.sha256 ?? "")) {
-      problems.push(`${FONTS_SOURCE}/${MANIFEST_FILE} has no https url and sha256 for ${font}. Rule: every font file records its source. Fix: add the url and the sha256 of ${font}.`);
-    } else if (createHash("sha256").update(readFileSync(join(folder, font))).digest("hex") !== entry.sha256) {
-      problems.push(`${FONTS_SOURCE}/${font} does not match the sha256 in ${MANIFEST_FILE}. Rule: the file is the one the source published. Fix: download the file again from ${entry.url} or update the manifest after you verify the new file.`);
-    }
-  }
+  const hasManifest = existsSync(manifestPath);
+  const manifest: FontManifest = hasManifest ? JSON.parse(readFileSync(manifestPath, "utf8")) : {};
+  if (!hasManifest) problems.push(`${FONTS_SOURCE}/${MANIFEST_FILE} is missing. Rule: every font file records its source url and sha256. Fix: add the manifest.`);
+  problems.push(...fonts.flatMap((font) => fontEntryProblems(folder, font, manifest)));
+  if (hasManifest) problems.push(...familyProblems(manifest.family));
   const bytes = readdirSync(folder).reduce((sum, name) => sum + statSync(join(folder, name)).size, 0);
   if (bytes > FONT_BUDGET_BYTES) problems.push(`${FONTS_SOURCE} weighs ${bytes} bytes, over the budget of ${FONT_BUDGET_BYTES}. Rule: fonts stay small. Fix: subset the font to Latin or drop a weight.`);
   return problems;

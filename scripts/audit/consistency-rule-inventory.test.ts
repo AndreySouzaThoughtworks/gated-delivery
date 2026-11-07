@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { markdownFilesUnder, unlistedSupportingFiles } from "./rule-inventory.ts";
+import { RULELESS_INVENTORY_LINE_LIMIT, markdownFilesUnder, rulelessInventoryProblems, unlistedSupportingFiles } from "./rule-inventory.ts";
 import { write, validRepo, runGuard } from "../test-support/consistency-fixtures.test.support.ts";
 
 const INVENTORIED_SKILL = "plugin/skills/alpha/SKILL.md";
@@ -60,6 +60,18 @@ test("a marker line in an extra file of the inventory must be covered too", () =
   const covered = withInventory(inventoryOf({ files: ["plugin/skills/alpha/references/more.md"], rules: [NO_MERGE_RULE, { ...NO_MERGE_RULE, id: "alpha.no-skip", anchor: "skip a gate" }] }));
   write(covered, "plugin/skills/alpha/references/more.md", "Never skip a gate.\n");
   assert.equal(runGuard(covered).code, 0);
+});
+
+test("an inventory with no rules over a long file fails, and a tiny all-exempt file passes", () => {
+  const exempt = [{ anchor: "Never merge", reason: "an example, not an instruction" }];
+  const longBody = Array.from({ length: RULELESS_INVENTORY_LINE_LIMIT }, (_, index) => `line ${index}`).join("\n");
+  const rejected = runGuard(withInventory(inventoryOf({ rules: [], exempt }), `${RULE_LINE}\n${longBody}\n`));
+  assert.equal(rejected.code, 1, rejected.out);
+  assert.match(rejected.out, new RegExp(`skill-alpha\\.json: no rules guard \\d+ lines, over the ${RULELESS_INVENTORY_LINE_LIMIT} a ruleless inventory may guard`));
+  assert.match(rejected.out, /Hint: add a rule for each real instruction in plugin\/skills\/alpha\/SKILL\.md/);
+  const shortBody = Array.from({ length: RULELESS_INVENTORY_LINE_LIMIT / 2 }, (_, index) => `line ${index}`).join("\n");
+  const accepted = runGuard(withInventory(inventoryOf({ rules: [], exempt }), `${RULE_LINE}\n${shortBody}\n`));
+  assert.equal(accepted.code, 0, accepted.out);
 });
 
 test("a duplicate rule id is reported", () => {
@@ -158,4 +170,11 @@ test("the supporting-file scan rejects a blank or missing folder, a blank root a
   assert.throws(() => markdownFilesUnder(dir, "plugin/skills/missing"), /must exist under/);
   assert.throws(() => unlistedSupportingFiles(" ", new Set()), /root must name the repository root/);
   assert.throws(() => unlistedSupportingFiles(dir, ["a"] as unknown as Set<string>), /covered must be a Set/);
+});
+
+test("the ruleless-inventory check rejects a blank inventory name and text that is not a string", () => {
+  const inventory = { file: INVENTORIED_SKILL, rules: [], exempt: [] };
+  assert.throws(() => rulelessInventoryProblems(" ", inventory, RULE_LINE), /name must not be blank/);
+  assert.throws(() => rulelessInventoryProblems(INVENTORY_PATH, inventory, 7 as unknown as string), /everyText must be text/);
+  assert.deepEqual(rulelessInventoryProblems(INVENTORY_PATH, inventory, RULE_LINE), []);
 });

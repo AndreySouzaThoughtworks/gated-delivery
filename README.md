@@ -118,7 +118,7 @@ The `overwatch` plugin handles turn-end verification. [Onboarding](docs/onboardi
 
 ## How it checks itself
 
-This repository holds its own guardrails. Nine status checks are required on `main`. A consistency guard fails when the docs, the inventory or the settings drift from the files. A table records every fixed mistake next to the rule and the test that now catch it. [How this repo applies exponential engineering](docs/exponential-engineering.md) explains each mechanism and where it falls short.
+This repository holds its own guardrails. Nine status checks are required on `main`. A consistency guard fails when the docs, the inventory or the settings drift from the files. A table records every fixed mistake next to the rule and the test that now catch it. [How this repo applies exponential engineering](docs/exponential-engineering.md) explains each mechanism and where it falls short. The ideas come from [exponential engineering](https://exponentialengineering.dev/) by Ben O'Mahony and Fabian Nonnenmacher. The Exponential engineering page of the documentation site credits them and shows the proof for each idea.
 
 Prose is held to rules too. A script grades each document and fails it when fewer than 80% of its sentences have 20 words or fewer. The site build fails when a page drifts from the plugin.
 

@@ -16,7 +16,7 @@ This repo is **both** the marketplace and the plugin. The marketplace manifest l
 | `docs-site-src/`, `scripts/site/` | The hand-written site pages and the generator that builds the documentation site. |
 | `evals/` | `fixtures/` holds run directories for eval scenarios. `results/` holds one stamp or waiver per skill. `rules/` holds one rule inventory per instruction file. `token-budget.json` holds the token budgets. |
 | `tools/claude-code/` | The pinned `claude` CLI that the dormant CI evals job installs. |
-| `tests/` | Shell tests for the leak guard, the pre-push hook, the slice scripts, profile isolation and the live-test opt-in. Login-bound tests cover the commit commands, `code-reviewer` and `issue-writing`. |
+| `tests/` | Shell tests for the leak guard, the pre-push hook, the gitleaks installer, the slice scripts, profile isolation and the live-test opt-in. Login-bound tests cover the commit commands, `code-reviewer` and `issue-writing`. `live-gh.test.sh` runs against a real sandbox repository, on request only. |
 | `.githooks/` | `pre-commit` runs the leak guard. `pre-push` runs gitleaks on the commits being pushed. |
 | `.cursor/`, `AGENTS.md` | The Cursor config and the one source of the repo rules. |
 | `.github/` | CI workflows and `CODEOWNERS` for the files that hold the rules. |
@@ -243,7 +243,7 @@ The [README](../README.md#how-it-checks-itself) states how many stamps are live,
 | `bash tests/install-gitleaks.test.sh` | No | The installer refuses an archive whose checksum differs from the pinned one, a failed download and a missing install directory |
 | `bash tests/live-opt-in.test.sh` | No | Each login-bound test refuses to start without `GATED_DELIVERY_ALLOW_LIVE_CLAUDE=1`. The live `gh` test refuses without `GATED_DELIVERY_ALLOW_LIVE_GH=1` and refuses an unsafe repository. Stubs stand in for `claude` and `gh`, so nothing real runs. |
 | `node --test plugin/hooks/*.test.mjs` | No | Hook behaviour |
-| `node --test scripts/audit/*.test.ts scripts/audit/message-actionability/*.test.ts scripts/eval/*.test.ts scripts/cursor/*.test.ts` | No | The consistency guard, the lint scripts and the eval tools, on broken and valid fixtures |
+| `node --test scripts/audit/*.test.ts scripts/audit/message-actionability/*.test.ts scripts/eval/*.test.ts scripts/cursor/*.test.ts scripts/site/*.test.ts` | No | The consistency guard, the lint scripts, the eval tools and the site generator, on broken and valid fixtures |
 | `node --test plugin/bootstrap/*.test.mjs plugin/bootstrap/guards/*.test.mjs` | No | The bootstrap plans and the client guards |
 | `node --test plugin/scripts/*.test.mjs` | No | The plugin scripts that skills call |
 | `npm ci && npx tsc --noEmit` | No | The dev scripts type-check |

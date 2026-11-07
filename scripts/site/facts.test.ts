@@ -20,7 +20,7 @@ import { loadChecks } from "./registry.ts";
 
 const REPOSITORY = process.cwd();
 const WRONG = 5 as never;
-const LINKED = ["plugin", "evals", "scripts", "docs", ".github", ".claude-plugin", "tests", "LICENSE", "package.json", "zanity-baseline.json", "message-actionability-baseline.json", "assertion-effectiveness-baseline.json"];
+const LINKED = ["plugin", "evals", "scripts", "docs", ".github", ".claude-plugin", "tests", "LICENSE", "package.json", "AGENTS.md", "tsconfig.json", "zanity.toml", ".shellcheckrc", ".typos.toml", ".githooks", ".cursor", "zanity-baseline.json", "message-actionability-baseline.json", "assertion-effectiveness-baseline.json"];
 const CHECK: CheckEntry = { number: 8, id: "c", title: "T", rule: "r", fix: "f", example: "e", mistake: null, source: "scripts/audit/consistency.ts" };
 const SKILL = { name: "alpha", path: "plugin/skills/alpha/SKILL.md", description: "d", rules: 2, mutation: { killed: 1, total: 2, unprotected: { lines: 3, nonBlank: 4 } }, budget: null, inputs: [], sections: [], steps: [], scripts: [], tier: "static", stampedAt: null } as Skill;
 const DATA: SiteData = { skills: [SKILL], agents: [], commands: [], hooks: [], pluginScripts: [] };

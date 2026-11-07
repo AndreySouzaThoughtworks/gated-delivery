@@ -1,6 +1,277 @@
 {
   "file": "plugin/skills/senior-review-lens/SKILL.md",
-  "rules": [],
+  "rules": [
+    {
+      "id": "senior-review-lens.not-correctness-review",
+      "anchor": "Lens does NOT replace correctness review",
+      "kind": "limit",
+      "why": "the code-reviewer agent owns correctness; the lens audits structure only"
+    },
+    {
+      "id": "senior-review-lens.not-mechanical-validators",
+      "anchor": "Also does NOT duplicate the mechanical validators",
+      "kind": "limit",
+      "why": "the caller's validator gate owns mechanical checks"
+    },
+    {
+      "id": "senior-review-lens.no-layer-purity",
+      "anchor": "hexagonal layer purity intentionally absent",
+      "kind": "limit",
+      "why": "the architecture validator already enforces layer boundaries"
+    },
+    {
+      "id": "senior-review-lens.fix-before-human-review",
+      "anchor": "Apply fixes BEFORE human reviewer see it.",
+      "kind": "must",
+      "why": "the lens is a pre-flight: the author fixes first"
+    },
+    {
+      "id": "senior-review-lens.trigger-commit",
+      "anchor": "Before `git commit` on a non-trivial change (>1 file or >20 LOC)",
+      "kind": "other",
+      "why": "a non-trivial commit gets the full pass"
+    },
+    {
+      "id": "senior-review-lens.trigger-push",
+      "anchor": "Before `git push` on a feature branch with a PR",
+      "kind": "other",
+      "why": "a push gets the full pass"
+    },
+    {
+      "id": "senior-review-lens.trigger-new-type",
+      "anchor": "Lenses A + G",
+      "kind": "other",
+      "why": "a new domain type or port gets cohesion and type-system lenses"
+    },
+    {
+      "id": "senior-review-lens.trigger-new-test",
+      "anchor": "Lenses C + D + E",
+      "kind": "other",
+      "why": "a new test gets the three test lenses"
+    },
+    {
+      "id": "senior-review-lens.trigger-lookup-table",
+      "anchor": "Adding a lookup table / map / registry",
+      "kind": "other",
+      "why": "a new lookup table gets the table-vs-inline lens"
+    },
+    {
+      "id": "senior-review-lens.trigger-adr",
+      "anchor": "Writing an ADR or design doc",
+      "kind": "other",
+      "why": "an ADR gets the framing lens"
+    },
+    {
+      "id": "senior-review-lens.lens-h-only-for-docs",
+      "anchor": "H only for an ADR or design doc",
+      "kind": "limit",
+      "why": "lens H never runs on a code diff"
+    },
+    {
+      "id": "senior-review-lens.supply-diff-range",
+      "anchor": "Supply it whenever the change is already committed.",
+      "kind": "must",
+      "why": "a committed change has no staged diff to read"
+    },
+    {
+      "id": "senior-review-lens.commits-in-merge-order",
+      "anchor": "in the order given, which the caller supplies as merge order",
+      "kind": "must",
+      "why": "the file reads in merge order"
+    },
+    {
+      "id": "senior-review-lens.judge-combined-final-state",
+      "anchor": "judge the file by its combined final state, not each patch alone",
+      "kind": "must",
+      "why": "duplication added then removed is not a finding"
+    },
+    {
+      "id": "senior-review-lens.run-lenses-in-order",
+      "anchor": "**run relevant lenses in order**",
+      "kind": "must",
+      "why": "lenses run in the stated order"
+    },
+    {
+      "id": "senior-review-lens.lens-h-reads-the-doc",
+      "anchor": "Lens H run against ADR/design doc",
+      "kind": "limit",
+      "why": "lens H reads the document, not the diff"
+    },
+    {
+      "id": "senior-review-lens.read-staged-diff",
+      "anchor": "`git diff --staged` when preparing commit",
+      "kind": "must",
+      "why": "the staged diff is the subject of a pre-commit audit"
+    },
+    {
+      "id": "senior-review-lens.propose-alternative",
+      "anchor": "propose structural alternative (don't just complain)",
+      "kind": "must",
+      "why": "a smell comes with a structural alternative"
+    },
+    {
+      "id": "senior-review-lens.apply-clear-wins",
+      "anchor": "Apply fixes that are clear wins.",
+      "kind": "must",
+      "why": "clear wins are applied, not only listed"
+    },
+    {
+      "id": "senior-review-lens.invasive-needs-second-opinion",
+      "anchor": "If fix invasive, document rationale and get second opinion.",
+      "kind": "must",
+      "why": "an invasive fix is not applied alone"
+    },
+    {
+      "id": "senior-review-lens.surface-judgment-calls",
+      "anchor": "Surface judgment calls to user.",
+      "kind": "must",
+      "why": "the user decides judgment calls"
+    },
+    {
+      "id": "senior-review-lens.report-as-table",
+      "anchor": "Report at end with table in **Output format**",
+      "kind": "must",
+      "why": "the report ends the pass in the stated table"
+    },
+    {
+      "id": "senior-review-lens.lens-h-not-git-diff",
+      "anchor": "**not** against `git diff`",
+      "kind": "limit",
+      "why": "lens H input is a document"
+    },
+    {
+      "id": "senior-review-lens.lens-h-spec-trigger",
+      "anchor": "`/spec` encounters open decision at its step 6",
+      "kind": "other",
+      "why": "the spec flow calls lens H for an open decision"
+    },
+    {
+      "id": "senior-review-lens.lens-b-inline-few-rows",
+      "anchor": "inline at call sites. Don't keep table for",
+      "kind": "must",
+      "why": "a table with few rows is inlined, not kept for future entries"
+    },
+    {
+      "id": "senior-review-lens.lens-c-wiring-only",
+      "anchor": "Controller integration: ONLY wiring-on-one-representative",
+      "kind": "limit",
+      "why": "controller specs test wiring only"
+    },
+    {
+      "id": "senior-review-lens.lens-c-dto-unit-no-boot",
+      "anchor": "No Nest boot.",
+      "kind": "must",
+      "why": "validator behaviour is tested in a unit spec without booting the framework"
+    },
+    {
+      "id": "senior-review-lens.lens-d-one-positive-test",
+      "anchor": "don't write two positive tests on them; write one.",
+      "kind": "must",
+      "why": "inputs the system cannot tell apart get one test"
+    },
+    {
+      "id": "senior-review-lens.lens-e-replace-references",
+      "anchor": "Replace reference with project's own term",
+      "kind": "must",
+      "why": "test titles use project vocabulary"
+    },
+    {
+      "id": "senior-review-lens.lens-e-where-rfc-allowed",
+      "anchor": "RFC/spec references ARE acceptable in",
+      "kind": "limit",
+      "why": "references stay in decision documents"
+    },
+    {
+      "id": "senior-review-lens.lens-f-drop-dead-variant",
+      "anchor": "Drop dead variant.",
+      "kind": "must",
+      "why": "an unemitted variant is removed"
+    },
+    {
+      "id": "senior-review-lens.lens-f-yagni",
+      "anchor": "\"Future-proofing\" recommendation is textbook signal",
+      "kind": "must",
+      "why": "future-proofing is a reason to apply YAGNI harder"
+    },
+    {
+      "id": "senior-review-lens.lens-g-class-extension",
+      "anchor": "Class extension instead of `as unknown as` cast for test stubs.",
+      "kind": "must",
+      "why": "test stubs avoid double casts"
+    },
+    {
+      "id": "senior-review-lens.lens-h-restate-deeper",
+      "anchor": "Restate problem one level deeper.",
+      "kind": "must",
+      "why": "the framing goes one level deeper"
+    },
+    {
+      "id": "senior-review-lens.lens-h-lead-with-framing",
+      "anchor": "Lead doc with deeper framing",
+      "kind": "must",
+      "why": "the document opens with the deeper question"
+    },
+    {
+      "id": "senior-review-lens.output-every-lens-row",
+      "anchor": "| H. Framing depth | CLEAN \\| N/A (no ADR in scope)",
+      "kind": "must",
+      "why": "lens H reports N/A when no ADR is in scope"
+    },
+    {
+      "id": "senior-review-lens.output-judgment-alternatives",
+      "anchor": "<issue + 2 alternatives>",
+      "kind": "must",
+      "why": "a surfaced issue offers two alternatives"
+    },
+    {
+      "id": "senior-review-lens.verdict-tokens",
+      "anchor": "READY-TO-COMMIT / REVISE-FIRST",
+      "kind": "must",
+      "why": "the verdict is one of two fixed tokens"
+    },
+    {
+      "id": "senior-review-lens.verdict-token-alone",
+      "anchor": "emit the chosen token alone on its own line",
+      "kind": "must",
+      "why": "a check can read the verdict"
+    },
+    {
+      "id": "senior-review-lens.verdict-own-line",
+      "anchor": "Verdict token goes on own line, by itself.",
+      "kind": "must",
+      "why": "a check can read the verdict"
+    },
+    {
+      "id": "senior-review-lens.dont-over-trigger",
+      "anchor": "**Don't over-trigger.**",
+      "kind": "limit",
+      "why": "a one-line fix does not need every lens"
+    },
+    {
+      "id": "senior-review-lens.cite-lens-letter",
+      "anchor": "**Cite lens by letter** (A–H)",
+      "kind": "must",
+      "why": "findings map back to the checklist"
+    },
+    {
+      "id": "senior-review-lens.cross-reference-precedents",
+      "anchor": "**Cross-reference sibling-service precedents when available**",
+      "kind": "must",
+      "why": "precedent validates the structural call"
+    },
+    {
+      "id": "senior-review-lens.finding-format",
+      "anchor": "Format: `<file:line> — <smell> — <structural alternative>`",
+      "kind": "must",
+      "why": "one fixed finding format"
+    },
+    {
+      "id": "senior-review-lens.say-drop-x",
+      "anchor": "If right move is \"drop X\", say \"drop X\"",
+      "kind": "must",
+      "why": "directness over hedging"
+    }
+  ],
   "exempt": [
     {
       "anchor": "Parametrized fixture row whose value never appears",

@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { RULELESS_INVENTORY_LINE_LIMIT } from "./rule-inventory.ts";
 
 const TOOL = join(dirname(fileURLToPath(import.meta.url)), "rule-inventory-mutation.ts");
 const SKILL = "skills/s/SKILL.md";
@@ -60,4 +61,12 @@ test("running without an inventory path prints usage and exits 2", () => {
   const { code, out } = runTool(scratchRepo("x\n", []), []);
   assert.equal(code, 2, out);
   assert.match(out, /usage: node scripts\/audit\/rule-inventory-mutation\.ts <inventory\.json>/);
+});
+
+test("a ruleless inventory over a long file is refused instead of scored 0/0", () => {
+  const longSkill = Array.from({ length: RULELESS_INVENTORY_LINE_LIMIT + 1 }, (_, index) => `line ${index}`).join("\n");
+  const { code, out } = runTool(scratchRepo(longSkill, []), [INVENTORY]);
+  assert.equal(code, 1, out);
+  assert.match(out, /no rules guard 31 lines/);
+  assert.doesNotMatch(out, /mutation score/);
 });

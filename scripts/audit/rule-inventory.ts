@@ -6,6 +6,7 @@ export const RULES_DIRECTORY = "evals/rules";
 export const MARKER_PATTERN = /\b(?:STOP|NEVER|MUST|Do not|CHECKPOINT|never|Never|always|Always|must not|Must not)\b/;
 export const RULE_KINDS = ["stop", "never", "must", "checkpoint", "limit", "other"];
 export const UNINVENTORIED_FILES_ARE_ERRORS = true;
+export const RULELESS_INVENTORY_LINE_LIMIT = 30;
 const HEADING = /^#{1,6} /;
 const LIMITS_HEADING = /^#{1,6} .*\bNOT\b/;
 const SKILL_ENTRY = "SKILL.md";
@@ -33,6 +34,14 @@ export const markerLines = (text: string) => { // zanity: ignore[assertion-densi
   });
 };
 
+export const rulelessInventoryProblems = (name: string, inventory: Inventory, everyText: string): string[] => {
+  assert(name.trim() !== "", `name must not be blank, got ${JSON.stringify(name)}; pass the inventory path`);
+  assert(typeof everyText === "string", `everyText must be text, got ${typeof everyText}; pass the guarded file text`);
+  const nonBlankLineCount = everyText.split("\n").filter((line) => line.trim() !== "").length;
+  if (inventory.rules.length > 0 || nonBlankLineCount <= RULELESS_INVENTORY_LINE_LIMIT) return [];
+  return [`${name}: no rules guard ${nonBlankLineCount} lines, over the ${RULELESS_INVENTORY_LINE_LIMIT} a ruleless inventory may guard. Hint: add a rule for each real instruction in ${inventory.file}.`];
+};
+
 export function inventoryProblems(root: string, name: string, inventory: Inventory): string[] {
   assert(typeof inventory.file === "string", `${name} must name the instruction file in "file", got ${typeof inventory.file}; add it`);
   assert(Array.isArray(inventory.rules), `${name} must list its "rules" as an array, got ${typeof inventory.rules}; add the array`);
@@ -57,6 +66,7 @@ export function inventoryProblems(root: string, name: string, inventory: Invento
     if (!anchor?.trim()) problems.push(`${name}: an entry has a blank anchor, which matches every line. Hint: copy a distinctive phrase of the line.`);
     else if (!everyText.includes(anchor)) problems.push(`${name}: anchor "${anchor}" is in none of ${sources.join(", ")}. Hint: the rule line was deleted or reworded; restore it or update the anchor.`);
   }
+  problems.push(...rulelessInventoryProblems(name, inventory, everyText));
   const usable = anchors.filter((anchor) => anchor?.trim());
   for (const [source, text] of texts) {
     for (const line of markerLines(text)) {

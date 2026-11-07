@@ -263,7 +263,7 @@
     "number": 27,
     "id": "rule-inventory",
     "title": "Inventoried rules stay in their files",
-    "rule": "Every rule anchor in evals/rules still appears in its file, and every marker line is covered.",
+    "rule": "Every rule anchor stays in its file, every marker line is covered, and no long file has zero rules.",
     "fix": "Restore the deleted rule line, or update the anchor in the inventory.",
     "example": "evals/rules/skill-alpha.json: anchor \"Auto-merge PRs\" is in none of plugin/skills/alpha/SKILL.md. Hint: the rule line was deleted or reworded; restore it or update the anchor.",
     "mistake": "A load-bearing rule deleted by a trim",

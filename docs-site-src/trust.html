@@ -11,6 +11,7 @@
 <h3 id="mutation">Mutation score</h3>
 <p>A guard that never fails proves nothing. So the project tests the guard.</p>
 <p><code>scripts/audit/rule-inventory-mutation.ts</code> deletes each line that holds an anchor. It runs the inventory check on every mutant. A mutant is killed when the check reports the missing anchor.</p>
+<p>For you, the score shows that the rule guard fails when a rule is deleted. It checks the upkeep of the project. It says nothing about how a model behaves.</p>
 <p>The build runs that script for every inventory. The table shows the live result.</p>
 <x-data name="rule-inventories"/>
 <h3 id="unprotected">Unprotected share</h3>
@@ -21,6 +22,7 @@
 <h2 id="token-budget">Token budget</h2>
 <p>Instruction text costs tokens in every session. So each instruction file has a budget in <code>evals/token-budget.json</code>.</p>
 <p><a href="ci-checks.html#check-28">Check 28</a> fails when a file grows past its budget. The file lists {{budgetFiles}} budgets that sum to {{budgetTotal}} estimated tokens.</p>
+<p>For you, the budget keeps each skill short. Short skills leave more room for your code in each session.</p>
 <p>The estimate divides the characters by four. It uses no tokenizer and calls no API. It moves with the text, which is all a ratchet needs.</p>
 <x-data name="token-budgets"/>
 

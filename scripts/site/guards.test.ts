@@ -12,7 +12,7 @@ import { demoOutput, expandVariable, mistakeRows, renderFragment } from "./fragm
 import { coverageProblems, handTypedCountProblems, leakProblems, linkProblems, quotationProblems, renderedCountProblems, siteProblems, siteReport, structureProblems, styleProblems } from "./gates.ts";
 import { bulletList, callout, checkCard, escapeHtml, inlineCode, layout, menuMarkup, quotation, relativeLink, table, tableOfContents, terminal, unescapeHtml, withPageHead } from "./html.ts";
 import { attributesOf, balanceProblems, stripNonMarkup, tagsOf } from "./markup.ts";
-import { agentsPage, buildPages, checksPage, commandsPage, evalTiersPage, evidenceRows, evidenceTable, fragmentFiles, hooksPage, instructionSection, pluginScriptsPage, siteVariables, skillPage, skillsIndex } from "./pages.ts";
+import { agentsPage, buildPages, checksPage, commandsPage, evalTiersPage, firstClause, fragmentFiles, hooksPage, instructionSection, pluginScriptsPage, siteVariables, skillPage, skillsIndex } from "./pages.ts";
 import { loadChecks } from "./registry.ts";
 import { STYLE, declarations } from "./style.ts";
 
@@ -138,10 +138,8 @@ const GUARDS: Guard[] = [
   ["hooksOf rejects an absent root", () => hooksOf(ABSENT), /must exist to read hooks/],
   ["siteVariables rejects non-array skills", () => siteVariables({ ...DATA, skills: WRONG }, [], []), /must list skills/],
   ["siteVariables rejects non-array checks", () => siteVariables(DATA, WRONG, []), /checks must be a list/],
-  ["evidenceRows rejects a fractional rule count", () => evidenceRows({ ...SKILL, rules: 1.5 }), /whole number or null/],
-  ["evidenceRows rejects more kills than mutants", () => evidenceRows({ ...SKILL, mutation: { killed: 3, total: 2 } }), /cannot exceed all mutants/],
-  ["evidenceTable rejects an empty path", () => evidenceTable({ ...SKILL, path: "" }), /names its source file/],
-  ["evidenceTable rejects an empty tier", () => evidenceTable(SKILL, ""), /tier is a word/],
+  ["firstClause rejects an empty description", () => firstClause("  "), /needs a description to summarise/],
+  ["firstClause rejects a description that starts with a full stop", () => firstClause(". x"), /cannot start with a full stop/],
   ["skillPage rejects an empty name", () => skillPage({ ...SKILL, name: "" }, new Map()), /named after its skill/],
   ["skillPage rejects a non-Map", () => skillPage(SKILL, WRONG), /Map of path to link/],
   ["skillsIndex rejects non-array skills", () => skillsIndex({ ...DATA, skills: WRONG }), /lists skills/],
@@ -196,19 +194,20 @@ test("async entry points reject a bad root, bad rows and a bad demo with the fix
   assert.throws(() => demoOutput(empty, "bad"), /must hold a script and an args list/);
 });
 
-test("a skill page shows backticked headings and steps as code and the skills index stacks on narrow screens", () => {
-  const skill = { ...SKILL, sections: ["What `/slice` does NOT do"], steps: ["1. Run `plan` first"] } as Skill;
+test("a skill page shows backticked steps as code and the skills index stacks on narrow screens", () => {
+  const skill = { ...SKILL, steps: ["1. Run `plan` first"] } as Skill;
   const body = skillPage(skill, new Map()).body;
-  assert.match(body, /<li>What <code>\/slice<\/code> does NOT do<\/li>/, "a section heading must show its code span as code");
   assert.match(body, /<li>Run <code>plan<\/code> first<\/li>/, "a step must show its code span as code");
-  assert.throws(() => skillPage({ ...skill, sections: ["Open `span"] } as Skill, new Map()), /odd number of backticks/);
+  assert.throws(() => skillPage({ ...skill, steps: ["Open `span"] } as Skill, new Map()), /odd number of backticks/);
+  assert.doesNotMatch(body, /Mutation score|Token budget|Sections of the skill/, "a skill page keeps maintainer figures off the page");
   assert.match(skillsIndex(DATA).body, /<table class="stacked">/, "the skills index must use the stacked table");
 });
 
-test("a stamp time sits in a time element and an unstamped skill shows none", () => {
+test("the eval tiers page lists each skill with its tier and no timestamp", () => {
   const stamped = { ...SKILL, tier: "static", stampedAt: "2026-01-02T03:04:05.000Z" } as Skill;
-  assert.match(evalTiersPage({ ...DATA, skills: [stamped] }).body, /<time datetime="2026-01-02T03:04:05\.000Z">2026-01-02T03:04:05\.000Z<\/time>/, "the stamp time must be one unbreakable time element");
-  assert.doesNotMatch(evalTiersPage({ ...DATA, skills: [SKILL] }).body, /<time/, "a skill with no stamp must show no time element");
+  const body = evalTiersPage({ ...DATA, skills: [stamped] }).body;
+  assert.match(body, new RegExp(`<code>${stamped.name}</code>[\\s\\S]*tier-static`), "the page must pair the skill with its tier");
+  assert.doesNotMatch(body, /<time|2026-01-02/, "the page must not show the stamp time");
 });
 
 test("the style wraps terminal text, keeps stamps whole and opens menu groups in the page flow on narrow screens", () => {

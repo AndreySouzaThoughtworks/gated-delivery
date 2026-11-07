@@ -29,6 +29,11 @@ readonly COMMENT_LINE=1
 readonly COMMENT_SIDE=RIGHT
 readonly THREAD_ID_QUERY="query(\$owner: String!, \$repo: String!, \$number: Int!) { repository(owner: \$owner, name: \$repo) { pullRequest(number: \$number) { reviewThreads(first: 10) { nodes { id isResolved } } } } }"
 readonly RESOLVE_THREAD_MUTATION="mutation(\$id: ID!) { resolveReviewThread(input: {threadId: \$id}) { thread { isResolved } } }"
+readonly PROTECTION_USER_VARIABLE=GATED_DELIVERY_PROTECTION_GH_USER
+readonly PROTECTION_PATH="branches/${BASE_BRANCH}/protection/required_status_checks"
+readonly PROTECTION_DENIED_PATTERN='HTTP (403|404)'
+readonly REMOTE_SLUG_PATTERN='[:/]([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$'
+readonly PARITY_SCRIPT=scripts/audit/required-checks-parity.ts
 readonly IMPORT_GH_JSON='const { ghJson } = await import(process.argv[1]); console.log(JSON.stringify(ghJson(process.cwd(), JSON.parse(process.argv[2]))));'
 
 core="$(cd "$(dirname "$0")/.." && pwd)"
@@ -111,6 +116,51 @@ repo_field_is() {
   node -e "const d = JSON.parse(process.argv[1]); process.exit(${2} ? 0 : 1)" "${view}" 2>/dev/null
 }
 
+checkout_slug() {
+  local url
+  url="$(git -C "${core}" remote get-url origin 2>/dev/null)" || return 1
+  url="${url%.git}"
+  [[ "${url}" =~ ${REMOTE_SLUG_PATTERN} ]] || return 1
+  echo "${BASH_REMATCH[1]}"
+}
+
+skip_protection() {
+  echo "skip required status checks match docs/development.md: $1"
+  skipped=$((skipped + 1))
+}
+
+protection_query() {
+  local token_user="${!PROTECTION_USER_VARIABLE:-}" token
+  if [[ -z "${token_user}" ]]; then
+    gh api "repos/$1/${PROTECTION_PATH}" 2>&1
+    return
+  fi
+  token="$(gh auth token --user "${token_user}" 2>&1)" || { echo "gh auth token --user ${token_user} failed: ${token:0:${SHOWN_TEXT_LIMIT}}"; return 1; }
+  GH_TOKEN="${token}" gh api "repos/$1/${PROTECTION_PATH}" 2>&1
+}
+
+check_required_checks_parity() {
+  local repo owner protection parity
+  repo="$(checkout_slug)" || { skip_protection "git remote get-url origin gives no <owner>/<name> for ${core}, so there is no repository to ask. Fix: add the remote origin, then rerun"; return; }
+  owner="${repo%%/*}"
+  if ! protection="$(protection_query "${repo}")"; then
+    if [[ "${protection}" =~ ${PROTECTION_DENIED_PATTERN} ]]; then
+      skip_protection "GitHub answered ${BASH_REMATCH[0]} for ${repo}, because reading branch protection needs admin on it. Account needed: ${owner}. Fix: rerun with ${PROTECTION_USER_VARIABLE}=${owner}, which passes GH_TOKEN=\$(gh auth token --user ${owner}) to this one call only, or run: GH_TOKEN=\$(gh auth token --user ${owner}) gh api repos/${repo}/${PROTECTION_PATH}"
+    else
+      echo "FAIL required status checks match docs/development.md: gh api for ${repo} failed: ${protection:0:${SHOWN_TEXT_LIMIT}}"
+      failures=$((failures + 1))
+    fi
+    return
+  fi
+  if parity="$(printf '%s' "${protection}" | node "${core}/${PARITY_SCRIPT}" --repo "${core}" 2>&1)"; then
+    echo "ok   required status checks of ${repo} on ${BASE_BRANCH} are the set listed in docs/development.md"
+  else
+    echo "FAIL required status checks of ${repo} on ${BASE_BRANCH} differ from docs/development.md:"
+    echo "${parity}"
+    failures=$((failures + 1))
+  fi
+}
+
 for tool in gh git node; do
   command -v "${tool}" >/dev/null 2>&1 || { echo "${SCRIPT_NAME}: ${tool} is not on PATH. Rule: the test drives the real ${tool}. Fix: install ${tool}, then rerun." >&2; exit "${EXIT_TOOL_MISSING}"; }
 done
@@ -121,6 +171,9 @@ repo_field_is "${view}" 'd.isPrivate === true' || refuse "the repository is not 
 repo_field_is "${view}" 'd.isFork === false' || refuse "the repository is a fork, or gh did not report isFork"
 repo_field_is "${view}" "d.name.toLowerCase().includes('${REQUIRED_NAME_PART}')" || refuse "the repository name does not contain ${REQUIRED_NAME_PART}"
 repo_field_is "${view}" "d.defaultBranchRef?.name === '${BASE_BRANCH}'" || refuse "the default branch is not ${BASE_BRANCH}"
+
+echo "== required status checks (read only): gh api ${PROTECTION_PATH}"
+check_required_checks_parity
 
 work="$(mktemp -d)"
 trap cleanup EXIT
@@ -220,7 +273,7 @@ if [[ "${failures}" -gt 0 ]]; then
   exit 1
 fi
 if [[ "${skipped}" -gt 0 ]]; then
-  echo "live gh assertions passed, ${skipped} assertions skipped: the sandbox held no data for them."
+  echo "live gh assertions passed, ${skipped} assertions skipped: each skip line above says what it needs."
   exit 0
 fi
 echo "all live gh assertions passed"

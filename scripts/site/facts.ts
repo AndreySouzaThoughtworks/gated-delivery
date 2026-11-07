@@ -321,8 +321,8 @@ export const factVariables = (root: string) => {
   };
 };
 
-const CHECKS_HEADING = "Checks every change passes";
-const CHECK_COLUMNS = ["Required check", "What it runs"];
+export const CHECKS_HEADING = "Checks every change passes";
+export const CHECK_COLUMNS = ["Required check", "What it runs"];
 const LICENSE_FILE = "LICENSE";
 
 export const requiredChecksTable = (root: string) => {

@@ -138,6 +138,7 @@ const GUARDS: Guard[] = [
   ["hooksOf rejects an absent root", () => hooksOf(ABSENT), /must exist to read hooks/],
   ["siteVariables rejects non-array skills", () => siteVariables({ ...DATA, skills: WRONG }, [], []), /must list skills/],
   ["siteVariables rejects non-array checks", () => siteVariables(DATA, WRONG, []), /checks must be a list/],
+  ["firstClause rejects a non-string description", () => firstClause(WRONG as string), /description is text/],
   ["firstClause rejects an empty description", () => firstClause("  "), /needs a description to summarise/],
   ["firstClause rejects a description that starts with a full stop", () => firstClause(". x"), /cannot start with a full stop/],
   ["skillPage rejects an empty name", () => skillPage({ ...SKILL, name: "" }, new Map()), /named after its skill/],

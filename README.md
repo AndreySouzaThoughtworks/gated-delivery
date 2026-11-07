@@ -2,7 +2,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs-site-src/brand/mark.svg">
-  <img src="docs-site-src/brand/mark-mono.svg" alt="gated-delivery logo: the letter G with a check mark inside" width="96" height="96">
+  <img src="docs-site-src/brand/mark-mono.svg" alt="gated-delivery logo: a stone gate with an emerald gem glowing inside" width="96" height="96">
 </picture>
 
 # gated-delivery

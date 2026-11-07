@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildSite, main, readAssets } from "./build.ts";
 import { BRAND_ASSETS, BRAND_SOURCE, FONTS_SOURCE, PNG_SIZES, SITE_URL, TAGLINE, canonicalUrl, copyBrandAssets } from "./brand.ts";
-import { FONT_BUDGET_BYTES, PAGE_BUDGET_BYTES, assetFileProblems, assetProblems, fontFaceProblems, fontSourceProblems, hypeProblems, metaContent, metaProblems, missingMetaProblems, pageAssetProblems, pngProblems, pngSize, themeProblems, weightProblems } from "./brand-gates.ts";
+import { FONT_BUDGET_BYTES, PAGE_BUDGET_BYTES, assetFileProblems, familyProblems, fontEntryProblems, assetProblems, fontFaceProblems, fontSourceProblems, hypeProblems, metaContent, metaProblems, missingMetaProblems, pageAssetProblems, pngProblems, pngSize, themeProblems, weightProblems } from "./brand-gates.ts";
 import { CONTRAST_PAIRS, contrastProblems, contrastRatio, luminance, themeTokens } from "./contrast.ts";
 import { footerMarkup, headTags, layout, meta, rootPrefix } from "./html.ts";
 import { DARK_TOKENS, FONT_FILE, LIGHT_TOKENS, STYLE, declarations, styleSheet } from "./style.ts";
@@ -16,8 +16,8 @@ const WRONG = 5 as never;
 const NAV = [{ path: "index.html", label: "Home" }, { label: "Guide", items: [{ path: "a.html", label: "A" }] }];
 const PAGE = { path: "a.html", title: "A", summary: "About a.", body: "<h1>A</h1>", source: "x" };
 const MAXIMUM_CONTRAST = 21;
-const PLANTED_DARK_MUTED = "#2a1b4b";
-const PLANTED_WEAK_BORDER = "#efe9fc";
+const PLANTED_DARK_MUTED = "#2b2328";
+const PLANTED_WEAK_BORDER = "#f4e8d0";
 const FIXTURE_ENTRIES = ["plugin", "evals", "scripts", "docs", ".github", ".claude-plugin", "tests", "LICENSE", "package.json", "AGENTS.md", "tsconfig.json", "zanity.toml", ".shellcheckrc", ".typos.toml", ".githooks", ".cursor", "zanity-baseline.json", "message-actionability-baseline.json", "assertion-effectiveness-baseline.json"];
 const CRAMMED_PAGES = 40;
 
@@ -92,7 +92,7 @@ test("a missing token and a weak control border are reported", () => {
 });
 
 test("dark is the default theme and an explicit choice still wins", () => {
-  assert.match(STYLE, /:root \{ color-scheme: dark; --bg: #1b1030;/, "the base tokens are dark");
+  assert.match(STYLE, /:root \{ color-scheme: dark; --bg: #2a2227;/, "the base tokens are dark");
   assert.match(STYLE, /@media \(prefers-color-scheme: light\) \{\s*:root:not\(\[data-theme="dark"\]\) \{ color-scheme: light;/, "an OS light preference gets light unless the visitor chose dark");
   assert.match(STYLE, /:root\[data-theme="light"\] \{ color-scheme: light;/, "an explicit light choice redefines the tokens");
   assert.match(STYLE, /body \{ margin: 0; background-color: var\(--bg\); color: var\(--text\);/, "body keeps an explicit background and colour");
@@ -157,7 +157,7 @@ test("the real site builds with the hero and the three cards", async () => {
 test("the font gate passes on the real folder and rejects a changed file", () => {
   assert.deepEqual(fontSourceProblems(REPOSITORY), [], "the shipped font matches its manifest");
   const changed = fontRoot();
-  writeFileSync(join(changed, FONTS_SOURCE, "SpaceGrotesk-Variable.woff2"), "not the published font");
+  writeFileSync(join(changed, FONTS_SOURCE, "Karma-Bold.woff2"), "not the published font");
   assert.match(fontSourceProblems(changed)[0], /does not match the sha256 in SOURCE\.json\. Rule: .* Fix: download the file again/, "a changed font is rejected with a fix");
 });
 
@@ -171,13 +171,13 @@ test("the font gate rejects a missing or foreign licence text", () => {
 
 test("the font gate rejects a weak or missing manifest and a missing font", () => {
   const weak = fontRoot();
-  writeFileSync(join(weak, FONTS_SOURCE, "SOURCE.json"), JSON.stringify({ files: [{ file: "SpaceGrotesk-Variable.woff2", url: "http://insecure.example", sha256: "abc" }] }));
-  assert.match(fontSourceProblems(weak)[0], /has no https url and sha256 for SpaceGrotesk-Variable\.woff2/, "an insecure url and a short hash are rejected");
+  writeFileSync(join(weak, FONTS_SOURCE, "SOURCE.json"), JSON.stringify({ files: [{ file: "Karma-Bold.woff2", url: "http://insecure.example", sha256: "abc" }] }));
+  assert.match(fontSourceProblems(weak)[0], /has no https url and sha256 for Karma-Bold\.woff2/, "an insecure url and a short hash are rejected");
   const missing = fontRoot();
   unlinkSync(join(missing, FONTS_SOURCE, "SOURCE.json"));
   assert.match(fontSourceProblems(missing).join("\n"), /SOURCE\.json is missing\. Rule: .* Fix: add the manifest/, "a missing manifest is rejected");
   const noFont = fontRoot();
-  unlinkSync(join(noFont, FONTS_SOURCE, "SpaceGrotesk-Variable.woff2"));
+  unlinkSync(join(noFont, FONTS_SOURCE, "Karma-Bold.woff2"));
   assert.match(fontSourceProblems(noFont)[0], /holds no \.woff2 file\. Rule: .* Fix: add the font file/, "a folder with no font is rejected");
 });
 
@@ -215,7 +215,7 @@ test("the asset gate passes the real assets and rejects a missing one", () => {
   assert.deepEqual(assetProblems(new Map([["index.html", renderedPage({ ...PAGE, path: "index.html" })]]), assets), [], "the shipped site holds every asset it references");
   const missing = new Map(assets);
   missing.delete(BRAND_ASSETS.hero);
-  assert.match(assetFileProblems(missing).join("\n"), /hero-illustration\.svg is missing from the built site\. Rule: .* Fix: restore the file/, "a missing hero is rejected");
+  assert.match(assetFileProblems(missing).join("\n"), /hero-scene\.svg is missing from the built site\. Rule: .* Fix: restore the file/, "a missing hero is rejected");
 });
 
 test("the asset gate rejects an unnamed and a broken svg", () => {
@@ -392,3 +392,42 @@ for (const [label, call, message] of GUARDS) {
     assert.throws(call, message, `${label} must fail with a message that matches ${message}`);
   });
 }
+
+const HERO_SCENE_BUDGET_BYTES = 40 * 1024;
+const HERO_SCENE_FILE = join(REPOSITORY, BRAND_SOURCE, "hero-scene.svg");
+
+test("the font gate rejects a manifest that names another family", () => {
+  const foreign = fontRoot();
+  const manifestPath = join(foreign, FONTS_SOURCE, "SOURCE.json");
+  writeFileSync(manifestPath, readFileSync(manifestPath, "utf8").replace('"family": "Karma"', '"family": "Space Grotesk"'));
+  assert.match(fontSourceProblems(foreign).join("\n"), /names the family "Space Grotesk", not "Karma"\. Rule: .* Fix: set "family" to Karma/, "a manifest for another family is rejected");
+  assert.deepEqual(fontSourceProblems(fontRoot()), [], "the untouched copy passes");
+});
+
+test("the hero scene is a named, light, scalable svg whose motion respects the visitor", () => {
+  const scene = readFileSync(HERO_SCENE_FILE, "utf8");
+  assert(Buffer.byteLength(scene) < HERO_SCENE_BUDGET_BYTES, `the hero scene must stay under ${HERO_SCENE_BUDGET_BYTES} bytes, got ${Buffer.byteLength(scene)}`);
+  assert.match(scene, /viewBox="0 0 1600 700" preserveAspectRatio="xMidYMid slice"/, "the scene crops instead of letterboxing");
+  assert.match(scene, /<title id="scene-title">[^<]+<\/title>/, "the scene has a title");
+  assert.match(scene, /<desc id="scene-desc">[^<]+<\/desc>/, "the scene has a description");
+  assert.match(scene, /@media \(prefers-reduced-motion: no-preference\) \{[^@]*animation:/, "the drift runs only when motion is allowed");
+  assert.doesNotMatch(scene.replace(/@media \(prefers-reduced-motion: no-preference\) \{[\s\S]*?\n\}\n/, ""), /animation:/, "no animation sits outside the motion query");
+});
+
+test("the home hero holds the scene, the title plate and one lockup", async () => {
+  const { files } = await buildSite(REPOSITORY, join(throwaway("hero"), "out"), await loadChecks(REPOSITORY));
+  const home = files.get("index.html") as string;
+  assert.match(home, /<img src="assets\/brand\/hero-scene\.svg" alt="[^"]{40,}"/, "the scene has a descriptive alt text");
+  assert.match(home, /<div class="plate"><p class="plate-title">gated-delivery<\/p>/, "the plate carries the wordmark");
+  assert.equal(home.match(/class="brand"/g)?.length, 1, "the home page keeps one brand lockup");
+  assert.match(home, /<p class="subline">Open the gate\. Keep only what proves itself\.<\/p>/, "the headline has one thematic subline");
+});
+
+test("the font entry and family checks reject bad input with a fix", () => {
+  assert.throws(() => fontEntryProblems(join(throwaway("none"), "absent"), "Karma-Bold.woff2", {}), /reads under .* got none; pass the font folder/, "a missing folder is rejected");
+  assert.throws(() => fontEntryProblems(REPOSITORY, "", {}), /names a file, got an empty name; pass the font file name/, "an empty font name is rejected");
+  assert.throws(() => familyProblems(WRONG), /the family is text, got number; write the family name as a string in SOURCE\.json/, "a numeric family is rejected");
+  assert.throws(() => familyProblems("  "), /names a font, got a blank one; write the family name in SOURCE\.json/, "a blank family is rejected");
+  assert.deepEqual(familyProblems("Karma"), [], "the shipped family passes");
+  assert.match(familyProblems(undefined)[0], /names the family "none", not "Karma"/, "a missing family is reported");
+});

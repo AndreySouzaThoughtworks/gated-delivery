@@ -4,25 +4,23 @@
 <meta charset="utf-8">
 <title>gated-delivery social card</title>
 <style>
-@font-face { font-family: "Space Grotesk"; src: url("../fonts/SpaceGrotesk-Variable.woff2") format("woff2"); font-weight: 300 700; font-display: swap; }
+@font-face { font-family: "Karma"; src: url("../fonts/Karma-Bold.woff2") format("woff2"); font-weight: 700; font-display: swap; }
 * { box-sizing: border-box; }
 html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; }
-body { background: radial-gradient(circle at 85% 15%, #3b2470 0, #231640 45%, #1b1030 100%); color: #f1ebff; font-family: "Space Grotesk", system-ui, sans-serif; display: grid; grid-template-columns: 1fr 520px; align-items: center; gap: 56px; padding: 0 72px; }
-.lockup { display: flex; align-items: center; gap: 20px; }
+body { position: relative; background: #2a2227; color: #fae8d0; font-family: Karma, Georgia, serif; }
+.scene { position: absolute; inset: 0; width: 1200px; height: 630px; object-fit: cover; object-position: 50% 100%; }
+.plate { position: absolute; top: 24px; left: 50%; transform: translateX(-50%); width: 760px; text-align: center; padding: 18px 40px 20px; background: linear-gradient(180deg, #46393d, #3a2f33); border: 2px solid #f3dc7f; box-shadow: inset 0 0 0 7px #3a2f33, inset 0 0 0 8px rgba(243, 220, 127, 0.6), inset 0 4px 14px rgba(0, 0, 0, 0.3), 0 14px 36px rgba(0, 0, 0, 0.5); }
+.lockup { display: flex; align-items: center; justify-content: center; gap: 22px; }
 .lockup img { width: 72px; height: 72px; }
-.wordmark { white-space: nowrap; font-size: 48px; font-weight: 700; letter-spacing: -0.02em; }
-h1 { font-size: 84px; line-height: 1.02; letter-spacing: -0.03em; margin: 44px 0 28px; }
-h1 span { background: linear-gradient(90deg, #22d3ee, #4ade80); -webkit-background-clip: text; background-clip: text; color: transparent; }
-p { font-size: 30px; line-height: 1.35; color: #c4b5e8; margin: 0; max-width: 520px; }
-.art { width: 520px; height: 300px; }
+.wordmark { white-space: nowrap; font-size: 64px; font-weight: 700; line-height: 1; text-shadow: 0 3px 0 rgba(35, 26, 28, 0.7); }
+.tagline { margin: 10px 0 0; font-size: 32px; font-weight: 700; color: #f3dc7f; }
 </style>
 </head>
 <body>
-<main>
+<img class="scene" src="hero-scene.svg" alt="">
+<div class="plate">
 <div class="lockup"><img src="mark.svg" alt=""><span class="wordmark">gated-delivery</span></div>
-<h1><span>Gate it.</span><br>Slice it.<br>Prove it.</h1>
-<p>Ship every change as small verified slices.</p>
-</main>
-<img class="art" src="hero-illustration.svg" alt="">
+<p class="tagline">Gate it. Slice it. Prove it.</p>
+</div>
 </body>
 </html>

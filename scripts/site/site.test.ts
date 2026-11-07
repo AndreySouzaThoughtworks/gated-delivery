@@ -26,7 +26,7 @@ const LONG_SENTENCE = "This sentence keeps going with many more words than the p
 const fixtureRoot = () => {
   const root = mkdtempSync(join(tmpdir(), "site-test-"));
   assert(root.startsWith(tmpdir()), `${root} must be a throwaway under ${tmpdir()}`);
-  for (const name of ["plugin", "evals", "scripts", "docs", ".github", ".claude-plugin", "tests", "LICENSE", "package.json", "zanity-baseline.json", "message-actionability-baseline.json", "assertion-effectiveness-baseline.json"]) symlinkSync(join(REPOSITORY, name), join(root, name));
+  for (const name of ["plugin", "evals", "scripts", "docs", ".github", ".claude-plugin", "tests", "LICENSE", "package.json", "AGENTS.md", "tsconfig.json", "zanity.toml", ".shellcheckrc", ".typos.toml", ".githooks", ".cursor", "zanity-baseline.json", "message-actionability-baseline.json", "assertion-effectiveness-baseline.json"]) symlinkSync(join(REPOSITORY, name), join(root, name));
   cpSync(join(REPOSITORY, "docs-site-src"), join(root, "docs-site-src"), { recursive: true });
   assert(existsSync(join(root, "docs-site-src", "home.html")), `${root} must hold a copy of the site fragments`);
   return root;

@@ -13,7 +13,7 @@ import { layout } from "./html.ts";
 
 const REPOSITORY = process.cwd();
 const WRONG = 5 as never;
-const FIXTURE_ENTRIES = ["plugin", "evals", "scripts", "docs", ".github", ".claude-plugin", "tests", "LICENSE", "package.json", "zanity-baseline.json", "message-actionability-baseline.json", "assertion-effectiveness-baseline.json"];
+const FIXTURE_ENTRIES = ["plugin", "evals", "scripts", "docs", ".github", ".claude-plugin", "tests", "LICENSE", "package.json", "AGENTS.md", "tsconfig.json", "zanity.toml", ".shellcheckrc", ".typos.toml", ".githooks", ".cursor", "zanity-baseline.json", "message-actionability-baseline.json", "assertion-effectiveness-baseline.json"];
 const REAL_SOURCE = "plugin/skills/spec/SKILL.md";
 const CARD_PARTS = "<dl><dt>Problem</dt><dd>x</dd></dl>";
 const SVG_HEAD = '<svg viewBox="0 0 10 10" role="img"><title>T</title><desc>D</desc>';

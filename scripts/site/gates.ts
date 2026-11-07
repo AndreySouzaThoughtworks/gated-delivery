@@ -12,6 +12,7 @@ import { SKILLS_INDEX } from "./pages.ts";
 import { assetProblems, fontFaceProblems, fontSourceProblems, hypeProblems, metaProblems, themeProblems, weightProblems } from "./brand-gates.ts";
 import type { SiteAssets } from "./brand-gates.ts";
 import { QUOTATION, balanceProblems, tagsOf } from "./markup.ts";
+import { exponentialProblems } from "./exponential-gates.ts";
 import { diagramProblems, featureCardProblems, lockupProblems, pinnedContentProblems } from "./sell-gates.ts";
 
 const HAND_TYPED_COUNT = /(\d+)\s+(?:numbered\s+)?(skills|agents|commands|hooks|checks|scripts)\b/g;
@@ -199,6 +200,7 @@ export const siteProblems = ({ root, files, sources, data, counts, fragments, tr
     ...lockupProblems(page, html),
   ]),
   ...pinnedContentProblems(fragments),
+  ...exponentialProblems(files, root),
   ...[...files].flatMap(([page, html]) => [...fontFaceProblems(page, html), ...hypeProblems(page, html)]),
   ...(existsSync(join(root, README_FILE)) ? hypeProblems(README_FILE, readFileSync(join(root, README_FILE), "utf8")) : []),
   ...linkProblems(files),

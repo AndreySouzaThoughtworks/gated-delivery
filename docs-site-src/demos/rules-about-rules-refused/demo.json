@@ -1,0 +1,5 @@
+{
+  "script": "plugin/bootstrap/guards/rules-about-rules.mjs",
+  "args": ["--repo", "$FIXTURE"],
+  "setup": []
+}

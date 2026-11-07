@@ -13,7 +13,10 @@ export const DEVELOPMENT_FILE = "docs/development.md";
 export const RULES_FOLDER = "evals/rules";
 export const BUDGET_FILE = "evals/token-budget.json";
 export const SUPPRESSION_COUNT_FILE = "scripts/audit/suppressions.count";
-export const BASELINE_FILES = ["zanity-baseline.json", "message-actionability-baseline.json", "assertion-effectiveness-baseline.json"];
+export const ZANITY_BASELINE = "zanity-baseline.json";
+export const MESSAGE_BASELINE = "message-actionability-baseline.json";
+export const ASSERTION_BASELINE = "assertion-effectiveness-baseline.json";
+export const BASELINE_FILES = [ZANITY_BASELINE, MESSAGE_BASELINE, ASSERTION_BASELINE];
 export const PLUGIN_MANIFEST = "plugin/.claude-plugin/plugin.json";
 export const MARKETPLACE_MANIFEST = ".claude-plugin/marketplace.json";
 const PACKAGE_FILE = "package.json";
@@ -217,7 +220,7 @@ export const ratchetTable = (root: string) => {
   const baselines = BASELINE_FILES.map((file) => [file, findingsIn(root, file)] as const);
   return table(["Ratchet file", "Holds now", "What it blocks"], [
     ...baselines.map(([file, held]) => [`<code>${file}</code>`, `${held} findings`, "A pull request that makes the list longer than its base"]),
-    [`<code>${SUPPRESSION_COUNT_FILE}</code>`, `${suppressionCounts(root).total} suppressions`, "A suppression added without lowering something else"],
+    [`<code>${SUPPRESSION_COUNT_FILE}</code>`, `${suppressionCounts(root).total} suppressions`, "A suppression added without a reviewed rise of the count file"],
     [`<code>${BUDGET_FILE}</code>`, `${budgetRows(root).length} budgets`, "An instruction file that grows past its budget"],
   ]);
 };
@@ -315,6 +318,9 @@ export const factVariables = (root: string) => {
     budgetFiles: budgetRows(root).length,
     budgetTotal: budgetRows(root).reduce((sum, [, budget]) => sum + budget, 0),
     suppressionTotal: suppressionCounts(root).total,
+    zanityBaseline: findingsIn(root, ZANITY_BASELINE),
+    messageBaseline: findingsIn(root, MESSAGE_BASELINE),
+    assertionBaseline: findingsIn(root, ASSERTION_BASELINE),
     requiredChecks: tableUnder(root, DEVELOPMENT_FILE, CHECKS_HEADING, CHECK_COLUMNS.length).length,
     mistakesCaught: tableUnder(root, MISTAKES_FILE, CAUGHT_HEADING, CAUGHT_COLUMNS.length).length,
     mistakesOpen: tableUnder(root, MISTAKES_FILE, OPEN_HEADING, OPEN_COLUMNS.length).length,

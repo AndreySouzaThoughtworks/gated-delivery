@@ -18,7 +18,7 @@ const PAGE = { path: "a.html", title: "A", summary: "About a.", body: "<h1>A</h1
 const MAXIMUM_CONTRAST = 21;
 const PLANTED_DARK_MUTED = "#2a1b4b";
 const PLANTED_WEAK_BORDER = "#efe9fc";
-const FIXTURE_ENTRIES = ["plugin", "evals", "scripts", "docs", ".github", ".claude-plugin", "tests", "LICENSE", "package.json", "zanity-baseline.json", "message-actionability-baseline.json", "assertion-effectiveness-baseline.json"];
+const FIXTURE_ENTRIES = ["plugin", "evals", "scripts", "docs", ".github", ".claude-plugin", "tests", "LICENSE", "package.json", "AGENTS.md", "tsconfig.json", "zanity.toml", ".shellcheckrc", ".typos.toml", ".githooks", ".cursor", "zanity-baseline.json", "message-actionability-baseline.json", "assertion-effectiveness-baseline.json"];
 const CRAMMED_PAGES = 40;
 
 const throwaway = (name: string) => {

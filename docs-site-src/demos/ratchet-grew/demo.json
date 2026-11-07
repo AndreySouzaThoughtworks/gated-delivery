@@ -1,0 +1,11 @@
+{
+  "script": "plugin/bootstrap/guards/ratchet.mjs",
+  "args": ["--baseline", "zanity-baseline.json", "--base-ref", "HEAD"],
+  "setup": [
+    "git init -q",
+    "printf '{\"findings\":[{\"path\":\"src/a.py\",\"rule\":\"swallowed-error\",\"message\":\"Handle the error.\"}]}\\n' > zanity-baseline.json",
+    "git add zanity-baseline.json",
+    "git commit -q -m base",
+    "printf '{\"findings\":[{\"path\":\"src/a.py\",\"rule\":\"swallowed-error\",\"message\":\"Handle the error.\"},{\"path\":\"src/b.py\",\"rule\":\"swallowed-error\",\"message\":\"Handle the error.\"}]}\\n' > zanity-baseline.json"
+  ]
+}

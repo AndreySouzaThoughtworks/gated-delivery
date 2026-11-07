@@ -1,0 +1,229 @@
+<h1>Exponential engineering</h1>
+<p class="lead">This repository applies ideas from exponential engineering. This page credits the source and shows each mechanism with its proof and its gaps.</p>
+
+<x-callout>
+  <p>The ideas on this page are not ours. <a href="https://exponentialengineering.dev/">Exponential engineering</a> comes from Ben O'Mahony and Fabian Nonnenmacher. Their site explains each idea in full. This page only shows how this repository applies them.</p>
+</x-callout>
+
+<p>The authors also publish the <a href="https://github.com/benomahony/exponential-engineering">source repository of the site</a> and two tools. <a href="https://github.com/benomahony/zanity">zanity</a> is a rule checker for code. <a href="https://github.com/benomahony/overwatch">overwatch</a> is a Claude Code plugin that hands failing checks back to the agent.</p>
+<p>Each section below has four parts. <strong>The idea</strong> is our short paraphrase. <strong>How this repo applies it</strong> names real files. <strong>Proof</strong> shows numbers and output that the build reads from the repository. <strong>Where it falls short</strong> names a gap.</p>
+<p>The build fails when a section cites a file that does not exist. No person types a count on this page.</p>
+
+<x-feature id="mistake-to-rule" title="Every mistake becomes a rule for its whole category" sources="docs/mistakes-to-rules.md scripts/audit/mistakes-table.test.ts scripts/audit/checks-registry.json scripts/audit/consistency.ts" links="mistakes.html|Mistakes to rules;ci-checks.html|CI checks;concepts.html|Concepts">
+<dl class="parts">
+<dt>The idea</dt><dd>Do not fix one mistake. Write a deterministic check that catches every future version of it. Each rule adds to the earlier ones, so quality compounds.</dd>
+<dt>How this repo applies it</dt><dd><ul>
+<li><code>docs/mistakes-to-rules.md</code> lists mistakes that happened here. Each row names a category, the rule that catches it and a test of that rule.</li>
+<li><code>scripts/audit/mistakes-table.test.ts</code> fails when a row names a file, check, zanity rule or test title that does not exist.</li>
+<li>The rules run as {{checks}} numbered checks. <code>scripts/audit/checks-registry.json</code> holds the rule, the fix and a real failure message of each one.</li>
+</ul></dd>
+<dt>Proof</dt><dd>
+<p>The table holds {{mistakesCaught}} mistakes that a rule catches. It holds {{mistakesOpen}} more that no rule catches yet. Here is one real row.</p>
+<x-mistake match="assertion-density was switched off"/>
+</dd>
+<dt>Where it falls short</dt><dd><ul>
+<li>A person still spots the mistake and writes the rule. Nothing automates that loop.</li>
+<li>The checks run in CI. Two git hooks run the leak guard and gitleaks. The repository sets up no language server or file watcher of its own.</li>
+<li>The repository holds no overwatch settings file, so the watcher idea is not applied here.</li>
+</ul></dd>
+</dl>
+</x-feature>
+
+<x-feature id="rot" title="Rot spreads the same way" sources="docs/mistakes-to-rules.md scripts/audit/assertion-effectiveness.ts scripts/audit/consistency.ts scripts/site/gates.ts" links="mistakes.html|Mistakes to rules;trust.html|Trust">
+<dl class="parts">
+<dt>The idea</dt><dd>Agents copy the patterns they see in a repository. A good pattern spreads. A bad one spreads too. A repository with no rules drifts the wrong way.</dd>
+<dt>How this repo applies it</dt><dd><ul>
+<li>Agents once added assertions that could not fail, only to satisfy a rule. <code>scripts/audit/assertion-effectiveness.ts</code> now fails any assertion that no test makes fail.</li>
+<li>Docs once drifted from the files. Check 5 in <code>scripts/audit/consistency.ts</code> compares doc counts with the real inventory.</li>
+<li>The site build rejects a hand-typed count. <code>scripts/site/gates.ts</code> holds that gate.</li>
+</ul></dd>
+<dt>Proof</dt><dd>
+<p>Two real rows of the mistakes table show the drift.</p>
+<x-mistake match="About 230 assertions"/>
+<x-mistake match="The docs went stale"/>
+</dd>
+<dt>Where it falls short</dt><dd><ul>
+<li>These checks find counts, paths and assertions that cannot fail. They do not find a sentence that is false in another way.</li>
+<li>A reviewer still reads the text.</li>
+</ul></dd>
+</dl>
+</x-feature>
+
+<x-feature id="harden-codebase" title="Harden the codebase, not the agent" sources="docs/development.md plugin/hooks/guard-bash.mjs plugin/hooks/lib/guard-core.mjs scripts/leak-guard.sh .githooks/pre-commit .githooks/pre-push AGENTS.md .cursor/hooks.json plugin/bootstrap/plan.mjs tests/live-gh.test.sh" links="trust.html|Trust;hooks.html|Hooks;install.html|Install and update">
+<dl class="parts">
+<dt>The idea</dt><dd>Agents come and go. A prompt or a memory belongs to one agent. Types, lint settings, tests and CI belong to the repository, so every agent gets them.</dd>
+<dt>How this repo applies it</dt><dd><ul>
+<li><code>main</code> requires {{requiredChecks}} status checks. <code>docs/development.md</code> lists them.</li>
+<li><code>plugin/hooks/guard-bash.mjs</code> denies a small set of destructive shell commands. It uses no model. <code>plugin/hooks/lib/guard-core.mjs</code> blocks the command when the guard cannot read its input.</li>
+<li><code>scripts/leak-guard.sh</code> runs from <code>.githooks/pre-commit</code>. <code>.githooks/pre-push</code> scans the pushed commits with gitleaks.</li>
+<li><code>AGENTS.md</code> is the one source of the repository rules. <code>.cursor/hooks.json</code> sends the Cursor hooks to adapters in <code>scripts/cursor</code>, so a second agent meets the same guards.</li>
+<li><code>plugin/bootstrap/plan.mjs</code> plans the same guardrails for a client repository. It writes nothing until you confirm each group.</li>
+</ul></dd>
+<dt>Proof</dt><dd>
+<p>The build reads this table from <code>docs/development.md</code>.</p>
+<x-data name="required-checks"/>
+</dd>
+<dt>Where it falls short</dt><dd><ul>
+<li>The build and CI do not ask GitHub for the real branch settings. Only <code>tests/live-gh.test.sh</code> compares them with the table. The maintainer runs that test by hand.</li>
+<li>The bash guard is an accident guard, not a security boundary. Its own header says that indirection defeats it.</li>
+<li>The skills and agents of the plugin run in Claude Code only. The repository checks do not depend on any agent.</li>
+</ul></dd>
+</dl>
+</x-feature>
+
+<x-feature id="swiss-cheese" title="Layers of checks, with holes in different places" sources="tsconfig.json zanity.toml scripts/audit/assertion-effectiveness.ts scripts/audit/rule-inventory-mutation.ts scripts/audit/ci-parity.ts .github/workflows/static.yml .github/workflows/docs.yml .github/workflows/gitleaks.yml .github/CODEOWNERS" links="trust.html|Trust;ci-checks.html|CI checks">
+<dl class="parts">
+<dt>The idea</dt><dd>No single check catches every bug. Stack checks whose gaps sit in different places. A bug that passes one layer then meets the next.</dd>
+<dt>How this repo applies it</dt><dd>
+<p>The table lists the real layers and the hole that each one leaves.</p>
+<div class="table-scroll"><table class="stacked"><thead><tr><th scope="col">Layer</th><th scope="col">It catches</th><th scope="col">Known hole</th></tr></thead><tbody>
+<tr><td data-label="Layer"><code>tsconfig.json</code> with strict flags</td><td data-label="It catches">Type errors and unused code.</td><td data-label="Known hole">Types say nothing about behaviour.</td></tr>
+<tr><td data-label="Layer"><code>zanity.toml</code> with every rule on</td><td data-label="It catches">Patterns such as a swallowed error or a skipped test.</td><td data-label="Known hole">It counts assertions, not their value.</td></tr>
+<tr><td data-label="Layer">Tests next to each script and hook</td><td data-label="It catches">The cases that someone wrote.</td><td data-label="Known hole">They are examples only. No property tests exist.</td></tr>
+<tr><td data-label="Layer"><code>scripts/audit/assertion-effectiveness.ts</code></td><td data-label="It catches">An assertion that no test can make fail.</td><td data-label="Known hole">It proves a test fails, not that the test is good.</td></tr>
+<tr><td data-label="Layer"><code>scripts/audit/rule-inventory-mutation.ts</code></td><td data-label="It catches">A deleted or reworded rule line in an instruction file.</td><td data-label="Known hole">It proves the text is there, not that a model obeys it.</td></tr>
+<tr><td data-label="Layer">Ratchets on baselines and budgets</td><td data-label="It catches">Old debt that grows again.</td><td data-label="Known hole">They freeze old debt instead of paying it.</td></tr>
+<tr><td data-label="Layer"><code>scripts/audit/ci-parity.ts</code></td><td data-label="It catches">A CI job that drifts from its twin.</td><td data-label="Known hole">It reads workflow text, not a real run.</td></tr>
+<tr><td data-label="Layer">gitleaks, typos, lychee, shellcheck, actionlint, zizmor</td><td data-label="It catches">Secrets, spelling, dead links, shell bugs and workflow errors.</td><td data-label="Known hole">Each one sees only its own file type.</td></tr>
+<tr><td data-label="Layer">Human review, routed by <code>.github/CODEOWNERS</code></td><td data-label="It catches">Judgment calls that no script makes.</td><td data-label="Known hole">It is slow. It is the bottleneck this project tries to cut.</td></tr>
+</tbody></table></div>
+</dd>
+<dt>Proof</dt><dd>The repository holds {{inventories}} rule inventories with {{rules}} rules. {{mutationPerfect}} of {{mutationScored}} scored inventories kill every planted mutant. Here is the check that guards them.
+<x-check number="27"/>
+</dd>
+<dt>Where it falls short</dt><dd><ul>
+<li>The source pairs lint with property tests and deterministic simulation. This repository has neither layer.</li>
+<li>No layer runs a model against a skill. Live evals are off, so the repository holds {{tiers.live}} live stamps.</li>
+</ul></dd>
+</dl>
+</x-feature>
+
+<x-feature id="rules-about-rules" title="Rules about the rules" sources="zanity.toml plugin/bootstrap/guards/rules-about-rules.mjs scripts/audit/suppressions.ts scripts/audit/suppression-reason-codes.ts scripts/audit/assertion-effectiveness.ts scripts/audit/rule-inventory.ts scripts/audit/ci-parity.ts .github/CODEOWNERS docs/mistakes-to-rules.md" links="ci-checks.html|CI checks;trust.html|Trust;mistakes.html|Mistakes to rules">
+<dl class="parts">
+<dt>The idea</dt><dd>A blocked agent reaches for an escape hatch. It adds an ignore, loosens a config, skips a test or deletes an assertion. Add rules that stop the rules from getting weaker.</dd>
+<dt>How this repo applies it</dt><dd><ul>
+<li>Check 8 fails when <code>zanity.toml</code> stops selecting every rule, widens a disable list or excludes more than fixture folders.</li>
+<li><code>plugin/bootstrap/guards/rules-about-rules.mjs</code> does the same job in client repositories. It also fails an action pinned to a tag and a disabled overwatch.</li>
+<li>The zanity rule <code>relaxed-check</code> exists in zanity, and <code>select = ["all"]</code> turns it on.</li>
+<li><code>scripts/audit/suppressions.ts</code> rejects a suppression with no reason. An <code>assertion-density</code> ignore must start with a code from <code>scripts/audit/suppression-reason-codes.ts</code>.</li>
+<li>Check 17 and <code>scripts/audit/assertion-effectiveness.ts</code> reject assertions that cannot fail.</li>
+<li>Check 27 pins each load-bearing rule line of an instruction file to a literal anchor in <code>scripts/audit/rule-inventory.ts</code>.</li>
+<li>Check 29 keeps one audit job with one matrix, so a Node job cannot lose a step.</li>
+<li><code>.github/CODEOWNERS</code> routes <code>zanity.toml</code>, <code>.github/</code> and <code>scripts/audit/</code> to the maintainer.</li>
+</ul></dd>
+<dt>Proof</dt><dd>
+<p>The build ran the shipped guard on a loosened config. The guard refuses it.</p>
+<x-demo name="rules-about-rules-refused"/>
+<p>The build also counts every suppression by its coded reason.</p>
+<x-data name="suppressions"/>
+<p>One real row shows why the next rule exists.</p>
+<x-mistake match="can add findings to the frozen baseline"/>
+</dd>
+<dt>Where it falls short</dt><dd><ul>
+<li>The repository holds {{suppressionTotal}} suppressions. That is a large number to defend.</li>
+<li>The count file is a cap, not a ratchet that forces the number down. A pull request may raise it, and the maintainer must accept the rise.</li>
+<li>A coded reason shows that someone explained the suppression. It does not show that the explanation is true.</li>
+<li>This repository does not run <code>plugin/bootstrap/guards/rules-about-rules.mjs</code> on itself. Check 8 and the checks above do that work.</li>
+</ul></dd>
+</dl>
+</x-feature>
+
+<x-feature id="zero-warnings" title="Everything on, zero warnings" sources="zanity.toml zanity-baseline.json .github/workflows/audit.yml .github/workflows/static.yml tsconfig.json .shellcheckrc .typos.toml" links="ci-checks.html|CI checks;develop.html|Develop">
+<dl class="parts">
+<dt>The idea</dt><dd>Turn on every rule at its strictest setting. Let a warning fail the build. A warning that people tolerate teaches the agent to ignore warnings.</dd>
+<dt>How this repo applies it</dt><dd><ul>
+<li><code>zanity.toml</code> selects every zanity rule. CI runs zanity with <code>--fail-on warning --strict</code>, so a warning fails the build.</li>
+<li>The zanity baseline holds {{zanityBaseline}} findings. Any finding fails.</li>
+<li><code>tsconfig.json</code> turns on <code>strict</code> and the unused-code flags. Check 23 fails when one turns off.</li>
+<li><code>.shellcheckrc</code> enables every shellcheck rule. CI runs shellcheck at the style level. CI runs zizmor in its pedantic mode.</li>
+</ul></dd>
+<dt>Proof</dt><dd>
+<p>This excerpt is the zanity job of the audit workflow.</p>
+<x-excerpt file=".github/workflows/audit.yml" start="  zanity:" lines="12"/>
+</dd>
+<dt>Where it falls short</dt><dd><ul>
+<li>The source asks for static analysis every day. CI here runs on each pull request and each push to <code>main</code>. No scheduled run exists.</li>
+<li>Some debt is tolerated and frozen. The message baseline holds {{messageBaseline}} old messages. The repository holds {{suppressionTotal}} suppressions.</li>
+</ul></dd>
+</dl>
+</x-feature>
+
+<x-feature id="actionable-errors" title="An actionable error is a just-in-time prompt" sources="scripts/audit/message-actionability.ts plugin/scripts/run-cli.test.support.mjs message-actionability-baseline.json docs/development.md" links="ci-checks.html|CI checks;develop.html|Develop">
+<dl class="parts">
+<dt>The idea</dt><dd>A long instruction file loads in every session. An error message arrives only when the mistake happens. So the message should say what is wrong and what to do instead.</dd>
+<dt>How this repo applies it</dt><dd><ul>
+<li>Check 32 reads every failure message in the scripts, hooks and audit tools. A message must name the value, state the rule and end with a fix. The limit is 40 words.</li>
+<li>The tests of each guard judge its real output with <code>assertActionable</code>. That helper lives in <code>plugin/scripts/run-cli.test.support.mjs</code>.</li>
+<li>The check fails a new message that is not actionable. It also fails a baseline entry that is now actionable.</li>
+</ul></dd>
+<dt>Proof</dt><dd>
+<p>The first message baseline held 243 messages, when the check arrived. It holds {{messageBaseline}} today. The check fails any pull request that makes it longer. This card shows the rule with a real failure message.</p>
+<x-check number="32"/>
+</dd>
+<dt>Where it falls short</dt><dd><ul>
+<li>{{messageBaseline}} old messages still fail the rule. They sit in the baseline.</li>
+<li>The judge is a pattern proxy. It cannot tell whether the fix in a message is right.</li>
+<li>The rule does not ask a message to point to a page that explains more.</li>
+</ul></dd>
+</dl>
+</x-feature>
+
+<x-feature id="existing-rules" title="Use existing rules before writing your own" sources=".github/workflows/audit.yml .github/workflows/static.yml .github/workflows/docs.yml .github/workflows/gitleaks.yml plugin/bootstrap/install-zanity.mjs plugin/bootstrap/pins.json" links="develop.html|Develop;install.html|Install and update">
+<dl class="parts">
+<dt>The idea</dt><dd>Someone has already written a rule for most mistakes. Turn that rule on first. Write your own only for a gap that no tool covers.</dd>
+<dt>How this repo applies it</dt><dd><ul>
+<li>zanity checks code patterns. The audit workflow pins it to one release by full commit SHA.</li>
+<li>typos checks spelling and lychee checks links. Both run from <code>.github/workflows/docs.yml</code>.</li>
+<li>shellcheck, actionlint and zizmor run from <code>.github/workflows/static.yml</code>. gitleaks runs from <code>.github/workflows/gitleaks.yml</code>.</li>
+<li><code>plugin/bootstrap/install-zanity.mjs</code> and <code>plugin/bootstrap/pins.json</code> install zanity into a client repository at a pinned release.</li>
+<li>The plugin prints the overwatch install line and does not install overwatch.</li>
+</ul></dd>
+<dt>Proof</dt><dd>
+<p>These lines come from the static workflow.</p>
+<x-excerpt file=".github/workflows/static.yml" start="      - run: uvx --from actionlint-py" lines="2"/>
+<p>Custom rules fill the gaps that these tools leave. They make up the {{checks}} numbered checks.</p>
+</dd>
+<dt>Where it falls short</dt><dd><ul>
+<li>The source lists ruff rules for Python. This repository is TypeScript and JavaScript, so ruff does not apply.</li>
+<li>The zanity rules <code>swallowed-error</code> and <code>skipped-test</code> exist, and <code>select = ["all"]</code> turns them on. This repository has not checked whether zanity covers the other three mistakes in the source table.</li>
+<li>The source also shows ast-grep. This repository does not use it.</li>
+</ul></dd>
+</dl>
+</x-feature>
+
+<x-feature id="ratchets" title="Quality ratchets" sources="plugin/bootstrap/guards/ratchet.mjs scripts/audit/suppressions.ts zanity-baseline.json message-actionability-baseline.json assertion-effectiveness-baseline.json scripts/audit/suppressions.count evals/token-budget.json .github/workflows/audit.yml" links="ci-checks.html|CI checks;trust.html|Trust;develop.html|Develop">
+<dl class="parts">
+<dt>The idea</dt><dd>Freeze the old violations and block every new one. Lower the limit whenever the count falls. No big cleanup is needed.</dd>
+<dt>How this repo applies it</dt><dd><ul>
+<li><code>plugin/bootstrap/guards/ratchet.mjs</code> compares a baseline with the same file at the base ref. It fails when the list grows, or when one kind of finding grows.</li>
+<li>Three baseline files use it: the zanity, message and assertion baselines.</li>
+<li><code>scripts/audit/suppressions.ts</code> fails when suppressions outnumber the count in <code>scripts/audit/suppressions.count</code>. It also fails when the count falls and the file keeps the old number. That locks in the gain.</li>
+<li>Check 28 fails when an instruction file grows past its budget in <code>evals/token-budget.json</code>.</li>
+</ul></dd>
+<dt>Proof</dt><dd>
+<p>The build reads the table from the repository.</p>
+<x-data name="ratchets"/>
+<p>The assertion baseline held 315 findings when it began (commit 52a7731). It holds {{assertionBaseline}} now. The build also ran the ratchet on a baseline that grew.</p>
+<x-demo name="ratchet-grew"/>
+</dd>
+<dt>Where it falls short</dt><dd><ul>
+<li>The ratchet needs a base ref. CI runs it on pull requests only.</li>
+<li>The message baseline still holds {{messageBaseline}} findings.</li>
+<li>A budget can rise in a pull request that says why.</li>
+<li>A ratchet counts findings. It cannot judge whether a rewritten finding is a good one.</li>
+</ul></dd>
+</dl>
+</x-feature>
+
+<h2 id="not-applied">Ideas this repository does not apply, or applies in part</h2>
+<ul>
+  <li><strong>Property tests and deterministic simulation.</strong> None exist. <code>package.json</code> lists no test library. A rounding bug or a retry race would reach review.</li>
+  <li><strong>Rules in a language server or watcher.</strong> zanity offers a language server. This repository configures none. The overwatch watcher is a companion that the plugin recommends.</li>
+  <li><strong>Live evals.</strong> They are off. The repository holds {{tiers.live}} live stamps and {{tiers.static}} static stamps. A static stamp proves the tooling, not the model. See <a href="eval-tiers.html">Eval tiers</a>.</li>
+  <li><strong>A message ratchet that reaches zero.</strong> The message baseline still holds {{messageBaseline}} old messages.</li>
+  <li><strong>No backlog.</strong> Applied in part. The slice skill plans small slices for one ticket and builds the next after a merge. It does not groom or order a backlog. The queue of tickets belongs to the client.</li>
+  <li><strong>ruff and ast-grep rules.</strong> Not used. The repository has no Python code.</li>
+</ul>
+
+<h2 id="read-more">Read the source</h2>
+<p>Read the <a href="https://exponentialengineering.dev/">exponential engineering site</a> for the ideas in the authors' own words. Then read <a href="concepts.html">Concepts</a> for the design of this project and <a href="mistakes.html">Mistakes to rules</a> for the full table.</p>

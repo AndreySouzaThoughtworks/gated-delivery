@@ -1,0 +1,3 @@
+[rules]
+select = ["recommended"]
+disable = ["swallowed-error"]

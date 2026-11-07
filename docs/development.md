@@ -44,6 +44,8 @@ Fixtures stay outside `plugin/`. Installs do not carry them.
 
 The `evals` workflow is dormant. It is not a required check.
 
+This table is text. The build and CI do not ask GitHub for the real settings. The opt-in live `gh` test compares this table with the required status checks that GitHub holds for `main`. See "Tests" below.
+
 ## Node policy
 
 The plugin hooks and scripts run as `node file.mjs` on the client machine. So the plugin floor is the oldest Node release that still gets security fixes. Today that is Node 22. It reaches end of life on 2027-04-30. Node 18 and 20 are end of life, and no job tests them.
@@ -215,13 +217,21 @@ The [README](../README.md#how-it-checks-itself) states how many stamps are live,
 | `node scripts/eval/run-scenarios.ts <skill> [--scenario <id>…]` | Yes | Runs eval scenarios as real `claude -p` sessions and writes the grades to `summary.tsv` |
 | `bash tests/profile-isolation.test.sh [project-dir]` | No | A fresh profile installs the core, loads no client plugin or MCP server and has its own login |
 | `bash tests/commit-convention.test.sh`, `tests/code-reviewer-scope.test.sh`, `tests/issue-writing.test.sh` | Yes | The commit command follows the convention, `code-reviewer` reports scope creep, and `issue-writing` keeps secrets out of the tracker |
-| `GATED_DELIVERY_ALLOW_LIVE_GH=1 bash tests/live-gh.test.sh` | Yes, `gh` | The real `gh` prints the fields and shapes that `notes-repo.mjs`, `pr-gate.mjs`, `slice-git.mjs` and `slice-state.mjs` parse. Manual only. CI never runs it. |
+| `GATED_DELIVERY_ALLOW_LIVE_GH=1 bash tests/live-gh.test.sh` | Yes, `gh` | The real `gh` prints the fields and shapes that `notes-repo.mjs`, `pr-gate.mjs`, `slice-git.mjs` and `slice-state.mjs` parse. The required status checks of `main` on GitHub equal the table "Checks every change passes". Manual only. CI never runs it. |
 
 The three login-bound tests exit 64 unless `GATED_DELIVERY_ALLOW_LIVE_CLAUDE=1` is set. Each one starts real `claude -p` sessions on your subscription. Check 30 fails a new test that launches `claude -p` without that guard. `tests/profile-isolation.test.sh` is exempt, because it uses an empty profile that is never logged in.
 
 The live `gh` test exits 64 unless `GATED_DELIVERY_ALLOW_LIVE_GH=1` is set. Check 30 fails a new test that runs a mutating `gh` command, such as `gh pr create`, `gh pr close`, `gh issue create`, `gh repo` or `gh api -X`, without that guard above the first call. The test targets `AndreySouzaThoughtworks/aifsd-e2e-sandbox`. Set `GATED_DELIVERY_GH_SANDBOX=<owner>/<name>` to use another repository.
 
 Before any write, the live `gh` test checks that the repository is private, is not a fork and has `sandbox` in its name. It exits 65 otherwise. It then creates one branch named `gated-delivery-live-gh-<random>` and one draft pull request. A `trap` closes that pull request and deletes that branch, even after a failure. The test prints the pull request number, so you can clean up by hand if the cleanup fails.
+
+The live `gh` test also compares the required status checks. This part only reads. It runs after the safety checks and before the first write.
+
+- It finds the repository of the checkout from `git remote get-url origin`.
+- It calls `gh api repos/<owner>/<name>/branches/main/protection/required_status_checks`.
+- It compares the `contexts` that GitHub returns with the names in the table "Checks every change passes" above. `scripts/audit/required-checks-parity.ts` does the comparison, with the same table parser as the site build. The order and the spaces do not matter. The test fails and names each check that GitHub requires and this page omits. It also names each check that this page lists and GitHub does not require.
+- Reading the protection needs admin on the repository. The sandbox calls use the active `gh` account, and that account may have no admin on this repository. The protection call can use another account. Set `GATED_DELIVERY_PROTECTION_GH_USER=<owner>`. The test then passes `GH_TOKEN=$(gh auth token --user <owner>)` to that one call. No other call gets that token.
+- Without that variable, the call uses the active account. On HTTP 403 or 404 the test prints a `skip` line. The line names the account and the command to run. The skip counts in the skipped total at the end. A skip is not a pass.
 
 The live `gh` test covers these paths with real data:
 

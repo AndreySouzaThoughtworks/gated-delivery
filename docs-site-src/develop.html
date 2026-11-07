@@ -62,7 +62,7 @@
 
 <h2 id="required-checks">Checks on main</h2>
 <p>This list comes from the section "Checks every change passes" in <code>docs/development.md</code>. It holds {{requiredChecks}} rows.</p>
-<p>The build uses no network, so it cannot ask GitHub for the live settings. The live settings may differ from this text.</p>
+<p>The build uses no network, so it cannot ask GitHub for the live settings. The live settings may differ from this text. The opt-in test <code>tests/live-gh.test.sh</code> compares this list with the required status checks that GitHub holds for <code>main</code>. It fails and names each extra and each missing check. CI never runs that test.</p>
 <x-data name="required-checks"/>
 
 <h2 id="leak-guard">Keep client data out</h2>

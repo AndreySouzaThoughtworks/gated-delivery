@@ -53,6 +53,7 @@
 <h3 id="stubs">Scripts run against stubs</h3>
 <p>The tests of the plugin scripts run against a stub of <code>gh</code>. The stub answers as the real program is expected to answer.</p>
 <p>One opt-in test calls the real <code>gh</code> against a private sandbox repository. It is <code>tests/live-gh.test.sh</code>. CI never runs it. It exits with code 64 unless <code>GATED_DELIVERY_ALLOW_LIVE_GH=1</code> is set.</p>
+<p>The same test also reads the required status checks of <code>main</code> from GitHub and compares them with the list in <code>docs/development.md</code>. Reading them needs admin on the repository. When the account has none, the test prints a <code>skip</code> line.</p>
 <p>That test does not cover the limit of 100 review threads. It does not cover a real merge. The source is the section "Tests" of <code>docs/development.md</code>.</p>
 
 <h3 id="platforms">Platforms</h3>
